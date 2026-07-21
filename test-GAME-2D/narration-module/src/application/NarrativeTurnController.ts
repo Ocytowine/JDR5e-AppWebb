@@ -47,7 +47,7 @@ import {
   type NpcPerformanceFailureV1,
   type NpcPerformerConfigV1
 } from "./npcPerforming";
-import type { MjPlannerPayloadV1, NpcPerformerPayloadV1 } from "../ai/types";
+import type { AiCallTelemetryV1, MjPlannerPayloadV1, NpcPerformerPayloadV1 } from "../ai/types";
 import {
   resolveNarrativeTurnV1,
   type NarrativeResolutionResultV1
@@ -85,6 +85,16 @@ export interface NarrativeTurnControllerOutputV1 extends JsonObject {
   resolution: NarrativeResolutionResultV1;
   sceneState: ReferenceSceneStateV1;
   displayPacket: DisplayPacketV1 & JsonObject;
+  stageTimings: NarrativeControllerStageTimingsV1 | null;
+  aiTelemetry: AiCallTelemetryV1[];
+}
+
+export interface NarrativeControllerStageTimingsV1 extends JsonObject {
+  interpretationMs: number;
+  planningMs: number;
+  resolutionMs: number;
+  npcPerformanceMs: number;
+  resolvedOutputMs: number;
 }
 
 export interface NarrativeTurnControllerResultV1 {
@@ -287,6 +297,8 @@ function upgradeLegacyControllerOutput(output: NarrativeTurnControllerOutputV1):
     : upgradeLegacyNarrativeIntentInterpretationV1(output.suspendedIntent.knownInterpretation);
   return {
     ...output,
+    stageTimings: output.stageTimings ?? null,
+    aiTelemetry: Array.isArray(output.aiTelemetry) ? output.aiTelemetry : [],
     interpretation: interpretation as NarrativeIntentInterpretationV1 & JsonObject,
     domainCommand,
     resolution: {
@@ -491,7 +503,9 @@ export function buildNoCommitOutput(
       perception: null
     },
     sceneState: createInitialReferenceSceneStateV1(),
-    displayPacket
+    displayPacket,
+    stageTimings: null,
+    aiTelemetry: []
   };
 }
 
@@ -507,13 +521,12 @@ async function buildResolvedOutput(input: {
   localReferentHints?: LocalReferentHintV1[];
   recentSemanticTurns?: RecentSemanticTurnV1[];
 }): Promise<Result<{ output: NarrativeTurnControllerOutputV1; commit: unknown | null }>> {
+  const resolvedOutputStartedAt = Date.now();
   const intentId = `${input.operation.operationId}:intent:1`;
-  const interpretation = input.intentInterpreterConfig === null
-    ? interpretNarrativeInputV1({
-      intentId,
-      rawInput: input.input.rawInput
-    }) as NarrativeIntentInterpretationV1 & JsonObject
-    : (await interpretNarrativeInputWithAiV1({
+  const interpretationStartedAt = Date.now();
+  const interpretationResult = input.intentInterpreterConfig === null
+    ? null
+    : await interpretNarrativeInputWithAiV1({
       campaignId: input.campaignId,
       operationId: input.operation.operationId,
       intentId,
@@ -521,7 +534,15 @@ async function buildResolvedOutput(input: {
       config: input.intentInterpreterConfig,
       localReferentHints: input.localReferentHints ?? [],
       recentSemanticTurns: input.recentSemanticTurns ?? []
-    })).interpretation as NarrativeIntentInterpretationV1 & JsonObject;
+    });
+  const interpretation = interpretationResult === null
+    ? interpretNarrativeInputV1({
+      intentId,
+      rawInput: input.input.rawInput
+    }) as NarrativeIntentInterpretationV1 & JsonObject
+    : interpretationResult.interpretation as NarrativeIntentInterpretationV1 & JsonObject;
+  const interpretationMs = Date.now() - interpretationStartedAt;
+  const planningStartedAt = Date.now();
   const planning = input.mjPlannerConfig === null
     ? null
     : await planNarrativeTurnWithMjV1({
@@ -532,6 +553,7 @@ async function buildResolvedOutput(input: {
       domainCommand: buildNarrativeDomainCommandV1(interpretation),
       config: input.mjPlannerConfig
     });
+  const planningMs = Date.now() - planningStartedAt;
   const suspendedIntent = interpretation.requiresClarification
     ? createSuspendedIntentRecordV1({
       suspendedIntentId: `${input.operation.operationId}:suspended:1`,
@@ -542,6 +564,7 @@ async function buildResolvedOutput(input: {
     }) as SuspendedIntentRecordV1 & JsonObject
     : null;
   const domainCommand = buildNarrativeDomainCommandV1(interpretation);
+  const resolutionStartedAt = Date.now();
   const resolution = await resolveNarrativeTurnV1({
     repository: input.repository,
     campaignId: input.campaignId,
@@ -552,6 +575,8 @@ async function buildResolvedOutput(input: {
     suspendedIntent
   });
   if (!resolution.ok) return resolution;
+  const resolutionMs = Date.now() - resolutionStartedAt;
+  const npcPerformanceStartedAt = Date.now();
   const npcPerformance = input.npcPerformerConfig === null
     ? null
     : await performNpcTurnV1({
@@ -565,9 +590,11 @@ async function buildResolvedOutput(input: {
       sceneState: resolution.value.sceneState,
       config: input.npcPerformerConfig
     });
+  const npcPerformanceMs = Date.now() - npcPerformanceStartedAt;
   const displayPacket = applyNpcPerformanceToDisplayPacketV1({
     displayPacket: resolution.value.displayPacket,
-    performance: npcPerformance?.performance ?? null
+    performance: npcPerformance?.performance ?? null,
+    performanceFailure: npcPerformance?.performanceFailure as (NpcPerformanceFailureV1 & JsonObject) | null ?? null
   });
 
   return {
@@ -590,7 +617,15 @@ async function buildResolvedOutput(input: {
         suspendedIntent,
         resolution: resolution.value.result,
         sceneState: resolution.value.sceneState,
-        displayPacket
+        displayPacket,
+        stageTimings: {
+          interpretationMs,
+          planningMs,
+          resolutionMs,
+          npcPerformanceMs,
+          resolvedOutputMs: Date.now() - resolvedOutputStartedAt
+        },
+        aiTelemetry: [...(interpretationResult?.telemetry ?? []), ...(npcPerformance?.telemetry ?? [])]
       }
     }
   };

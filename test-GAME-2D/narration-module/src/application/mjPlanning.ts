@@ -161,11 +161,11 @@ export async function planNarrativeTurnWithMjV1(input: {
     schemaVersion: 1,
     contractVersion: MJ_PLANNER_CONTRACT_VERSION_V1,
     calledPlanner: true,
-    plan: null,
+    plan: buildLocalMjPlanPayload(input.rawInput, input.interpretation) as MjPlannerPayloadV1 & JsonObject,
     acceptedOutput: null,
     planningFailure: failure,
     incidents: run.incidents,
-    safetyNotes: ["Échec mj_planner diagnostiqué sans plan de remplacement."]
+    safetyNotes: ["Échec mj_planner distant diagnostiqué; plan local déterministe sans autorité utilisé pour préserver l'orchestration."]
   };
 }
 

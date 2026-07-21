@@ -7,10 +7,12 @@ import {
   type CampaignRecord,
   type RepositoryClock
 } from "../../src/core";
-import type { AiIntentRuntimeHandlingV1, AiStructuredSemanticIntentV1, ContractAiProviderV1 } from "../../src/ai";
+import type { AiIntentInterpretationPayloadV1, AiIntentRuntimeHandlingV1, AiStructuredSemanticIntentV1, ContractAiProviderV1 } from "../../src/ai";
 import {
   AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V1,
   NarrativeTurnControllerV1,
+  createDefaultMjPlannerConfigV1,
+  createDefaultNpcPerformerConfigV1,
   createDefaultAiIntentInterpreterConfigV1,
   createPrototypeNarrativeTurnControllerV1,
   evaluateNarrativeRuntimeDecisionV1,
@@ -18,7 +20,8 @@ import {
   upgradeLegacyNarrativeIntentInterpretationV1,
   validateCanonicalIntentAuthorityV1,
   validateNarrativeDomainCommandV1,
-  type AiIntentInterpreterConfigV1
+  type AiIntentInterpreterConfigV1,
+  type NpcPerformerConfigV1
 } from "../../src/application";
 
 class FixedClock implements RepositoryClock {
@@ -85,7 +88,7 @@ async function main(): Promise<void> {
       target: { kind: "object", ref: "poi:back-room-door", label: "Porte du fond" },
       commitment: "committed",
       evidenceFromInput: ["je l'ouvre"],
-      forbiddenInterpretations: ["annoncer l'ouverture"],
+      forbiddenInterpretations: ["annoncer l'ouverture", "scene_transition"],
       confidence: "high"
     }) as AiStructuredSemanticIntentV1,
     runtimeSuggestion: runtimeHandling({
@@ -178,15 +181,15 @@ async function main(): Promise<void> {
   assert.equal(implicitDoorOpening.interpretation.target?.ref, "poi:back-room-door", "manipulation implicite: porte visible attendue");
   assert.deepEqual(
     implicitDoorOpening.interpretation.semanticIntent,
-    implicitDoorOpening.acceptedOutput?.payload.intents[0]?.semanticIntent,
+    (implicitDoorOpening.acceptedOutput?.payload as AiIntentInterpretationPayloadV1).intents[0]?.semanticIntent,
     "manipulation implicite: semanticIntent doit traverser le mapping sans perte"
   );
   const { semanticIntent: _omittedSemanticIntent, ...legacyInterpretation } = implicitDoorOpening.interpretation;
   const upgradedLegacy = upgradeLegacyNarrativeIntentInterpretationV1(legacyInterpretation);
   assert.equal(upgradedLegacy?.semanticIntent.playerGoal, legacyInterpretation.coreMeaning, "relecture legacy: projection sémantique explicite attendue");
   assert.equal(upgradedLegacy?.semanticIntent.target?.ref, legacyInterpretation.target?.ref, "relecture legacy: cible conservée");
-  assert.equal(implicitDoorOpening.acceptedOutput?.payload.intents[0]?.semanticIntent.kind, "manipulate_visible_object");
-  assert.equal(implicitDoorOpening.acceptedOutput?.payload.intents[0]?.runtimeHandling.status, "SUPPORTED_BY_CURRENT_RUNTIME");
+  assert.equal((implicitDoorOpening.acceptedOutput?.payload as AiIntentInterpretationPayloadV1).intents[0]?.semanticIntent.kind, "manipulate_visible_object");
+  assert.equal((implicitDoorOpening.acceptedOutput?.payload as AiIntentInterpretationPayloadV1).intents[0]?.runtimeHandling.status, "SUPPORTED_BY_CURRENT_RUNTIME");
 
   const forceUnknownLock = await interpret("Je force la serrure.", config);
   assert.equal(forceUnknownLock.interpretation.intentType, "action", "serrure non visible: sens de l'action conservé pendant la clarification");
@@ -251,9 +254,27 @@ async function main(): Promise<void> {
   assert.equal(invalidImplicitPossibility.interpretationFailure?.category, "AI_OUTPUT_INVALID");
 
   const invalidApproachRuntime = await interpret("je me dirige vers la femme", invalidApproachRuntimeConfig());
-  assert.equal(invalidApproachRuntime.usedAiInterpretation, false, "approche PNJ avec domaine rest rejetee");
-  assert.equal(invalidApproachRuntime.usedFallback, false, "aucun fallback narratif sur runtime incoherent");
-  assert.equal(invalidApproachRuntime.interpretationFailure?.category, "AI_OUTPUT_REJECTED");
+  assert.equal(invalidApproachRuntime.usedAiInterpretation, true, "approche PNJ: suggestion runtime non autoritaire stabilisée");
+  assert.equal(invalidApproachRuntime.usedFallback, false, "approche PNJ stabilisée sans fallback");
+  assert.equal(invalidApproachRuntime.interpretationFailure, null, "approche PNJ stabilisée sans faux rejet");
+  assert.equal(invalidApproachRuntime.interpretation.runtimeHandling?.requiredDomain, "scene_resolution");
+  assert.equal(invalidApproachRuntime.interpretation.runtimeHandling?.noCommit, false);
+  assert.equal(invalidApproachRuntime.interpretation.runtimeHandling?.noGameTime, true);
+  assert.equal(invalidApproachRuntime.interpretation.runtimeDecision.requiredDomain, "scene_resolution");
+  assert.equal(invalidApproachRuntime.interpretation.runtimeDecision.noCommit, false);
+  assert.equal(invalidApproachRuntime.interpretation.runtimeDecision.noGameTime, true);
+
+  const stabilizedApproachController = await createPrototypeNarrativeTurnControllerV1({ intentInterpreterConfig: invalidApproachRuntimeConfig() });
+  const stabilizedApproachTurn = await stabilizedApproachController.submit({
+    schemaVersion: 1,
+    clientRequestId: "req-runtime-stabilized-approach-waitress",
+    rawInput: "Je m'approche de la serveuse"
+  });
+  if (!stabilizedApproachTurn.ok) throw new Error(stabilizedApproachTurn.error.messageKey);
+  assert.equal(stabilizedApproachTurn.value.output.resolution.resultKind, "COMMIT_APPLIED", "approche stabilisée: commit local attendu");
+  assert.equal(stabilizedApproachTurn.value.output.resolution.preparedEffects[0]?.effectType, "LOCAL_SCENE_ACTION_RECORDED");
+  assert.equal(stabilizedApproachTurn.value.output.noGameTime, true, "approche stabilisée: aucun temps de jeu");
+  assert.equal(stabilizedApproachTurn.value.output.npcPerformance, null, "approche stabilisée: aucune parole PNJ automatique");
 
   const invalidSpeechAction = await interpret("je la salue, et je lui demande ce qu'il ce passe", invalidSpeechActionConfig());
   assert.equal(invalidSpeechAction.usedAiInterpretation, false, "parole avec action force rejetee");
@@ -317,6 +338,140 @@ async function main(): Promise<void> {
   assert.equal(unprefixedWaitress.ask.output.sceneState.shortTermNpcMemory.some(memory =>
     memory.actorId === "npc-serveuse-nerveuse"
   ), true, "question serveuse IA: la mémoire courte doit conserver la serveuse");
+
+  const dialogueActConfig = unprefixedWaitressConfig();
+  const greeting = await interpret("je la salue", dialogueActConfig);
+  assert.equal(greeting.interpretation.semanticIntent.dialogueAct?.act, "INITIATE_CONVERSATION", "salutation: prise de contact attendue");
+  const statement = await interpret("je lui dis que j'attends quelqu'un", dialogueActConfig);
+  assert.equal(statement.interpretation.semanticIntent.dialogueAct?.act, "MAKE_STATEMENT", "déclaration: acte déclaratif attendu");
+  const actionRequest = await interpret("je lui demande de poser le gobelet", dialogueActConfig);
+  assert.equal(actionRequest.interpretation.semanticIntent.dialogueAct?.act, "REQUEST_ACTION", "demande d'action: acte dédié attendu");
+  const greetingController = await createPrototypeNarrativeTurnControllerV1({ intentInterpreterConfig: dialogueActConfig });
+  const greetingTurn = await greetingController.submit({
+    schemaVersion: 1,
+    clientRequestId: "req-dialogue-act-greeting",
+    rawInput: "je la salue"
+  });
+  if (!greetingTurn.ok) throw new Error(greetingTurn.error.messageKey);
+  assert.equal(greetingTurn.value.output.interpretation.semanticIntent.dialogueAct?.act, "INITIATE_CONVERSATION");
+  assert.equal(greetingTurn.value.output.displayPacket.displayBlocks.some(block =>
+    block.kind === "NPC_SPEECH" && /« Bonjour\. »/u.test(block.text) && !/question|confirmer/iu.test(block.text)
+  ), true, "salutation locale: réponse de prise de contact sans question inventée");
+  assert.equal(greetingTurn.value.output.displayPacket.displayBlocks.some(block =>
+    block.kind === "SYSTEM_NOTICE" && /Acte de dialogue: INITIATE_CONVERSATION/u.test(block.text)
+  ), true, "salutation: acte visible dans le diagnostic système");
+  let simpleStatementProviderCalls = 0;
+  const simpleStatementNpcConfig = createDefaultNpcPerformerConfigV1();
+  const simpleStatementController = await createPrototypeNarrativeTurnControllerV1({
+    intentInterpreterConfig: dialogueActConfig,
+    npcPerformerConfig: {
+      ...simpleStatementNpcConfig,
+      provider: {
+        async generate(request) {
+          simpleStatementProviderCalls += 1;
+          return simpleStatementNpcConfig.provider.generate(request);
+        }
+      }
+    }
+  });
+  const simpleStatementTurn = await simpleStatementController.submit({
+    schemaVersion: 1,
+    clientRequestId: "req-dialogue-act-simple-statement",
+    rawInput: "je lui dis bonjour"
+  });
+  if (!simpleStatementTurn.ok) throw new Error(simpleStatementTurn.error.messageKey);
+  assert.equal(simpleStatementTurn.value.output.interpretation.semanticIntent.dialogueAct?.act, "INITIATE_CONVERSATION");
+  assert.equal(simpleStatementProviderCalls, 1, "salutation formulée comme déclaration: le npc_performer reste responsable de l'incarnation du PNJ");
+  assert.equal(simpleStatementTurn.value.output.displayPacket.displayBlocks.some(block =>
+    block.kind === "NPC_SPEECH" && /Bonjour/u.test(block.text) && !/question|confirmer/iu.test(block.text)
+  ), true, "salutation formulée comme déclaration: réponse de prise de contact sans question inventée");
+  const failingPlannerBaseConfig = createDefaultMjPlannerConfigV1();
+  let performerCallsAfterPlannerFailure = 0;
+  const performerAfterPlannerFailureConfig = createDefaultNpcPerformerConfigV1();
+  const plannerFailureController = await createPrototypeNarrativeTurnControllerV1({
+    intentInterpreterConfig: dialogueActConfig,
+    mjPlannerConfig: {
+      ...failingPlannerBaseConfig,
+      provider: {
+        async generate() {
+          return { invalid: true };
+        }
+      }
+    },
+    npcPerformerConfig: {
+      ...performerAfterPlannerFailureConfig,
+      provider: {
+        async generate(request) {
+          performerCallsAfterPlannerFailure += 1;
+          return performerAfterPlannerFailureConfig.provider.generate(request);
+        }
+      }
+    }
+  });
+  const plannerFailureTurn = await plannerFailureController.submit({
+    schemaVersion: 1,
+    clientRequestId: "req-dialogue-planner-failure",
+    rawInput: "je la salue"
+  });
+  if (!plannerFailureTurn.ok) throw new Error(plannerFailureTurn.error.messageKey);
+  assert.notEqual(plannerFailureTurn.value.output.mjPlannerFailure, null, "planner distant invalide: échec conservé pour diagnostic");
+  assert.equal(plannerFailureTurn.value.output.mjPlan?.actorAssignments.some(assignment => assignment.role === "npc_performer"), true, "planner distant invalide: plan local doit préserver l'assignation PNJ");
+  assert.equal(performerCallsAfterPlannerFailure, 1, "planner distant invalide: le npc_performer doit tout de même être appelé");
+  assert.equal(plannerFailureTurn.value.output.displayPacket.displayBlocks.some(block =>
+    block.kind === "NPC_SPEECH" && /« Bonjour\. »/u.test(block.text)
+  ), true, "planner distant invalide: réaction du performer conservée");
+  const mismatchedFrameBaseConfig = createDefaultNpcPerformerConfigV1();
+  const mismatchedFrameController = await createPrototypeNarrativeTurnControllerV1({
+    intentInterpreterConfig: dialogueActConfig,
+    npcPerformerConfig: {
+      ...mismatchedFrameBaseConfig,
+      provider: {
+        async generate(request) {
+          const generated = await mismatchedFrameBaseConfig.provider.generate(request) as Record<string, unknown>;
+          const payload = generated.payload as Record<string, unknown>;
+          return {
+            ...generated,
+            payload: {
+              ...payload,
+              reactionFrame: {
+                ...(payload.reactionFrame as Record<string, unknown>),
+                responseMode: "ANSWER_QUESTION"
+              }
+            }
+          };
+        }
+      }
+    }
+  });
+  const mismatchedFrameTurn = await mismatchedFrameController.submit({
+    schemaVersion: 1,
+    clientRequestId: "req-dialogue-act-mismatched-frame",
+    rawInput: "je lui dis bonjour"
+  });
+  if (!mismatchedFrameTurn.ok) throw new Error(mismatchedFrameTurn.error.messageKey);
+  assert.equal(mismatchedFrameTurn.value.output.npcPerformance, null, "cadre de réaction: mode incompatible rejeté localement");
+  assert.equal(mismatchedFrameTurn.value.output.npcPerformanceFailure?.issues.some(issue => /responseMode mismatch/u.test(issue)), true);
+  assert.equal(mismatchedFrameTurn.value.output.displayPacket.displayBlocks.some(block =>
+    block.kind === "NPC_SPEECH" && /Bonjour/u.test(block.text) && !/question/iu.test(block.text)
+  ), true, "cadre rejeté: fallback fondé sur INITIATE_CONVERSATION, jamais sur une question générique");
+  assert.equal(mismatchedFrameTurn.value.output.displayPacket.displayBlocks.some(block =>
+    block.kind === "SYSTEM_NOTICE" && /Réaction PNJ IA rejetée/u.test(block.text)
+  ), true, "cadre rejeté: motif visible dans la notification système");
+  const rejectedGreetingController = await createPrototypeNarrativeTurnControllerV1({
+    intentInterpreterConfig: dialogueActConfig,
+    npcPerformerConfig: dialogueCriticRejectingNpcConfig()
+  });
+  const rejectedGreetingTurn = await rejectedGreetingController.submit({
+    schemaVersion: 1,
+    clientRequestId: "req-dialogue-act-greeting-rejected",
+    rawInput: "je la salue"
+  });
+  if (!rejectedGreetingTurn.ok) throw new Error(rejectedGreetingTurn.error.messageKey);
+  assert.equal(rejectedGreetingTurn.value.output.npcPerformance, null, "critique: performance incohérente non appliquée");
+  assert.notEqual(rejectedGreetingTurn.value.output.npcPerformanceFailure, null, "critique: rejet visible dans la sortie technique");
+  assert.equal(rejectedGreetingTurn.value.output.displayPacket.displayBlocks.some(block =>
+    block.kind === "NPC_SPEECH" && /« Bonjour\. »/u.test(block.text) && !/question|confirmer/iu.test(block.text)
+  ), true, "critique: salutation rejetée remplacée par un fallback de salutation cohérent");
 
   const approachWoundedManThenAsk = await runControllerApproachWoundedManThenAskCase();
   assert.equal(approachWoundedManThenAsk.approach.output.interpretation.target?.ref, "npc:npc-garde-blesse", "approche homme blessé: garde visible attendu");
@@ -920,7 +1075,17 @@ function unprefixedWaitressConfig(): AiIntentInterpreterConfigV1 {
     provider: {
       async generate(request) {
         const rawInput = String((request.input.task as { rawInput?: unknown }).rawInput ?? "");
-        const isQuestion = /demande/u.test(rawInput);
+        const isActionRequest = /demande de/u.test(rawInput);
+        const isStatement = /lui dis/u.test(rawInput);
+        const isQuestion = /demande/u.test(rawInput) && !isActionRequest;
+        const dialogueAct = isActionRequest ? "REQUEST_ACTION" : isQuestion ? "ASK_QUESTION" : isStatement ? "MAKE_STATEMENT" : "INITIATE_CONVERSATION";
+        const playerGoal = isActionRequest
+          ? "Demander à la serveuse de poser le gobelet."
+          : isQuestion
+            ? "Demander à la serveuse si elle va bien."
+            : isStatement
+              ? "Dire à la serveuse que le personnage attend quelqu'un."
+              : "Saluer ou appeler la serveuse.";
         return {
           schemaVersion: 1,
           contractVersion: AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V1,
@@ -949,8 +1114,8 @@ function unprefixedWaitressConfig(): AiIntentInterpreterConfigV1 {
                 ambiguity: "none",
                 confidence: "high"
               },
-              topic: isQuestion ? "état de la serveuse" : "attirer l'attention de la serveuse",
-              coreMeaning: isQuestion ? "Le personnage demande à la serveuse si elle va bien." : "Le personnage appelle la serveuse.",
+              topic: playerGoal,
+              coreMeaning: playerGoal,
               playerImposedDetails: [rawInput],
               openDetails: [],
               forbiddenInterpretations: ["répondre à la place du PNJ", "accorder un succès social"],
@@ -961,12 +1126,13 @@ function unprefixedWaitressConfig(): AiIntentInterpreterConfigV1 {
               confidence: "high",
               semanticIntent: semanticIntent({
                 kind: "address_visible_actor",
-                playerGoal: isQuestion ? "Demander à la serveuse si elle va bien." : "Appeler la serveuse.",
+                playerGoal,
                 target: { kind: "npc", ref: "npc-serveuse-nerveuse", label: "Serveuse nerveuse" },
                 commitment: "committed",
                 evidenceFromInput: [rawInput],
                 forbiddenInterpretations: ["répondre à la place du PNJ", "accorder un succès social"],
-                confidence: "high"
+                confidence: "high",
+                dialogueAct
               }),
               runtimeHandling: runtimeHandling({
                 status: "SUPPORTED_BY_CURRENT_RUNTIME",
@@ -983,6 +1149,82 @@ function unprefixedWaitressConfig(): AiIntentInterpreterConfigV1 {
         };
       }
     } satisfies ContractAiProviderV1
+  };
+}
+
+function dialogueCriticRejectingNpcConfig(): NpcPerformerConfigV1 {
+  const config = createDefaultNpcPerformerConfigV1();
+  return {
+    ...config,
+    coherenceCriticRoute: {
+      schemaVersion: 1,
+      routeId: "test-npc-dialogue-critic",
+      role: "coherence_critic",
+      providerKind: "FAKE_CONTRACT",
+      providerId: "test",
+      modelId: "test-dialogue-critic",
+      modelConfigVersion: "test",
+      certified: true,
+      allowedContractVersions: ["narrative-ai-resolution/1"],
+      inputTokenLimit: 1_000,
+      outputTokenLimit: 700,
+      timeoutMs: 1_000,
+      fallbackRouteIds: []
+    },
+    provider: {
+      async generate(request) {
+        if (request.role === "coherence_critic") {
+          return {
+            schemaVersion: 1,
+            contractVersion: request.contractVersion,
+            outputId: `output:${request.attemptId}`,
+            callId: request.callId,
+            attemptId: request.attemptId,
+            packId: request.packId,
+            snapshotId: request.snapshotId,
+            role: request.role,
+            status: "OK",
+            payload: {
+              verdict: "REJECT",
+              findings: [{
+                findingId: "dialogue-act-mismatch",
+                severity: "BLOCKING",
+                category: "PLOT_COHERENCE",
+                affectedRefs: ["dialogueAct:INITIATE_CONVERSATION"],
+                explanation: "La réplique répond à une question absente de la salutation."
+              }],
+              correctionConstraints: ["Répondre uniquement à la prise de contact."]
+            },
+            diagnostics: [],
+            supersedesOutputId: null
+          };
+        }
+        const generated = await config.provider.generate(request) as Record<string, unknown>;
+        const payload = generated.payload as Record<string, unknown>;
+        const utterances = payload.utterances as Array<Record<string, unknown>>;
+        return {
+          ...generated,
+          payload: {
+            ...payload,
+            utterances: [{
+              ...utterances[0],
+              text: "La serveuse écoute votre question et refuse de répondre.",
+              speechActs: [{
+                type: "refusal",
+                content: "Elle refuse de répondre à la question.",
+                epistemicBasis: "known",
+                sourceRefs: (utterances[0]?.speechActs as Array<{ sourceRefs: string[] }>)[0]?.sourceRefs ?? []
+              }, {
+                type: "assertion",
+                content: "Elle prétend qu'une question a été posée.",
+                epistemicBasis: "known",
+                sourceRefs: (utterances[0]?.speechActs as Array<{ sourceRefs: string[] }>)[0]?.sourceRefs ?? []
+              }]
+            }]
+          }
+        };
+      }
+    }
   };
 }
 
@@ -1364,6 +1606,7 @@ function semanticIntent(input: {
   forbiddenInterpretations?: string[];
   confidence: string;
   perception?: { schemaVersion: 1; depth: "GLANCE" | "FOCUSED" | "SEARCH"; focus: string; soughtInformation: string | null } | null;
+  dialogueAct?: "INITIATE_CONVERSATION" | "ASK_QUESTION" | "MAKE_STATEMENT" | "REQUEST_ACTION" | "OTHER";
 }) {
   return {
     schemaVersion: 1,
@@ -1379,7 +1622,7 @@ function semanticIntent(input: {
     dialogueAct: input.kind === "address_visible_actor"
       ? {
           schemaVersion: 1,
-          act: "ASK_QUESTION",
+          act: input.dialogueAct ?? "ASK_QUESTION",
           contentGoal: input.playerGoal,
           addresseeRef: input.target?.ref ?? null
         }

@@ -183,7 +183,8 @@ function appendNpcShortTermMemoryV1(input: {
     order: input.nextOrder,
     version: 1
   };
-  return [...input.current, entry].slice(-5).map((memory, index) => ({
+  const boundedPerActor = boundNpcMemoryPerActor([...input.current, entry]);
+  return boundedPerActor.map((memory, index) => ({
     ...memory,
     order: index + 1
   }));
@@ -205,7 +206,7 @@ function speechTarget(interpretation: NarrativeIntentInterpretationV1): {
 
 function normalizeShortTermNpcMemory(value: unknown): ReferenceSceneShortTermNpcMemoryEntryV1[] {
   if (!Array.isArray(value)) return [];
-  return value.filter((entry): entry is ReferenceSceneShortTermNpcMemoryEntryV1 => {
+  const normalized: ReferenceSceneShortTermNpcMemoryEntryV1[] = value.filter((entry): entry is ReferenceSceneShortTermNpcMemoryEntryV1 => {
     return entry !== null &&
       typeof entry === "object" &&
       (entry as { schemaVersion?: unknown }).schemaVersion === 1 &&
@@ -213,12 +214,18 @@ function normalizeShortTermNpcMemory(value: unknown): ReferenceSceneShortTermNpc
       typeof (entry as { operationId?: unknown }).operationId === "string" &&
       typeof (entry as { playerIntentSummary?: unknown }).playerIntentSummary === "string" &&
       typeof (entry as { npcContinuitySummary?: unknown }).npcContinuitySummary === "string";
-  }).slice(-5).map((entry, index) => ({
+  }).map(entry => ({
     ...entry,
-    actorId: entry.actorId === "npc-serveuse-nerveuse" ? "npc-serveuse-nerveuse" : "npc-garde-blesse",
+    actorId: entry.actorId === "npc-serveuse-nerveuse" ? "npc-serveuse-nerveuse" as const : "npc-garde-blesse" as const,
     actorDisplayName: typeof entry.actorDisplayName === "string" ? entry.actorDisplayName : "Garde blessé",
-    visibleToPlayer: true,
-    order: index + 1,
-    version: 1
+    visibleToPlayer: true as const,
+    version: 1 as const
   }));
+  return boundNpcMemoryPerActor(normalized).map((entry, index) => ({ ...entry, order: index + 1 }));
+}
+
+function boundNpcMemoryPerActor(entries: ReferenceSceneShortTermNpcMemoryEntryV1[]): ReferenceSceneShortTermNpcMemoryEntryV1[] {
+  return entries.filter((memory, index, all) =>
+    all.slice(index).filter(candidate => candidate.actorId === memory.actorId).length <= 5
+  ).slice(-10);
 }

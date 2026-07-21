@@ -3,11 +3,12 @@ import type { ContractAiProviderV1 } from "../ai/FakeContractAiProvider";
 import { runAiPipelineCallV1 } from "../ai/pipeline";
 import type {
   AiCallRequestV1,
+  AiCallTelemetryV1,
   AiIncidentRecordV1,
   AiModelRouteV1,
   AiRetryPolicyV1,
   AiRoleOutputEnvelopeV1,
-  AiStructuredSemanticIntentV1,
+  CoherenceCriticPayloadV1,
   MjPlannerPayloadV1,
   NpcPerformerPayloadV1
 } from "../ai/types";
@@ -16,12 +17,15 @@ import { isNarrativeRuntimeDecisionV1, isNarrativeSemanticIntentV1, type Narrati
 import type { NarrativeResolutionResultV1 } from "./narrativeResolution";
 import type { ReferenceSceneStateV1 } from "./referenceSceneState";
 import { reconstructRenderedNpcUtterancesV1 } from "./narrativeRenderProjection";
+import { responseModeForDialogueActV1, validateNpcDialogueReactionV1 } from "./npcDialogueReactionValidation";
+import { buildNpcDialogueFallbackV1 } from "./npcDialogueFallback";
 
 export const NPC_PERFORMER_CONTRACT_VERSION_V1 = "npc-performer/1" as const;
 
 export interface NpcPerformerConfigV1 {
   provider: ContractAiProviderV1;
   route: AiModelRouteV1;
+  coherenceCriticRoute?: AiModelRouteV1;
   retryPolicy: AiRetryPolicyV1;
 }
 
@@ -44,6 +48,7 @@ export interface NpcPerformanceResultV1 {
   acceptedOutput: AiRoleOutputEnvelopeV1<NpcPerformerPayloadV1> | null;
   performanceFailure: NpcPerformanceFailureV1 | null;
   incidents: AiIncidentRecordV1[];
+  telemetry: AiCallTelemetryV1[];
   safetyNotes: string[];
 }
 
@@ -141,6 +146,7 @@ export async function performNpcTurnV1(input: {
       acceptedOutput: null,
       performanceFailure: null,
       incidents: [],
+      telemetry: [],
       safetyNotes: ["npc_performer non appelé: aucun acteur PNJ assigné par le MJ planner."]
     };
   }
@@ -155,6 +161,32 @@ export async function performNpcTurnV1(input: {
   });
   const acceptedOutput = run.acceptedOutput as AiRoleOutputEnvelopeV1<NpcPerformerPayloadV1> | null;
   if (acceptedOutput !== null) {
+    const dialogueAct = input.interpretation.semanticIntent.dialogueAct;
+    const reactionIssues = dialogueAct === null || dialogueAct === undefined
+      ? ["npc_performer requires a structured dialogueAct."]
+      : validateNpcDialogueReactionV1({
+        expectedActorId: actorId ?? "npc:unknown",
+        dialogueAct,
+        performance: acceptedOutput.payload
+      });
+    if (reactionIssues.length > 0) {
+      return rejectedNpcPerformance(actorId, reactionIssues, run.incidents, "cadre de réaction incompatible avec l'intention structurée", run.telemetry);
+    }
+    const localContextIssues = validateNpcPerformanceAgainstVisibleSceneV1(acceptedOutput.payload, input.sceneState);
+    if (localContextIssues.length > 0) {
+      return rejectedNpcPerformance(actorId, localContextIssues, run.incidents, "prose incompatible avec le contexte spatial visible", run.telemetry);
+    }
+    const critic = input.config.coherenceCriticRoute === undefined || !shouldCritiqueNpcPerformanceV1(request, acceptedOutput.payload)
+      ? null
+      : await validateNpcPerformanceSemanticsV1({
+        input,
+        request,
+        performance: acceptedOutput.payload,
+        route: input.config.coherenceCriticRoute
+      });
+    if (critic !== null && !critic.accepted) {
+      return rejectedNpcPerformance(actorId, critic.issues, [...run.incidents, ...critic.incidents], "prose incohérente avec l'acte de dialogue", [...run.telemetry, ...critic.telemetry]);
+    }
     return {
       schemaVersion: 1,
       contractVersion: NPC_PERFORMER_CONTRACT_VERSION_V1,
@@ -162,7 +194,8 @@ export async function performNpcTurnV1(input: {
       performance: acceptedOutput.payload as NpcPerformerPayloadV1 & JsonObject,
       acceptedOutput,
       performanceFailure: null,
-      incidents: run.incidents,
+      incidents: [...run.incidents, ...(critic?.incidents ?? [])],
+      telemetry: [...run.telemetry, ...(critic?.telemetry ?? [])],
       safetyNotes: ["Réaction PNJ structurée acceptée sans autorité de commit."]
     };
   }
@@ -184,17 +217,165 @@ export async function performNpcTurnV1(input: {
       noGameTime: true
     },
     incidents: run.incidents,
+    telemetry: run.telemetry,
     safetyNotes: ["Échec npc_performer diagnostiqué sans réaction PNJ de remplacement."]
   };
+}
+
+export function validateNpcPerformanceAgainstVisibleSceneV1(
+  performance: NpcPerformerPayloadV1,
+  sceneState: ReferenceSceneStateV1
+): string[] {
+  if (sceneState.sceneId !== "reference-inn-rain-001") return [];
+  const prose = performance.utterances.map(utterance => utterance.text).join(" ")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/gu, "")
+    .toLowerCase();
+  const invitesPlayerToEnter = /\b(entrez|entre donc|venez a l'interieur|mettez-vous a l'abri|rentrez)\b/u.test(prose);
+  return invitesPlayerToEnter
+    ? ["payload.utterances: contradiction spatiale: le joueur est déjà dans la salle commune; le PNJ ne peut pas l'inviter à entrer ou à se mettre à l'abri."]
+    : [];
+}
+
+function rejectedNpcPerformance(
+  actorId: string | null,
+  issues: string[],
+  incidents: AiIncidentRecordV1[],
+  reason: string,
+  telemetry: AiCallTelemetryV1[] = []
+): NpcPerformanceResultV1 {
+  return {
+    schemaVersion: 1,
+    contractVersion: NPC_PERFORMER_CONTRACT_VERSION_V1,
+    calledPerformer: true,
+    performance: null,
+    acceptedOutput: null,
+    performanceFailure: {
+      schemaVersion: 1,
+      stage: "NPC_PERFORMANCE",
+      role: "npc_performer",
+      status: "FAILED",
+      actorId,
+      issues,
+      noCommit: true,
+      noGameTime: true
+    },
+    incidents,
+    telemetry,
+    safetyNotes: [`Réplique npc_performer rejetée: ${reason}; fallback déterministe conservé.`]
+  };
+}
+
+async function validateNpcPerformanceSemanticsV1(input: {
+  input: Parameters<typeof performNpcTurnV1>[0];
+  request: AiCallRequestV1;
+  performance: NpcPerformerPayloadV1;
+  route: AiModelRouteV1;
+}): Promise<{ accepted: boolean; issues: string[]; incidents: AiIncidentRecordV1[]; telemetry: AiCallTelemetryV1[] }> {
+  const dialogueAct = input.input.interpretation.semanticIntent.dialogueAct ?? null;
+  const candidateNarration = input.performance.utterances.map(utterance => utterance.text);
+  const performerTask = input.request.input.task as {
+    knowledgeEnvelope?: {
+      priorNpcUtterances?: Array<{ text?: string }>;
+      dialogueHistory?: Array<{ operationId?: string; playerIntentSummary?: string; npcUtterances?: string[] }>;
+    };
+  };
+  const priorNpcUtterances = performerTask.knowledgeEnvelope?.priorNpcUtterances
+    ?.map(utterance => utterance.text)
+    .filter((text): text is string => typeof text === "string" && text.trim().length > 0) ?? [];
+  const dialogueHistory = performerTask.knowledgeEnvelope?.dialogueHistory ?? [];
+  const criticContext = {
+    schemaVersion: 1,
+    authority: "NPC_DIALOGUE_ACT_FIDELITY",
+    actorId: input.performance.actorId,
+    dialogueAct,
+    candidateNarration,
+    rawInput: input.input.rawInput,
+    priorNpcUtterances,
+    dialogueHistory
+  };
+  const criticRun = await runAiPipelineCallV1({
+    provider: input.input.config.provider,
+    route: input.route,
+    retryPolicy: { ...input.input.config.retryPolicy, role: "coherence_critic" },
+    request: {
+      schemaVersion: 1,
+      callId: `${input.input.operationId}:ai:npc-performer-critic:call`,
+      operationId: input.input.operationId,
+      attemptId: `${input.input.operationId}:ai:npc-performer-critic:attempt:1`,
+      campaignId: input.input.campaignId,
+      snapshotId: input.request.snapshotId,
+      packId: `${input.request.packId}:critic`,
+      role: "coherence_critic",
+      contractVersion: "narrative-ai-resolution/1",
+      modelRouteId: input.route.routeId,
+      contextFingerprint: await computeJsonFingerprint(criticContext) as `sha256:${string}`,
+      idempotencyKey: `${input.input.operationId}:npc-performer-critic`,
+      input: {
+        instructionsRef: "narrative-ai-resolution/coherence-critic/npc-dialogue-act/v1",
+        roleContextPack: criticContext,
+        task: {
+          candidateNarration,
+          dialogueAct,
+          actorId: input.performance.actorId,
+          rawInput: input.input.rawInput,
+          priorNpcUtterances,
+          dialogueHistory
+        }
+      },
+      limits: {
+        inputTokenBudget: 700,
+        outputTokenBudget: Math.min(1_600, input.route.outputTokenLimit),
+        timeoutMs: input.route.timeoutMs
+      }
+    }
+  });
+  const payload = criticRun.acceptedOutput?.payload as CoherenceCriticPayloadV1 | undefined;
+  const accepted = Boolean(payload && payload.verdict === "PASS" && !payload.findings.some(finding => finding.severity === "BLOCKING"));
+  return {
+    accepted,
+    issues: accepted ? [] : [
+      `npc_performer dialogueAct=${dialogueAct?.act ?? "none"} rejected by coherence critic: ${payload?.verdict ?? "NO_USABLE_VERDICT"}.`,
+      ...(payload?.findings.map(finding => finding.explanation) ?? [])
+    ],
+    incidents: criticRun.incidents,
+    telemetry: criticRun.telemetry
+  };
+}
+
+function shouldCritiqueNpcPerformanceV1(request: AiCallRequestV1, performance: NpcPerformerPayloadV1): boolean {
+  const task = request.input.task as {
+    dialogueAct?: { act?: string } | null;
+    knowledgeEnvelope?: { dialogueHistory?: unknown[] };
+  };
+  if (task.dialogueAct?.act === "OTHER") return true;
+  if ((task.knowledgeEnvelope?.dialogueHistory?.length ?? 0) > 0) return true;
+  if (performance.utterances.length > 1) return true;
+  return performance.utterances.some(utterance => utterance.speechActs.length > 1);
 }
 
 export function applyNpcPerformanceToDisplayPacketV1(input: {
   displayPacket: DisplayPacketV1 & JsonObject;
   performance: (NpcPerformerPayloadV1 & JsonObject) | null;
+  performanceFailure?: (NpcPerformanceFailureV1 & JsonObject) | null;
 }): DisplayPacketV1 & JsonObject {
   const performance = input.performance;
   const utterance = performance?.utterances[0] ?? null;
-  if (performance === null || utterance === null) return input.displayPacket;
+  if (performance === null || utterance === null) {
+    if (input.performanceFailure === null || input.performanceFailure === undefined) return input.displayPacket;
+    let annotated = false;
+    return {
+      ...input.displayPacket,
+      displayBlocks: input.displayPacket.displayBlocks.map(block => {
+        if (annotated || block.kind !== "SYSTEM_NOTICE") return block;
+        annotated = true;
+        return {
+          ...block,
+          text: `${block.text}\nRéaction PNJ IA rejetée — fallback borné fondé sur l'acte de dialogue appliqué. Motif: ${input.performanceFailure?.issues.join(" | ") ?? "sortie inutilisable"}`
+        };
+      })
+    } as DisplayPacketV1 & JsonObject;
+  }
   let replaced = false;
   return {
     ...input.displayPacket,
@@ -237,13 +418,20 @@ function buildLocalNpcPerformancePayload(
   _sceneState: ReferenceSceneStateV1 | null
 ): NpcPerformerPayloadV1 {
   const knownActorId = actorId === "npc:npc-serveuse-nerveuse" || actorId === "npc-serveuse-nerveuse" ? "npc:npc-serveuse-nerveuse" : "npc:npc-garde-blesse";
-  const isWaitress = knownActorId === "npc:npc-serveuse-nerveuse";
   const dialogueAct = interpretation?.semanticIntent.dialogueAct?.act ?? "OTHER";
-  const content = localNpcReaction(dialogueAct, isWaitress);
+  const dialogueContentGoal = interpretation?.semanticIntent.dialogueAct?.contentGoal ?? "Réagir prudemment à l'interlocuteur.";
+  const fallback = buildNpcDialogueFallbackV1(knownActorId, dialogueAct);
+  const content = fallback.text;
   return {
     schemaVersion: 1,
     performanceId: `${interpretation?.intentId ?? "intent:unknown"}:npc-performance:1`,
     actorId: knownActorId,
+    reactionFrame: {
+      schemaVersion: 1,
+      sourceDialogueAct: dialogueAct,
+      responseMode: responseModeForDialogueActV1(dialogueAct),
+      addressedContentGoal: dialogueContentGoal
+    },
     utterances: [{
       utteranceId: `${interpretation?.intentId ?? "intent:unknown"}:npc-utterance:1`,
       text: content,
@@ -258,7 +446,7 @@ function buildLocalNpcPerformancePayload(
         ]
       }]
     }],
-    nonVerbalReactions: [isWaitress ? "geste suspendu" : "attention maintenue"],
+    nonVerbalReactions: [fallback.nonVerbalReaction],
     durableCommitments: [],
     revealedRefs: [],
     knowledgeUsed: [
@@ -272,35 +460,6 @@ function buildLocalNpcPerformancePayload(
       noStateMutation: true
     }
   };
-}
-
-function localNpcReaction(
-  dialogueAct: NonNullable<AiStructuredSemanticIntentV1["dialogueAct"]>["act"],
-  isWaitress: boolean
-): string {
-  if (dialogueAct === "INITIATE_CONVERSATION") {
-    return isWaitress
-      ? "La serveuse suspend son geste et relève les yeux vers toi. « Oui ? »"
-      : "Le garde tourne son attention vers toi. « Oui ? »";
-  }
-  if (dialogueAct === "ASK_QUESTION") {
-    return isWaitress
-      ? "La serveuse écoute jusqu'au bout. « Je comprends votre question, mais je ne peux rien confirmer à ce sujet ici. »"
-      : "Le garde écoute jusqu'au bout. « Je comprends votre question, mais je ne peux rien confirmer à ce sujet ici. »";
-  }
-  if (dialogueAct === "MAKE_STATEMENT") {
-    return isWaitress
-      ? "La serveuse acquiesce sans confirmer le fond. « Je vous ai entendu. »"
-      : "Le garde acquiesce avec prudence. « Je vous ai entendu. »";
-  }
-  if (dialogueAct === "REQUEST_ACTION") {
-    return isWaitress
-      ? "La serveuse hésite. « Je ne peux pas vous promettre de faire cela. »"
-      : "Le garde secoue légèrement la tête. « Je ne peux pas vous promettre de faire cela. »";
-  }
-  return isWaitress
-    ? "La serveuse marque une pause, attentive, sans prétendre avoir compris davantage."
-    : "Le garde te prête attention, sans prétendre avoir compris davantage.";
 }
 
 async function buildNpcPerformerRequestV1(input: {
@@ -323,6 +482,12 @@ async function buildNpcPerformerRequestV1(input: {
     authority: "PERFORM_VISIBLE_ACTOR_ONLY",
     actorId: input.actorId,
     visibleScene: "reference-inn-rain-001",
+    spatialContext: {
+      playerLocation: "inside_inn_common_room",
+      playerAlreadyInside: true,
+      entranceCompleted: true,
+      backRoomDoorIsNotInnEntrance: true
+    },
     forbiddenAuthority: ["commit", "time", "inventory", "tactical", "rest", "durable_lore", "secret_reveal", "social_success"]
   };
   const priorNpcUtterances = await reconstructRenderedNpcUtterancesV1({
@@ -331,6 +496,28 @@ async function buildNpcPerformerRequestV1(input: {
     actorId: input.actorId,
     limit: 20
   });
+  const renderedNpcUtterances = priorNpcUtterances.ok ? priorNpcUtterances.value : [];
+  const priorPlayerSpeech = input.sceneState.shortTermNpcMemory
+    .filter(memory => `npc:${memory.actorId}` === input.actorId)
+    .map(memory => ({
+      operationId: memory.operationId,
+      playerIntentSummary: memory.playerIntentSummary
+    }));
+  const dialogueHistory = priorPlayerSpeech.map(playerSpeech => ({
+    operationId: playerSpeech.operationId,
+    playerIntentSummary: playerSpeech.playerIntentSummary,
+    npcUtterances: renderedNpcUtterances
+      .filter(utterance => utterance.sourceOperationId === playerSpeech.operationId)
+      .map(utterance => utterance.text)
+  })).filter(entry => entry.npcUtterances.length > 0);
+  const allowedSourceRefs = [
+    "reference-scene:reference-inn-rain-001",
+    `intent:${input.interpretation.intentId}`,
+    ...renderedNpcUtterances.flatMap(utterance => [
+      `operation:${utterance.sourceOperationId}`,
+      `render-projection:${utterance.renderOperationId}`
+    ])
+  ];
   const task = {
     rawInput: input.rawInput,
     actorId: input.actorId,
@@ -340,14 +527,19 @@ async function buildNpcPerformerRequestV1(input: {
     sceneState: input.sceneState,
     dialogueAct: input.interpretation.semanticIntent.dialogueAct ?? null,
     knowledgeEnvelope: {
+      allowedSourceRefs: [...new Set(allowedSourceRefs)],
       publicFactRefs: ["reference-scene:reference-inn-rain-001"],
-      priorPlayerSpeech: input.sceneState.shortTermNpcMemory
-        .filter(memory => `npc:${memory.actorId}` === input.actorId)
-        .map(memory => ({
-          operationId: memory.operationId,
-          playerIntentSummary: memory.playerIntentSummary
-        })),
-      priorNpcUtterances: priorNpcUtterances.ok ? priorNpcUtterances.value : [],
+      priorPlayerSpeech,
+      priorNpcUtterances: renderedNpcUtterances,
+      dialogueHistory,
+      visibleSituation: {
+        playerLocation: "Le joueur se trouve déjà dans la salle commune de l'auberge.",
+        forbiddenContradictions: [
+          "Ne pas inviter le joueur à entrer dans l'auberge.",
+          "Ne pas proposer au joueur de se mettre à l'abri de la pluie comme s'il était encore dehors.",
+          "La porte du fond mène à l'arrière-salle; ce n'est pas la porte d'entrée."
+        ]
+      },
       memoryLimit: priorNpcUtterances.ok
         ? "Seules les répliques EXACT reconstruites depuis les projections de rendu persistées peuvent être rappelées; leur contenu reste une parole attribuée, jamais une vérité objective."
         : "La reconstruction des répliques a échoué; ne jamais inventer ni prétendre répéter une réponse antérieure."
@@ -374,8 +566,8 @@ async function buildNpcPerformerRequestV1(input: {
     },
     limits: {
       inputTokenBudget: 2_000,
-      outputTokenBudget: 1_000,
-      timeoutMs: 1_000
+      outputTokenBudget: Math.min(2_000, input.config.route.outputTokenLimit),
+      timeoutMs: input.config.route.timeoutMs
     }
   };
 }

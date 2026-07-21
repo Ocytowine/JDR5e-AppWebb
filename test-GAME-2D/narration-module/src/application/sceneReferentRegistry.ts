@@ -15,6 +15,7 @@ export interface SceneReferentV1 extends JsonObject {
   displayName: string;
   publicAliases: string[];
   publicProperties: string[];
+  publicDestinationAliases: string[];
   present: true;
   visible: true;
   interactionCapabilities: SceneInteractionCapabilityV1[];
@@ -36,7 +37,7 @@ export interface SceneReferentRoleViewV1 extends JsonObject {
   sceneId: string;
   sceneVersion: number;
   role: SceneReferentViewRoleV1;
-  referents: Array<Pick<SceneReferentV1, "canonicalRef" | "kind" | "displayName" | "publicAliases" | "publicProperties" | "interactionCapabilities">>;
+  referents: Array<Pick<SceneReferentV1, "canonicalRef" | "kind" | "displayName" | "publicAliases" | "publicProperties" | "publicDestinationAliases" | "interactionCapabilities">>;
 }
 
 export type SceneReferentResolutionV1 =
@@ -53,6 +54,7 @@ export function buildSceneReferentRegistryV1(scene: PlayableSceneStateV1): Scene
       displayName: npc.displayName,
       publicAliases: unique([npc.displayName, npc.publicRole, ...npc.keywords]),
       publicProperties: [npc.publicRole, npc.visibleState],
+      publicDestinationAliases: [],
       present: true as const,
       visible: true as const,
       interactionCapabilities: ["speech", "nonverbal_signal", "observe"] as SceneInteractionCapabilityV1[],
@@ -66,6 +68,7 @@ export function buildSceneReferentRegistryV1(scene: PlayableSceneStateV1): Scene
       displayName: point.label,
       publicAliases: unique([point.label, ...point.keywords]),
       publicProperties: [point.visibleDescription],
+      publicDestinationAliases: unique(point.destinationAliases),
       present: true as const,
       visible: true as const,
       interactionCapabilities: ["observe", "manipulate"] as SceneInteractionCapabilityV1[],
@@ -81,6 +84,7 @@ export function buildSceneReferentRegistryV1(scene: PlayableSceneStateV1): Scene
         displayName: element.label,
         publicAliases: unique([element.label, ...element.keywords]),
         publicProperties: [element.description],
+        publicDestinationAliases: [],
         present: true as const,
         visible: true as const,
         interactionCapabilities: ["observe"] as SceneInteractionCapabilityV1[],
@@ -117,6 +121,7 @@ export function toSceneReferentRoleViewV1(registry: SceneReferentRegistryV1, rol
       displayName: entry.displayName,
       publicAliases: [...entry.publicAliases],
       publicProperties: [...entry.publicProperties],
+      publicDestinationAliases: [...entry.publicDestinationAliases],
       interactionCapabilities: [...entry.interactionCapabilities]
     }));
   return { schemaVersion: 1, contractVersion: SCENE_REFERENT_REGISTRY_CONTRACT_VERSION_V1, sceneId: registry.sceneId, sceneVersion: registry.sceneVersion, role, referents };
@@ -142,6 +147,23 @@ export function resolveSceneReferentTextV1(
   const mostSpecific = candidates.filter(entry => entry.publicAliases.some(alias => containsAlias(normalizedText, normalize(alias)) && normalize(alias).length === longest));
   if (mostSpecific.length !== 1) return { status: "AMBIGUOUS", candidates: mostSpecific };
   return { status: "RESOLVED", referent: mostSpecific[0]! };
+}
+
+export function resolveSceneReferentDescriptionV1(
+  registry: SceneReferentRegistryV1,
+  text: string,
+  kind?: SceneReferentKindV1
+): SceneReferentResolutionV1 {
+  const normalizedText = normalize(text);
+  const candidates = registry.referents.filter(entry =>
+    (kind === undefined || entry.kind === kind) &&
+    [...entry.publicAliases, ...entry.publicDestinationAliases].some(alias => containsAlias(normalizedText, normalize(alias)))
+  );
+  return candidates.length === 1
+    ? { status: "RESOLVED", referent: candidates[0]! }
+    : candidates.length > 1
+      ? { status: "AMBIGUOUS", candidates }
+      : { status: "NOT_FOUND" };
 }
 
 export function toNarrativeIntentTargetV1(referent: SceneReferentV1): NarrativeIntentTargetV1 {

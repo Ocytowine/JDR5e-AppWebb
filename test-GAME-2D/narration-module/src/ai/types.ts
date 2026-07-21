@@ -1,4 +1,5 @@
 import type { CreativeScopeV1, RoleContextPackV1 } from "../context";
+import type { JsonObject } from "../core";
 
 export type AiRoleV1 =
   | "intent_interpreter"
@@ -91,6 +92,34 @@ export interface AiIntentInterpretationPayloadV1 {
   intents: AiStructuredPlayerIntentV1[];
 }
 
+export interface AiSemanticIntentPayloadV2 {
+  rawInputEcho: string;
+  intent: AiSemanticPlayerIntentV2;
+}
+
+export interface AiSemanticPlayerIntentV2 {
+  kind: AiStructuredSemanticIntentV1["kind"];
+  commitment: AiStructuredSemanticIntentV1["commitment"];
+  playerGoal: string;
+  actionHint: string | null;
+  domainHint: "scene_resolution" | "social" | "perception" | "inventory" | "tactical" | "rest" | "world" | null;
+  scope: "LOCAL_INTERACTION" | "SCENE_TRANSITION" | "SOCIAL_EXCHANGE" | "PERCEPTION" | "META" | "UNKNOWN";
+  targetMention: {
+    surface: string;
+    candidateKind: "npc" | "place" | "object" | "self" | "unknown";
+    proposedRef: string | null;
+    contextLink: "EXPLICIT" | "RECENT_FOCUS" | "SCENE_DESCRIPTION" | "NONE";
+  } | null;
+  perception: AiStructuredSemanticIntentV1["perception"];
+  dialogueAct: {
+    act: "INITIATE_CONVERSATION" | "ASK_QUESTION" | "MAKE_STATEMENT" | "REQUEST_ACTION" | "OTHER";
+    contentGoal: string;
+  } | null;
+  uncertainties: string[];
+  clarificationPrompt: string | null;
+  confidence: "low" | "medium" | "high";
+}
+
 export interface AiStructuredPlayerIntentV1 {
   intentId: string;
   order: number;
@@ -140,7 +169,9 @@ export interface AiStructuredSemanticIntentV1 {
   schemaVersion: 1;
   kind:
     | "address_visible_actor"
+    | "move_near_visible_actor"
     | "manipulate_visible_object"
+    | "traverse_visible_boundary"
     | "observe_environment"
     | "nonverbal_signal"
     | "hypothetical_action"
@@ -283,6 +314,7 @@ export interface NpcPerformerPayloadV1 {
   schemaVersion: 1;
   performanceId: string;
   actorId: string;
+  reactionFrame: NpcDialogueReactionFrameV1;
   utterances: NpcUtteranceV1[];
   nonVerbalReactions: string[];
   durableCommitments: string[];
@@ -294,6 +326,13 @@ export interface NpcPerformerPayloadV1 {
     noDurableCommitment: true;
     noStateMutation: true;
   };
+}
+
+export interface NpcDialogueReactionFrameV1 {
+  schemaVersion: 1;
+  sourceDialogueAct: "INITIATE_CONVERSATION" | "ASK_QUESTION" | "MAKE_STATEMENT" | "REQUEST_ACTION" | "OTHER";
+  responseMode: "ACKNOWLEDGE_CONTACT" | "ANSWER_QUESTION" | "ACKNOWLEDGE_STATEMENT" | "RESPOND_TO_REQUEST" | "CAUTIOUS_RESPONSE";
+  addressedContentGoal: string;
 }
 
 export interface NpcUtteranceV1 {
@@ -509,6 +548,24 @@ export interface AiProviderMetricsV1 {
   totalTokens: number | null;
   estimatedCostMinorUnits: number | null;
   finishReason: string | null;
+}
+
+export interface AiCallTelemetryV1 extends JsonObject {
+  schemaVersion: 1;
+  providerId: string;
+  modelId: string;
+  reasoningEffort: string | null;
+  role: AiRoleV1;
+  attemptId: string;
+  latencyMs: number;
+  inputTokens: number | null;
+  outputTokens: number | null;
+  totalTokens: number | null;
+  finishReason: string | null;
+  inputTokenBudget: number;
+  outputTokenBudget: number;
+  contextChars: number;
+  schemaChars: number | null;
 }
 
 export interface DynamicCreationValidationPolicyV1 {

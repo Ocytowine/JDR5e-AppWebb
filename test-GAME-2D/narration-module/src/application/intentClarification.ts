@@ -1,4 +1,5 @@
 import type { AiIntentRuntimeHandlingV1, AiStructuredSemanticIntentV1 } from "../ai/types";
+import { routeNarrativeSemanticIntentV1 } from "./runtimeCapabilityRouting";
 
 export const INTENT_CLARIFICATION_CONTRACT_VERSION_V1 = "intent-clarification/1" as const;
 
@@ -240,7 +241,9 @@ export function validateCanonicalIntentAuthorityV1(
   if (interpretation.commitment !== semantic.commitment) issues.push("legacy commitment contradicts semanticIntent.commitment");
   const expectedIntentTypes: Record<AiStructuredSemanticIntentV1["kind"], NarrativeIntentTypeV1[]> = {
     address_visible_actor: ["speech"],
+    move_near_visible_actor: ["action"],
     manipulate_visible_object: ["action"],
+    traverse_visible_boundary: ["action"],
     observe_environment: ["action"],
     nonverbal_signal: ["action"],
     hypothetical_action: ["possibility_query"],
@@ -316,31 +319,20 @@ export function evaluateNarrativeRuntimeDecisionV1(input: {
   if (input.requiresClarification || input.semanticIntent.commitment === "unclear" || input.semanticIntent.confidence === "low") {
     return decision("NEEDS_CLARIFICATION", null, "Le registre local refuse toute progression tant que l'intention reste incertaine.", true, suggestion?.status === "NEEDS_CLARIFICATION");
   }
-  if (input.semanticIntent.commitment === "none" || input.semanticIntent.commitment === "hypothetical") {
-    return decision("SUPPORTED_BY_CURRENT_RUNTIME", "scene_resolution", "Le runtime local traite cette intention sans engagement comme une réponse sans commit.", true, suggestion?.status === "SUPPORTED_BY_CURRENT_RUNTIME");
-  }
-  const requiredDomain = canonicalLocalDomain(input.semanticIntent, suggestion);
-  const supported = requiredDomain === "scene_resolution" ||
-    requiredDomain === "perception" ||
-    (requiredDomain === "social" && input.semanticIntent.kind === "address_visible_actor");
-  const noCommit = !supported || requiredDomain === "perception";
+  const route = routeNarrativeSemanticIntentV1({ semanticIntent: input.semanticIntent, runtimeSuggestion: suggestion });
+  const supported = route.disposition === "HANDLE";
+  const status = route.disposition === "CLARIFY"
+    ? "NEEDS_CLARIFICATION"
+    : supported
+      ? "SUPPORTED_BY_CURRENT_RUNTIME"
+      : "UNSUPPORTED_DOMAIN";
   return decision(
-    supported ? "SUPPORTED_BY_CURRENT_RUNTIME" : "UNSUPPORTED_DOMAIN",
-    requiredDomain,
-    supported
-      ? "Le domaine scene_resolution est ouvert pour une tentative bornée sans temps de jeu."
-      : closedDomainReason(requiredDomain),
-    noCommit,
-    suggestion?.status === (supported ? "SUPPORTED_BY_CURRENT_RUNTIME" : "UNSUPPORTED_DOMAIN")
+    status,
+    route.requiredDomain,
+    route.reason,
+    route.commitPolicy === "FORBIDDEN",
+    suggestion?.status === status && suggestion.requiredDomain === route.requiredDomain
   );
-}
-
-function closedDomainReason(domain: NarrativeRuntimeDecisionV1["requiredDomain"]): string {
-  if (domain === "tactical") return "Handoff tactique requis: le domaine tactical n'est pas ouvert dans le registre runtime local.";
-  if (domain === "inventory") return "Handoff inventaire requis: le domaine inventory n'est pas ouvert dans le registre runtime local.";
-  if (domain === "rest") return "Handoff repos requis: le domaine rest n'est pas ouvert dans le registre runtime local.";
-  if (domain === "world") return "Handoff monde requis: le domaine world n'est pas ouvert dans le registre runtime local.";
-  return `Le domaine ${domain ?? "inconnu"} n'est pas ouvert dans le registre runtime local.`;
 }
 
 function decision(
@@ -431,19 +423,6 @@ function isNarrativeDialogueActV1(value: unknown): boolean {
     ["INITIATE_CONVERSATION", "ASK_QUESTION", "MAKE_STATEMENT", "REQUEST_ACTION", "OTHER"].includes(String(candidate.act)) &&
     typeof candidate.contentGoal === "string" && candidate.contentGoal.trim().length > 0 &&
     (candidate.addresseeRef === null || typeof candidate.addresseeRef === "string");
-}
-
-function canonicalLocalDomain(
-  semanticIntent: AiStructuredSemanticIntentV1,
-  suggestion: AiIntentRuntimeHandlingV1 | null
-): NarrativeRuntimeDecisionV1["requiredDomain"] {
-  const targetKind = semanticIntent.target?.kind ?? null;
-  if (
-    semanticIntent.kind === "manipulate_visible_object" &&
-    (targetKind === "object" || targetKind === "place") &&
-    (suggestion?.canonicalActionHint === "open" || suggestion?.canonicalActionHint === "force")
-  ) return "scene_resolution";
-  return suggestion?.requiredDomain ?? "scene_resolution";
 }
 
 function isNarrativePerceptionRequestV1(value: unknown): boolean {

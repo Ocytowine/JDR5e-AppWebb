@@ -130,7 +130,9 @@ function controllerOutput(operationId: string, rawInput: string, interp: Narrati
     suspendedIntent: null,
     resolution: res,
     sceneState: createInitialReferenceSceneStateV1(),
-    displayPacket: packet(operationId, rawInput, interp) as DisplayPacketV1 & JsonObject
+    displayPacket: packet(operationId, rawInput, interp) as DisplayPacketV1 & JsonObject,
+  stageTimings: null,
+  aiTelemetry: []
   };
 }
 

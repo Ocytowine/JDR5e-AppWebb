@@ -9,6 +9,7 @@ import {
 import type {
   AiAttemptRecordV1,
   AiCallRequestV1,
+  AiCallTelemetryV1,
   AiIncidentRecordV1,
   AiModelRouteV1,
   AiOutputValidationResultV1,
@@ -28,15 +29,20 @@ export interface AiPipelineRunResultV1 {
   validation: AiOutputValidationResultV1;
   attempts: AiAttemptRecordV1[];
   incidents: AiIncidentRecordV1[];
+  telemetry: AiCallTelemetryV1[];
 }
 
-function attemptRequest(base: AiCallRequestV1, attemptId: string): AiCallRequestV1 {
-  return { ...cloneJson(base), attemptId };
+function attemptRequest(base: AiCallRequestV1, attemptId: string, kind: AiAttemptRecordV1["attemptKind"]): AiCallRequestV1 {
+  const cloned = { ...cloneJson(base), attemptId };
+  return kind === "TECHNICAL_RETRY"
+    ? { ...cloned, limits: { ...cloned.limits, timeoutMs: Math.min(cloned.limits.timeoutMs, 15_000) } }
+    : cloned;
 }
 
-function attemptKind(index: number): AiAttemptRecordV1["attemptKind"] {
+function attemptKind(index: number, policy: AiRetryPolicyV1): AiAttemptRecordV1["attemptKind"] {
   if (index === 0) return "INITIAL";
-  if (index === 1) return "TARGETED_CORRECTION";
+  if (index <= policy.maxTechnicalRetries) return "TECHNICAL_RETRY";
+  if (index <= policy.maxTechnicalRetries + policy.maxTargetedCorrections) return "TARGETED_CORRECTION";
   return "FULL_REGENERATION";
 }
 
@@ -72,13 +78,15 @@ export async function runAiPipelineCallV1(input: AiPipelineRunInputV1): Promise<
         commitState: "NO_COMMIT",
         outcome: "SUSPENDED",
         unsafeDetails: { issues: preIssues }
-      })]
+      })],
+      telemetry: []
     };
   }
 
-  const maxAttempts = 1 + input.retryPolicy.maxTargetedCorrections + input.retryPolicy.maxFullRegenerations;
+  const maxAttempts = 1 + input.retryPolicy.maxTechnicalRetries + input.retryPolicy.maxTargetedCorrections + input.retryPolicy.maxFullRegenerations;
   const attempts: AiAttemptRecordV1[] = [];
   const incidents: AiIncidentRecordV1[] = [];
+  const telemetry: AiCallTelemetryV1[] = [];
   let lastValidation: AiOutputValidationResultV1 = {
     schemaVersion: 1,
     outputId: null,
@@ -88,8 +96,11 @@ export async function runAiPipelineCallV1(input: AiPipelineRunInputV1): Promise<
   };
 
   for (let index = 0; index < maxAttempts; index += 1) {
-    const request = attemptRequest(input.request, index === 0 ? input.request.attemptId : `${input.request.attemptId}:retry-${index}`);
+    const kind = attemptKind(index, input.retryPolicy);
+    const request = attemptRequest(input.request, index === 0 ? input.request.attemptId : `${input.request.attemptId}:retry-${index}`, kind);
     const rawOutput = await input.provider.generate(request);
+    const callTelemetry = input.provider.takeTelemetry?.(request.attemptId) ?? null;
+    if (callTelemetry !== null) telemetry.push(callTelemetry);
     const validation = validateAiRoleOutputEnvelopeV1(rawOutput, request);
     lastValidation = validation;
     attempts.push({
@@ -97,7 +108,7 @@ export async function runAiPipelineCallV1(input: AiPipelineRunInputV1): Promise<
       attemptId: request.attemptId,
       callId: request.callId,
       role: request.role,
-      attemptKind: attemptKind(index),
+      attemptKind: kind,
       status: validation.accepted ? "ACCEPTED" : "REJECTED",
       failureCategory: validation.failureCategory
     });
@@ -107,7 +118,8 @@ export async function runAiPipelineCallV1(input: AiPipelineRunInputV1): Promise<
         acceptedOutput: cloneJson(rawOutput) as AiRoleOutputEnvelopeV1,
         validation,
         attempts,
-        incidents
+        incidents,
+        telemetry
       };
     }
 
@@ -130,9 +142,16 @@ export async function runAiPipelineCallV1(input: AiPipelineRunInputV1): Promise<
         rawProviderOutput: rawOutput
       }
     }));
+    const nextKind = index + 1 < maxAttempts ? attemptKind(index + 1, input.retryPolicy) : null;
+    if (nextKind === "TECHNICAL_RETRY" && !isTechnicalProviderFailure(rawOutput)) break;
   }
 
-  return { acceptedOutput: null, validation: lastValidation, attempts, incidents };
+  return { acceptedOutput: null, validation: lastValidation, attempts, incidents, telemetry };
+}
+
+function isTechnicalProviderFailure(output: unknown): boolean {
+  const codes = extractOutputDiagnosticCodes(output);
+  return codes.some(code => /FETCH_FAILED|HTTP_ERROR|OUTPUT_INCOMPLETE|TRANSPORT|TIMEOUT|RATE_LIMIT|SERVER_ROUTE_/iu.test(code));
 }
 
 function extractOutputDiagnosticCodes(output: unknown): string[] {

@@ -336,6 +336,12 @@ async function run(): Promise<void> {
     schemaVersion: 1,
     performanceId: "performance-npc-001",
     actorId: "npc:npc-garde-blesse",
+    reactionFrame: {
+      schemaVersion: 1,
+      sourceDialogueAct: "ASK_QUESTION",
+      responseMode: "ANSWER_QUESTION",
+      addressedContentGoal: "Demander si le garde peut parler."
+    },
     utterances: [{
       utteranceId: "utterance-npc-001",
       text: "Le garde souffle: « La porte du fond, mais sans esclandre. »",
@@ -378,7 +384,17 @@ async function run(): Promise<void> {
     packId: "pack-npc-001",
     role: "npc_performer",
     contractVersion: "npc-performer/1",
-    modelRouteId: "route-npc-performer-fake"
+    modelRouteId: "route-npc-performer-fake",
+    input: {
+      instructionsRef: "instructions:npc-performer:ai-pipeline/1",
+      roleContextPack: {},
+      task: {
+        knowledgeEnvelope: {
+          publicFactRefs: ["reference-scene:reference-inn-rain-001"],
+          priorNpcUtterances: []
+        }
+      }
+    }
   });
   const npcValidation = validateAiRoleOutputEnvelopeV1(npcOutput, npcRequest);
   assert.equal(npcValidation.accepted, true);
@@ -400,7 +416,26 @@ async function run(): Promise<void> {
   }, npcRequest);
   assert.equal(npcWithPromise.accepted, false);
   assert.ok(npcWithPromise.issues.some(issue => issue.includes("durableCommitments")));
-  console.log("PASS [ai-pipeline] npc_performer utterances are accepted only without reveal or durable commitment");
+  const npcWithInventedHistory = validateAiRoleOutputEnvelopeV1({
+    ...npcOutput,
+    payload: {
+      ...npcPayload,
+      utterances: [{
+        ...npcPayload.utterances[0],
+        text: "Je vous l'ai deja explique: la porte est condamnee.",
+        speechActs: [{
+          type: "assertion",
+          content: "Je l'ai deja explique et la porte est condamnee.",
+          epistemicBasis: "known",
+          sourceRefs: ["render-projection:invented-prior-reply"]
+        }]
+      }],
+      knowledgeUsed: ["render-projection:invented-prior-reply"]
+    }
+  }, npcRequest);
+  assert.equal(npcWithInventedHistory.accepted, false);
+  assert.ok(npcWithInventedHistory.issues.some(issue => issue.includes("unsupported knowledge ref")));
+  console.log("PASS [ai-pipeline] npc_performer rejects reveals, durable commitments and invented memory provenance");
 }
 
 void run().catch(error => {

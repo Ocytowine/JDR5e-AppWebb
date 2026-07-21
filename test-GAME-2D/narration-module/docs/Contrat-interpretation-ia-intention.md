@@ -429,6 +429,10 @@ La sortie IA est rejetée si :
 
 Le rejet doit produire un incident expurgé et un diagnostic d'echec d'interpretation. Il ne doit pas produire de fallback fictionnel.
 
+Un rejet de cohérence entre l'intention canonique et `runtimeHandling` expose les valeurs proposées par le fournisseur : `semanticKind`, cible canonisée, statut runtime, domaine, action indicative, `noCommit` et `noGameTime`. Il énumère aussi chaque invariant violé. Ces informations permettent de reproduire un écart OpenAI sans assouplir l'autorité locale ni ajouter une interprétation lexicale parallèle.
+
+La suggestion `runtimeHandling` reste non autoritaire. Après canonicalisation d'une cible PNJ visible, une intention `nonverbal_signal` engagée est stabilisée par le registre local en `scene_resolution`, `noCommit=false` et `noGameTime=true`. Cette stabilisation autorise uniquement l'enregistrement d'un positionnement local borné ; elle ne déclenche ni parole, ni réaction PNJ, ni résultat social automatique.
+
 ## Diagnostic d'echec d'interpretation
 
 Si `player_intent_interpreter` est indisponible, invalide ou rejete, le tour retourne un diagnostic structure, par exemple :

@@ -1,14 +1,20 @@
 # Suivi du travail
 
-Derniere mise a jour: 2026-07-20
+Derniere mise a jour: 2026-07-21
 
 Ce fichier est le tableau de bord court du depot. Les details techniques restent dans les documents lies; une tache ne doit pas etre dupliquee ici avec toute sa specification.
 
 ## En cours
 
+- [x] Relation publique ouverture-destination ajoutée au registre le 2026-07-21, avec résolution locale unique d'un franchissement même si l'IA omet `proposedRef`. Prochaine étape: trois benchmarks Luna consécutifs à 8/8.
+
+- [x] Contrat V2 clarifié le 2026-07-21 avec mouvements locaux et franchissements distincts, plus une cible descriptive fondée uniquement sur des propriétés visibles. Prochaine étape: rejouer le benchmark live Luna puis GPT-5.5.
+
+- [x] Benchmark live isolé de `player_intent_interpreter` sur 4 configurations le 2026-07-21: baseline maintenue à 6/8, Luna `none` plus rapide mais à 5/8. Prochaine étape: clarifier génériquement approche d'acteur et transition via ouverture, puis rejouer le benchmark.
+
 - [ ] Traiter l'audit technique post-I-06ZB avant d'ouvrir une nouvelle capacité narrative.
   References: `test-GAME-2D/narration-module/docs/Audit-technique-I06ZB.md`, `test-GAME-2D/narration-module/docs/Revue-technique-post-I06ZB.md`, `test-GAME-2D/narration-module/docs/Suivi-prochains-lots-narration.md`.
-  Note: A-01, A-02, A-03, A-04 et A-07 traités le 2026-07-09; I-06ZC à I-06ZR livrés. Le chantier fidélité intention-système est fermé dans son périmètre. La consolidation active est décrite dans `test-GAME-2D/narration-module/docs/Consolidation-fondations-narration.md`; NAR-129 et NAR-130 sont implémentés. Prochaine étape concrète: compléter la gate adversariale faux historique/fausse présence, puis cadrer le routage ouvert NAR-131.
+  Note: A-01, A-02, A-03, A-04 et A-07 traités le 2026-07-09; I-06ZC à I-06ZR livrés. NAR-129 à NAR-132 sont implémentés. `ai-intent-semantic/2` réduit le parcours live de 328,8 s à 269,2 s. La gate ciblée donne 3/3 handoffs corrects mais refuse la latence p95=18,7 s pour un seuil de 15 s. Prochaine étape concrète: benchmarker le modèle d'interprétation avec les métriques fournisseur désormais visibles, sans changer les modèles de prose.
 - [ ] Consolider la simulation du monde apres l'ajout des objectifs multi-phases, des opportunites de faction et des mobiles non-systeme.
   Reference: `test-GAME-2D/map-module/docs/world-simulation-corrective-roadmap.md`. Les mobiles exposent maintenant l'objectif, la phase et la cible qu'ils servent.
 
@@ -20,7 +26,7 @@ Ce fichier est le tableau de bord court du depot. Les details techniques restent
 - [ ] Generer les premiers mobiles non-systeme contextuels, en commencant par les profils marchands, criminels et religieux.
 - [ ] Historiser les causes d'action importantes sans surcharger `recentHistory`.
 - [ ] Prioriser les cas narratifs 005 a 009 avant leur implementation.
-- [ ] Remplacer les scripts de test factices du module narration lorsqu'un nouveau runtime sera introduit.
+- [ ] Etendre la recette narration aux conversations PNJ longues et aux transitions de scene, sans promouvoir une parole attribuee en verite factuelle.
 
 ## Blocages et risques
 
@@ -32,6 +38,18 @@ Ce fichier est le tableau de bord court du depot. Les details techniques restent
 - La parite directe import/plateau reste la reserve documentee d'I-02; elle ne doit pas etre contournee dans I-03.
 
 ## Termine recemment
+
+- [x] Observabilité V2 et gate répétée: métriques modèle/tokens/latence/fin/budgets/tailles dans la notification système, contexte V2 réduit, retry technique unique de 15 s et gate live trois répétitions avec seuils p95/max le 2026-07-21.
+- [x] Contrat compact `ai-intent-semantic/2`: compréhension IA ouverte conservée, action libre, portée de scène générique, projections runtime/legacy reconstruites localement, V1 compatible et quatre tests adversariaux sans lexique de scène le 2026-07-21.
+- [x] Recette OpenAI live NAR-132 instrumentée: configuration partagée avec l'UI, timeout HTTP effectif, suppression du timeout performer caché de 1 s, actes de dialogue stabilisés localement et rapport 8/10 avec latences par rôle le 2026-07-21.
+- [x] NAR-132 déterministe: recette de dix tours avec deux PNJ, mémoire intention-réponse isolée par acteur, répétition, changement de cible, handoff de transition et reprise; correction de la priorité parole/référent et du plafond mémoire par PNJ le 2026-07-21.
+- [x] NAR-131: registre déclaratif de capacités runtime, routage `HANDLE`/`HANDOFF`/`CLARIFY`, commandes tracées et suppression de `canonicalActionHint` comme décision de domaine le 2026-07-21.
+- [x] Détail de latence interne du contrôleur, contexte spatial explicite et contrôle local des contradictions PNJ, avec nettoyage typographique borné de l'expression joueur sans appel OpenAI le 2026-07-21.
+- [x] Fidélité des actes de dialogue PNJ: diagnostic `dialogueAct`, planner local déterministe, expression joueur locale fidèle dans la surface OpenAI, `npc_performer` responsable des dialogues avec budget adapté, cadre de réaction validé localement, provenance `allowedSourceRefs`, historique couplé intention-réponse, trace mémoire/latence dans le bloc système, critique conditionnel des risques de continuité, schémas OpenAI stricts vérifiés, fallback dépendant de l'acte et rejets visibles le 2026-07-21.
+- [x] Correctif live approche PNJ: une suggestion OpenAI `nonverbal_signal` ciblant un PNJ visible est stabilisee localement en `scene_resolution`, commit local sans temps ni reaction automatique le 2026-07-21.
+- [x] Diagnostic live des rejets intention/runtime: valeurs OpenAI proposées et invariants violés désormais visibles pour reproduire les écarts d'approche PNJ le 2026-07-21.
+- [x] Gate adversariale NAR-129/NAR-130: fausses presences rejetees par discipline factuelle et references de memoire PNJ limitees aux projections de rendu effectivement fournies le 2026-07-21.
+- [x] Documentation de collaboration alignee sur le module narration actif et sur sa compilation par le build global le 2026-07-21.
 
 - [x] Consolidation NAR-130A: actes de dialogue structurés, connaissances PNJ bornées, interdiction du faux historique quand aucune réplique antérieure n'est disponible et repli performer visible le 2026-07-20.
 - [x] Consolidation NAR-130B: mémoire des répliques PNJ reconstruite depuis les projections finales réellement affichées, isolée par acteur et transmise comme parole attribuée sans promotion factuelle le 2026-07-20.
@@ -164,7 +182,7 @@ Ce fichier est le tableau de bord court du depot. Les details techniques restent
 - [x] Formalisation du pipeline IA, des arbitrages ouverts et de la securite des sorties le 2026-06-30.
 - [x] Formalisation des integrations personnage, inventaire, monde, social, tactique, repos et sauvegarde le 2026-07-02.
 - [x] Formalisation de l'horloge causale, du monde hors ecran et des retours tardifs le 2026-07-02.
-- [x] Decouplage de l'application et du serveur du runtime narration supprime le 2026-06-29; le build et le demarrage ne dependent plus de `narration-module/`.
+- [x] Decouplage de l'ancien runtime narration le 2026-06-29. Note historique: depuis la reprise I-00 a I-07, le nouveau module narration est de nouveau compile par le build global et utilise par la surface applicative.
 - [x] Affectation runtime explicite des mobiles aux phases d'objectif et correction du garde-fou de traces mobiles le 2026-06-22.
 - [x] Ajout d'une verification de regression du module carte (`npm run map-module:test:regression`) le 2026-06-22.
 - [x] Ajout des sondes longues de simulation et de mobilite le 2026-06-17.

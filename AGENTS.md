@@ -25,7 +25,7 @@ Ce fichier s'applique a l'ensemble du depot. Un fichier `AGENTS.md` place dans u
 
 - `test-GAME-2D/src/`: application principale React/TypeScript et plateau tactique.
 - `test-GAME-2D/map-module/`: carte, editeur et moteur de simulation du monde.
-- `test-GAME-2D/narration-module/`: integration narration/lore; le runtime historique a ete retire et les scripts de test actuels sont des marqueurs sans suite active.
+- `test-GAME-2D/narration-module/`: noyau narratif actif et progressif, contrats campagne/lore, persistance, temps, pipeline IA, surface narration et suites de regression. Le runtime complet de campagne et certains handoffs jouables restent incomplets, mais le module est compile par le build global et ses tests sont actifs.
 - `test-GAME-2D/scripts/`: generateurs et verifications executables.
 - `wiki/`: source de lore.
 - `test-GAME-2D/docs/` et `test-GAME-2D/map-module/docs/`: specifications et feuilles de route actives.

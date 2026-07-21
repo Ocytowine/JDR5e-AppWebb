@@ -2,7 +2,9 @@
 
 Date de préparation : 2026-07-20
 
-Statut : `A_EXECUTER`
+Statut : `GATE_DETERMINISTE_AUTOMATISEE_NAR132_OK_OPENAI_LIVE_PARTIEL_8_SUR_10`
+
+Compagnon automatisé : [`Matrice-recette-conversations-completes-NAR132.md`](Matrice-recette-conversations-completes-NAR132.md), commande `npm run narration-module:test:complete-conversations`.
 
 ## Objectif
 

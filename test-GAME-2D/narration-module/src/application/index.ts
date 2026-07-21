@@ -15,4 +15,5 @@ export * from "./presentationVariation";
 export * from "./perceptionResolution";
 export * from "./referenceScene";
 export * from "./referenceSceneState";
+export * from "./runtimeCapabilityRouting";
 export * from "./sceneEphemeralCreation";

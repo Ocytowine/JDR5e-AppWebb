@@ -1,0 +1,62 @@
+# Contrat de routage des capacités runtime — NAR-131
+
+Date : 2026-07-21
+
+Statut : `IMPLEMENTE_DANS_PERIMETRE`
+
+## Objectif
+
+NAR-131 sélectionne une capacité runtime depuis l'intention sémantique structurée, sans transformer `canonicalActionHint`, `action`, `coreMeaning` ou le texte joueur en langage de routage concurrent.
+
+```text
+semanticIntent + domaine suggéré
+→ registre local de capacités
+→ HANDLE | HANDOFF | CLARIFY
+→ famille de commande typée
+→ domaine propriétaire ou arrêt explicite
+```
+
+Le routage ne résout aucune conséquence et ne donne aucune autorité de commit à l'IA ou au planner.
+
+## Contrat actif
+
+Le registre `narrative-runtime-capability-registry/1` déclare un identifiant stable, les familles `semanticIntent.kind`, le domaine propriétaire, la famille de commande et les politiques de commit et de temps.
+
+`NarrativeRuntimeRouteV1` expose `routeId`, `capabilityId`, `disposition`, `requiredDomain`, `commandFamily`, `commitPolicy` et une raison diagnostique.
+
+| Capacité | Intentions | Domaine | Commande | Commit |
+|---|---|---|---|---|
+| `scene.visible-interaction` | manipulation visible, signal non verbal | `scene_resolution` | `SCENE_INTERACTION` | validation du domaine |
+| `scene.visible-dialogue` | adresse à un acteur visible | `social` | `SPEECH` | validation du domaine |
+| `scene.visible-perception` | observation | `perception` | `PERCEPTION` | interdit |
+| `scene.context-response` | contexte, méta, hypothèse | `scene_resolution` | aucune commande engagée | interdit |
+
+Les domaines `inventory`, `tactical`, `rest` et `world` restent fermés. Une intention qui les requiert conserve son sens et produit un `HANDOFF`; elle n'est jamais rabattue sur `scene_resolution`.
+
+## Sources et autorité
+
+- `semanticIntent.kind` sélectionne une capacité déclarée.
+- `runtimeHandling.requiredDomain` reste une suggestion IA validée par le registre.
+- `canonicalActionHint` n'intervient jamais dans le choix de la route.
+- les cibles restent validées séparément par `scene-referent-registry/1`.
+- `runtimeDecision` reste la projection autoritaire consommée par le planner et le resolver.
+- `NarrativeDomainCommandV1.payload` conserve la route et la capacité pour le diagnostic.
+
+Une intention incertaine ou sans capacité correspondante produit `CLARIFY`. Le registre ne doit pas employer `scene_resolution` comme défaut pour faire progresser artificiellement le tour. Ajouter une capacité exige une entrée déclarative, un domaine propriétaire, une famille de commande et des tests; ajouter des mots-clés au routeur est interdit.
+
+La compatibilité des domaines potentiellement concurrents est structurelle. Une manipulation d'objet peut légitimement demander `inventory`; une interaction visant un PNJ peut demander `tactical`; une entrée ou transition peut demander `world`. En revanche, une suggestion `world` ne détourne pas une manipulation locale dont `forbiddenInterpretations` interdit explicitement `scene_transition`. Cette matrice consulte uniquement les champs structurés de `semanticIntent`, le type canonique de cible et le domaine proposé.
+
+## Preuves
+
+- manipulation de scène routée sans `canonicalActionHint` ;
+- modification du hint sans changement de route ;
+- intention d'inventaire transformée en handoff sans commit ;
+- dialogue et perception dirigés vers leurs capacités propres ;
+- intention indéterminée clarifiée ;
+- matrices d'autorité et d'invariance conservées.
+
+Commande ciblée : `npm run narration-module:test:runtime-routing`.
+
+## Suite
+
+NAR-131 n'ouvre aucune nouvelle mécanique. La prochaine gate éprouve NAR-129 à NAR-131 sur des conversations PNJ longues et des scènes complètes avant de choisir une capacité métier.

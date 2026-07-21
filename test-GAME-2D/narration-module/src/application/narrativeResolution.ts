@@ -23,6 +23,7 @@ import { validateNarrativeDomainCommandV1, type NarrativeDomainCommandV1 } from 
 import { REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1 } from "./playableScene";
 import { resolvePerceptionV1, type PerceptionResolutionV1 } from "./perceptionResolution";
 import { buildSceneReferentRegistryV1, findSceneReferentByRefV1 } from "./sceneReferentRegistry";
+import { routeNarrativeSemanticIntentV1 } from "./runtimeCapabilityRouting";
 import {
   buildReferenceSceneBlocksV1,
   REFERENCE_PLAYABLE_SCENE_ID_V1
@@ -393,7 +394,7 @@ function buildLocalSceneActionEffect(
   if (target === null || target.ref === null) return null;
   if (!isVisibleReferenceSceneTarget(target.ref)) return null;
   if (interpretation.referentResolution?.ambiguity && interpretation.referentResolution.ambiguity !== "none") return null;
-  const isNpcPositioning = interpretation.semanticIntent.kind === "nonverbal_signal" && target.kind === "npc";
+  const isNpcPositioning = interpretation.semanticIntent.kind === "move_near_visible_actor" && target.kind === "npc";
   return {
     schemaVersion: 1,
     effectId: `${operation.operationId}:effect:local-action:1`,
@@ -562,7 +563,7 @@ function buildCharacterExpression(rawInput: string, interpretation: NarrativeInt
 }
 
 function normalizeCharacterExpression(rawInput: string, intentType: NarrativeIntentInterpretationV1["intentType"]): string {
-  const trimmed = rawInput.trim();
+  const trimmed = normalizeSurfaceTyposV1(rawInput);
   const speechMatch = trimmed.match(/(?:je dis|je réponds|je reponds|je lui dis|je demande à|je demande a)\s*(?:que|:)?\s*(.+)$/iu);
   if (speechMatch?.[1]) {
     const content = speechMatch[1].replace(/^["«\s]+|["»\s]+$/gu, "").trim();
@@ -570,6 +571,14 @@ function normalizeCharacterExpression(rawInput: string, intentType: NarrativeInt
   }
   if (intentType === "action") return trimmed;
   return trimmed;
+}
+
+export function normalizeSurfaceTyposV1(rawInput: string): string {
+  return rawInput
+    .trim()
+    .replace(/\s+/gu, " ")
+    .replace(/\bbon+j+our\b/giu, "bonjour")
+    .replace(/\bsi il\b/giu, "s'il");
 }
 
 function buildResolutionDisplayPacket(
@@ -751,12 +760,20 @@ function resolutionDiagnosticLines(resolution: NarrativeResolutionResultV1): str
   const target = interpretation.referentResolution?.resolvedTarget ?? interpretation.semanticIntent.target ?? null;
   const runtimeHandling = interpretation.runtimeHandling ?? null;
   const runtimeDecision = interpretation.runtimeDecision;
+  const runtimeRoute = routeNarrativeSemanticIntentV1({
+    semanticIntent: interpretation.semanticIntent,
+    runtimeSuggestion: runtimeHandling
+  });
   return [
     `Intention canonique: ${interpretation.semanticIntent.kind}; projection de compatibilité non autoritaire: ${interpretation.intentType}${interpretation.action === null ? "" : ` / action=${interpretation.action}`}.`,
+    `Acte de dialogue: ${interpretation.semanticIntent.dialogueAct === null || interpretation.semanticIntent.dialogueAct === undefined
+      ? "aucun"
+      : `${interpretation.semanticIntent.dialogueAct.act}, destinataire=${interpretation.semanticIntent.dialogueAct.addresseeRef ?? "aucun"}, objectif=${interpretation.semanticIntent.dialogueAct.contentGoal}`}.`,
     `Cible résolue: ${target === null ? "aucune" : `${target.label ?? target.ref ?? target.kind} (${target.ref ?? target.kind})`}.`,
     runtimeHandling === null
       ? "Runtime: non renseigné."
       : `Suggestion IA: ${runtimeHandling.status}, domaine=${runtimeHandling.requiredDomain ?? "aucun"}.`,
+    `Routage NAR-131: ${runtimeRoute.routeId}, capacité=${runtimeRoute.capabilityId ?? "aucune"}, disposition=${runtimeRoute.disposition}.`,
     `Décision runtime locale: ${runtimeDecision.status}, domaine=${runtimeDecision.requiredDomain ?? "aucun"}, journalisation=${resolution.commitId !== null ? "appliquée" : runtimeDecision.noCommit ? "aucune" : "préparée"}, concordance IA=${runtimeDecision.aiSuggestionMatched ? "oui" : "non"}.`
   ];
 }

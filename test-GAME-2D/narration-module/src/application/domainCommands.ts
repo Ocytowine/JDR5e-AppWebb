@@ -1,6 +1,7 @@
 import type { JsonObject } from "../core";
 import type { AiIntentRuntimeHandlingV1 } from "../ai/types";
 import { validateCanonicalIntentAuthorityV1, type NarrativeIntentInterpretationV1 } from "./intentClarification";
+import { routeNarrativeSemanticIntentV1, type NarrativeRuntimeCommandFamilyV1 } from "./runtimeCapabilityRouting";
 
 export const NARRATIVE_DOMAIN_COMMAND_CONTRACT_VERSION_V1 = "narrative-domain-command/1" as const;
 
@@ -39,7 +40,8 @@ export function buildNarrativeDomainCommandV1(
   if (domain === null) return null;
   const target = interpretation.referentResolution?.resolvedTarget ?? semantic.target ?? null;
   const targetRefs = target?.ref == null ? [] : [target.ref];
-  const commandType = commandTypeFor(semantic.kind, runtime.status);
+  const route = routeNarrativeSemanticIntentV1({ semanticIntent: semantic, runtimeSuggestion: interpretation.runtimeHandling ?? null });
+  const commandType = commandTypeFor(route.commandFamily, runtime.status);
   const command: NarrativeDomainCommandV1 = {
     schemaVersion: 1,
     contractVersion: NARRATIVE_DOMAIN_COMMAND_CONTRACT_VERSION_V1,
@@ -53,7 +55,10 @@ export function buildNarrativeDomainCommandV1(
     payload: {
       commitment: semantic.commitment,
       uncertainties: [...semantic.uncertainties],
-      forbiddenInterpretations: [...semantic.forbiddenInterpretations]
+      forbiddenInterpretations: [...semantic.forbiddenInterpretations],
+      runtimeRouteId: route.routeId,
+      runtimeCapabilityId: route.capabilityId,
+      runtimeRouteDisposition: route.disposition
     },
     commitPolicy: runtime.status === "SUPPORTED_BY_CURRENT_RUNTIME" && runtime.noCommit === false
       ? "DOMAIN_VALIDATED"
@@ -88,13 +93,11 @@ export function validateNarrativeDomainCommandV1(
 }
 
 function commandTypeFor(
-  semanticKind: NarrativeIntentInterpretationV1["semanticIntent"]["kind"],
+  commandFamily: NarrativeRuntimeCommandFamilyV1,
   runtimeStatus: NarrativeIntentInterpretationV1["runtimeDecision"]["status"]
 ): NarrativeDomainCommandTypeV1 {
   if (runtimeStatus === "UNSUPPORTED_DOMAIN") return "DOMAIN_HANDOFF_REQUEST";
-  if (semanticKind === "address_visible_actor") return "SCENE_SPEECH_REQUEST";
-  if (semanticKind === "observe_environment" || semanticKind === "context_question" || semanticKind === "meta_request") {
-    return "PERCEPTION_REQUEST";
-  }
+  if (commandFamily === "SPEECH") return "SCENE_SPEECH_REQUEST";
+  if (commandFamily === "PERCEPTION") return "PERCEPTION_REQUEST";
   return "SCENE_INTERACTION_REQUEST";
 }

@@ -1,6 +1,6 @@
 # Consolidation des fondations narration
 
-Date : 2026-07-20
+Date : 2026-07-21
 
 Statut : `ACTIF`
 
@@ -68,15 +68,17 @@ Une `EPHEMERAL_TEXTURE` peut reformuler une sensation déjà disponible, soulign
 - NAR-128 : retrait du veto lexical, perception des points d'intérêt et stabilisation structurée de domaine.
 - NAR-129 : plan positif et texture éphémère représentés dans `NarrativeRenderAuthorityV1`; matrice adversariale initiale couvrant un faux état mécanique déclaré comme texture.
 - NAR-130 : acte de dialogue structuré (`INITIATE_CONVERSATION`, `ASK_QUESTION`, `MAKE_STATEMENT`, `REQUEST_ACTION`, `OTHER`), enveloppe de connaissance explicite, repli performer visible et répliques antérieures reconstruites depuis les projections effectivement affichées.
-- Limite ouverte : certaines intentions de domaine sont encore forcées dans une famille sémantique trop étroite.
+- Gate adversariale NAR-129/NAR-130 : fausses présences, événements et faits déclarés comme texture rejetés ; une référence de mémoire PNJ n'est acceptée que si elle correspond aux faits publics ou à une projection de réplique effectivement fournie au performer.
+- NAR-131 : registre déclaratif de capacités runtime, dispositions `HANDLE`/`HANDOFF`/`CLARIFY`, commandes tracées et absence de routage par `canonicalActionHint` — `IMPLEMENTE_DANS_PERIMETRE`.
+- NAR-132 : recette déterministe de dix tours, deux PNJ, répétition, alternance, handoff et reprise; mémoire courte bornée par acteur — `GATE_DETERMINISTE_OK`.
 - Limite ouverte : les échecs `mj_planner` et `npc_performer` ne sont pas tous visibles avec la même clarté que les incidents de rendu.
 
 ## Ordre des lots de consolidation
 
 1. `NAR-129` — plan de rendu positif et texture éphémère non réutilisable — `IMPLEMENTE_DANS_PERIMETRE`.
 2. `NAR-130` — actes de dialogue, connaissances PNJ et mémoire des paroles réellement prononcées — `IMPLEMENTE_DANS_PERIMETRE`.
-3. `NAR-131` — routage de domaine ouvert sans multiplication de catégories lexicales.
-4. Gate adversariale déterministe : modèle déclarant à tort une sortie sûre, faux mécanisme, fausse présence, fausse mémoire et résultat anticipé.
+3. `NAR-131` — routage de domaine ouvert sans multiplication de catégories lexicales — `IMPLEMENTE_DANS_PERIMETRE`.
+4. Gate adversariale déterministe : modèle déclarant à tort une sortie sûre, faux mécanisme, fausse présence, fausse mémoire et résultat anticipé — `IMPLEMENTE_DANS_PERIMETRE`.
 5. Certification OpenAI live répétée sur perception, action suspendue, dialogue et changement de domaine.
 6. Revue de gate post-I-06ZR et choix explicite de la prochaine capacité métier.
 
@@ -107,4 +109,4 @@ La consolidation est fermée seulement si :
 
 ## Prochaine étape concrète
 
-Compléter la matrice adversariale de NAR-129/NAR-130 avec faux historique et fausse présence, puis cadrer NAR-131 sur le routage de domaine ouvert sans correction lexicale.
+Exécuter la recette longue en OpenAI live avec diagnostics de latence et de mémoire, puis réaliser la revue de gate post-I-06ZR avant de choisir une capacité métier.

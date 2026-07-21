@@ -4,6 +4,7 @@ import type {
   AiFailureCategoryV1,
   AiIncidentRecordV1,
   AiIntentInterpretationPayloadV1,
+  AiSemanticIntentPayloadV2,
   AiModelRouteV1,
   AiOutputValidationResultV1,
   AiRoleOutputEnvelopeV1,
@@ -140,7 +141,7 @@ function validateAiIntentInterpretationPayload(payload: unknown): string[] {
   const allowedConfidence = new Set(["low", "medium", "high"]);
   const allowedTargetKinds = new Set(["npc", "place", "object", "self", "unknown"]);
   const allowedActions = new Set(["ask_possibility", "ask", "open", "force", "observe", "act"]);
-  const allowedSemanticKinds = new Set(["address_visible_actor", "manipulate_visible_object", "observe_environment", "nonverbal_signal", "hypothetical_action", "context_question", "meta_request", "unclear_intent"]);
+  const allowedSemanticKinds = new Set(["address_visible_actor", "move_near_visible_actor", "manipulate_visible_object", "traverse_visible_boundary", "observe_environment", "nonverbal_signal", "hypothetical_action", "context_question", "meta_request", "unclear_intent"]);
   const allowedRuntimeStatuses = new Set(["SUPPORTED_BY_CURRENT_RUNTIME", "UNSUPPORTED_DOMAIN", "NEEDS_CLARIFICATION", "AI_INTERPRETATION_FAILED"]);
   const allowedRuntimeDomains = new Set(["scene_resolution", "social", "perception", "inventory", "tactical", "rest", "world"]);
 
@@ -218,7 +219,9 @@ function validateAiIntentInterpretationPayload(payload: unknown): string[] {
     if (isObject(intent.semanticIntent)) {
       const allowedIntentTypesBySemanticKind: Record<string, string[]> = {
         address_visible_actor: ["speech"],
+        move_near_visible_actor: ["action"],
         manipulate_visible_object: ["action"],
+        traverse_visible_boundary: ["action"],
         observe_environment: ["action"],
         nonverbal_signal: ["action"],
         hypothetical_action: ["possibility_query"],
@@ -504,7 +507,7 @@ function validatePlayerExpressionPayload(payload: unknown): string[] {
   return issues;
 }
 
-function validateNpcPerformerPayload(payload: unknown): string[] {
+function validateNpcPerformerPayload(payload: unknown, request: AiCallRequestV1): string[] {
   if (!isObject(payload)) return ["payload: expected object"];
   const typed = payload as Partial<NpcPerformerPayloadV1>;
   const issues: string[] = [];
@@ -514,6 +517,7 @@ function validateNpcPerformerPayload(payload: unknown): string[] {
     "knowledgeUsed",
     "nonVerbalReactions",
     "performanceId",
+    "reactionFrame",
     "revealedRefs",
     "safetyConstraints",
     "schemaVersion",
@@ -522,6 +526,15 @@ function validateNpcPerformerPayload(payload: unknown): string[] {
   if (typed.schemaVersion !== 1) issues.push("payload.schemaVersion: expected 1");
   issues.push(...validateNonEmptyString(typed.performanceId, "payload.performanceId"));
   issues.push(...validateNonEmptyString(typed.actorId, "payload.actorId"));
+  if (!isObject(typed.reactionFrame)) {
+    issues.push("payload.reactionFrame: expected object");
+  } else {
+    issues.push(...exactKeys(typed.reactionFrame, ["addressedContentGoal", "responseMode", "schemaVersion", "sourceDialogueAct"], "payload.reactionFrame"));
+    if (typed.reactionFrame.schemaVersion !== 1) issues.push("payload.reactionFrame.schemaVersion: expected 1");
+    if (!["INITIATE_CONVERSATION", "ASK_QUESTION", "MAKE_STATEMENT", "REQUEST_ACTION", "OTHER"].includes(String(typed.reactionFrame.sourceDialogueAct))) issues.push("payload.reactionFrame.sourceDialogueAct: invalid dialogue act");
+    if (!["ACKNOWLEDGE_CONTACT", "ANSWER_QUESTION", "ACKNOWLEDGE_STATEMENT", "RESPOND_TO_REQUEST", "CAUTIOUS_RESPONSE"].includes(String(typed.reactionFrame.responseMode))) issues.push("payload.reactionFrame.responseMode: invalid response mode");
+    issues.push(...validateNonEmptyString(typed.reactionFrame.addressedContentGoal, "payload.reactionFrame.addressedContentGoal"));
+  }
   if (!isStringArray(typed.nonVerbalReactions)) issues.push("payload.nonVerbalReactions: expected string array");
   if (!isStringArray(typed.durableCommitments) || typed.durableCommitments.length > 0) issues.push("payload.durableCommitments: must be empty");
   if (!isStringArray(typed.revealedRefs) || typed.revealedRefs.length > 0) issues.push("payload.revealedRefs: must be empty");
@@ -563,7 +576,80 @@ function validateNpcPerformerPayload(payload: unknown): string[] {
       }
     });
   }
+  const allowedKnowledgeRefs = npcPerformerAllowedKnowledgeRefs(request);
+  if (allowedKnowledgeRefs !== null) {
+    for (const ref of typed.knowledgeUsed ?? []) {
+      if (!allowedKnowledgeRefs.has(ref)) issues.push(`payload.knowledgeUsed: unsupported knowledge ref ${ref}`);
+    }
+    for (const [utteranceIndex, utterance] of (typed.utterances ?? []).entries()) {
+      for (const [actIndex, speechAct] of (utterance.speechActs ?? []).entries()) {
+        for (const ref of speechAct.sourceRefs ?? []) {
+          if (!allowedKnowledgeRefs.has(ref)) issues.push(`payload.utterances[${utteranceIndex}].speechActs[${actIndex}].sourceRefs: unsupported knowledge ref ${ref}`);
+        }
+      }
+    }
+  }
   return issues;
+}
+
+function validateSemanticIntentPayloadV2(payload: unknown): string[] {
+  if (!isObject(payload)) return ["payload: expected object"];
+  const issues = exactKeys(payload, ["intent", "rawInputEcho"], "payload");
+  const typed = payload as Partial<AiSemanticIntentPayloadV2>;
+  issues.push(...validateNonEmptyString(typed.rawInputEcho, "payload.rawInputEcho"));
+  if (!isObject(typed.intent)) return [...issues, "payload.intent: expected object"];
+  const intent = typed.intent;
+  const path = "payload.intent";
+  issues.push(...exactKeys(intent, ["actionHint", "clarificationPrompt", "commitment", "confidence", "dialogueAct", "domainHint", "kind", "perception", "playerGoal", "scope", "targetMention", "uncertainties"], path));
+  const kinds = new Set(["address_visible_actor", "move_near_visible_actor", "manipulate_visible_object", "traverse_visible_boundary", "observe_environment", "nonverbal_signal", "hypothetical_action", "context_question", "meta_request", "unclear_intent"]);
+  const commitments = new Set(["none", "hypothetical", "conditional", "committed", "unclear"]);
+  const domains = new Set(["scene_resolution", "social", "perception", "inventory", "tactical", "rest", "world"]);
+  if (typeof intent.kind !== "string" || !kinds.has(intent.kind)) issues.push(issue(`${path}.kind`, "invalid semantic kind"));
+  if (typeof intent.commitment !== "string" || !commitments.has(intent.commitment)) issues.push(issue(`${path}.commitment`, "invalid commitment"));
+  issues.push(...validateNonEmptyString(intent.playerGoal, `${path}.playerGoal`));
+  if (intent.actionHint !== null && typeof intent.actionHint !== "string") issues.push(issue(`${path}.actionHint`, "expected string or null"));
+  if (intent.domainHint !== null && (typeof intent.domainHint !== "string" || !domains.has(intent.domainHint))) issues.push(issue(`${path}.domainHint`, "invalid domain or null"));
+  if (!["LOCAL_INTERACTION", "SCENE_TRANSITION", "SOCIAL_EXCHANGE", "PERCEPTION", "META", "UNKNOWN"].includes(String(intent.scope))) issues.push(issue(`${path}.scope`, "invalid semantic scope"));
+  if (!isStringArray(intent.uncertainties) || intent.uncertainties.length > 4) issues.push(issue(`${path}.uncertainties`, "expected at most four strings"));
+  if (intent.clarificationPrompt !== null && typeof intent.clarificationPrompt !== "string") issues.push(issue(`${path}.clarificationPrompt`, "expected string or null"));
+  if (!["low", "medium", "high"].includes(String(intent.confidence))) issues.push(issue(`${path}.confidence`, "invalid confidence"));
+  if (intent.kind === "hypothetical_action" && intent.commitment !== "hypothetical") issues.push(issue(`${path}.commitment`, "hypothetical_action requires hypothetical commitment"));
+  if (intent.commitment === "hypothetical" && intent.kind !== "hypothetical_action") issues.push(issue(`${path}.kind`, "hypothetical commitment requires hypothetical_action"));
+  if (intent.targetMention !== null) {
+    if (!isObject(intent.targetMention)) issues.push(issue(`${path}.targetMention`, "expected object or null"));
+    else {
+      issues.push(...exactKeys(intent.targetMention, ["candidateKind", "contextLink", "proposedRef", "surface"], `${path}.targetMention`));
+      issues.push(...validateNonEmptyString(intent.targetMention.surface, `${path}.targetMention.surface`));
+      if (!["npc", "place", "object", "self", "unknown"].includes(String(intent.targetMention.candidateKind))) issues.push(issue(`${path}.targetMention.candidateKind`, "invalid candidate kind"));
+      if (intent.targetMention.proposedRef !== null && typeof intent.targetMention.proposedRef !== "string") issues.push(issue(`${path}.targetMention.proposedRef`, "expected string or null"));
+      if (!["EXPLICIT", "RECENT_FOCUS", "SCENE_DESCRIPTION", "NONE"].includes(String(intent.targetMention.contextLink))) issues.push(issue(`${path}.targetMention.contextLink`, "invalid context link"));
+    }
+  }
+  if (intent.kind === "observe_environment" && !isObject(intent.perception)) issues.push(issue(`${path}.perception`, "required for observation"));
+  if (intent.kind !== "observe_environment" && intent.perception !== null) issues.push(issue(`${path}.perception`, "must be null outside observation"));
+  if (intent.kind === "address_visible_actor" && !isObject(intent.dialogueAct)) issues.push(issue(`${path}.dialogueAct`, "required for speech"));
+  if (intent.kind !== "address_visible_actor" && intent.dialogueAct !== null) issues.push(issue(`${path}.dialogueAct`, "must be null outside speech"));
+  if ((intent.kind === "unclear_intent" || intent.commitment === "unclear") && (typeof intent.clarificationPrompt !== "string" || intent.clarificationPrompt.trim().length === 0)) issues.push(issue(`${path}.clarificationPrompt`, "required for unclear intention"));
+  return issues;
+}
+
+function npcPerformerAllowedKnowledgeRefs(request: AiCallRequestV1): Set<string> | null {
+  if (!isObject(request.input.task) || !isObject(request.input.task.knowledgeEnvelope)) return null;
+  const envelope = request.input.task.knowledgeEnvelope;
+  const refs = new Set<string>();
+  if (isStringArray(envelope.allowedSourceRefs)) envelope.allowedSourceRefs.forEach(ref => refs.add(ref));
+  if (isObject(request.input.task.interpretation) && typeof request.input.task.interpretation.intentId === "string") {
+    refs.add(`intent:${request.input.task.interpretation.intentId}`);
+  }
+  if (isStringArray(envelope.publicFactRefs)) envelope.publicFactRefs.forEach(ref => refs.add(ref));
+  if (Array.isArray(envelope.priorNpcUtterances)) {
+    envelope.priorNpcUtterances.forEach(value => {
+      if (!isObject(value)) return;
+      if (typeof value.sourceOperationId === "string") refs.add(`operation:${value.sourceOperationId}`);
+      if (typeof value.renderOperationId === "string") refs.add(`render-projection:${value.renderOperationId}`);
+    });
+  }
+  return refs;
 }
 
 function validateSceneWriterPayload(payload: unknown): string[] {
@@ -608,9 +694,13 @@ export function validateAiRoleOutputEnvelopeV1(output: unknown, request: AiCallR
 
   if (issues.length === 0) {
     if (request.role === "intent_interpreter") issues.push(...validateIntentPayload(envelope.payload));
-    if (request.role === "player_intent_interpreter") issues.push(...validateAiIntentInterpretationPayload(envelope.payload));
+    if (request.role === "player_intent_interpreter") issues.push(...(
+      request.contractVersion === "ai-intent-semantic/2"
+        ? validateSemanticIntentPayloadV2(envelope.payload)
+        : validateAiIntentInterpretationPayload(envelope.payload)
+    ));
     if (request.role === "mj_planner") issues.push(...validatePlannerPayload(envelope.payload));
-    if (request.role === "npc_performer") issues.push(...validateNpcPerformerPayload(envelope.payload));
+    if (request.role === "npc_performer") issues.push(...validateNpcPerformerPayload(envelope.payload, request));
     if (request.role === "player_expression_adapter") issues.push(...validatePlayerExpressionPayload(envelope.payload));
     if (request.role === "coherence_critic") issues.push(...validateCoherenceCriticPayload(envelope.payload));
     if (request.role === "scene_writer") issues.push(...validateSceneWriterPayload(envelope.payload));

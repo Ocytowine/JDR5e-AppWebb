@@ -3,6 +3,7 @@
 const ALLOWED_ROLES = new Set(["player_expression_adapter", "scene_writer", "coherence_critic", "player_intent_interpreter", "mj_planner", "npc_performer"]);
 const CONTRACT_VERSION = "narrative-ai-resolution/1";
 const INTENT_CONTRACT_VERSION = "ai-intent-interpretation/1";
+const SEMANTIC_INTENT_CONTRACT_VERSION = "ai-intent-semantic/2";
 const MJ_PLANNER_CONTRACT_VERSION = "mj-planner/1";
 const NPC_PERFORMER_CONTRACT_VERSION = "npc-performer/1";
 const DEFAULT_MODEL = "gpt-4.1-mini";
@@ -115,6 +116,9 @@ const STRICT_AI_OUTPUT_SCHEMA = {
 function buildRolePayloadSchema(requestOrRole) {
   const role = typeof requestOrRole === "string" ? requestOrRole : requestOrRole.role;
   if (role === "player_intent_interpreter") {
+    if (typeof requestOrRole === "object" && requestOrRole.contractVersion === SEMANTIC_INTENT_CONTRACT_VERSION) {
+      return buildSemanticIntentPayloadSchemaV2();
+    }
     return {
       type: "object",
       additionalProperties: false,
@@ -186,7 +190,7 @@ function buildRolePayloadSchema(requestOrRole) {
                 required: ["schemaVersion", "kind", "playerGoal", "target", "commitment", "evidenceFromInput", "uncertainties", "forbiddenInterpretations", "confidence", "perception", "dialogueAct"],
                 properties: {
                   schemaVersion: { enum: [1] },
-                  kind: { enum: ["address_visible_actor", "manipulate_visible_object", "observe_environment", "nonverbal_signal", "hypothetical_action", "context_question", "meta_request", "unclear_intent"] },
+                  kind: { enum: ["address_visible_actor", "move_near_visible_actor", "manipulate_visible_object", "traverse_visible_boundary", "observe_environment", "nonverbal_signal", "hypothetical_action", "context_question", "meta_request", "unclear_intent"] },
                   playerGoal: { type: "string" },
                   target: {
                     anyOf: [
@@ -415,12 +419,26 @@ function buildRolePayloadSchema(requestOrRole) {
               domain: { enum: ["scene_resolution", "social", "perception", "inventory", "tactical", "rest", "world"] },
               commandType: { type: "string" },
               targetRefs: { type: "array", items: { type: "string" } },
-              payload: { type: "object", additionalProperties: true },
+              payload: {
+                type: "object",
+                additionalProperties: false,
+                required: ["intentType", "action", "semanticKind", "semanticGoal"],
+                properties: {
+                  intentType: { type: "string" },
+                  action: { type: ["string", "null"] },
+                  semanticKind: { type: "string" },
+                  semanticGoal: { type: "string" }
+                }
+              },
               commitAuthority: { enum: [false] }
             }
           }
         },
-        creationProposals: { type: "array", maxItems: 0 },
+        creationProposals: {
+          type: "array",
+          maxItems: 0,
+          items: { type: "string" }
+        },
         actorAssignments: {
           type: "array",
           items: {
@@ -439,7 +457,7 @@ function buildRolePayloadSchema(requestOrRole) {
           additionalProperties: false,
           required: ["reveal", "hint", "withhold"],
           properties: {
-            reveal: { type: "array", maxItems: 0 },
+            reveal: { type: "array", maxItems: 0, items: { type: "string" } },
             hint: { type: "array", items: { type: "string" } },
             withhold: { type: "array", items: { type: "string" } }
           }
@@ -465,6 +483,12 @@ function buildRolePayloadSchema(requestOrRole) {
   }
 
   if (role === "npc_performer") {
+    const allowedSourceRefs = Array.isArray(requestOrRole?.input?.task?.knowledgeEnvelope?.allowedSourceRefs)
+      ? requestOrRole.input.task.knowledgeEnvelope.allowedSourceRefs.filter(ref => typeof ref === "string" && ref.trim().length > 0)
+      : [];
+    const sourceRefItems = allowedSourceRefs.length > 0
+      ? { type: "string", enum: allowedSourceRefs }
+      : { type: "string" };
     return {
       type: "object",
       additionalProperties: false,
@@ -472,6 +496,7 @@ function buildRolePayloadSchema(requestOrRole) {
         "schemaVersion",
         "performanceId",
         "actorId",
+        "reactionFrame",
         "utterances",
         "nonVerbalReactions",
         "durableCommitments",
@@ -483,6 +508,17 @@ function buildRolePayloadSchema(requestOrRole) {
         schemaVersion: { enum: [1] },
         performanceId: { type: "string" },
         actorId: { type: "string" },
+        reactionFrame: {
+          type: "object",
+          additionalProperties: false,
+          required: ["schemaVersion", "sourceDialogueAct", "responseMode", "addressedContentGoal"],
+          properties: {
+            schemaVersion: { enum: [1] },
+            sourceDialogueAct: { enum: ["INITIATE_CONVERSATION", "ASK_QUESTION", "MAKE_STATEMENT", "REQUEST_ACTION", "OTHER"] },
+            responseMode: { enum: ["ACKNOWLEDGE_CONTACT", "ANSWER_QUESTION", "ACKNOWLEDGE_STATEMENT", "RESPOND_TO_REQUEST", "CAUTIOUS_RESPONSE"] },
+            addressedContentGoal: { type: "string" }
+          }
+        },
         utterances: {
           type: "array",
           minItems: 1,
@@ -506,7 +542,7 @@ function buildRolePayloadSchema(requestOrRole) {
                     type: { enum: ["assertion", "question", "refusal"] },
                     content: { type: "string" },
                     epistemicBasis: { enum: ["known", "believed", "uncertain"] },
-                    sourceRefs: { type: "array", items: { type: "string" } }
+                    sourceRefs: { type: "array", items: sourceRefItems }
                   }
                 }
               }
@@ -514,9 +550,9 @@ function buildRolePayloadSchema(requestOrRole) {
           }
         },
         nonVerbalReactions: { type: "array", items: { type: "string" } },
-        durableCommitments: { type: "array", maxItems: 0 },
-        revealedRefs: { type: "array", maxItems: 0 },
-        knowledgeUsed: { type: "array", items: { type: "string" } },
+        durableCommitments: { type: "array", maxItems: 0, items: { type: "string" } },
+        revealedRefs: { type: "array", maxItems: 0, items: { type: "string" } },
+        knowledgeUsed: { type: "array", items: sourceRefItems },
         safetyConstraints: {
           type: "object",
           additionalProperties: false,
@@ -580,6 +616,70 @@ function buildRolePayloadSchema(requestOrRole) {
   };
 }
 
+function buildSemanticIntentPayloadSchemaV2() {
+  return {
+    type: "object",
+    additionalProperties: false,
+    required: ["rawInputEcho", "intent"],
+    properties: {
+      rawInputEcho: { type: "string" },
+      intent: {
+        type: "object",
+        additionalProperties: false,
+        required: ["kind", "commitment", "playerGoal", "actionHint", "domainHint", "scope", "targetMention", "perception", "dialogueAct", "uncertainties", "clarificationPrompt", "confidence"],
+        properties: {
+          kind: { enum: ["address_visible_actor", "move_near_visible_actor", "manipulate_visible_object", "traverse_visible_boundary", "observe_environment", "nonverbal_signal", "hypothetical_action", "context_question", "meta_request", "unclear_intent"] },
+          commitment: { enum: ["none", "hypothetical", "conditional", "committed", "unclear"] },
+          playerGoal: { type: "string" },
+          actionHint: { type: ["string", "null"] },
+          domainHint: { enum: ["scene_resolution", "social", "perception", "inventory", "tactical", "rest", "world", null] },
+          scope: { enum: ["LOCAL_INTERACTION", "SCENE_TRANSITION", "SOCIAL_EXCHANGE", "PERCEPTION", "META", "UNKNOWN"] },
+          targetMention: {
+            anyOf: [{
+              type: "object",
+              additionalProperties: false,
+              required: ["surface", "candidateKind", "proposedRef", "contextLink"],
+              properties: {
+                surface: { type: "string" },
+                candidateKind: { enum: ["npc", "place", "object", "self", "unknown"] },
+                proposedRef: { type: ["string", "null"] },
+                contextLink: { enum: ["EXPLICIT", "RECENT_FOCUS", "SCENE_DESCRIPTION", "NONE"] }
+              }
+            }, { type: "null" }]
+          },
+          perception: {
+            anyOf: [{
+              type: "object",
+              additionalProperties: false,
+              required: ["schemaVersion", "depth", "focus", "soughtInformation"],
+              properties: {
+                schemaVersion: { enum: [1] },
+                depth: { enum: ["GLANCE", "FOCUSED", "SEARCH"] },
+                focus: { type: "string" },
+                soughtInformation: { type: ["string", "null"] }
+              }
+            }, { type: "null" }]
+          },
+          dialogueAct: {
+            anyOf: [{
+              type: "object",
+              additionalProperties: false,
+              required: ["act", "contentGoal"],
+              properties: {
+                act: { enum: ["INITIATE_CONVERSATION", "ASK_QUESTION", "MAKE_STATEMENT", "REQUEST_ACTION", "OTHER"] },
+                contentGoal: { type: "string" }
+              }
+            }, { type: "null" }]
+          },
+          uncertainties: { type: "array", maxItems: 4, items: { type: "string" } },
+          clarificationPrompt: { type: ["string", "null"] },
+          confidence: { enum: ["low", "medium", "high"] }
+        }
+      }
+    }
+  };
+}
+
 function createNarrativeOpenAiEnhancementApi(options) {
   const sendJson = options.sendJson;
   const parseJsonBody = options.parseJsonBody;
@@ -589,6 +689,7 @@ function createNarrativeOpenAiEnhancementApi(options) {
 
   async function tryHandle(req, res) {
     if (req.method !== "POST" || req.url !== "/api/narration/enhance-openai") return false;
+    const startedAtMs = Date.now();
     try {
       const body = await parseJsonBody(req);
       const request = normalizeAiCallRequest(body && body.request);
@@ -697,8 +798,17 @@ function createNarrativeOpenAiEnhancementApi(options) {
         metrics: {
           providerId: "openai",
           modelId: route.modelId,
+          reasoningEffort: route.reasoningEffort,
           role: request.value.role,
-          usage: data && typeof data === "object" ? data.usage || null : null
+          latencyMs: Date.now() - startedAtMs,
+          inputTokens: Number.isInteger(data?.usage?.input_tokens) ? data.usage.input_tokens : null,
+          outputTokens: Number.isInteger(data?.usage?.output_tokens) ? data.usage.output_tokens : null,
+          totalTokens: Number.isInteger(data?.usage?.total_tokens) ? data.usage.total_tokens : null,
+          finishReason: typeof data?.status === "string" ? data.status : null,
+          inputTokenBudget: request.value.limits.inputTokenBudget,
+          outputTokenBudget: request.value.limits.outputTokenBudget,
+          contextChars: JSON.stringify(request.value.input).length,
+          schemaChars: JSON.stringify(buildStrictAiOutputSchema(request.value)).length
         }
       });
     } catch (error) {
@@ -737,7 +847,10 @@ function normalizeAiCallRequest(value) {
   if (request.schemaVersion !== 1) issues.push("schemaVersion must be 1.");
   if (!ALLOWED_ROLES.has(request.role)) issues.push("role is not allowed for narrative enhancement.");
   const expectedContractVersion = contractVersionForRole(request.role);
-  if (request.contractVersion !== expectedContractVersion) issues.push(`contractVersion must be ${expectedContractVersion}.`);
+  const acceptedContractVersions = request.role === "player_intent_interpreter"
+    ? [INTENT_CONTRACT_VERSION, SEMANTIC_INTENT_CONTRACT_VERSION]
+    : [expectedContractVersion];
+  if (!acceptedContractVersions.includes(request.contractVersion)) issues.push(`contractVersion must be one of: ${acceptedContractVersions.join(", ")}.`);
   if (typeof request.contextFingerprint === "string" && !/^sha256:[a-f0-9]{64}$/u.test(request.contextFingerprint)) {
     issues.push("contextFingerprint must be a sha256 fingerprint.");
   }
@@ -754,20 +867,27 @@ function normalizeAiCallRequest(value) {
     }
     const maxOutputTokenBudget = request.role === "player_intent_interpreter"
       ? 2_000
+      : request.role === "npc_performer"
+        ? 2_000
+        : request.role === "coherence_critic"
+          ? 1_600
       : request.role === "scene_writer"
         ? 1_500
         : 1_000;
     if (!Number.isInteger(request.limits.outputTokenBudget) || request.limits.outputTokenBudget <= 0 || request.limits.outputTokenBudget > maxOutputTokenBudget) {
       issues.push(`limits.outputTokenBudget must be between 1 and ${maxOutputTokenBudget}.`);
     }
-    if (!Number.isInteger(request.limits.timeoutMs) || request.limits.timeoutMs <= 0 || request.limits.timeoutMs > 10_000) {
-      issues.push("limits.timeoutMs must be between 1 and 10000.");
+    if (!Number.isInteger(request.limits.timeoutMs) || request.limits.timeoutMs <= 0 || request.limits.timeoutMs > 30_000) {
+      issues.push("limits.timeoutMs must be between 1 and 30000.");
     }
   }
   return issues.length > 0 ? { ok: false, issues } : { ok: true, value: request };
 }
 
 function buildServerRoute(request, env) {
+  const intentReasoningEffort = request.role === "player_intent_interpreter"
+    ? normalizeReasoningEffort(env.NARRATION_OPENAI_INTENT_REASONING_EFFORT)
+    : null;
   return {
     modelId: request.role === "player_intent_interpreter"
       ? env.NARRATION_OPENAI_INTENT_MODEL || env.NARRATION_OPENAI_MODEL || DEFAULT_MODEL
@@ -786,8 +906,13 @@ function buildServerRoute(request, env) {
           ? "server-openai-mj-planner"
           : request.role === "npc_performer"
             ? "server-openai-npc-performer"
-            : "server-openai-narrative-expression"
+            : "server-openai-narrative-expression",
+    reasoningEffort: intentReasoningEffort
   };
+}
+
+function normalizeReasoningEffort(value) {
+  return ["none", "low", "medium", "high", "xhigh", "max"].includes(value) ? value : null;
 }
 
 function contractVersionForRole(role) {
@@ -799,7 +924,7 @@ function contractVersionForRole(role) {
 
 function buildOpenAiResponsesBody(request, route) {
   const strictSchema = buildStrictAiOutputSchema(request);
-  return {
+  const body = {
     model: route.modelId,
     input: [
       {
@@ -839,6 +964,8 @@ function buildOpenAiResponsesBody(request, route) {
     },
     store: false
   };
+  if (route.reasoningEffort) body.reasoning = { effort: route.reasoningEffort };
+  return body;
 }
 
 function buildRoleInstructions(request) {
@@ -862,6 +989,28 @@ function buildRoleInstructions(request) {
   }
 
   if (request.role === "player_intent_interpreter") {
+    if (request.contractVersion === SEMANTIC_INTENT_CONTRACT_VERSION) {
+      return [
+        "Tu interprètes librement le sens de l'intention du joueur sans produire de conséquence ni de narration.",
+        "Retourne uniquement le JSON strict demandé. N'ajoute ni projection legacy, ni décision de commit, ni décision temporelle, ni statut runtime.",
+        "playerGoal conserve toute la nuance exprimée. actionHint est un bref concept d'action en langage stable, sans être limité à une liste fermée.",
+        "domainHint suggère seulement le domaine propriétaire; le logiciel garde l'autorité de routage.",
+        "scope=SCENE_TRANSITION si le but est de franchir une limite, entrer, sortir ou changer de lieu; LOCAL_INTERACTION si le but reste une manipulation dans la scène courante.",
+        "kind=move_near_visible_actor pour se placer, s'approcher ou se déplacer vers un acteur visible sans lui parler ni lui adresser de signal. Ce n'est ni address_visible_actor, ni nonverbal_signal, ni manipulate_visible_object.",
+        "kind=nonverbal_signal seulement si le joueur cherche à communiquer par un geste, un regard, une posture ou un autre signal sans parole.",
+        "kind=traverse_visible_boundary lorsque le but est de franchir une porte, une ouverture ou une limite vers un autre espace. targetMention désigne alors la limite visible franchie, même si le joueur nomme surtout la destination.",
+        "kind=manipulate_visible_object lorsque le but porte sur l'objet dans la scène courante sans franchissement: ouvrir, fermer, déplacer, examiner par manipulation ou actionner.",
+        "hypothetical_action est réservé à une possibilité non engagée et exige commitment=hypothetical. Une tentative, même prudente, discrète ou conditionnelle, n'est pas hypothétique dès que le joueur veut réellement l'accomplir.",
+        "targetMention décrit les mots ou l'ellipse employés. proposedRef peut utiliser uniquement une référence du referentRegistry fourni; sinon null.",
+        "Avec contextLink=SCENE_DESCRIPTION, compare les noms, alias et propriétés publiques. Si un seul référent est le meilleur correspondant à la description ou à une comparaison exprimée, renseigne son proposedRef; garde null seulement si plusieurs candidats restent réellement plausibles.",
+        "RECENT_FOCUS est permis lorsqu'un pronom ou une ellipse se rattache réellement au contexte récent. Ne choisis jamais arbitrairement un référent.",
+        "Pour une observation, perception est obligatoire; sinon null. Pour une parole, dialogueAct est obligatoire; sinon null.",
+        "uncertainties contient uniquement les ambiguïtés réelles. clarificationPrompt est requis pour unclear_intent ou commitment=unclear, sinon null.",
+        "Tu peux comprendre des formulations indirectes, composées, fautives ou inédites; ne réduis jamais l'analyse à des mots-clés.",
+        "Interdit: succès, échec, réaction PNJ, secret, mutation, temps, inventaire modifié ou handoff exécuté.",
+        ...shared
+      ].join("\n");
+    }
     return [
       "Tu es une couche d'interpretation structuree de l'intention joueur pour un jeu de role solo.",
       "Tu ne modifies jamais les faits, les consequences, les reussites, les echecs, l'inventaire, le combat, les secrets, le lore durable ou le temps.",
@@ -888,6 +1037,7 @@ function buildRoleInstructions(request) {
       "Une approche seule comme 'je m'approche du garde' ou 'je me dirige vers le garde' n'est pas une parole: intentType=action, semanticIntent.kind=nonverbal_signal, action=act, sans reaction PNJ automatique.",
       "Une action explicite doit etre intentType=action, commitment=committed, expectedTimeEffect=DOMAIN_TO_DECIDE.",
       "Une action implicite contextuelle comme 'je mets la main sur la poignee et pivote le mecanisme' devant une porte visible peut etre comprise comme semanticIntent.kind=manipulate_visible_object et canonicalActionHint=open sans exiger le mot ouvrir.",
+      "Pour une manipulation locale bornée qui ne doit ni franchir un passage ni changer de scène, ajoute exactement scene_transition dans semanticIntent.forbiddenInterpretations. Ne l'ajoute pas si le but réel du joueur est précisément d'entrer, sortir, voyager ou changer de scène.",
       "Si le joueur designe un PNJ visible par description publique unique, par exemple 'la femme' pour la serveuse ou 'l'homme blesse' pour le garde, resous vers ce PNJ visible au lieu du PNJ par defaut.",
       "Si task.localReferentHints contient un referent recent unique compatible avec une ellipse ou un pronom local ('le', 'la', 'lui', \"l'\"), renseigne target et referentResolution avec source=recent_visible_focus; sinon laisse le referent ambigu et demande clarification.",
       "task.recentSemanticTurns contient au plus cinq intentions recemment acceptees. Utilise leur objectif, sujet et cible avec la scene publique pour comprendre la continuite du discours, sans leur donner autorite sur le tour courant.",
@@ -903,6 +1053,22 @@ function buildRoleInstructions(request) {
   }
 
   if (request.role === "coherence_critic") {
+    if (request.input?.task?.dialogueAct) {
+      return [
+        "Tu es un contrôleur sémantique non autoritaire de réplique PNJ.",
+        "Compare candidateNarration à dialogueAct, actorId, rawInput, priorNpcUtterances et dialogueHistory. Tu ne réécris pas la réplique et tu ne produis aucun fait de fiction.",
+        "INITIATE_CONVERSATION autorise une salutation, une prise de contact ou une invitation prudente à parler; rejette toute prétendue question préalable ou réponse informative non demandée.",
+        "ASK_QUESTION doit répondre au contentGoal, avouer une ignorance ou esquiver explicitement ce sujet; rejette une réponse provenant d'un autre sujet.",
+        "MAKE_STATEMENT doit accuser réception du contentGoal sans le transformer en question posée par le joueur.",
+        "REQUEST_ACTION peut accepter, refuser ou hésiter sur l'action demandée sans annoncer son succès.",
+        "OTHER doit rester prudent et ne pas inventer un acte de dialogue plus précis.",
+        "dialogueHistory associe chaque ancienne intention joueur aux répliques PNJ qu'elle a produites. Si l'intention courante est sémantiquement équivalente à une intention antérieure, une réponse cohérente et similaire est légitime même sans mot explicite comme répéter; rejette seulement les contradictions ou les répétitions mécaniques sans rapport avec la demande courante.",
+        "Rejette les rappels spatiaux ou nominaux mécaniques déjà évidents, par exemple répéter 'près du garde' à chaque phrase alors que l'interlocuteur et l'action sont établis.",
+        "REJECT avec un finding BLOCKING de catégorie PLOT_COHERENCE si la réplique répond à un autre acte, invente une question, ou contredit le contentGoal.",
+        "PASS exige findings=[] et correctionConstraints=[].",
+        ...shared
+      ].join("\n");
+    }
     return [
       "Tu es un contrôleur sémantique non autoritaire de rendu narratif.",
       "Compare uniquement candidateNarration à renderAuthority. Tu ne réécris pas la narration et tu ne produis aucun fait de fiction.",
@@ -947,8 +1113,12 @@ function buildRoleInstructions(request) {
       "Utilise diagnostics=[] si tout va bien, supersedesOutputId=null et status=OK pour une sortie utilisable.",
       "Role npc_performer: produire une reaction courte du PNJ assigne, a partir de task.interpretation, task.mjPlan, task.resolution et task.sceneState.",
       "Lis task.dialogueAct comme contrat du tour: INITIATE_CONVERSATION ouvre seulement le contact et ne doit inventer aucune question; ASK_QUESTION répond à contentGoal; MAKE_STATEMENT accuse réception sans la transformer en question; REQUEST_ACTION accepte, refuse ou hésite sans décider un succès; OTHER reste prudent.",
+      "Avant d'écrire la prose, remplis reactionFrame: sourceDialogueAct recopie exactement task.dialogueAct.act, addressedContentGoal recopie exactement task.dialogueAct.contentGoal, et responseMode vaut respectivement ACKNOWLEDGE_CONTACT, ANSWER_QUESTION, ACKNOWLEDGE_STATEMENT, RESPOND_TO_REQUEST ou CAUTIOUS_RESPONSE.",
       "La réaction doit répondre au but sémantique du tour courant, ou exprimer clairement un refus, une ignorance ou une esquive portant sur ce but.",
+      "Respecte task.knowledgeEnvelope.visibleSituation et roleContextPack.spatialContext comme contraintes spatiales strictes. Le joueur est déjà dans la salle commune: ne l'invite jamais à entrer dans l'auberge ou à se mettre à l'abri comme s'il était dehors. La porte du fond est celle de l'arrière-salle, pas l'entrée.",
+      "Évite de répéter mot pour mot une formulation de priorNpcUtterances. Ne répète pas mécaniquement le nom ou la position d'un acteur déjà établi, par exemple 'près du garde', sauf si cette précision change réellement le sens.",
       "N'affirme jamais que le PNJ a déjà dit, promis, interdit, couvert ou expliqué quelque chose sauf si la réplique exacte apparaît dans task.knowledgeEnvelope.priorNpcUtterances.",
+      "knowledgeUsed et chaque speechActs[].sourceRefs doivent contenir uniquement des valeurs recopiées exactement depuis task.knowledgeEnvelope.allowedSourceRefs. N'invente aucun préfixe task.*, aucun suffixe et aucune nouvelle référence.",
       "Si priorNpcUtterances est vide, n'écris jamais 'je vous l'ai déjà dit', 'ma réponse ne change pas', 'encore une fois' ni aucun faux rappel équivalent.",
       "N'utilise que les faits publics et la mémoire fournis; une réponse générique provenant d'un autre sujet de conversation est inutilisable.",
       "Ne decide jamais un succes social, un echec social, une consequence durable, un changement d'etat, un combat, un gain, une perte, une avance de temps ou une revelation de secret.",
@@ -1070,9 +1240,10 @@ function validateEnvelope(output, request) {
 function validateRolePayload(payload, role, request = null) {
   const issues = [];
   if (role === "player_intent_interpreter") {
+    if (request?.contractVersion === SEMANTIC_INTENT_CONTRACT_VERSION) return validateSemanticIntentPayloadV2(payload);
     if (typeof payload.rawInputEcho !== "string") issues.push("payload.rawInputEcho must be a string.");
     const allowedIntentActions = new Set(["ask_possibility", "ask", "open", "force", "observe", "act"]);
-    const allowedSemanticKinds = new Set(["address_visible_actor", "manipulate_visible_object", "observe_environment", "nonverbal_signal", "hypothetical_action", "context_question", "meta_request", "unclear_intent"]);
+    const allowedSemanticKinds = new Set(["address_visible_actor", "move_near_visible_actor", "manipulate_visible_object", "traverse_visible_boundary", "observe_environment", "nonverbal_signal", "hypothetical_action", "context_question", "meta_request", "unclear_intent"]);
     const allowedRuntimeStatuses = new Set(["SUPPORTED_BY_CURRENT_RUNTIME", "UNSUPPORTED_DOMAIN", "NEEDS_CLARIFICATION", "AI_INTERPRETATION_FAILED"]);
     const allowedRuntimeDomains = new Set(["scene_resolution", "social", "perception", "inventory", "tactical", "rest", "world"]);
     if (!Array.isArray(payload.intents) || payload.intents.length === 0 || payload.intents.length > 3) {
@@ -1198,6 +1369,43 @@ function validateRolePayload(payload, role, request = null) {
       }
     }
   }
+  return issues;
+}
+
+function validateSemanticIntentPayloadV2(payload) {
+  const issues = [];
+  if (typeof payload.rawInputEcho !== "string") issues.push("payload.rawInputEcho must be a string.");
+  const intent = payload.intent;
+  if (!intent || typeof intent !== "object" || Array.isArray(intent)) return [...issues, "payload.intent must be an object."];
+  const kinds = ["address_visible_actor", "move_near_visible_actor", "manipulate_visible_object", "traverse_visible_boundary", "observe_environment", "nonverbal_signal", "hypothetical_action", "context_question", "meta_request", "unclear_intent"];
+  const commitments = ["none", "hypothetical", "conditional", "committed", "unclear"];
+  const domains = ["scene_resolution", "social", "perception", "inventory", "tactical", "rest", "world"];
+  if (!kinds.includes(intent.kind)) issues.push("payload.intent.kind is invalid.");
+  if (!commitments.includes(intent.commitment)) issues.push("payload.intent.commitment is invalid.");
+  if (typeof intent.playerGoal !== "string" || intent.playerGoal.trim().length === 0) issues.push("payload.intent.playerGoal must be a non-empty string.");
+  if (!(intent.actionHint === null || typeof intent.actionHint === "string")) issues.push("payload.intent.actionHint must be a string or null.");
+  if (!(intent.domainHint === null || domains.includes(intent.domainHint))) issues.push("payload.intent.domainHint is invalid.");
+  if (!["LOCAL_INTERACTION", "SCENE_TRANSITION", "SOCIAL_EXCHANGE", "PERCEPTION", "META", "UNKNOWN"].includes(intent.scope)) issues.push("payload.intent.scope is invalid.");
+  if (!Array.isArray(intent.uncertainties) || intent.uncertainties.length > 4 || intent.uncertainties.some(item => typeof item !== "string")) issues.push("payload.intent.uncertainties must contain at most four strings.");
+  if (!(intent.clarificationPrompt === null || typeof intent.clarificationPrompt === "string")) issues.push("payload.intent.clarificationPrompt must be a string or null.");
+  if (!["low", "medium", "high"].includes(intent.confidence)) issues.push("payload.intent.confidence is invalid.");
+  if (intent.kind === "hypothetical_action" && intent.commitment !== "hypothetical") issues.push("payload.intent hypothetical_action must use hypothetical commitment.");
+  if (intent.commitment === "hypothetical" && intent.kind !== "hypothetical_action") issues.push("payload.intent hypothetical commitment must use hypothetical_action.");
+  if (intent.targetMention !== null) {
+    const mention = intent.targetMention;
+    if (!mention || typeof mention !== "object" || Array.isArray(mention)) issues.push("payload.intent.targetMention must be an object or null.");
+    else {
+      if (typeof mention.surface !== "string" || mention.surface.trim().length === 0) issues.push("payload.intent.targetMention.surface must be non-empty.");
+      if (!["npc", "place", "object", "self", "unknown"].includes(mention.candidateKind)) issues.push("payload.intent.targetMention.candidateKind is invalid.");
+      if (!(mention.proposedRef === null || typeof mention.proposedRef === "string")) issues.push("payload.intent.targetMention.proposedRef must be a string or null.");
+      if (!["EXPLICIT", "RECENT_FOCUS", "SCENE_DESCRIPTION", "NONE"].includes(mention.contextLink)) issues.push("payload.intent.targetMention.contextLink is invalid.");
+    }
+  }
+  if (intent.kind === "observe_environment" && (!intent.perception || typeof intent.perception !== "object")) issues.push("payload.intent.perception is required for observation.");
+  if (intent.kind !== "observe_environment" && intent.perception !== null) issues.push("payload.intent.perception must be null outside observation.");
+  if (intent.kind === "address_visible_actor" && (!intent.dialogueAct || typeof intent.dialogueAct !== "object")) issues.push("payload.intent.dialogueAct is required for speech.");
+  if (intent.kind !== "address_visible_actor" && intent.dialogueAct !== null) issues.push("payload.intent.dialogueAct must be null outside speech.");
+  if ((intent.kind === "unclear_intent" || intent.commitment === "unclear") && (typeof intent.clarificationPrompt !== "string" || intent.clarificationPrompt.trim().length === 0)) issues.push("payload.intent.clarificationPrompt is required for an unclear intention.");
   return issues;
 }
 
@@ -1329,12 +1537,32 @@ function validateMjPlannerPayload(payload, request) {
 function validateNpcPerformerPayload(payload, request) {
   const issues = [];
   const sourceActorId = request?.input?.task?.actorId;
+  const sourceDialogueAct = request?.input?.task?.dialogueAct;
   if (payload.schemaVersion !== 1) issues.push("payload.schemaVersion must be 1.");
   if (typeof payload.performanceId !== "string" || payload.performanceId.trim().length === 0) issues.push("payload.performanceId must be a non-empty string.");
   if (typeof payload.actorId !== "string" || payload.actorId.trim().length === 0) {
     issues.push("payload.actorId must be a non-empty string.");
   } else if (typeof sourceActorId === "string" && sourceActorId.trim().length > 0 && payload.actorId !== sourceActorId) {
     issues.push("payload.actorId must match task.actorId.");
+  }
+  const reactionFrame = payload.reactionFrame;
+  if (!reactionFrame || typeof reactionFrame !== "object" || Array.isArray(reactionFrame)) {
+    issues.push("payload.reactionFrame must be an object.");
+  } else {
+    const responseModes = {
+      INITIATE_CONVERSATION: "ACKNOWLEDGE_CONTACT",
+      ASK_QUESTION: "ANSWER_QUESTION",
+      MAKE_STATEMENT: "ACKNOWLEDGE_STATEMENT",
+      REQUEST_ACTION: "RESPOND_TO_REQUEST",
+      OTHER: "CAUTIOUS_RESPONSE"
+    };
+    if (reactionFrame.schemaVersion !== 1) issues.push("payload.reactionFrame.schemaVersion must be 1.");
+    if (!Object.hasOwn(responseModes, reactionFrame.sourceDialogueAct)) issues.push("payload.reactionFrame.sourceDialogueAct is invalid.");
+    if (!Object.values(responseModes).includes(reactionFrame.responseMode)) issues.push("payload.reactionFrame.responseMode is invalid.");
+    if (typeof reactionFrame.addressedContentGoal !== "string" || reactionFrame.addressedContentGoal.trim().length === 0) issues.push("payload.reactionFrame.addressedContentGoal must be non-empty.");
+    if (sourceDialogueAct && reactionFrame.sourceDialogueAct !== sourceDialogueAct.act) issues.push("payload.reactionFrame.sourceDialogueAct must match task.dialogueAct.act.");
+    if (sourceDialogueAct && reactionFrame.responseMode !== responseModes[sourceDialogueAct.act]) issues.push("payload.reactionFrame.responseMode must match task.dialogueAct.act.");
+    if (sourceDialogueAct && reactionFrame.addressedContentGoal !== sourceDialogueAct.contentGoal) issues.push("payload.reactionFrame.addressedContentGoal must match task.dialogueAct.contentGoal.");
   }
   if (!Array.isArray(payload.utterances) || payload.utterances.length === 0 || payload.utterances.length > 2) {
     issues.push("payload.utterances must contain 1 to 2 utterances.");
@@ -1547,6 +1775,7 @@ module.exports = {
   CONTRACT_VERSION,
   STRICT_AI_OUTPUT_SCHEMA,
   buildRoleInstructions,
+  buildServerRoute,
   buildStrictAiOutputSchema,
   buildOpenAiResponsesBody,
   createNarrativeOpenAiEnhancementApi,

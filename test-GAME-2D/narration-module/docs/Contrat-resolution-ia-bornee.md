@@ -78,6 +78,8 @@ Ce contrôle est sémantique. Le code applicatif ne tente pas de reconnaître un
 
 Les affirmations positives appartiennent à `SOURCE_FACT`, `CONFIRMED_RESULT` ou `ATTRIBUTED_SPEECH`. Une texture autorisée reste `TURN_ONLY`, `reusableAsFact=false`, `persistToMemory=false` et `mayAffectRules=false`.
 
+Un simple positionnement local près d'un PNJ confirme uniquement la position relative du personnage. Le fallback déterministe ne peut pas ajouter que le PNJ remarque l'approche, modifie son geste, se crispe ou réagit; une telle réaction exige une résolution ou une performance PNJ explicitement autorisée.
+
 La texture peut reformuler une sensation déjà sourcée, accentuer une tension confirmée ou relier stylistiquement des faits autorisés. Elle ne peut pas ajouter :
 
 - propriété matérielle ou usure non fournie ;

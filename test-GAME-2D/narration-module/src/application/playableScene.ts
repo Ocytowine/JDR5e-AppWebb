@@ -31,6 +31,7 @@ export interface PlayableScenePointOfInterestV1 extends JsonObject {
   label: string;
   visibleDescription: string;
   keywords: string[];
+  destinationAliases: string[];
   version: 1;
 }
 
@@ -114,7 +115,7 @@ export const REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1: PlayableSceneStateV1 = {
     elementId: "back-room-door",
     label: "Porte du fond",
     description: "La porte du fond attire trop de regards pour être anodine.",
-    keywords: ["porte", "fond", "arriere", "arriere-salle", "poignée", "mécanisme", "loquet", "battant"],
+    keywords: ["porte", "fond", "poignée", "mécanisme", "loquet", "battant"],
     playerVisible: true,
     version: 1
   }],
@@ -126,8 +127,8 @@ export const REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1: PlayableSceneStateV1 = {
     publicRole: "Garde de ville",
     visibleState: "fatigué, nerveux, blessure bandée sous la cuirasse",
     keywords: ["garde", "blesse", "soldat", "homme", "homme blessé"],
-    defaultReply: "Le garde écoute la question sans quitter son flanc bandé. « Je vous ai entendu. Je ne répondrai que sur ce que je peux confirmer ici. »",
-    repeatedReply: "Le garde soutient ton regard. « Votre question est claire, mais je ne peux rien confirmer de plus ici. »",
+    defaultReply: "Le garde tourne son attention vers toi. « Je vous écoute. »",
+    repeatedReply: "Le garde soutient ton regard, attentif à la suite de l'échange.",
     version: 1
   }, {
     schemaVersion: 1,
@@ -137,8 +138,8 @@ export const REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1: PlayableSceneStateV1 = {
     publicRole: "Employée de l'auberge",
     visibleState: "mains occupées, regard fuyant, attention fixée sur l'arrière-salle",
     keywords: ["serveuse", "aubergiste", "comptoir", "femme", "dame"],
-    defaultReply: "La serveuse suspend son geste et écoute la question. « Je vous ai entendu, mais je préfère ne rien affirmer de plus ici. »",
-    repeatedReply: "La serveuse garde le gobelet entre ses mains. « Votre question est claire. Ma réponse ne change pas : je ne peux rien confirmer de plus ici. »",
+    defaultReply: "La serveuse suspend son geste et relève brièvement les yeux. « Je vous écoute. »",
+    repeatedReply: "La serveuse garde le gobelet entre ses mains, attentive à la suite de l'échange.",
     version: 1
   }],
   pointsOfInterest: [{
@@ -146,7 +147,8 @@ export const REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1: PlayableSceneStateV1 = {
     pointId: "back-room-door",
     label: "Porte du fond",
     visibleDescription: "Une porte étroite près du comptoir mène vers l'arrière-salle.",
-    keywords: ["porte", "fond", "arriere", "arriere-salle", "poignée", "mécanisme", "loquet", "battant"],
+    keywords: ["porte", "fond", "poignée", "mécanisme", "loquet", "battant"],
+    destinationAliases: ["arrière-salle", "arriere-salle"],
     version: 1
   }],
   perceptionClues: [{
@@ -282,6 +284,7 @@ export const WATCHTOWER_DAWN_PLAYABLE_SCENE_V1: PlayableSceneStateV1 = {
     label: "Route basse",
     visibleDescription: "La route basse disparaît par moments dans des bancs de brume.",
     keywords: ["route", "sud", "brume"],
+    destinationAliases: [],
     version: 1
   }],
   perceptionClues: [],

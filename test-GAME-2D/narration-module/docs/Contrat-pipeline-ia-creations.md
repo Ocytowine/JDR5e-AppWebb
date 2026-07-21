@@ -250,6 +250,30 @@ Le tour de dialogue fournit un acte sémantique explicite parmi `INITIATE_CONVER
 
 Le paquet du performer sépare les faits publics, les paroles antérieures du joueur et les répliques PNJ réellement disponibles. `priorNpcUtterances` est reconstruit exclusivement depuis les blocs `NPC_SPEECH` des projections finales persistées, avec leur opération source, leur opération de rendu et l'empreinte du paquet affiché. Une parole ainsi rappelée reste attribuée au PNJ et ne devient pas une vérité objective. En l'absence de projection correspondante, le modèle ne peut pas écrire qu'il se répète, que sa réponse ne change pas ou qu'il a déjà fourni une information.
 
+La validation locale limite désormais `knowledgeUsed` et les `speechActs[].sourceRefs` aux faits publics du paquet, à l'intention courante et aux opérations/projections présentes dans `priorNpcUtterances`. Une référence historique inventée est donc rejetée même si l'enveloppe du modèle se déclare sûre. Cette vérification porte sur la provenance structurée et n'ajoute aucune détection lexicale des formulations de dialogue.
+
+En mode OpenAI, une réplique `npc_performer` structurellement valide passe ensuite par un `coherence_critic` dédié à la fidélité de `dialogueAct`. Le critique compare la prose à `INITIATE_CONVERSATION`, `ASK_QUESTION`, `MAKE_STATEMENT`, `REQUEST_ACTION` ou `OTHER`. Une question inventée, une réponse hors sujet ou un changement d'acte produit un rejet bloquant; la performance IA n'est pas appliquée et le dialogue déterministe borné reste affiché. Ce contrôle ne donne aucune autorité métier au critique.
+
+Tous les actes de dialogue restent sous la responsabilité du `npc_performer`, y compris `INITIATE_CONVERSATION` et `MAKE_STATEMENT`. Sa sortie contient un `reactionFrame` structuré qui doit recopier l'acte et l'objectif interprétés, puis choisir le mode de réponse canonique correspondant. Un validateur local indépendant vérifie ce cadre et interdit notamment qu'une ouverture de contact ou une déclaration introduise un acte de question. La prose validée structurellement passe ensuite par le critique de cohérence; en cas de rejet, le dialogue déterministe borné reste affiché.
+
+Le fallback de rendu est lui aussi construit depuis le `dialogueAct` par un module partagé; il ne contient aucune hypothèse générique de question. Une salutation rejetée reste donc une salutation, une déclaration reste un accusé de réception et une demande d'action reste une réponse prudente à la demande. Le rejet du performer et son motif sont ajoutés à la notification système afin de distinguer clairement une performance acceptée d'un fallback.
+
+L'échec du `mj_planner` distant ne coupe pas l'orchestration. Son diagnostic est conservé, puis le planner local déterministe reconstruit un plan sans autorité depuis l'intention canonique. L'assignation `npc_performer` reste ainsi disponible et le module d'incarnation peut être appelé indépendamment de la disponibilité du planner distant.
+
+Dans la surface de jeu courante, le `mj_planner` utilise directement son provider local déterministe, y compris lorsque l'interprétation et le performer utilisent OpenAI. Le plan minimal étant entièrement contraint et sans prose créative, un appel distant n'apporte pas de décision supplémentaire. Les critiques disposent de 1 600 tokens de sortie et le performer de 2 000 pour terminer leurs enveloppes structurées.
+
+Les schémas JSON stricts envoyés à OpenAI sont testés récursivement: chaque tableau déclare `items`, chaque objet interdit les propriétés supplémentaires et toutes ses propriétés sont requises. Cette vérification couvre notamment les tableaux volontairement vides du planner et du performer ainsi que le payload fermé des propositions de commande.
+
+Le paquet `npc_performer` publie en outre `knowledgeEnvelope.allowedSourceRefs`. Le schéma OpenAI utilise cette liste comme énumération pour `knowledgeUsed` et `speechActs[].sourceRefs`; le modèle doit recopier une référence canonique exacte et ne peut plus fabriquer des pointeurs comme `task.actorId` ou `task.dialogueAct.contentGoal`.
+
+La surface n'ajoute aucun panneau de diagnostic séparé. Le bloc `SYSTEM_NOTICE` existant reçoit une section `Trace système et mémoire` qui expose l'issue du performer, l'acteur et l'acte, les intentions joueur mémorisées pour ce PNJ, ses répliques antérieures visibles, les couples visibles `intention → réponse`, les sources déclarées et les durées contrôleur, enrichissement, persistance et total avant affichage. Le contrôleur détaille également interprétation, planification, résolution et performer PNJ; le résidu est présenté comme orchestration/persistance.
+
+Le performer reçoit une situation spatiale explicite. Sa prose subit un contrôle local avant le critique distant afin de bloquer les contradictions visibles simples. Lorsque l'adaptateur distant d'expression est désactivé, seules des corrections typographiques locales bornées sont appliquées, sans reformulation sémantique.
+
+Le performer reçoit un `dialogueHistory` qui associe les intentions joueur aux répliques PNJ persistées. Le critique n'est appelé que si un risque local de continuité ou de complexité existe: historique déjà présent, acte `OTHER`, plusieurs répliques ou plusieurs actes de parole. Il accepte une réponse similaire lorsque la question courante est équivalente à une ancienne question, mais rejette les contradictions et les rappels nominaux ou spatiaux mécaniques comme `près du garde`.
+
+Dans la surface de jeu, `useRemoteExpressionAdapter=false`: l'expression locale déjà déclarée fidèle est conservée sans appel au `player_expression_adapter` ni à son critique. Le module distant reste disponible pour les autres consommateurs et ses tests contractuels.
+
 ```ts
 interface NpcPerformerPayloadV1 {
   actorId: string;

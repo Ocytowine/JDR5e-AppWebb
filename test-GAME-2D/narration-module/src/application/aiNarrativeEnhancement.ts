@@ -25,6 +25,7 @@ export interface AiNarrativeEnhancementConfigV1 {
   expressionRoute: AiModelRouteV1;
   sceneWriterRoute: AiModelRouteV1;
   coherenceCriticRoute?: AiModelRouteV1;
+  useRemoteExpressionAdapter?: boolean;
   retryPolicy: AiRetryPolicyV1;
 }
 
@@ -56,7 +57,7 @@ export async function enhanceNarrativeDisplayWithAiV1(input: {
   let sceneWriterAttempted = false;
   let renderFallbackUsed = false;
 
-  if (input.resolution.characterExpression !== null) {
+  if (input.resolution.characterExpression !== null && input.config.useRemoteExpressionAdapter !== false) {
     const expressionContext = {
       schemaVersion: 1,
       intentId: input.resolution.interpretation.intentId,
@@ -91,7 +92,7 @@ export async function enhanceNarrativeDisplayWithAiV1(input: {
         },
         limits: {
           inputTokenBudget: 800,
-          outputTokenBudget: 400,
+          outputTokenBudget: 800,
           timeoutMs: input.config.expressionRoute.timeoutMs
         }
       }
@@ -130,7 +131,7 @@ export async function enhanceNarrativeDisplayWithAiV1(input: {
             },
             limits: {
               inputTokenBudget: 700,
-              outputTokenBudget: 700,
+              outputTokenBudget: Math.min(1_600, input.config.coherenceCriticRoute.outputTokenLimit),
               timeoutMs: input.config.coherenceCriticRoute.timeoutMs
             }
           }
@@ -153,6 +154,8 @@ export async function enhanceNarrativeDisplayWithAiV1(input: {
         safetyNotes.push("Expression PJ enrichie par IA sans ajout de sens.");
       }
     }
+  } else if (input.resolution.characterExpression !== null) {
+    safetyNotes.push("Expression joueur locale conservée: le rendu déterministe est déjà fidèle et ne nécessite aucun appel distant.");
   }
 
   if (shouldCallSceneWriter(input.resolution, input.displayPacket)) {
@@ -239,7 +242,7 @@ export async function enhanceNarrativeDisplayWithAiV1(input: {
           },
           limits: {
             inputTokenBudget: 900,
-            outputTokenBudget: 700,
+            outputTokenBudget: Math.min(1_600, input.config.coherenceCriticRoute.outputTokenLimit),
             timeoutMs: input.config.coherenceCriticRoute.timeoutMs
           }
         }

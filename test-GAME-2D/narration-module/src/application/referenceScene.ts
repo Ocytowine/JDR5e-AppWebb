@@ -11,6 +11,7 @@ import {
   toPlayableScenePublicContextV1
 } from "./playableScene";
 import type { ReferenceSceneStateV1 } from "./referenceSceneState";
+import { buildNpcDialogueFallbackV1 } from "./npcDialogueFallback";
 
 export const REFERENCE_PLAYABLE_SCENE_ID_V1 = "reference-inn-rain-001" as const;
 export const REFERENCE_PLAYABLE_SCENE_CONTRACT_VERSION_V1 = "reference-playable-scene/1" as const;
@@ -444,9 +445,10 @@ export function buildReferenceSceneBlocksV1(input: {
         kind: "NPC_SPEECH",
         speakerKind: "NPC",
         displayName: target.displayName,
-        text: target.actorId === "npc-serveuse-nerveuse"
-          ? waitressSpeechNarration(input.sceneState)
-          : guardSpeechNarration(input.sceneState),
+        text: buildNpcDialogueFallbackV1(
+          target.actorId,
+          input.interpretation.semanticIntent.dialogueAct?.act ?? "OTHER"
+        ).text,
         sourceRefs: [`reference-scene:${REFERENCE_PLAYABLE_SCENE_ID_V1}`, `resolution:${input.resolution.resolutionId}:speech-reaction`]
       })
     ];
@@ -647,8 +649,8 @@ function actionNarration(
     target?.kind === "npc"
   ) {
     return target.ref === "npc:npc-serveuse-nerveuse" || target.ref === "npc-serveuse-nerveuse"
-      ? "Tu te places près de la serveuse nerveuse, assez près pour voir ses mains se crisper autour du gobelet. Elle te remarque, mais aucune parole n'est encore échangée et aucune réaction sociale n'est résolue."
-      : "Tu te places près du garde blessé, à portée de voix. Il remarque ton approche, sa main toujours serrée contre son flanc, mais aucune parole n'est encore échangée et aucune réaction sociale n'est résolue.";
+      ? "Tu te places près de la serveuse nerveuse, à portée de voix. Aucune parole n'est encore échangée et aucune réaction de sa part n'est résolue."
+      : "Tu te places près du garde blessé, à portée de voix. Aucune parole n'est encore échangée et aucune réaction de sa part n'est résolue.";
   }
   return observationNarration(rawInput, sceneState);
 }
@@ -657,22 +659,6 @@ function referenceNarrativeTargetLabel(ref: string | null | undefined, fallback:
   const actorId = ref?.replace(/^npc:/u, "") ?? "";
   const actor = REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1.presentNpc.find(entry => entry.actorId === actorId);
   return actor?.narrativeLabel ?? fallback?.toLowerCase() ?? "la cible";
-}
-
-function guardSpeechNarration(sceneState?: ReferenceSceneStateV1): string {
-  const remembered = sceneState?.shortTermNpcMemory.filter(memory => memory.actorId === "npc-garde-blesse").at(-1);
-  if ((sceneState?.interactionCount ?? 0) > 1 && remembered) {
-    return "Le garde soutient ton regard. « Votre question est claire, mais je ne peux rien confirmer de plus ici. »";
-  }
-  return "Le garde écoute la question sans quitter son flanc bandé. « Je vous ai entendu. Je ne répondrai que sur ce que je peux confirmer ici. »";
-}
-
-function waitressSpeechNarration(sceneState?: ReferenceSceneStateV1): string {
-  const remembered = sceneState?.shortTermNpcMemory.filter(memory => memory.actorId === "npc-serveuse-nerveuse").at(-1);
-  if ((sceneState?.interactionCount ?? 0) > 1 && remembered) {
-    return "La serveuse garde le gobelet entre ses mains. « Votre question est claire. Ma réponse ne change pas : je ne peux rien confirmer de plus ici. »";
-  }
-  return "La serveuse suspend son geste et écoute la question. « Je vous ai entendu, mais je préfère ne rien affirmer de plus ici. »";
 }
 
 function handoffNarration(target: string): string {

@@ -9,7 +9,12 @@ import {
   type CampaignRecord,
   type RepositoryClock
 } from "../../src/core";
-import { NarrativeTurnControllerV1 } from "../../src/application";
+import {
+  NarrativeTurnControllerV1,
+  createInitialReferenceSceneStateV1,
+  normalizeSurfaceTyposV1,
+  validateNpcPerformanceAgainstVisibleSceneV1
+} from "../../src/application";
 import {
   REFERENCE_SCENE_STATE_AGGREGATE_ID_V1,
   REFERENCE_SCENE_STATE_AGGREGATE_TYPE_V1,
@@ -78,6 +83,13 @@ async function main(): Promise<void> {
   assert.equal(first.value.output.noGameTime, true);
   assert.equal(first.value.output.interpretation.intentType, "action");
   assert.equal(first.value.output.resolution.resultKind, "RESOLUTION_PROPOSED");
+  assert.equal(typeof first.value.output.stageTimings?.interpretationMs, "number", "chronométrage interprétation exposé");
+  assert.equal(typeof first.value.output.stageTimings?.resolutionMs, "number", "chronométrage résolution exposé");
+  assert.equal(typeof first.value.output.stageTimings?.npcPerformanceMs, "number", "chronométrage performer exposé");
+  assert.equal(normalizeSurfaceTyposV1("  j'adresse un bonnjour  "), "j'adresse un bonjour", "correction locale superficielle sans reformulation");
+  assert.equal(validateNpcPerformanceAgainstVisibleSceneV1({
+    utterances: [{ text: "Entrez donc à l'abri de cette pluie." }]
+  } as never, createInitialReferenceSceneStateV1()).length, 1, "invitation à entrer rejetée lorsque le joueur est déjà dedans");
   assert.equal(first.value.output.displayPacket.sceneId, "reference-inn-rain-001");
   assert.equal(first.value.output.displayPacket.displayBlocks[0]?.kind, "RAW_INPUT");
   assert.equal(first.value.output.displayPacket.displayBlocks.some(block =>

@@ -3,6 +3,7 @@
 const assert = require("node:assert/strict");
 const {
   buildOpenAiResponsesBody,
+  buildServerRoute,
   buildStrictAiOutputSchema,
   createNarrativeOpenAiEnhancementApi,
   normalizeAiCallRequest,
@@ -299,6 +300,7 @@ function npcPerformerRequest(overrides = {}) {
         rawInput: plannerReq.input.task.rawInput,
         actorId: "npc:npc-garde-blesse",
         interpretation: plannerReq.input.task.interpretation,
+        dialogueAct: plannerReq.input.task.interpretation.semanticIntent.dialogueAct,
         mjPlan: mjPlannerOutputFor(plannerReq).payload,
         resolution: {
           schemaVersion: 1,
@@ -309,6 +311,16 @@ function npcPerformerRequest(overrides = {}) {
         sceneState: {
           schemaVersion: 1,
           shortTermNpcMemory: []
+        },
+        knowledgeEnvelope: {
+          allowedSourceRefs: [
+            "reference-scene:reference-inn-rain-001",
+            `intent:${plannerReq.input.task.interpretation.intentId}`
+          ],
+          publicFactRefs: ["reference-scene:reference-inn-rain-001"],
+          priorPlayerSpeech: [],
+          priorNpcUtterances: [],
+          memoryLimit: "Aucune réplique antérieure disponible."
         },
         requiredOutput: "bounded_visible_npc_reaction_without_commit"
       }
@@ -332,6 +344,12 @@ function npcPerformerOutputFor(req, overrides = {}) {
       schemaVersion: 1,
       performanceId: "performance-route-npc-001",
       actorId: req.input.task.actorId,
+      reactionFrame: {
+        schemaVersion: 1,
+        sourceDialogueAct: req.input.task.dialogueAct.act,
+        responseMode: "ANSWER_QUESTION",
+        addressedContentGoal: req.input.task.dialogueAct.contentGoal
+      },
       utterances: [{
         utteranceId: "utterance-route-npc-001",
         text: "Le garde serre les dents. « La porte du fond. Mais pas d'esclandre ici. »",
@@ -431,7 +449,48 @@ async function runRoute(api, body) {
   return res;
 }
 
+function semanticIntentRequest(overrides = {}) {
+  return intentRequest({
+    contractVersion: "ai-intent-semantic/2",
+    input: {
+      instructionsRef: "ai-intent-interpretation/player-intent-semantic/v2",
+      roleContextPack: {},
+      task: { rawInput: "Si la porte paraît sûre, j'essaie de l'entrouvrir.", outputContract: "ai-intent-semantic/2" }
+    },
+    limits: { inputTokenBudget: 1_000, outputTokenBudget: 900, timeoutMs: 30_000 },
+    ...overrides
+  });
+}
+
+function assertEveryArraySchemaHasItems(schema, path = "schema") {
+  if (!schema || typeof schema !== "object" || Array.isArray(schema)) return;
+  if (schema.type === "array") {
+    assert.equal(Object.hasOwn(schema, "items"), true, `${path}: array schema must declare items for OpenAI strict mode`);
+  }
+  for (const [key, value] of Object.entries(schema)) {
+    assertEveryArraySchemaHasItems(value, `${path}.${key}`);
+  }
+}
+
+function assertOpenAiStrictObjectShape(schema, path = "schema") {
+  if (!schema || typeof schema !== "object" || Array.isArray(schema)) return;
+  if (schema.type === "object") {
+    assert.equal(schema.additionalProperties, false, `${path}: strict object must set additionalProperties=false`);
+    const propertyNames = Object.keys(schema.properties ?? {}).sort();
+    const requiredNames = [...(schema.required ?? [])].sort();
+    assert.deepEqual(requiredNames, propertyNames, `${path}: strict object must require every declared property`);
+  }
+  for (const [key, value] of Object.entries(schema)) {
+    assertOpenAiStrictObjectShape(value, `${path}.${key}`);
+  }
+}
+
 async function main() {
+  [request(), intentRequest(), mjPlannerRequest(), npcPerformerRequest()].forEach(roleRequest => {
+    const schema = buildStrictAiOutputSchema(roleRequest).schema;
+    assertEveryArraySchemaHasItems(schema);
+    assertOpenAiStrictObjectShape(schema);
+  });
   const normalized = normalizeAiCallRequest(request());
   assert.equal(normalized.ok, true);
   const normalizedMjPlanner = normalizeAiCallRequest(mjPlannerRequest());
@@ -461,6 +520,17 @@ async function main() {
   assert.equal(body.text.format.type, "json_schema");
   assert.equal(body.text.format.strict, true);
   assert.equal(body.store, false);
+  assert.equal(body.reasoning, undefined, "aucun effort de raisonnement n'est injecté par défaut");
+  const reasoningBody = buildOpenAiResponsesBody(request(), { modelId: "gpt-5.6-luna", reasoningEffort: "low" });
+  assert.deepEqual(reasoningBody.reasoning, { effort: "low" });
+  const intentRoute = buildServerRoute(intentRequest(), {
+    NARRATION_OPENAI_INTENT_MODEL: "gpt-5.6-luna",
+    NARRATION_OPENAI_INTENT_REASONING_EFFORT: "none"
+  });
+  assert.equal(intentRoute.modelId, "gpt-5.6-luna");
+  assert.equal(intentRoute.reasoningEffort, "none");
+  assert.equal(buildServerRoute(intentRequest(), { NARRATION_OPENAI_INTENT_REASONING_EFFORT: "invalid" }).reasoningEffort, null);
+  assert.equal(buildServerRoute(request(), { NARRATION_OPENAI_INTENT_REASONING_EFFORT: "low" }).reasoningEffort, null, "le réglage reste propre au rôle intention");
   assert.deepEqual(body.text.format.schema.properties.callId.enum, [request().callId]);
   assert.deepEqual(body.text.format.schema.properties.role.enum, ["player_expression_adapter"]);
   assert.deepEqual(body.text.format.schema.properties.supersedesOutputId.type, ["string", "null"]);
@@ -493,6 +563,21 @@ async function main() {
   });
   assert.equal(rejectedSceneWriterBudget.ok, false);
   assert.equal(rejectedSceneWriterBudget.issues.includes("limits.outputTokenBudget must be between 1 and 1500."), true);
+  const normalizedCriticBudget = normalizeAiCallRequest(request({
+    role: "coherence_critic",
+    limits: { inputTokenBudget: 900, outputTokenBudget: 1_600, timeoutMs: 1_000 }
+  }));
+  assert.equal(normalizedCriticBudget.ok, true);
+  const rejectedCriticBudget = normalizeAiCallRequest(request({
+    role: "coherence_critic",
+    limits: { inputTokenBudget: 900, outputTokenBudget: 1_601, timeoutMs: 1_000 }
+  }));
+  assert.equal(rejectedCriticBudget.ok, false);
+  assert.equal(rejectedCriticBudget.issues.includes("limits.outputTokenBudget must be between 1 and 1600."), true);
+  const normalizedPerformerBudget = normalizeAiCallRequest(npcPerformerRequest({
+    limits: { inputTokenBudget: 2_000, outputTokenBudget: 2_000, timeoutMs: 1_000 }
+  }));
+  assert.equal(normalizedPerformerBudget.ok, true);
   const sceneSchema = buildStrictAiOutputSchema(sceneReq);
   assert.deepEqual(sceneSchema.schema.properties.role.enum, ["scene_writer"]);
   assert.equal(sceneSchema.schema.properties.payload.required.includes("narrationBlocks"), true);
@@ -562,6 +647,18 @@ async function main() {
   assert.equal(intentBody.input[0].content[0].text.includes("transformer une possibilite en action executee"), true);
   assert.equal(intentBody.input[0].content[0].text.includes("Déduis ce niveau du sens complet de la demande"), true);
   assert.equal(intentBody.input[0].content[0].text.includes("Ne surclasse jamais une demande ordinaire en FOCUSED"), true);
+  const semanticIntentReq = semanticIntentRequest();
+  assert.equal(normalizeAiCallRequest(semanticIntentReq).ok, true, "la route accepte le contrat sémantique V2 en parallèle du V1");
+  const semanticIntentBody = buildOpenAiResponsesBody(semanticIntentReq, { modelId: "gpt-4.1-mini" });
+  assert.equal(semanticIntentBody.text.format.schema.properties.contractVersion.enum[0], "ai-intent-semantic/2");
+  assert.deepEqual(semanticIntentBody.text.format.schema.properties.payload.required, ["rawInputEcho", "intent"]);
+  assert.equal(semanticIntentBody.text.format.schema.properties.payload.properties.intent.properties.actionHint.type.includes("string"), true);
+  assert.equal(semanticIntentBody.text.format.schema.properties.payload.properties.intent.properties.kind.enum.includes("move_near_visible_actor"), true);
+  assert.equal(semanticIntentBody.text.format.schema.properties.payload.properties.intent.properties.kind.enum.includes("traverse_visible_boundary"), true);
+  assert.equal(semanticIntentBody.input[0].content[0].text.includes("ni projection legacy"), true);
+  assert.equal(semanticIntentBody.input[0].content[0].text.includes("Ce n'est ni address_visible_actor, ni nonverbal_signal"), true);
+  assert.equal(semanticIntentBody.input[0].content[0].text.includes("la limite visible franchie"), true);
+  assert.equal(semanticIntentBody.input[0].content[0].text.includes("plusieurs candidats restent réellement plausibles"), true);
   const mjPlannerBody = buildOpenAiResponsesBody(mjPlannerRequest(), { modelId: "gpt-4.1-mini" });
   assert.equal(mjPlannerBody.text.format.schema.properties.contractVersion.enum[0], "mj-planner/1");
   assert.equal(mjPlannerBody.text.format.schema.properties.role.enum[0], "mj_planner");
@@ -583,6 +680,27 @@ async function main() {
     npcPerformerBody.text.format.schema.properties.payload.properties.utterances.items.properties.speechActs.items.properties.type.enum,
     ["assertion", "question", "refusal"]
   );
+  assert.equal(npcPerformerBody.input[0].content[0].text.includes("Lis task.dialogueAct comme contrat du tour"), true);
+  const npcDialogueCriticRequest = request({
+    role: "coherence_critic",
+    contractVersion: "narrative-ai-resolution/1",
+    input: {
+      instructionsRef: "narrative-ai-resolution/coherence-critic/npc-dialogue-act/v1",
+      roleContextPack: {},
+      task: {
+        actorId: "npc:npc-serveuse-nerveuse",
+        dialogueAct: {
+          schemaVersion: 1,
+          act: "INITIATE_CONVERSATION",
+          contentGoal: "saluer la serveuse",
+          addresseeRef: "npc:npc-serveuse-nerveuse"
+        },
+        candidateNarration: ["Je comprends votre question."]
+      }
+    }
+  });
+  const npcDialogueCriticBody = buildOpenAiResponsesBody(npcDialogueCriticRequest, { modelId: "gpt-4.1-mini" });
+  assert.equal(npcDialogueCriticBody.input[0].content[0].text.includes("rejette toute prétendue question préalable"), true);
   assert.equal(npcPerformerBody.input[0].content[0].text.includes("durableCommitments doit rester []"), true);
 
   const dangerousExpression = validateEnvelope({ ...outputFor(request()), payload: { ...outputFor(request()).payload, addedMeaning: ["promesse de payer"] } }, request());

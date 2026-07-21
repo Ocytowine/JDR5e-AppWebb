@@ -5,17 +5,14 @@ import {
   createBrowserPersistentNarrativeTurnControllerV1,
   createPrototypeNarrativeTurnControllerV1,
   enhanceNarrativeDisplayWithAiV1,
-  AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V1,
-  MJ_PLANNER_CONTRACT_VERSION_V1,
-  NPC_PERFORMER_CONTRACT_VERSION_V1,
   REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1,
   type AiNarrativeEnhancementResultV1,
   type AiIntentInterpreterConfigV1,
-  type MjPlannerConfigV1,
   type NpcPerformerConfigV1,
   type NarrativeTurnControllerV1
 } from "../../narration-module/src/application";
 import { FakeContractAiProviderV1 } from "../../narration-module/src/ai/FakeContractAiProvider";
+import type { JsonObject } from "../../narration-module/src/core";
 import type { AiModelRouteV1, AiRetryPolicyV1 } from "../../narration-module/src/ai/types";
 import type { NarrativeTurnControllerOutputV1 } from "../../narration-module/src/application";
 import type { DisplayPacketV1 } from "../../narration-module/src/scene";
@@ -24,6 +21,10 @@ import {
   NarrativeConversationPanel,
   type NarrativeSubmitPayloadV1
 } from "../ui/NarrativeConversationPanel";
+import {
+  buildOpenAiIntentInterpreterConfigV1,
+  buildOpenAiNpcPerformerConfigV1
+} from "./openAiNarrativeRuntimeConfig";
 import { ServerOpenAiEnhancementProviderV1 } from "./serverOpenAiEnhancementClient";
 
 type NarrativeEnhancementMode = "local" | "openai";
@@ -44,9 +45,8 @@ export function NarrativeAppSurface() {
     let cancelled = false;
     setController(null);
     const intentInterpreterConfig = buildIntentInterpreterConfig(enhancementMode);
-    const mjPlannerConfig = buildMjPlannerConfig(enhancementMode);
     const npcPerformerConfig = buildNpcPerformerConfig(enhancementMode);
-    void createBrowserPersistentNarrativeTurnControllerV1({ intentInterpreterConfig, mjPlannerConfig, npcPerformerConfig }).then(async nextController => {
+    void createBrowserPersistentNarrativeTurnControllerV1({ intentInterpreterConfig, npcPerformerConfig }).then(async nextController => {
       const restored = await nextController.restoreRenderedThread();
       if (!cancelled) {
         if (restored.ok) {
@@ -57,7 +57,7 @@ export function NarrativeAppSurface() {
         setController(nextController);
       }
     }).catch(error => {
-      void createPrototypeNarrativeTurnControllerV1({ intentInterpreterConfig, mjPlannerConfig, npcPerformerConfig }).then(nextController => {
+      void createPrototypeNarrativeTurnControllerV1({ intentInterpreterConfig, npcPerformerConfig }).then(nextController => {
         if (!cancelled) setController(nextController);
       }).catch(fallbackError => {
         if (!cancelled) {
@@ -77,6 +77,7 @@ export function NarrativeAppSurface() {
       setErrorMessage("Contrôleur narratif indisponible.");
       return;
     }
+    const submittedAt = performance.now();
     setPending(true);
     setErrorMessage(null);
     void controller.submit(payload).then(async result => {
@@ -84,16 +85,37 @@ export function NarrativeAppSurface() {
         setErrorMessage(result.error.messageKey);
         return;
       }
+      const controllerFinishedAt = performance.now();
       const enhancement = await enhancePrototypePacket(result.value.output, enhancementMode, packetsFromController);
-      const statusMessage = result.value.output.npcPerformanceFailure === null
+      const enhancementFinishedAt = performance.now();
+      const orchestrationStatus = [
+        result.value.output.mjPlannerFailure === null
+          ? null
+          : `Plan MJ distant indisponible ou rejeté : plan local déterministe utilisé. Motif: ${result.value.output.mjPlannerFailure.issues.join(" | ") || "sortie inutilisable"}.`,
+        result.value.output.npcPerformanceFailure === null
+          ? null
+          : `Réaction PNJ IA indisponible ou rejetée : réaction locale bornée conservée. Motif: ${result.value.output.npcPerformanceFailure.issues.join(" | ") || "sortie inutilisable"}.`
+      ].filter((message): message is string => message !== null).join(" ");
+      const statusMessage = orchestrationStatus.length === 0
         ? enhancement.status
-        : `Réaction PNJ IA indisponible ou rejetée : réaction locale bornée conservée. ${enhancement.status}`;
+        : `${orchestrationStatus} ${enhancement.status}`;
+      const packetBeforeProjection = appendNarrativeSystemTrace({
+        packet: enhancement.displayPacket,
+        output: result.value.output,
+        priorPackets: packetsFromController,
+        timings: {
+          controllerMs: controllerFinishedAt - submittedAt,
+          enhancementMs: enhancementFinishedAt - controllerFinishedAt,
+          projectionMs: 0,
+          totalMs: enhancementFinishedAt - submittedAt
+        }
+      });
       const recorded = await controller.recordRenderedProjection({
         schemaVersion: 1,
         clientRequestId: result.value.output.clientRequestId,
         sourceOutput: result.value.output,
         mode: enhancementMode,
-        finalEnhancement: enhancement.finalEnhancement,
+        finalEnhancement: { ...enhancement.finalEnhancement, displayPacket: packetBeforeProjection },
         attemptedEnhancement: enhancement.attemptedEnhancement,
         statusMessage
       });
@@ -101,8 +123,19 @@ export function NarrativeAppSurface() {
         setErrorMessage(recorded.error.messageKey);
         return;
       }
+      const projectionFinishedAt = performance.now();
       setEnhancementStatus(statusMessage);
-      const enhanced = enhancement.displayPacket;
+      const enhanced = appendNarrativeSystemTrace({
+        packet: enhancement.displayPacket,
+        output: result.value.output,
+        priorPackets: packetsFromController,
+        timings: {
+          controllerMs: controllerFinishedAt - submittedAt,
+          enhancementMs: enhancementFinishedAt - controllerFinishedAt,
+          projectionMs: projectionFinishedAt - enhancementFinishedAt,
+          totalMs: projectionFinishedAt - submittedAt
+        }
+      });
       setPacketsFromController(prev => [...prev, enhanced]);
     }).catch(error => {
       setErrorMessage(error instanceof Error ? error.message : String(error));
@@ -208,6 +241,80 @@ export function NarrativeAppSurface() {
       </div>
     </main>
   );
+}
+
+function appendNarrativeSystemTrace(input: {
+  packet: DisplayPacketV1;
+  output: NarrativeTurnControllerOutputV1;
+  priorPackets: DisplayPacketV1[];
+  timings: { controllerMs: number; enhancementMs: number; projectionMs: number; totalMs: number };
+}): DisplayPacketV1 & JsonObject {
+  const actorRef = input.output.npcPerformance?.actorId
+    ?? input.output.interpretation.referentResolution?.resolvedTarget?.ref
+    ?? input.output.interpretation.semanticIntent.target?.ref
+    ?? null;
+  const actorId = actorRef?.replace(/^npc:/u, "") ?? null;
+  const actorDisplayName = actorId === "npc-serveuse-nerveuse"
+    ? "Serveuse nerveuse"
+    : actorId === "npc-garde-blesse"
+      ? "Garde blessé"
+      : null;
+  const rememberedPlayerIntents = actorId === null
+    ? []
+    : input.output.sceneState.shortTermNpcMemory
+      .filter(memory => memory.actorId === actorId)
+      .slice(-5)
+      .map(memory => memory.playerIntentSummary);
+  const rememberedNpcUtterances = actorDisplayName === null
+    ? []
+    : input.priorPackets
+      .flatMap(packet => packet.displayBlocks)
+      .filter(block => block.kind === "NPC_SPEECH" && block.speaker.displayName === actorDisplayName)
+      .slice(-5)
+      .map(block => block.text);
+  const priorPlayerIntents = rememberedPlayerIntents.slice(0, Math.max(0, rememberedPlayerIntents.length - 1));
+  const pairedHistory = rememberedNpcUtterances.map((utterance, index) =>
+    `${priorPlayerIntents.at(-(rememberedNpcUtterances.length - index)) ?? "intention non retrouvée"} → ${utterance}`
+  );
+  const performerOutcome = input.output.npcPerformance !== null
+    ? "accepté"
+    : input.output.npcPerformanceFailure !== null
+      ? "rejeté, fallback"
+      : "non appelé";
+  const stages = input.output.stageTimings;
+  const measuredStagesMs = stages === null
+    ? 0
+    : stages.interpretationMs + stages.planningMs + stages.resolutionMs + stages.npcPerformanceMs;
+  const controllerOverheadMs = Math.max(0, input.timings.controllerMs - measuredStagesMs);
+  const aiTelemetryLines = input.output.aiTelemetry.map(metric =>
+    `IA ${metric.role}: modèle=${metric.modelId}; raisonnement=${metric.reasoningEffort ?? "standard"}; latence=${formatDuration(metric.latencyMs)}; tokens=${metric.inputTokens ?? "?"}+${metric.outputTokens ?? "?"}/${metric.totalTokens ?? "?"}; fin=${metric.finishReason ?? "?"}; budgets=${metric.inputTokenBudget}/${metric.outputTokenBudget}; contexte=${metric.contextChars} caractères; schéma=${metric.schemaChars ?? "?"} caractères.`
+  );
+  const traceLines = [
+    "Trace système et mémoire",
+    `Pipeline PNJ: ${performerOutcome}; acteur=${actorRef ?? "aucun"}; acte=${input.output.interpretation.semanticIntent.dialogueAct?.act ?? "aucun"}.`,
+    `Intentions joueur mémorisées (${rememberedPlayerIntents.length}): ${rememberedPlayerIntents.join(" | ") || "aucune"}.`,
+    `Répliques PNJ antérieures visibles (${rememberedNpcUtterances.length}): ${rememberedNpcUtterances.join(" | ") || "aucune"}.`,
+    `Couples intention → réponse (${pairedHistory.length}): ${pairedHistory.join(" | ") || "aucun"}.`,
+    `Sources déclarées par le performer: ${input.output.npcPerformance?.knowledgeUsed.join(", ") || "aucune"}.`,
+    ...(aiTelemetryLines.length > 0 ? aiTelemetryLines : ["Métriques IA fournisseur: indisponibles pour cette opération."]),
+    stages === null
+      ? "Détail contrôleur: indisponible pour cette ancienne opération."
+      : `Détail contrôleur: interprétation=${formatDuration(stages.interpretationMs)}, planification=${formatDuration(stages.planningMs)}, résolution=${formatDuration(stages.resolutionMs)}, performer PNJ=${formatDuration(stages.npcPerformanceMs)}, orchestration/persistance=${formatDuration(controllerOverheadMs)}.`,
+    `Temps: contrôleur=${formatDuration(input.timings.controllerMs)}, enrichissement=${formatDuration(input.timings.enhancementMs)}, persistance=${formatDuration(input.timings.projectionMs)}, total avant affichage=${formatDuration(input.timings.totalMs)}.`
+  ];
+  let appended = false;
+  return {
+    ...input.packet,
+    displayBlocks: input.packet.displayBlocks.map(block => {
+      if (appended || block.kind !== "SYSTEM_NOTICE") return block;
+      appended = true;
+      return { ...block, text: `${block.text}\n\n${traceLines.join("\n")}` };
+    })
+  } as DisplayPacketV1 & JsonObject;
+}
+
+function formatDuration(value: number): string {
+  return value >= 1_000 ? `${(value / 1_000).toFixed(2)} s` : `${Math.max(0, Math.round(value))} ms`;
 }
 
 function createWelcomePacket(): DisplayPacketV1 {
@@ -390,6 +497,7 @@ async function enhancePrototypePacket(
       expressionRoute: prototypeExpressionRoute,
       sceneWriterRoute: prototypeSceneWriterRoute,
       coherenceCriticRoute: mode === "openai" ? prototypeCoherenceCriticRoute : undefined,
+      useRemoteExpressionAdapter: false,
       retryPolicy: prototypeRetryPolicy
     }
   });
@@ -554,7 +662,7 @@ const prototypeCoherenceCriticRoute: AiModelRouteV1 = {
   certified: true,
   allowedContractVersions: ["narrative-ai-resolution/1"],
   inputTokenLimit: 2_000,
-  outputTokenLimit: 700,
+  outputTokenLimit: 1_600,
   timeoutMs: 10_000,
   fallbackRouteIds: []
 };
@@ -570,95 +678,10 @@ const prototypeRetryPolicy: AiRetryPolicyV1 = {
 
 function buildIntentInterpreterConfig(mode: NarrativeEnhancementMode): AiIntentInterpreterConfigV1 | undefined {
   if (mode !== "openai") return undefined;
-  return {
-    provider: new ServerOpenAiEnhancementProviderV1(),
-    route: {
-      schemaVersion: 1,
-      routeId: "prototype-ui-openai-player-intent-interpreter",
-      role: "player_intent_interpreter",
-      // Proxy contractuel: le navigateur appelle uniquement la route serveur OpenAI.
-      // Le pipeline local garde FAKE_CONTRACT tant que REMOTE_PROVIDER reste réservé
-      // aux appels OpenAI directs validés côté narration-module.
-      providerKind: "FAKE_CONTRACT",
-      providerId: "server-openai-route",
-      modelId: "server-selected-openai-intent-model",
-      modelConfigVersion: "i06z",
-      certified: true,
-      allowedContractVersions: [AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V1],
-      inputTokenLimit: 2_000,
-      outputTokenLimit: 1_600,
-      timeoutMs: 10_000,
-      fallbackRouteIds: []
-    },
-    retryPolicy: {
-      schemaVersion: 1,
-      role: "player_intent_interpreter",
-      maxTechnicalRetries: 0,
-      maxTargetedCorrections: 0,
-      maxFullRegenerations: 0,
-      allowFallback: true
-    }
-  };
-}
-
-function buildMjPlannerConfig(mode: NarrativeEnhancementMode): MjPlannerConfigV1 | undefined {
-  if (mode !== "openai") return undefined;
-  return {
-    provider: new ServerOpenAiEnhancementProviderV1(),
-    route: {
-      schemaVersion: 1,
-      routeId: "prototype-ui-openai-mj-planner",
-      role: "mj_planner",
-      // Proxy contractuel: le navigateur appelle uniquement la route serveur OpenAI.
-      providerKind: "FAKE_CONTRACT",
-      providerId: "server-openai-route",
-      modelId: "server-selected-openai-mj-planner-model",
-      modelConfigVersion: "i06zi",
-      certified: true,
-      allowedContractVersions: [MJ_PLANNER_CONTRACT_VERSION_V1],
-      inputTokenLimit: 2_000,
-      outputTokenLimit: 1_000,
-      timeoutMs: 10_000,
-      fallbackRouteIds: []
-    },
-    retryPolicy: {
-      schemaVersion: 1,
-      role: "mj_planner",
-      maxTechnicalRetries: 0,
-      maxTargetedCorrections: 0,
-      maxFullRegenerations: 0,
-      allowFallback: false
-    }
-  };
+  return buildOpenAiIntentInterpreterConfigV1();
 }
 
 function buildNpcPerformerConfig(mode: NarrativeEnhancementMode): NpcPerformerConfigV1 | undefined {
   if (mode !== "openai") return undefined;
-  return {
-    provider: new ServerOpenAiEnhancementProviderV1(),
-    route: {
-      schemaVersion: 1,
-      routeId: "prototype-ui-openai-npc-performer",
-      role: "npc_performer",
-      // Proxy contractuel: le navigateur appelle uniquement la route serveur OpenAI.
-      providerKind: "FAKE_CONTRACT",
-      providerId: "server-openai-route",
-      modelId: "server-selected-openai-npc-performer-model",
-      modelConfigVersion: "i06zk",
-      certified: true,
-      allowedContractVersions: [NPC_PERFORMER_CONTRACT_VERSION_V1],
-      inputTokenLimit: 2_000,
-      outputTokenLimit: 1_000,
-      timeoutMs: 10_000,
-      fallbackRouteIds: []
-    },
-    retryPolicy: {
-      schemaVersion: 1,
-      role: "npc_performer",
-      maxTechnicalRetries: 0,
-      maxTargetedCorrections: 0,
-      maxFullRegenerations: 0,
-      allowFallback: false
-    }
-  };
+  return buildOpenAiNpcPerformerConfigV1();
 }

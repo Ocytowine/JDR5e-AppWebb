@@ -1,8 +1,9 @@
 import { cloneJson } from "../core";
-import type { AiCallRequestV1, AiRoleOutputEnvelopeV1 } from "./types";
+import type { AiCallRequestV1, AiCallTelemetryV1, AiRoleOutputEnvelopeV1 } from "./types";
 
 export interface ContractAiProviderV1 {
   generate(request: AiCallRequestV1): Promise<unknown>;
+  takeTelemetry?(attemptId: string): AiCallTelemetryV1 | null;
 }
 
 export class FakeContractAiProviderV1 implements ContractAiProviderV1 {

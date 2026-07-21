@@ -146,6 +146,7 @@ function buildPointsOfInterest(entity: LoreEntityV1): PlayableScenePointOfIntere
     label: entity.displayName,
     visibleDescription: entity.body || `Point principal de ${entity.displayName}.`,
     keywords: [...entity.searchTerms],
+    destinationAliases: [],
     version: 1
   }];
   return values.map((value, index) => ({
@@ -156,6 +157,9 @@ function buildPointsOfInterest(entity: LoreEntityV1): PlayableScenePointOfIntere
       ? `Connexion externe visible ou connue: ${value.slice("external:".length).replaceAll("_", " ")}.`
       : `Élément associé au lieu: ${value.replaceAll("_", " ")}.`,
     keywords: uniqueNonEmpty([value, ...value.split(/[_\s-]+/u)]),
+    destinationAliases: value.startsWith("external:")
+      ? [value.slice("external:".length).replaceAll("_", " ")]
+      : [],
     version: 1
   }));
 }
