@@ -112,6 +112,14 @@ export const REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1: PlayableSceneStateV1 = {
     version: 1
   }, {
     schemaVersion: 1,
+    elementId: "common-room-counter",
+    label: "Comptoir de l'auberge",
+    description: "Le comptoir en bois sert de bar et borde l'accès à la porte du fond.",
+    keywords: ["comptoir", "bar", "auberge"],
+    playerVisible: true,
+    version: 1
+  }, {
+    schemaVersion: 1,
     elementId: "back-room-door",
     label: "Porte du fond",
     description: "La porte du fond attire trop de regards pour être anodine.",
@@ -317,7 +325,6 @@ export function validatePlayableSceneV1(scene: PlayableSceneStateV1): { ok: true
   if (!scene.sceneId.trim()) issues.push("sceneId is required.");
   if (!scene.locationName.trim()) issues.push("locationName is required.");
   if (scene.perceptibleSituation.length === 0) issues.push("perceptibleSituation must not be empty.");
-  if (scene.presentNpc.length === 0) issues.push("presentNpc must not be empty.");
   if (scene.visibleElements.some(element => !element.playerVisible)) issues.push("visibleElements must be player-visible only.");
   if (scene.localMemoryPolicy.maxShortTermNpcMemory < 1 || scene.localMemoryPolicy.maxShortTermNpcMemory > 10) {
     issues.push("maxShortTermNpcMemory must stay bounded between 1 and 10.");

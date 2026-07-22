@@ -22,3 +22,23 @@ Deux ambiguïtés transversales doivent être traitées dans le contrat généri
 ## Configuration
 
 Le serveur accepte `NARRATION_OPENAI_INTENT_MODEL` et `NARRATION_OPENAI_INTENT_REASONING_EFFORT`. L'effort autorisé est `none`, `low`, `medium`, `high`, `xhigh` ou `max`; une valeur absente ou invalide n'ajoute aucun paramètre `reasoning`. Ce réglage est limité à l'interpréteur et n'affecte aucun autre rôle.
+
+## Gate Luna après clarification du contrat
+
+Trois passages du 2026-07-22 ont obtenu 8/8, 8/8 puis 7/8, soit 23/24 sans retry. Les p95 étaient 4,907 s, 2,883 s et 18,218 s. L'unique écart était la perte de la condition explicite dans « Si la porte paraît sûre, j'essaie de l'entrouvrir » : cible, nature et routage restaient corrects, mais `commitment` devenait `committed`.
+
+Le contrat transporte désormais `preconditions`. L'adaptateur stabilise une proposition `committed` en `conditional` lorsque cette liste est non vide. La prochaine gate doit confirmer trois passages Luna consécutifs à 8/8 avec cette précondition conservée.
+
+La gate suivante obtient 7/8, 7/8 et 8/8, p95 respectifs 2,685 s, 3,436 s et 4,093 s, sans retry. La précondition est correcte 3/3. Les deux seuls écarts viennent de transitions reconnues mais dont l'étiquette `contextLink` empêchait la résolution locale de destination. Le résolveur ne dépend désormais plus de cette étiquette pour `traverse_visible_boundary`; une relation publique unique reste obligatoire.
+
+## Certification finale Luna
+
+La dernière série du 2026-07-22 valide trois passages consécutifs à 8/8, soit 24/24 décisions correctes sans retry.
+
+| Passage | Qualité | p50 | p95/max | Tokens entrée/sortie |
+|---|---:|---:|---:|---:|
+| 1 | 8/8 | 2,724 s | 3,761 s | 15 674 / 2 329 |
+| 2 | 8/8 | 2,207 s | 2,633 s | 15 674 / 2 345 |
+| 3 | 8/8 | 2,279 s | 2,846 s | 15 674 / 2 366 |
+
+Décision : `gpt-5.6-luna` avec `reasoning=none` est certifié pour le seul rôle `player_intent_interpreter`. Les modèles de prose et les pipelines ennemis restent indépendants.

@@ -434,6 +434,24 @@ async function enhancePrototypePacket(
   finalEnhancement: AiNarrativeEnhancementResultV1;
   attemptedEnhancement: AiNarrativeEnhancementResultV1 | null;
 }> {
+  if (output.sceneArrival !== null) {
+    const finalEnhancement: AiNarrativeEnhancementResultV1 = {
+      schemaVersion: 1,
+      contractVersion: "narrative-ai-resolution/1",
+      enhanced: false,
+      usedFallback: false,
+      fallbackKind: "NONE",
+      displayPacket: output.displayPacket,
+      incidents: [],
+      safetyNotes: ["Arrivée reconstruite après commit depuis la scène destination; aucun writer lié à l'ancienne scène n'a été appelé."]
+    };
+    return {
+      displayPacket: output.displayPacket,
+      status: "Transition confirmée par le monde; scène d'arrivée reconstruite après commit.",
+      finalEnhancement,
+      attemptedEnhancement: null
+    };
+  }
   const operationId = output.operationId;
   const localProvider = new FakeContractAiProviderV1([
     [`${operationId}:ai:expression:attempt:1`, {
@@ -475,7 +493,14 @@ async function enhancePrototypePacket(
           blockKind: "MJ_NARRATION",
           content: buildPrototypeNarration(output),
           groundedIn: [`resolution:${output.resolution.resolutionId}`],
-          usesCreativeTexture: true
+          usesCreativeTexture: true,
+          factDiscipline: {
+            addedUnsupportedFacts: [],
+            usesOnlyProvidedVisibleEntities: true,
+            noNewEvents: true,
+            noHiddenPresence: true,
+            notes: ["Fixture locale fondée sur la scène active du contrôleur."]
+          }
         }]
       },
       diagnostics: [],
@@ -492,6 +517,7 @@ async function enhancePrototypePacket(
     priorDisplayPackets: priorPackets,
     resolution: output.resolution,
     sceneState: output.sceneState,
+    activeScene: output.activeScene,
     config: {
       provider,
       expressionRoute: prototypeExpressionRoute,
@@ -509,6 +535,7 @@ async function enhancePrototypePacket(
       priorDisplayPackets: priorPackets,
       resolution: output.resolution,
       sceneState: output.sceneState,
+      activeScene: output.activeScene,
       config: {
         provider: localProvider,
         expressionRoute: prototypeExpressionRoute,
@@ -612,6 +639,10 @@ function buildPrototypeExpression(output: NarrativeTurnControllerOutputV1): stri
 }
 
 function buildPrototypeNarration(output: NarrativeTurnControllerOutputV1): string {
+  if (output.activeScene.sceneId !== REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1.sceneId) {
+    return output.displayPacket.displayBlocks.find(block => block.kind === "GM_NARRATION")?.text
+      ?? output.activeScene.perceptibleSituation.join(" ");
+  }
   return buildReferenceSceneLocalNarrationV1({
     rawInput: output.displayPacket.displayBlocks.find(block => block.kind === "RAW_INPUT")?.text ?? "",
     interpretation: output.interpretation,

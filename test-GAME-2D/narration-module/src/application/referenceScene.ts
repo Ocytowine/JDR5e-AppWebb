@@ -8,7 +8,8 @@ import {
   buildPlayableSceneLocationAnswerV1,
   buildPlayableSceneSocialPossibilityAnswerV1,
   REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1,
-  toPlayableScenePublicContextV1
+  toPlayableScenePublicContextV1,
+  type PlayableSceneStateV1
 } from "./playableScene";
 import type { ReferenceSceneStateV1 } from "./referenceSceneState";
 import { buildNpcDialogueFallbackV1 } from "./npcDialogueFallback";
@@ -387,7 +388,9 @@ export function buildReferenceSceneBlocksV1(input: {
   interpretation: NarrativeIntentInterpretationV1;
   resolution: NarrativeResolutionResultV1;
   sceneState?: ReferenceSceneStateV1;
+  playableScene?: PlayableSceneStateV1;
 }): DisplayBlockV1[] {
+  const playableScene = input.playableScene ?? REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1;
   if (isAiInterpretationFailureDiagnosticV1(input.interpretation)) return [];
   if (input.resolution.resultKind === "CLARIFICATION_REQUIRED") return [];
   if (input.interpretation.intentType === "meta_question") {
@@ -407,9 +410,11 @@ export function buildReferenceSceneBlocksV1(input: {
       text: answerKind === "weather"
         ? weatherAnswerNarration(variant)
         : answerKind === "location"
-          ? locationAnswerNarration()
-          : sceneContextNarration(input.rawInput, input.interpretation.coreMeaning, variant),
-      sourceRefs: [`reference-scene:${REFERENCE_PLAYABLE_SCENE_ID_V1}`, `resolution:${input.resolution.resolutionId}:meta-answer`]
+          ? locationAnswerNarration(playableScene)
+          : playableScene.sceneId === REFERENCE_PLAYABLE_SCENE_ID_V1
+            ? sceneContextNarration(input.rawInput, input.interpretation.coreMeaning, variant)
+            : playableScene.perceptibleSituation.join(" "),
+      sourceRefs: [`playable-scene:${playableScene.sceneId}`, `resolution:${input.resolution.resolutionId}:meta-answer`]
     })];
   }
   if (input.interpretation.intentType === "possibility_query") {
@@ -460,8 +465,8 @@ export function buildReferenceSceneBlocksV1(input: {
       kind: "GM_NARRATION",
       speakerKind: "GM",
       displayName: "MJ",
-      text: actionNarration(input.rawInput, input.interpretation, input.resolution, input.sceneState),
-      sourceRefs: [`reference-scene:${REFERENCE_PLAYABLE_SCENE_ID_V1}`, `resolution:${input.resolution.resolutionId}:reference-observation`]
+      text: actionNarration(input.rawInput, input.interpretation, input.resolution, input.sceneState, playableScene),
+      sourceRefs: [`playable-scene:${playableScene.sceneId}`, `resolution:${input.resolution.resolutionId}:reference-observation`]
     })];
   }
   return [];
@@ -492,8 +497,8 @@ function isSocialPossibilityQuestion(rawInput: string): boolean {
     /\b(parler|discuter|questionner|interroger|demander)\b/u.test(normalized);
 }
 
-function locationAnswerNarration(): string {
-  return buildPlayableSceneLocationAnswerV1(REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1);
+function locationAnswerNarration(playableScene: PlayableSceneStateV1 = REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1): string {
+  return buildPlayableSceneLocationAnswerV1(playableScene);
 }
 
 function weatherAnswerNarration(variant = 0): string {
@@ -609,12 +614,13 @@ function actionNarration(
   rawInput: string,
   interpretation: NarrativeIntentInterpretationV1,
   resolution: NarrativeResolutionResultV1,
-  sceneState?: ReferenceSceneStateV1
+  sceneState?: ReferenceSceneStateV1,
+  playableScene: PlayableSceneStateV1 = REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1
 ): string {
   const target = interpretation.referentResolution?.resolvedTarget ?? interpretation.semanticIntent.target ?? null;
   if (interpretation.semanticIntent.kind === "observe_environment" && resolution.perception !== null) {
     if (target === null || target.kind === "self" || target.kind === "unknown") {
-      return REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1.perceptibleSituation.join(" ");
+      return playableScene.perceptibleSituation.join(" ");
     }
     const narrativeTarget = referenceNarrativeTargetLabel(target?.ref, target?.label);
     if (resolution.perception?.status === "AUTOMATIC_RESULT" && resolution.perception.revealedTexts.length > 0) {
@@ -627,7 +633,7 @@ function actionNarration(
       return `Tu maintiens ton attention sur ${narrativeTarget}, sans découvrir de nouvel élément directement perceptible.`;
     }
     const actorId = target?.ref?.replace(/^npc:/u, "") ?? "";
-    const actor = REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1.presentNpc.find(entry => entry.actorId === actorId);
+    const actor = playableScene.presentNpc.find(entry => entry.actorId === actorId);
     if (actor) {
       const continuity = actorId === "npc-garde-blesse" && sceneState?.guardAddressed
         ? " Depuis votre échange, il te reconnaît et son regard revient vers la porte du fond."
@@ -642,6 +648,9 @@ function actionNarration(
     resolution.preparedEffects.some(effect => effect.effectType === "LOCAL_SCENE_ACTION_RECORDED") &&
     target?.ref === "poi:back-room-door"
   ) {
+    if (interpretation.semanticIntent.kind === "move_near_visible_actor") {
+      return "Tu te places près de la porte du fond, sans encore toucher à sa poignée ni engager son mécanisme.";
+    }
     return "Ta main se referme sur la poignée de la porte étroite près du comptoir. Tu commences à faire jouer le mécanisme.";
   }
   if (
@@ -651,6 +660,16 @@ function actionNarration(
     return target.ref === "npc:npc-serveuse-nerveuse" || target.ref === "npc-serveuse-nerveuse"
       ? "Tu te places près de la serveuse nerveuse, à portée de voix. Aucune parole n'est encore échangée et aucune réaction de sa part n'est résolue."
       : "Tu te places près du garde blessé, à portée de voix. Aucune parole n'est encore échangée et aucune réaction de sa part n'est résolue.";
+  }
+  if (
+    resolution.preparedEffects.some(effect => effect.effectType === "LOCAL_SCENE_ACTION_RECORDED") &&
+    interpretation.semanticIntent.kind === "move_near_visible_actor" &&
+    target !== null
+  ) {
+    return `Tu te places près de ${target.label?.toLowerCase() ?? "la cible visible"}, sans engager d'autre action.`;
+  }
+  if (playableScene.sceneId !== REFERENCE_PLAYABLE_SCENE_ID_V1) {
+    return playableScene.perceptibleSituation.join(" ");
   }
   return observationNarration(rawInput, sceneState);
 }

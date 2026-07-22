@@ -100,6 +100,7 @@ export interface AiSemanticIntentPayloadV2 {
 export interface AiSemanticPlayerIntentV2 {
   kind: AiStructuredSemanticIntentV1["kind"];
   commitment: AiStructuredSemanticIntentV1["commitment"];
+  preconditions: string[];
   playerGoal: string;
   actionHint: string | null;
   domainHint: "scene_resolution" | "social" | "perception" | "inventory" | "tactical" | "rest" | "world" | null;
@@ -185,6 +186,7 @@ export interface AiStructuredSemanticIntentV1 {
     label: string | null;
   } | null;
   commitment: "none" | "hypothetical" | "conditional" | "committed" | "unclear";
+  preconditions?: string[];
   evidenceFromInput: string[];
   uncertainties: string[];
   forbiddenInterpretations: string[];

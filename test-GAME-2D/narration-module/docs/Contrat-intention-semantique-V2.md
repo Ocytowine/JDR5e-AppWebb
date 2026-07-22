@@ -2,7 +2,7 @@
 
 Date : 2026-07-21
 
-Statut : `IMPLEMENTE_GATE_LIVE_INSTABLE`
+Statut : `IMPLEMENTE_GATE_LIVE_VALIDEE`
 
 ## But
 
@@ -19,6 +19,8 @@ Statut : `IMPLEMENTE_GATE_LIVE_INSTABLE`
 - incertitudes et demande de clarification ;
 - confiance.
 
+`preconditions` transporte jusqu'au runtime les conditions explicitement posées par le joueur. Une liste non vide stabilise localement `commitment=committed` en `commitment=conditional`; le contenu de la condition reste visible dans `semanticIntent.preconditions` et dans la notification système. Cette cohérence est fondée sur la sortie structurée, sans analyse lexicale locale de la phrase joueur.
+
 Les familles sémantiques distinguent désormais explicitement :
 
 - `move_near_visible_actor` : déplacement local vers un acteur, sans parole ni signal communicatif ;
@@ -28,7 +30,7 @@ Les familles sémantiques distinguent désormais explicitement :
 
 Une cible décrite par ses propriétés publiques n'est proposée que si les faits visibles désignent un meilleur candidat unique. Une comparaison non étayée, comme « le moins nerveux » quand aucune graduation visible n'existe, doit rester ambiguë plutôt que d'être forcée.
 
-Les points de passage peuvent déclarer des `destinationAliases` publics. Le registre les projette en `publicDestinationAliases`, transmis à l'interpréteur sous `destinations`. Si l'IA reconnaît un `traverse_visible_boundary` mais laisse `proposedRef=null`, l'adaptateur local peut relier la destination mentionnée à une ouverture uniquement lorsqu'une seule relation publique correspond. Zéro ou plusieurs correspondances conservent la clarification : aucun choix arbitraire n'est effectué.
+Les points de passage peuvent déclarer des `destinationAliases` publics. Le registre les projette en `publicDestinationAliases`, transmis à l'interpréteur sous `destinations`. Si l'IA reconnaît un `traverse_visible_boundary` mais laisse `proposedRef=null`, l'adaptateur local peut relier la destination mentionnée à une ouverture uniquement lorsqu'une seule relation publique correspond, indépendamment de l'étiquette de lien contextuel proposée. Zéro ou plusieurs correspondances conservent la clarification : aucun choix arbitraire n'est effectué.
 
 ## Sorties retirées de l'IA
 
@@ -67,3 +69,5 @@ Le contexte V2 est limité aux référents visibles et à leurs propriétés pub
 Un unique retry technique est autorisé pour l'interpréteur V2. Il ne s'applique qu'aux transports, timeouts, erreurs HTTP ou sorties incomplètes, avec une seconde borne ramenée à 15 s. Les erreurs sémantiques et d'autorité ne sont jamais rejouées.
 
 La commande `npm run narration-module:test:complete-conversations:openai-gate` exécute trois parcours indépendants et exige zéro erreur fonctionnelle, un p95 d'interprétation inférieur ou égal à 15 s et aucun maximum supérieur à 25 s. La gate ciblée du 2026-07-21 obtient trois handoffs corrects en 16,0 s, 17,8 s et 18,7 s : qualité 3/3, gate de latence refusée avec p95=18,7 s.
+
+Après séparation mouvement/franchissement, ajout des relations ouverture-destination et transport des préconditions, la gate finale Luna `none` du 2026-07-22 obtient trois passages consécutifs à 8/8, sans retry. Les p95 sont 3,761 s, 2,633 s et 2,846 s. Le contrat V2 est validé pour `player_intent_interpreter` avec `gpt-5.6-luna` et `reasoning=none`.

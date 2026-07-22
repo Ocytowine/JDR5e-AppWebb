@@ -44,6 +44,11 @@ export interface PrepareTemporalSegmentInputV1 {
   processAggregateId: AggregateId | null;
   nextProcess: ProcessStatePayloadV1 | null;
   batch: TemporalBatchV1;
+  operationBinding?: {
+    mode: "COMPOSITE_DOMAIN_COMMIT";
+    domainCommandId: CommandId;
+    batchFingerprint: string;
+  };
   resolutions: TemporalTaskResolutionV1[];
   newEffects: ScheduledEffectV1[];
   additionalAggregateWrites?: AggregateWrite[];

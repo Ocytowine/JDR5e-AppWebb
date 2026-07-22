@@ -9,6 +9,7 @@ import {
   REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1,
   REFERENCE_PLAYABLE_SCENE_ID_V1,
   REFERENCE_SCENE_CONTEXT_V1,
+  PROTOTYPE_INN_BACK_ROOM_SCENE_V1,
   toPlayableScenePublicContextV1,
   validatePlayableSceneV1,
   WATCHTOWER_DAWN_PLAYABLE_SCENE_V1,
@@ -48,18 +49,20 @@ const MARKET_NIGHT_PLAYABLE_SCENE_V1: PlayableSceneStateV1 = {
 };
 
 function main(): void {
-  for (const scene of [REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1, WATCHTOWER_DAWN_PLAYABLE_SCENE_V1, MARKET_NIGHT_PLAYABLE_SCENE_V1]) {
+  for (const scene of [REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1, WATCHTOWER_DAWN_PLAYABLE_SCENE_V1, MARKET_NIGHT_PLAYABLE_SCENE_V1, PROTOTYPE_INN_BACK_ROOM_SCENE_V1]) {
     const validation = validatePlayableSceneV1(scene);
     assert.equal(validation.ok, true, `${scene.sceneId}: scène jouable valide`);
     assert.equal(scene.contractVersion, PLAYABLE_SCENE_CONTRACT_VERSION_V1);
     assert.equal(scene.aiSceneWriterPolicy.mayCreate.length, 0, `${scene.sceneId}: pas de création IA en I-06S`);
     assert.ok(scene.localMemoryPolicy.maxShortTermNpcMemory <= 5, `${scene.sceneId}: mémoire courte bornée`);
   }
+  assert.equal(PROTOTYPE_INN_BACK_ROOM_SCENE_V1.presentNpc.length, 0, "une destination jouable vide de PNJ reste valide");
 
   const registries = [REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1, WATCHTOWER_DAWN_PLAYABLE_SCENE_V1, MARKET_NIGHT_PLAYABLE_SCENE_V1]
     .map(buildSceneReferentRegistryV1);
   for (const registry of registries) assert.equal(validateSceneReferentRegistryV1(registry).ok, true, `${registry.sceneId}: registre valide`);
   const marketRegistry = registries[2]!;
+  assert.equal(resolveSceneReferentTextV1(registries[0]!, "Je me dirige vers le bar").status, "RESOLVED", "le bar décrit est un référent visible du comptoir");
   assert.equal(resolveSceneReferentTextV1(marketRegistry, "Je salue le cartographe", "speech").status, "RESOLVED");
   assert.equal(findSceneReferentByRefV1(marketRegistry, "npc-cartographe-ambre")?.canonicalRef, "npc:npc-cartographe-ambre", "canonicalisation sans table d'identifiants");
   assert.equal(toSceneReferentRoleViewV1(marketRegistry, "npc_performer").referents.every(entry => entry.kind === "npc"), true, "vue performer limitée aux PNJ");

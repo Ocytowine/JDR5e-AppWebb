@@ -25,6 +25,7 @@ Il distingue la cible complète du runtime de campagne et les capacités déjà 
 - [`Contrat-resolution-narrative.md`](Contrat-resolution-narrative.md) : contrat `FIGE` I-06F `narrative-resolution/1`, résolution bornée, reformulation PJ, commit validé et handoffs.
 - [`Contrat-resolution-ia-bornee.md`](Contrat-resolution-ia-bornee.md) : contrat `FIGE` I-06G `narrative-ai-resolution/1`, embellissement IA sans autorité métier.
 - [`Contrat-handoffs-tactique-repos.md`](Contrat-handoffs-tactique-repos.md) : contrat `FIGE` I-07 `tactical-rest-handoff/1`, seeds, processus, outcomes, intégration et signaux de repos.
+- [`Contrat-transition-locale-scene.md`](Contrat-transition-locale-scene.md) : socle `scene-transition/1`, connexion canonique, validation locale ou handoff voyage sans autorité de commit.
 - [`Exemple-role-context-pack.json`](Exemple-role-context-pack.json) : exemple parseable d'un paquet spécialisé et de sa trace de sélection.
 - [`Pipeline-et-contrats-IA.md`](Pipeline-et-contrats-IA.md) : enchaînement des rôles IA, validations, commits et rédaction visible.
 - [`Exemple-pipeline-tour.json`](Exemple-pipeline-tour.json) : trace parseable d'un tour avec arbitrage temporel, commit et contrôle d'affichage.

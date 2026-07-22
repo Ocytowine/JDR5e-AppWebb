@@ -37,8 +37,17 @@ export async function prepareTemporalSegmentCommitV1(
       input.writerLease.campaignId !== campaign.campaignId) {
     return fail("/operation", "operation, campaign and writer lease are not aligned");
   }
-  if (operation.operationKind !== "time.segment" || operation.requestPayload.batchFingerprint !== batch.batchFingerprint) {
-    return fail("/operation/requestPayload", "time.segment operation must cite the batch fingerprint");
+  const compositeBinding = input.operationBinding;
+  if (compositeBinding === undefined) {
+    if (operation.operationKind !== "time.segment" || operation.requestPayload.batchFingerprint !== batch.batchFingerprint) {
+      return fail("/operation/requestPayload", "time.segment operation must cite the batch fingerprint");
+    }
+  } else if (
+    operation.operationKind === "time.segment" ||
+    compositeBinding.batchFingerprint !== batch.batchFingerprint ||
+    !compositeBinding.domainCommandId.trim()
+  ) {
+    return fail("/operationBinding", "composite domain commit must cite its domain command and exact batch fingerprint");
   }
   if (input.clockAggregate.campaignId !== campaign.campaignId ||
       input.clockAggregate.aggregateType !== "world.clock" ||
@@ -326,7 +335,13 @@ export async function prepareTemporalSegmentCommitV1(
           expectedAggregateRevision: input.clockAggregate.aggregateRevision
         },
         payloadSchemaVersion: 1,
-        payload: { batchFingerprint: batch.batchFingerprint, taskIds },
+        payload: {
+          batchFingerprint: batch.batchFingerprint,
+          taskIds,
+          ...(compositeBinding === undefined
+            ? {}
+            : { operationBindingMode: compositeBinding.mode, domainCommandId: compositeBinding.domainCommandId })
+        },
         acceptedAtGameSecond: batch.currentGameSecond
       }],
       aggregateWrites: writes,

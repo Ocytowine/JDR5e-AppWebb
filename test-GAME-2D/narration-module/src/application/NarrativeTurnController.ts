@@ -5,6 +5,7 @@ import {
   MemoryCampaignRepository,
   opaqueId,
   type AggregateId,
+  type CommitRecord,
   type CampaignClockPayload,
   type CampaignId,
   type CampaignRecord,
@@ -33,7 +34,7 @@ import {
   type LocalReferentHintV1,
   type RecentSemanticTurnV1
 } from "./aiIntentInterpretation";
-import { REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1 } from "./playableScene";
+import { REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1, type PlayableSceneStateV1 } from "./playableScene";
 import {
   createDefaultMjPlannerConfigV1,
   planNarrativeTurnWithMjV1,
@@ -61,6 +62,33 @@ import {
 } from "./narrativeRenderProjection";
 import { createInitialReferenceSceneStateV1, type ReferenceSceneStateV1 } from "./referenceSceneState";
 import { buildNarrativeDomainCommandV1, type NarrativeDomainCommandV1 } from "./domainCommands";
+import type { SceneArrivalStateV1 } from "./sceneArrival";
+import {
+  createPrototypeInnSceneTransitionRuntimeV1,
+  ensurePrototypeInnSceneTransitionStateV1,
+  resolvePrototypeInnActiveSceneV1
+} from "./prototypeSceneTransitionRuntime";
+
+export interface NarrativeActiveSceneResolverV1 {
+  resolve(input: { repository: CampaignRepository; campaignId: CampaignId }): Promise<Result<PlayableSceneStateV1>>;
+}
+
+export interface NarrativeSceneTransitionRuntimeV1 {
+  execute(input: {
+    repository: CampaignRepository;
+    campaignId: CampaignId;
+    operation: OperationRecord;
+    rawInput: string;
+    interpretation: NarrativeIntentInterpretationV1;
+    domainCommand: NarrativeDomainCommandV1;
+  }): Promise<Result<{
+    commit: CommitRecord;
+    arrival: SceneArrivalStateV1;
+    displayPacket: DisplayPacketV1 & JsonObject;
+    characterExpression: string;
+    durationSeconds: number;
+  }>>;
+}
 
 export interface NarrativeTurnInputV1 {
   schemaVersion: 1;
@@ -84,6 +112,8 @@ export interface NarrativeTurnControllerOutputV1 extends JsonObject {
   suspendedIntent: (SuspendedIntentRecordV1 & JsonObject) | null;
   resolution: NarrativeResolutionResultV1;
   sceneState: ReferenceSceneStateV1;
+  sceneArrival: SceneArrivalStateV1 | null;
+  activeScene: PlayableSceneStateV1;
   displayPacket: DisplayPacketV1 & JsonObject;
   stageTimings: NarrativeControllerStageTimingsV1 | null;
   aiTelemetry: AiCallTelemetryV1[];
@@ -110,6 +140,8 @@ export interface NarrativeTurnControllerOptions {
   intentInterpreterConfig?: AiIntentInterpreterConfigV1 | null;
   mjPlannerConfig?: MjPlannerConfigV1 | null;
   npcPerformerConfig?: NpcPerformerConfigV1 | null;
+  sceneTransitionRuntime?: NarrativeSceneTransitionRuntimeV1 | null;
+  activeSceneResolver?: NarrativeActiveSceneResolverV1 | null;
 }
 
 const DEFAULT_CAMPAIGN_ID = opaqueId<CampaignId>("cmp-narrative-prototype");
@@ -124,6 +156,8 @@ export class NarrativeTurnControllerV1 {
   private readonly intentInterpreterConfig: AiIntentInterpreterConfigV1 | null;
   private readonly mjPlannerConfig: MjPlannerConfigV1 | null;
   private readonly npcPerformerConfig: NpcPerformerConfigV1 | null;
+  private readonly sceneTransitionRuntime: NarrativeSceneTransitionRuntimeV1 | null;
+  private readonly activeSceneResolver: NarrativeActiveSceneResolverV1 | null;
   private recentLocalReferents: LocalReferentHintV1[] = [];
   private recentSemanticTurns: RecentSemanticTurnV1[] = [];
 
@@ -141,6 +175,8 @@ export class NarrativeTurnControllerV1 {
     this.npcPerformerConfig = options.npcPerformerConfig === undefined
       ? createDefaultNpcPerformerConfigV1()
       : options.npcPerformerConfig;
+    this.sceneTransitionRuntime = options.sceneTransitionRuntime ?? null;
+    this.activeSceneResolver = options.activeSceneResolver ?? null;
   }
 
   async submit(input: NarrativeTurnInputV1): Promise<Result<NarrativeTurnControllerResultV1>> {
@@ -149,6 +185,11 @@ export class NarrativeTurnControllerV1 {
 
     const campaignResult = await this.repository.getCampaign(this.campaignId);
     if (!campaignResult.ok) return { ok: false, error: campaignResult.error };
+    const activeSceneResult = this.activeSceneResolver === null
+      ? { ok: true as const, value: REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1 }
+      : await this.activeSceneResolver.resolve({ repository: this.repository, campaignId: this.campaignId });
+    if (!activeSceneResult.ok) return activeSceneResult;
+    const activeScene = activeSceneResult.value;
 
     const requestPayload = buildRequestPayload(input);
     const operationKind = "narrative.turn.input";
@@ -181,7 +222,7 @@ export class NarrativeTurnControllerV1 {
     if (!received.ok) return received;
     if (received.value.phase === "COMPLETED" && received.value.resultPayload !== null) {
       const restoredOutput = upgradeLegacyControllerOutput(received.value.resultPayload as NarrativeTurnControllerOutputV1);
-      this.rememberLocalReferent(restoredOutput);
+      this.rememberLocalReferent(restoredOutput, activeScene);
       this.rememberSemanticTurn(restoredOutput);
       return {
         ok: true,
@@ -201,8 +242,10 @@ export class NarrativeTurnControllerV1 {
       intentInterpreterConfig: this.intentInterpreterConfig,
       mjPlannerConfig: this.mjPlannerConfig,
       npcPerformerConfig: this.npcPerformerConfig,
-      localReferentHints: this.recentLocalReferents,
-      recentSemanticTurns: this.recentSemanticTurns
+      localReferentHints: this.recentLocalReferents.filter(hint => hint.sceneId === activeScene.sceneId && hint.sceneVersion === activeScene.version),
+      recentSemanticTurns: this.recentSemanticTurns,
+      sceneTransitionRuntime: this.sceneTransitionRuntime,
+      activeScene
     });
     if (!output.ok) {
       await cancelReceivedOperationAfterFailure(this.repository, received.value.operationId);
@@ -213,7 +256,7 @@ export class NarrativeTurnControllerV1 {
       ? await this.repository.completeWithoutCommit(received.value.operationId, 1, output.value.output)
       : await this.repository.completePresentation(received.value.operationId, "COMMITTED_RENDERED", 1, output.value.output);
     if (!completed.ok) return completed;
-    this.rememberLocalReferent(output.value.output);
+    this.rememberLocalReferent(output.value.output, activeScene);
     this.rememberSemanticTurn(output.value.output);
 
     return {
@@ -245,13 +288,13 @@ export class NarrativeTurnControllerV1 {
     });
   }
 
-  private rememberLocalReferent(output: NarrativeTurnControllerOutputV1): void {
+  private rememberLocalReferent(output: NarrativeTurnControllerOutputV1, activeScene: PlayableSceneStateV1): void {
     const target = output.interpretation.referentResolution?.resolvedTarget ?? output.interpretation.semanticIntent.target ?? null;
     if (target === null || target.ref === null || target.kind === "unknown" || target.kind === "self") return;
     const hint: LocalReferentHintV1 = {
       schemaVersion: 1,
-      sceneId: REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1.sceneId,
-      sceneVersion: REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1.version,
+      sceneId: activeScene.sceneId,
+      sceneVersion: activeScene.version,
       target,
       sourceOperationId: output.operationId,
       sourceText: output.interpretation.semanticIntent.playerGoal,
@@ -297,6 +340,8 @@ function upgradeLegacyControllerOutput(output: NarrativeTurnControllerOutputV1):
     : upgradeLegacyNarrativeIntentInterpretationV1(output.suspendedIntent.knownInterpretation);
   return {
     ...output,
+    sceneArrival: output.sceneArrival ?? null,
+    activeScene: output.activeScene ?? REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1,
     stageTimings: output.stageTimings ?? null,
     aiTelemetry: Array.isArray(output.aiTelemetry) ? output.aiTelemetry : [],
     interpretation: interpretation as NarrativeIntentInterpretationV1 & JsonObject,
@@ -320,17 +365,26 @@ export async function createPrototypeNarrativeTurnControllerV1(options: {
   intentInterpreterConfig?: AiIntentInterpreterConfigV1 | null;
   mjPlannerConfig?: MjPlannerConfigV1 | null;
   npcPerformerConfig?: NpcPerformerConfigV1 | null;
+  sceneTransitionRuntime?: NarrativeSceneTransitionRuntimeV1 | null;
+  activeSceneResolver?: NarrativeActiveSceneResolverV1 | null;
 } = {}): Promise<NarrativeTurnControllerV1> {
   const clock = options.clock ?? systemClock;
   const repository = new MemoryCampaignRepository({ clock });
   await ensurePrototypeCampaign(repository, clock);
+  await ensurePrototypeInnSceneTransitionStateV1(repository, DEFAULT_CAMPAIGN_ID, clock);
   return new NarrativeTurnControllerV1({
     repository,
     campaignId: DEFAULT_CAMPAIGN_ID,
     clock,
     intentInterpreterConfig: options.intentInterpreterConfig,
     mjPlannerConfig: options.mjPlannerConfig,
-    npcPerformerConfig: options.npcPerformerConfig
+    npcPerformerConfig: options.npcPerformerConfig,
+    sceneTransitionRuntime: options.sceneTransitionRuntime === undefined
+      ? createPrototypeInnSceneTransitionRuntimeV1()
+      : options.sceneTransitionRuntime,
+    activeSceneResolver: options.activeSceneResolver === undefined
+      ? { resolve: resolvePrototypeInnActiveSceneV1 }
+      : options.activeSceneResolver
   });
 }
 
@@ -340,26 +394,37 @@ export async function createBrowserPersistentNarrativeTurnControllerV1(options: 
   intentInterpreterConfig?: AiIntentInterpreterConfigV1 | null;
   mjPlannerConfig?: MjPlannerConfigV1 | null;
   npcPerformerConfig?: NpcPerformerConfigV1 | null;
+  sceneTransitionRuntime?: NarrativeSceneTransitionRuntimeV1 | null;
+  activeSceneResolver?: NarrativeActiveSceneResolverV1 | null;
 } = {}): Promise<NarrativeTurnControllerV1> {
   const clock = options.clock ?? systemClock;
   if (!globalThis.indexedDB) return createPrototypeNarrativeTurnControllerV1({
     clock,
     intentInterpreterConfig: options.intentInterpreterConfig,
     mjPlannerConfig: options.mjPlannerConfig,
-    npcPerformerConfig: options.npcPerformerConfig
+    npcPerformerConfig: options.npcPerformerConfig,
+    sceneTransitionRuntime: options.sceneTransitionRuntime,
+    activeSceneResolver: options.activeSceneResolver
   });
   const repository = await IndexedDbCampaignRepository.open({
     clock,
     databaseName: options.databaseName ?? "jdr5e-narration-prototype"
   });
   await ensurePrototypeCampaign(repository, clock);
+  await ensurePrototypeInnSceneTransitionStateV1(repository, DEFAULT_CAMPAIGN_ID, clock);
   return new NarrativeTurnControllerV1({
     repository,
     campaignId: DEFAULT_CAMPAIGN_ID,
     clock,
     intentInterpreterConfig: options.intentInterpreterConfig,
     mjPlannerConfig: options.mjPlannerConfig,
-    npcPerformerConfig: options.npcPerformerConfig
+    npcPerformerConfig: options.npcPerformerConfig,
+    sceneTransitionRuntime: options.sceneTransitionRuntime === undefined
+      ? createPrototypeInnSceneTransitionRuntimeV1()
+      : options.sceneTransitionRuntime,
+    activeSceneResolver: options.activeSceneResolver === undefined
+      ? { resolve: resolvePrototypeInnActiveSceneV1 }
+      : options.activeSceneResolver
   });
 }
 
@@ -503,6 +568,8 @@ export function buildNoCommitOutput(
       perception: null
     },
     sceneState: createInitialReferenceSceneStateV1(),
+    sceneArrival: null,
+    activeScene: REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1,
     displayPacket,
     stageTimings: null,
     aiTelemetry: []
@@ -520,6 +587,8 @@ async function buildResolvedOutput(input: {
   npcPerformerConfig: NpcPerformerConfigV1 | null;
   localReferentHints?: LocalReferentHintV1[];
   recentSemanticTurns?: RecentSemanticTurnV1[];
+  sceneTransitionRuntime: NarrativeSceneTransitionRuntimeV1 | null;
+  activeScene: PlayableSceneStateV1;
 }): Promise<Result<{ output: NarrativeTurnControllerOutputV1; commit: unknown | null }>> {
   const resolvedOutputStartedAt = Date.now();
   const intentId = `${input.operation.operationId}:intent:1`;
@@ -533,7 +602,8 @@ async function buildResolvedOutput(input: {
       rawInput: input.input.rawInput,
       config: input.intentInterpreterConfig,
       localReferentHints: input.localReferentHints ?? [],
-      recentSemanticTurns: input.recentSemanticTurns ?? []
+      recentSemanticTurns: input.recentSemanticTurns ?? [],
+      playableScene: input.activeScene
     });
   const interpretation = interpretationResult === null
     ? interpretNarrativeInputV1({
@@ -565,6 +635,80 @@ async function buildResolvedOutput(input: {
     : null;
   const domainCommand = buildNarrativeDomainCommandV1(interpretation);
   const resolutionStartedAt = Date.now();
+  if (
+    input.sceneTransitionRuntime !== null &&
+    domainCommand !== null &&
+    interpretation.semanticIntent.kind === "traverse_visible_boundary" &&
+    interpretation.runtimeDecision.requiredDomain === "world"
+  ) {
+    const transition = await input.sceneTransitionRuntime.execute({
+      repository: input.repository,
+      campaignId: input.campaignId,
+      operation: input.operation,
+      rawInput: input.input.rawInput,
+      interpretation,
+      domainCommand
+    });
+    if (!transition.ok) return transition;
+    const transitionResolution: NarrativeResolutionResultV1 = {
+      schemaVersion: 1,
+      contractVersion: "narrative-resolution/1",
+      resolutionId: `${input.operation.operationId}:resolution:scene-transition`,
+      operationId: input.operation.operationId,
+      resultKind: "COMMIT_APPLIED",
+      interpretation,
+      domainCommand,
+      characterExpression: {
+        schemaVersion: 1,
+        rawPlayerText: input.input.rawInput,
+        interpretedIntentId: interpretation.intentId,
+        expressionText: transition.value.characterExpression,
+        fidelity: "STYLE_NORMALIZED",
+        addedCommitments: [],
+        preservedMeaning: true
+      },
+      preparedEffects: [],
+      handoff: null,
+      commitId: transition.value.commit.commitId,
+      noGameTime: false,
+      safetyNotes: ["Transition de scène résolue par le domaine monde et rendue après commit confirmé."],
+      perception: null
+    };
+    return {
+      ok: true,
+      value: {
+        commit: transition.value.commit,
+        output: {
+          schemaVersion: 1,
+          contractVersion: "narrative-turn-controller/1",
+          operationId: input.operation.operationId,
+          clientRequestId: input.input.clientRequestId,
+          noCommit: false,
+          noGameTime: false,
+          interpretation,
+          domainCommand,
+          mjPlan: planning?.plan ?? null,
+          mjPlannerFailure: planning?.planningFailure as (MjPlanningFailureV1 & JsonObject) | null ?? null,
+          npcPerformance: null,
+          npcPerformanceFailure: null,
+          suspendedIntent: null,
+          resolution: transitionResolution,
+          sceneState: createInitialReferenceSceneStateV1(),
+          sceneArrival: transition.value.arrival,
+          activeScene: transition.value.arrival.scene,
+          displayPacket: transition.value.displayPacket,
+          stageTimings: {
+            interpretationMs,
+            planningMs,
+            resolutionMs: Date.now() - resolutionStartedAt,
+            npcPerformanceMs: 0,
+            resolvedOutputMs: Date.now() - resolvedOutputStartedAt
+          },
+          aiTelemetry: [...(interpretationResult?.telemetry ?? [])]
+        }
+      }
+    };
+  }
   const resolution = await resolveNarrativeTurnV1({
     repository: input.repository,
     campaignId: input.campaignId,
@@ -572,7 +716,8 @@ async function buildResolvedOutput(input: {
     rawInput: input.input.rawInput,
     interpretation,
     domainCommand,
-    suspendedIntent
+    suspendedIntent,
+    playableScene: input.activeScene
   });
   if (!resolution.ok) return resolution;
   const resolutionMs = Date.now() - resolutionStartedAt;
@@ -617,6 +762,8 @@ async function buildResolvedOutput(input: {
         suspendedIntent,
         resolution: resolution.value.result,
         sceneState: resolution.value.sceneState,
+        sceneArrival: null,
+        activeScene: input.activeScene,
         displayPacket,
         stageTimings: {
           interpretationMs,

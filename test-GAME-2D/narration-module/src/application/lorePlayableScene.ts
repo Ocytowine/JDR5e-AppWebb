@@ -7,6 +7,7 @@ import {
   type PlayableSceneStateV1,
   type PlayableSceneVisibleElementV1
 } from "./playableScene";
+import type { SceneTransitionTopologyV1 } from "./sceneTransition";
 
 export const LORE_PLAYABLE_SCENE_ADAPTER_VERSION_V1 = "lore-playable-scene-adapter/1" as const;
 
@@ -19,6 +20,43 @@ export interface LorePlayableSceneBuildResultV1 {
   withheldKnowledgeLevels: LoreKnowledgeLevelV1[];
   sourceEntityId: string;
   version: 1;
+}
+
+export function buildSceneTransitionTopologyFromLoreLocationV1(input: {
+  entity: LoreEntityV1;
+  scene: PlayableSceneStateV1;
+  topologyVersion: number;
+}): SceneTransitionTopologyV1 {
+  if (input.scene.sceneId.trim().length === 0) throw new Error("sceneId is required");
+  if (!Number.isInteger(input.topologyVersion) || input.topologyVersion < 1) throw new Error("topologyVersion must be a positive integer");
+  const attributes = input.entity.attributes as { lieux_connectes?: unknown };
+  const connected = Array.isArray(attributes.lieux_connectes)
+    ? attributes.lieux_connectes.filter((value): value is string => typeof value === "string" && value.trim().length > 0)
+    : [];
+  const connections = connected.map((loreDestination, index) => {
+    const expectedPointId = `${input.entity.entityId}:poi:${index + 1}`;
+    const point = input.scene.pointsOfInterest.find(candidate => candidate.pointId === expectedPointId);
+    if (point === undefined) throw new Error(`Missing projected point of interest for lore connection ${loreDestination}`);
+    const destinationRef = loreDestination.includes(":") ? loreDestination : `lore-location:${loreDestination}`;
+    return {
+      schemaVersion: 1 as const,
+      connectionId: `lore:${input.entity.entityId}:connection:${index + 1}`,
+      sourceSceneId: input.scene.sceneId,
+      boundaryRef: `poi:${point.pointId}`,
+      destinationRef,
+      scale: loreDestination.startsWith("external:") ? "TRAVEL" as const : "LOCAL" as const,
+      state: "UNKNOWN" as const,
+      sourceRefs: [`lore-entity:${input.entity.entityId}`, `lore-attribute:${input.entity.entityId}:lieux_connectes:${index}`],
+      version: input.entity.provenance.packageVersion
+    };
+  });
+  return {
+    schemaVersion: 1,
+    contractVersion: "scene-transition/1",
+    topologyId: `lore-location:${input.entity.entityId}:topology`,
+    topologyVersion: input.topologyVersion,
+    connections
+  };
 }
 
 const PLAYER_VISIBLE_LEVELS = new Set<LoreKnowledgeLevelV1>(["COMMUN", "LOCAL"]);

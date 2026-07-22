@@ -20,7 +20,7 @@ import type { DisplayPacketV1, RenderBlockKindV1 } from "../scene";
 import { SCENE_SOCIAL_UI_CONTRACT_VERSION_V1 } from "../scene";
 import { isAiInterpretationFailureDiagnosticV1, validateCanonicalIntentAuthorityV1, type NarrativeIntentInterpretationV1, type SuspendedIntentRecordV1 } from "./intentClarification";
 import { validateNarrativeDomainCommandV1, type NarrativeDomainCommandV1 } from "./domainCommands";
-import { REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1 } from "./playableScene";
+import { REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1, type PlayableSceneStateV1 } from "./playableScene";
 import { resolvePerceptionV1, type PerceptionResolutionV1 } from "./perceptionResolution";
 import { buildSceneReferentRegistryV1, findSceneReferentByRefV1 } from "./sceneReferentRegistry";
 import { routeNarrativeSemanticIntentV1 } from "./runtimeCapabilityRouting";
@@ -105,6 +105,7 @@ export interface NarrativeResolutionInputV1 {
   interpretation: NarrativeIntentInterpretationV1;
   domainCommand: NarrativeDomainCommandV1 | null;
   suspendedIntent: SuspendedIntentRecordV1 | null;
+  playableScene?: PlayableSceneStateV1;
 }
 
 export interface NarrativeResolutionOutputV1 {
@@ -115,6 +116,7 @@ export interface NarrativeResolutionOutputV1 {
 }
 
 export async function resolveNarrativeTurnV1(input: NarrativeResolutionInputV1): Promise<Result<NarrativeResolutionOutputV1>> {
+  const playableScene = input.playableScene ?? REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1;
   const authorityValidation = validateCanonicalIntentAuthorityV1(input.interpretation);
   if (!authorityValidation.ok) {
     return { ok: false, error: coreError("VALIDATION_FAILED", "narrative.intent-authority.contradiction", { issues: authorityValidation.issues }) };
@@ -131,13 +133,13 @@ export async function resolveNarrativeTurnV1(input: NarrativeResolutionInputV1):
   });
   if (!loadedSceneState.ok) return loadedSceneState;
 
-  const deterministic = buildDeterministicResolution(input.operation, input.rawInput, input.interpretation, input.domainCommand, input.suspendedIntent);
+  const deterministic = buildDeterministicResolution(input.operation, input.rawInput, input.interpretation, input.domainCommand, input.suspendedIntent, playableScene);
   if (deterministic.resultKind !== "COMMIT_PREPARED") {
     return {
       ok: true,
       value: {
         result: deterministic,
-        displayPacket: buildResolutionDisplayPacket(input.operation.operationId, input.rawInput, deterministic, loadedSceneState.value.state),
+        displayPacket: buildResolutionDisplayPacket(input.operation.operationId, input.rawInput, deterministic, loadedSceneState.value.state, playableScene),
         commit: null,
         sceneState: loadedSceneState.value.state
       }
@@ -188,7 +190,7 @@ export async function resolveNarrativeTurnV1(input: NarrativeResolutionInputV1):
     ]
   };
 
-  const displayPacket = buildResolutionDisplayPacket(input.operation.operationId, input.rawInput, applied, nextSceneState);
+  const displayPacket = buildResolutionDisplayPacket(input.operation.operationId, input.rawInput, applied, nextSceneState, playableScene);
   return {
     ok: true,
     value: {
@@ -205,7 +207,8 @@ export function buildDeterministicResolution(
   rawInput: string,
   interpretation: NarrativeIntentInterpretationV1,
   domainCommand: NarrativeDomainCommandV1 | null,
-  suspendedIntent: SuspendedIntentRecordV1 | null
+  suspendedIntent: SuspendedIntentRecordV1 | null,
+  playableScene: PlayableSceneStateV1 = REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1
 ): NarrativeResolutionResultV1 {
   const base = {
     schemaVersion: 1 as const,
@@ -287,7 +290,7 @@ export function buildDeterministicResolution(
     const perception = resolvePerceptionV1({
       semanticIntent: interpretation.semanticIntent,
       targetRef: target?.ref ?? null,
-      scene: REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1
+      scene: playableScene
     });
     return {
       ...base,
@@ -328,7 +331,7 @@ export function buildDeterministicResolution(
     };
   }
 
-  const localSceneAction = buildLocalSceneActionEffect(operation, interpretation, domainCommand);
+  const localSceneAction = buildLocalSceneActionEffect(operation, interpretation, domainCommand, playableScene);
   if (localSceneAction !== null) {
     return {
       ...base,
@@ -387,12 +390,13 @@ function mapRuntimeDomainToHandoffTarget(domain: NarrativeIntentInterpretationV1
 function buildLocalSceneActionEffect(
   operation: OperationRecord,
   interpretation: NarrativeIntentInterpretationV1,
-  domainCommand: NarrativeDomainCommandV1 | null
+  domainCommand: NarrativeDomainCommandV1 | null,
+  playableScene: PlayableSceneStateV1 = REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1
 ): NarrativePreparedEffectV1 | null {
   if (domainCommand?.commandType !== "SCENE_INTERACTION_REQUEST") return null;
   const target = interpretation.referentResolution?.resolvedTarget ?? interpretation.semanticIntent.target ?? null;
   if (target === null || target.ref === null) return null;
-  if (!isVisibleReferenceSceneTarget(target.ref)) return null;
+  if (!isVisiblePlayableSceneTarget(target.ref, playableScene)) return null;
   if (interpretation.referentResolution?.ambiguity && interpretation.referentResolution.ambiguity !== "none") return null;
   const isNpcPositioning = interpretation.semanticIntent.kind === "move_near_visible_actor" && target.kind === "npc";
   return {
@@ -408,8 +412,8 @@ function buildLocalSceneActionEffect(
   };
 }
 
-function isVisibleReferenceSceneTarget(ref: string): boolean {
-  return findSceneReferentByRefV1(buildSceneReferentRegistryV1(REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1), ref) !== null;
+function isVisiblePlayableSceneTarget(ref: string, playableScene: PlayableSceneStateV1): boolean {
+  return findSceneReferentByRefV1(buildSceneReferentRegistryV1(playableScene), ref) !== null;
 }
 
 function buildNarrativeCommitRequest(input: {
@@ -585,7 +589,8 @@ function buildResolutionDisplayPacket(
   operationId: OperationId,
   rawInput: string,
   resolution: NarrativeResolutionResultV1,
-  sceneState?: ReferenceSceneStateV1
+  sceneState?: ReferenceSceneStateV1,
+  playableScene: PlayableSceneStateV1 = REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1
 ): DisplayPacketV1 & JsonObject {
   const blocks = [
     block(operationId, "raw", "RAW_INPUT", "Joueur", "PLAYER_CHARACTER", rawInput, [`operation:${operationId}:raw`])
@@ -606,7 +611,8 @@ function buildResolutionDisplayPacket(
     rawInput,
     interpretation: resolution.interpretation,
     resolution,
-    sceneState
+    sceneState,
+    playableScene
   }));
   blocks.push(block(
     operationId,
@@ -628,14 +634,14 @@ function buildResolutionDisplayPacket(
     schemaVersion: 1,
     contractVersion: SCENE_SOCIAL_UI_CONTRACT_VERSION_V1,
     operationId,
-    sceneId: REFERENCE_PLAYABLE_SCENE_ID_V1,
+    sceneId: playableScene.sceneId,
     displayBlocks: blocks,
     rawInputAccess: {
       available: true,
       operationId
     },
-    rhythmDiagnostics: `narrative-resolution:${resolution.resultKind}|reference-scene:${REFERENCE_PLAYABLE_SCENE_ID_V1}`,
-    reconstructionRefs: [`operation:${operationId}:raw`, `resolution:${resolution.resolutionId}`, `reference-scene:${REFERENCE_PLAYABLE_SCENE_ID_V1}`, `scene-state:${REFERENCE_PLAYABLE_SCENE_ID_V1}`],
+    rhythmDiagnostics: `narrative-resolution:${resolution.resultKind}|playable-scene:${playableScene.sceneId}`,
+    reconstructionRefs: [`operation:${operationId}:raw`, `resolution:${resolution.resolutionId}`, `playable-scene:${playableScene.sceneId}`, `scene-state:${playableScene.sceneId}`],
     version: 1
   } as unknown as DisplayPacketV1 & JsonObject;
 }
@@ -769,6 +775,7 @@ function resolutionDiagnosticLines(resolution: NarrativeResolutionResultV1): str
     `Acte de dialogue: ${interpretation.semanticIntent.dialogueAct === null || interpretation.semanticIntent.dialogueAct === undefined
       ? "aucun"
       : `${interpretation.semanticIntent.dialogueAct.act}, destinataire=${interpretation.semanticIntent.dialogueAct.addresseeRef ?? "aucun"}, objectif=${interpretation.semanticIntent.dialogueAct.contentGoal}`}.`,
+    `Préconditions: ${interpretation.semanticIntent.preconditions?.join(" | ") || "aucune"}.`,
     `Cible résolue: ${target === null ? "aucune" : `${target.label ?? target.ref ?? target.kind} (${target.ref ?? target.kind})`}.`,
     runtimeHandling === null
       ? "Runtime: non renseigné."

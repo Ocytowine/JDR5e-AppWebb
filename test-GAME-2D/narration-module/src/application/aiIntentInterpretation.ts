@@ -22,7 +22,7 @@ import {
   type NarrativeIntentInterpretationV1,
   type NarrativeIntentTargetV1
 } from "./intentClarification";
-import { REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1 } from "./playableScene";
+import { REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1, type PlayableSceneStateV1 } from "./playableScene";
 import {
   buildSceneReferentRegistryV1,
   findSceneReferentByRefV1,
@@ -94,7 +94,9 @@ export class LocalPlayerIntentInterpreterProviderV1 implements ContractAiProvide
   async generate(request: AiCallRequestV1): Promise<unknown> {
     const task = request.input.task as { rawInput?: unknown; localReferentHints?: unknown };
     const rawInput = typeof task.rawInput === "string" ? task.rawInput : "";
-    const localReferentHints = normalizeLocalReferentHints(task.localReferentHints);
+    const context = request.input.roleContextPack as { referentRegistry?: SceneReferentRegistryV1 };
+    const registry = context.referentRegistry ?? REFERENCE_SCENE_REFERENT_REGISTRY_V1;
+    const localReferentHints = normalizeLocalReferentHints(task.localReferentHints, registry);
     return {
       schemaVersion: 1,
       contractVersion: request.contractVersion,
@@ -105,7 +107,7 @@ export class LocalPlayerIntentInterpreterProviderV1 implements ContractAiProvide
       snapshotId: request.snapshotId,
       role: request.role,
       status: "OK",
-      payload: buildLocalIntentPayload(rawInput, localReferentHints),
+      payload: buildLocalIntentPayload(rawInput, localReferentHints, registry),
       diagnostics: [],
       supersedesOutputId: null
     } satisfies AiRoleOutputEnvelopeV1<AiIntentInterpretationPayloadV1>;
@@ -149,7 +151,10 @@ export async function interpretNarrativeInputWithAiV1(input: {
   config: AiIntentInterpreterConfigV1;
   localReferentHints?: LocalReferentHintV1[];
   recentSemanticTurns?: RecentSemanticTurnV1[];
+  playableScene?: PlayableSceneStateV1;
 }): Promise<AiIntentInterpretationResultV1> {
+  const playableScene = input.playableScene ?? REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1;
+  const referentRegistry = buildSceneReferentRegistryV1(playableScene);
   const request = await buildIntentInterpreterRequestV1(input);
   const run = await runAiPipelineCallV1({
     provider: input.config.provider,
@@ -165,7 +170,8 @@ export async function interpretNarrativeInputWithAiV1(input: {
         intentId: input.intentId,
         rawInput: input.rawInput,
         payload: acceptedOutput.payload as AiSemanticIntentPayloadV2,
-        localReferentHints: input.localReferentHints ?? []
+        localReferentHints: input.localReferentHints ?? [],
+        referentRegistry
       })
       : mapAiIntentToNarrativeInterpretationV1({
       intentId: input.intentId,
@@ -210,7 +216,7 @@ export async function interpretNarrativeInputWithAiV1(input: {
   };
 }
 
-export function buildLocalIntentPayload(rawInput: string, localReferentHints: LocalReferentHintV1[] = []): AiIntentInterpretationPayloadV1 {
+export function buildLocalIntentPayload(rawInput: string, localReferentHints: LocalReferentHintV1[] = [], registry: SceneReferentRegistryV1 = REFERENCE_SCENE_REFERENT_REGISTRY_V1): AiIntentInterpretationPayloadV1 {
   const normalized = normalize(rawInput);
   const localAction = actionLabel(normalized);
   const hasQuestion = /[?？]/u.test(rawInput) || /^(est[- ]ce|peux|puis|peut|comment|pourquoi|combien|ou|où|quand|quelle|quel|quels|quelles)\b/u.test(normalized);
@@ -219,7 +225,7 @@ export function buildLocalIntentPayload(rawInput: string, localReferentHints: Lo
   const meta = /\b(regle|mecanique|jet|bonus|interface|sauvegarde|comment fonctionne|comment marche|cote regles)\b/u.test(normalized);
   const risky = /\b(voler|vole|ouvrir|entrer|forcer|crocheter|attaquer|attaque|frapper|prendre)\b/u.test(normalized);
   const speech = /\b(je demande|je lui demande|lui demander|je questionne|j'interroge|j interroge|je lui dis|je dis|je reponds|je réponds|parler|discuter|interroger)\b/u.test(normalized);
-  const target = findTarget(rawInput, localReferentHints, speech ? "ask" : localAction);
+  const target = findTarget(rawInput, localReferentHints, speech ? "ask" : localAction, registry);
   const explicitCommittedAction = /\b(je vole|j'attaque|j attaque|je frappe|je prends|je tente|j'essaie|j essaie|j'ouvre|j ouvre|je l'ouvre|je le force|je la force|je force|je crochete)\b/u.test(normalized);
   const action = explicitCommittedAction || /\b(je m'avance|je m avance|je vais|je me dirige|je m'approche|je m approche|je regarde|j'observe|j observe)\b/u.test(normalized);
   const implicitDoorManipulation = /\b(poignee|mecanisme|loquet|battant)\b/u.test(normalized) &&
@@ -560,15 +566,17 @@ async function buildIntentInterpreterRequestV1(input: {
   config: AiIntentInterpreterConfigV1;
   localReferentHints?: LocalReferentHintV1[];
   recentSemanticTurns?: RecentSemanticTurnV1[];
+  playableScene?: PlayableSceneStateV1;
 }): Promise<AiCallRequestV1> {
   const snapshotId = `${input.operationId}:snapshot:intent`;
   const packId = `${input.operationId}:pack:intent`;
-  const referentView = toSceneReferentRoleViewV1(REFERENCE_SCENE_REFERENT_REGISTRY_V1, "player_intent_interpreter");
+  const playableScene = input.playableScene ?? REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1;
+  const referentView = toSceneReferentRoleViewV1(buildSceneReferentRegistryV1(playableScene), "player_intent_interpreter");
   const usesSemanticV2 = input.config.contractVersion === AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V2;
   const context = usesSemanticV2
     ? {
       schemaVersion: 1,
-      sceneId: REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1.sceneId,
+      sceneId: playableScene.sceneId,
       visibleReferents: referentView.referents.map(referent => ({
         ref: referent.canonicalRef,
         kind: referent.kind,
@@ -581,8 +589,8 @@ async function buildIntentInterpreterRequestV1(input: {
     } satisfies JsonObject
     : {
       schemaVersion: 1,
-      sceneId: REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1.sceneId,
-      locationName: REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1.locationName,
+      sceneId: playableScene.sceneId,
+      locationName: playableScene.locationName,
       referentRegistry: referentView,
       authority: "INTERPRETATION_ONLY"
     } satisfies JsonObject;
@@ -769,15 +777,22 @@ function mapSemanticIntentV2ToNarrativeInterpretation(input: {
   rawInput: string;
   payload: AiSemanticIntentPayloadV2;
   localReferentHints: LocalReferentHintV1[];
+  referentRegistry: SceneReferentRegistryV1;
 }): { ok: true; interpretation: NarrativeIntentInterpretationV1 } | { ok: false; issues?: string[] } {
-  const proposed = input.payload.intent;
+  const providerProposal = input.payload.intent;
+  const proposed = {
+    ...providerProposal,
+    commitment: providerProposal.preconditions.length > 0 && providerProposal.commitment === "committed"
+      ? "conditional" as const
+      : providerProposal.commitment
+  };
   if ((proposed.kind === "hypothetical_action") !== (proposed.commitment === "hypothetical")) {
     return { ok: false, issues: ["V2 hypothetical kind and commitment are inconsistent."] };
   }
   if (proposed.confidence === "low" && proposed.kind !== "unclear_intent") {
     return { ok: false, issues: ["V2 semantic confidence is low for a supposedly actionable intention."] };
   }
-  const target = resolveSemanticTargetMentionV2(proposed.targetMention, input.localReferentHints);
+  const target = resolveSemanticTargetMentionV2(proposed.targetMention, input.localReferentHints, proposed.kind, input.referentRegistry);
   const needsTarget = ["address_visible_actor", "move_near_visible_actor", "manipulate_visible_object", "traverse_visible_boundary", "nonverbal_signal"].includes(proposed.kind);
   const requiresClarification = proposed.kind === "unclear_intent" || proposed.commitment === "unclear" || (needsTarget && target === null);
   const intentType = semanticKindToLegacyIntentType(proposed.kind);
@@ -790,6 +805,7 @@ function mapSemanticIntentV2ToNarrativeInterpretation(input: {
     playerGoal: proposed.playerGoal,
     target,
     commitment: proposed.commitment,
+    preconditions: [...proposed.preconditions],
     evidenceFromInput: [input.rawInput.trim()].filter(Boolean),
     uncertainties: [...proposed.uncertainties],
     forbiddenInterpretations,
@@ -851,22 +867,24 @@ function mapSemanticIntentV2ToNarrativeInterpretation(input: {
 
 function resolveSemanticTargetMentionV2(
   mention: AiSemanticIntentPayloadV2["intent"]["targetMention"],
-  hints: LocalReferentHintV1[]
+  hints: LocalReferentHintV1[],
+  semanticKind: AiSemanticIntentPayloadV2["intent"]["kind"],
+  referentRegistry: SceneReferentRegistryV1
 ): AiStructuredPlayerIntentV1["target"] {
   if (mention === null) return null;
   if (mention.proposedRef !== null) {
-    const referent = findSceneReferentByRefV1(REFERENCE_SCENE_REFERENT_REGISTRY_V1, mention.proposedRef);
+    const referent = findSceneReferentByRefV1(referentRegistry, mention.proposedRef);
     if (referent !== null) return toNarrativeIntentTargetV1(referent);
   }
   if (mention.contextLink === "RECENT_FOCUS") {
     const recent = hints.find(hint => mention.candidateKind === "unknown" || hint.target.kind === mention.candidateKind);
     if (recent !== undefined) return recent.target;
   }
-  if (mention.contextLink === "SCENE_DESCRIPTION") {
+  if (mention.contextLink === "SCENE_DESCRIPTION" || semanticKind === "traverse_visible_boundary") {
     const candidateKind = mention.candidateKind === "npc" || mention.candidateKind === "object" || mention.candidateKind === "place"
       ? mention.candidateKind
       : undefined;
-    const described = resolveSceneReferentDescriptionV1(REFERENCE_SCENE_REFERENT_REGISTRY_V1, mention.surface, candidateKind);
+    const described = resolveSceneReferentDescriptionV1(referentRegistry, mention.surface, candidateKind);
     if (described.status === "RESOLVED") return toNarrativeIntentTargetV1(described.referent);
   }
   return null;
@@ -1004,10 +1022,10 @@ function canonicalizeVisibleTargetRef<T extends AiStructuredPlayerIntentV1["targ
   return referent === null ? target : { ...target, kind: referent.kind, ref: referent.canonicalRef, label: referent.displayName } as T;
 }
 
-function findTarget(rawInput: string, localReferentHints: LocalReferentHintV1[] = [], action: string | null = null): AiStructuredPlayerIntentV1["target"] {
+function findTarget(rawInput: string, localReferentHints: LocalReferentHintV1[] = [], action: string | null = null, registry: SceneReferentRegistryV1 = REFERENCE_SCENE_REFERENT_REGISTRY_V1): AiStructuredPlayerIntentV1["target"] {
   const normalized = normalize(rawInput);
   const capability = action === "ask" ? "speech" : action === "open" || action === "force" ? "manipulate" : undefined;
-  const explicit = resolveSceneReferentTextV1(REFERENCE_SCENE_REFERENT_REGISTRY_V1, rawInput, capability);
+  const explicit = resolveSceneReferentTextV1(registry, rawInput, capability);
   if (explicit.status === "RESOLVED") return toNarrativeIntentTargetV1(explicit.referent);
   if (/\b(moi|me)\b/u.test(normalized) && explicit.status === "NOT_FOUND") {
     return { kind: "self", ref: "player-character:prototype", label: "personnage joueur" };
@@ -1085,20 +1103,20 @@ function isTargetCompatibleWithAction(target: NarrativeIntentTargetV1, action: s
   return true;
 }
 
-function normalizeLocalReferentHints(value: unknown): LocalReferentHintV1[] {
+function normalizeLocalReferentHints(value: unknown, registry: SceneReferentRegistryV1 = REFERENCE_SCENE_REFERENT_REGISTRY_V1): LocalReferentHintV1[] {
   if (!Array.isArray(value)) return [];
   return value.filter((entry): entry is LocalReferentHintV1 => {
     if (entry === null || typeof entry !== "object") return false;
     const candidate = entry as Partial<LocalReferentHintV1>;
     return candidate.schemaVersion === 1 &&
-      candidate.sceneId === REFERENCE_SCENE_REFERENT_REGISTRY_V1.sceneId &&
-      candidate.sceneVersion === REFERENCE_SCENE_REFERENT_REGISTRY_V1.sceneVersion &&
+      candidate.sceneId === registry.sceneId &&
+      candidate.sceneVersion === registry.sceneVersion &&
       candidate.target !== null &&
       typeof candidate.target === "object" &&
       typeof candidate.sourceOperationId === "string" &&
       typeof candidate.sourceText === "string" &&
       ["low", "medium", "high"].includes(candidate.confidence ?? "") &&
-      findSceneReferentByRefV1(REFERENCE_SCENE_REFERENT_REGISTRY_V1, candidate.target.ref ?? "") !== null;
+      findSceneReferentByRefV1(registry, candidate.target.ref ?? "") !== null;
   }).slice(0, 5);
 }
 

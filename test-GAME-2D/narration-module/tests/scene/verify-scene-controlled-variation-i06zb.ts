@@ -6,6 +6,7 @@ import {
   NARRATIVE_PRESENTATION_VARIATION_CONTRACT_VERSION_V1,
   buildCompatibleSemanticIntentV1,
   evaluateNarrativeRuntimeDecisionV1,
+  REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1,
   type NarrativeIntentInterpretationV1,
   type NarrativeResolutionResultV1,
   type NarrativeTurnControllerOutputV1
@@ -130,6 +131,8 @@ function controllerOutput(operationId: string, rawInput: string, interp: Narrati
     suspendedIntent: null,
     resolution: res,
     sceneState: createInitialReferenceSceneStateV1(),
+  sceneArrival: null,
+  activeScene: REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1,
     displayPacket: packet(operationId, rawInput, interp) as DisplayPacketV1 & JsonObject,
   stageTimings: null,
   aiTelemetry: []

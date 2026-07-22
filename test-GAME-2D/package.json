@@ -58,6 +58,7 @@
     "narration-module:test:semantic-invariance": "npx --yes tsx narration-module/tests/scene/verify-semantic-invariance-i06zq.ts",
     "narration-module:test:intent-authority": "npx --yes tsx narration-module/tests/scene/verify-intent-authority-i06zr.ts",
     "narration-module:test:runtime-routing": "npx --yes tsx narration-module/tests/scene/verify-runtime-capability-routing-nar131.ts",
+    "narration-module:test:scene-transition": "npx --yes tsx narration-module/tests/scene/verify-scene-transition.ts",
     "narration-module:test:complete-conversations": "npx --yes tsx narration-module/tests/scene/verify-complete-npc-conversations-nar132.ts",
     "narration-module:test:complete-conversations:openai-live": "npx --yes tsx narration-module/tests/scene/verify-complete-npc-conversations-openai-live.ts",
     "narration-module:test:complete-conversations:openai-gate": "npx --yes tsx narration-module/tests/scene/verify-complete-npc-conversations-openai-live.ts --gate",

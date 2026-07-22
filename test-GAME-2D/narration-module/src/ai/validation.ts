@@ -600,12 +600,13 @@ function validateSemanticIntentPayloadV2(payload: unknown): string[] {
   if (!isObject(typed.intent)) return [...issues, "payload.intent: expected object"];
   const intent = typed.intent;
   const path = "payload.intent";
-  issues.push(...exactKeys(intent, ["actionHint", "clarificationPrompt", "commitment", "confidence", "dialogueAct", "domainHint", "kind", "perception", "playerGoal", "scope", "targetMention", "uncertainties"], path));
+  issues.push(...exactKeys(intent, ["actionHint", "clarificationPrompt", "commitment", "confidence", "dialogueAct", "domainHint", "kind", "perception", "playerGoal", "preconditions", "scope", "targetMention", "uncertainties"], path));
   const kinds = new Set(["address_visible_actor", "move_near_visible_actor", "manipulate_visible_object", "traverse_visible_boundary", "observe_environment", "nonverbal_signal", "hypothetical_action", "context_question", "meta_request", "unclear_intent"]);
   const commitments = new Set(["none", "hypothetical", "conditional", "committed", "unclear"]);
   const domains = new Set(["scene_resolution", "social", "perception", "inventory", "tactical", "rest", "world"]);
   if (typeof intent.kind !== "string" || !kinds.has(intent.kind)) issues.push(issue(`${path}.kind`, "invalid semantic kind"));
   if (typeof intent.commitment !== "string" || !commitments.has(intent.commitment)) issues.push(issue(`${path}.commitment`, "invalid commitment"));
+  if (!isStringArray(intent.preconditions) || intent.preconditions.length > 4 || intent.preconditions.some(entry => entry.trim().length === 0)) issues.push(issue(`${path}.preconditions`, "expected at most four non-empty strings"));
   issues.push(...validateNonEmptyString(intent.playerGoal, `${path}.playerGoal`));
   if (intent.actionHint !== null && typeof intent.actionHint !== "string") issues.push(issue(`${path}.actionHint`, "expected string or null"));
   if (intent.domainHint !== null && (typeof intent.domainHint !== "string" || !domains.has(intent.domainHint))) issues.push(issue(`${path}.domainHint`, "invalid domain or null"));

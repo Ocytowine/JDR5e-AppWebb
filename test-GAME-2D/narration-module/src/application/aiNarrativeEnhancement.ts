@@ -12,11 +12,11 @@ import type {
 import type { DisplayBlockV1, DisplayPacketV1 } from "../scene";
 import type { NarrativeResolutionResultV1 } from "./narrativeResolution";
 import {
-  buildReferenceSceneWriterContextPackV1,
-  buildReferenceSceneWriterTaskV1,
   REFERENCE_PLAYABLE_SCENE_ID_V1
 } from "./referenceScene";
 import type { ReferenceSceneStateV1 } from "./referenceSceneState";
+import { REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1, type PlayableSceneStateV1 } from "./playableScene";
+import { buildActiveSceneContextPackV1, buildActiveSceneNarrativeBriefV1, validateActiveSceneNarrativeCandidateV1 } from "./activeSceneNarrative";
 
 export const NARRATIVE_AI_RESOLUTION_CONTRACT_VERSION_V1 = "narrative-ai-resolution/1" as const;
 
@@ -47,6 +47,7 @@ export async function enhanceNarrativeDisplayWithAiV1(input: {
   priorDisplayPackets?: DisplayPacketV1[];
   resolution: NarrativeResolutionResultV1;
   sceneState?: ReferenceSceneStateV1;
+  activeScene?: PlayableSceneStateV1;
   config: AiNarrativeEnhancementConfigV1;
 }): Promise<AiNarrativeEnhancementResultV1> {
   const original = cloneJson(input.displayPacket) as DisplayPacketV1 & JsonObject;
@@ -162,21 +163,22 @@ export async function enhanceNarrativeDisplayWithAiV1(input: {
     sceneWriterAttempted = true;
     const snapshotId = `${input.operationId}:snapshot:display`;
     const packId = `${input.operationId}:pack:scene-writer`;
-    const sceneContextPack = await buildReferenceSceneWriterContextPackV1({
+    const activeScene = input.activeScene ?? REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1;
+    const sceneTask = buildActiveSceneNarrativeBriefV1({
+      rawInput: findRawInput(input.displayPacket),
+      interpretation: input.resolution.interpretation,
+      resolution: input.resolution,
+      activeScene,
+      priorDisplayPackets: input.priorDisplayPackets
+    });
+    const sceneContextPack = await buildActiveSceneContextPackV1({
       campaignId: input.campaignId,
       operationId: input.operationId,
       packId,
       snapshotId,
-      rawInput: findRawInput(input.displayPacket),
-      interpretation: input.resolution.interpretation,
-      resolution: input.resolution,
-      sceneState: input.sceneState,
+      activeScene,
+      brief: sceneTask,
       priorDisplayPackets: input.priorDisplayPackets
-    });
-    const sceneTask = buildReferenceSceneWriterTaskV1({
-      rawInput: findRawInput(input.displayPacket),
-      interpretation: input.resolution.interpretation,
-      resolution: input.resolution
     });
     const renderAuthority = buildNarrativeRenderAuthorityV1(input.resolution, input.displayPacket);
     const sceneRun = await runAiPipelineCallV1({
@@ -197,7 +199,7 @@ export async function enhanceNarrativeDisplayWithAiV1(input: {
         contextFingerprint: sceneContextPack.packFingerprint,
         idempotencyKey: `${input.operationId}:ai:scene-writer`,
         input: {
-          instructionsRef: "narrative-ai-resolution/scene-writer/reference-scene/v1",
+          instructionsRef: "narrative-ai-resolution/scene-writer/active-scene/v1",
           roleContextPack: sceneContextPack,
           task: { ...sceneTask, renderAuthority }
         },
@@ -210,7 +212,15 @@ export async function enhanceNarrativeDisplayWithAiV1(input: {
     });
     incidents.push(...sceneRun.incidents);
     const scenePayload = sceneRun.acceptedOutput?.payload as SceneWriterPayloadV1 | undefined;
-    const assessedBlocks = scenePayload?.narrationBlocks.map(block => assessSceneWriterBlock(block, sceneTask.allowedGrounding)) ?? [];
+    const assessedBlocks = scenePayload?.narrationBlocks.map(block => {
+      const assessed = assessSceneWriterBlock(block, sceneTask.allowedGrounding);
+      const activeGate = input.activeScene === undefined
+        ? { ok: true as const }
+        : validateActiveSceneNarrativeCandidateV1({ brief: sceneTask, groundedIn: block.groundedIn, factDiscipline: block.factDiscipline });
+      return activeGate.ok
+        ? assessed
+        : { ...assessed, usable: false, rejectionReasons: [...assessed.rejectionReasons, ...activeGate.issues] };
+    }) ?? [];
     let narrativeBlocks = assessedBlocks
       .filter(result => result.usable)
       .map(result => result.block);
@@ -269,10 +279,10 @@ export async function enhanceNarrativeDisplayWithAiV1(input: {
         ...enhanced.reconstructionRefs,
         `ai-output:${sceneRun.acceptedOutput?.outputId ?? "unknown"}`,
         `ai-context:${sceneContextPack.packId}`,
-        `reference-scene:${REFERENCE_PLAYABLE_SCENE_ID_V1}`
+        `playable-scene:${activeScene.sceneId}:${activeScene.version}`
       ];
       changed = true;
-      safetyNotes.push("Narration MJ ajoutée uniquement comme texture ancrée dans la scène de référence.");
+      safetyNotes.push(`Narration MJ ajoutée uniquement comme texture ancrée dans la scène active ${activeScene.sceneId}.`);
     } else {
       const reasons = [...new Set(assessedBlocks.flatMap(result => result.rejectionReasons))];
       safetyNotes.push(

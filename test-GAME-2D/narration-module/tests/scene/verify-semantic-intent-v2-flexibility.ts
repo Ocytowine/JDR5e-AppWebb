@@ -13,7 +13,7 @@ const cases: Array<{ input: string; payload: AiSemanticIntentPayloadV2 }> = [
   }),
   semanticCase("J'entre dans l'arrière-salle discrètement.", {
     kind: "traverse_visible_boundary", commitment: "committed", playerGoal: "Franchir discrètement la porte vers l'arrière-salle.", actionHint: "franchir", domainHint: "world", scope: "SCENE_TRANSITION",
-    targetMention: { surface: "dans l'arrière-salle", candidateKind: "object", proposedRef: null, contextLink: "SCENE_DESCRIPTION" }, perception: null, dialogueAct: null, uncertainties: [], clarificationPrompt: null, confidence: "high"
+    targetMention: { surface: "dans l'arrière-salle", candidateKind: "object", proposedRef: null, contextLink: "EXPLICIT" }, perception: null, dialogueAct: null, uncertainties: [], clarificationPrompt: null, confidence: "high"
   }),
   semanticCase("Je fais comprendre à la serveuse, sans parler, que nous devrions partir.", {
     kind: "nonverbal_signal", commitment: "committed", playerGoal: "Signaler silencieusement à la serveuse qu'un départ serait souhaitable.", actionHint: "signal_depart", domainHint: "scene_resolution", scope: "LOCAL_INTERACTION",
@@ -25,7 +25,7 @@ const cases: Array<{ input: string; payload: AiSemanticIntentPayloadV2 }> = [
     dialogueAct: { act: "ASK_QUESTION", contentGoal: "Savoir ce que cet acteur a vu." }, uncertainties: [], clarificationPrompt: null, confidence: "medium"
   }),
   semanticCase("Si la porte paraît sûre, j'essaie de l'entrouvrir.", {
-    kind: "manipulate_visible_object", commitment: "conditional", playerGoal: "Entrouvrir la porte visible à condition qu'elle paraisse sûre.", actionHint: "entrouvrir", domainHint: "scene_resolution", scope: "LOCAL_INTERACTION",
+    kind: "manipulate_visible_object", commitment: "committed", preconditions: ["La porte paraît sûre."], playerGoal: "Entrouvrir la porte visible à condition qu'elle paraisse sûre.", actionHint: "entrouvrir", domainHint: "scene_resolution", scope: "LOCAL_INTERACTION",
     targetMention: { surface: "la porte", candidateKind: "object", proposedRef: "poi:back-room-door", contextLink: "EXPLICIT" }, perception: null, dialogueAct: null,
     uncertainties: ["La condition de sûreté doit être évaluée avant la tentative."], clarificationPrompt: null, confidence: "high"
   }),
@@ -72,6 +72,7 @@ async function main(): Promise<void> {
   assert.equal(results[2]?.interpretation.target?.ref, "npc:npc-serveuse-nerveuse");
   assert.equal(results[3]?.interpretation.semanticIntent.dialogueAct?.act, "ASK_QUESTION");
   assert.equal(results[4]?.interpretation.semanticIntent.commitment, "conditional");
+  assert.deepEqual(results[4]?.interpretation.semanticIntent.preconditions, ["La porte paraît sûre."], "la précondition survit à la stabilisation locale de l'engagement");
   assert.equal(results[4]?.interpretation.action, "entrouvrir", "un concept d'action inédit traverse le V2 sans liste fermée");
   assert.equal(results[5]?.interpretation.target?.ref, "npc:npc-serveuse-nerveuse", "une ellipse peut utiliser le focus récent validé");
   assert.equal(results.every(result => result.interpretation.runtimeHandling?.noGameTime === true), true);
@@ -99,8 +100,11 @@ async function main(): Promise<void> {
   console.log("semantic-intent-v2/flexibility: OK (6 formulations ouvertes, mouvement et franchissement distincts)");
 }
 
-function semanticCase(input: string, intent: AiSemanticIntentPayloadV2["intent"]): { input: string; payload: AiSemanticIntentPayloadV2 } {
-  return { input, payload: { rawInputEcho: input, intent } };
+function semanticCase(
+  input: string,
+  intent: Omit<AiSemanticIntentPayloadV2["intent"], "preconditions"> & { preconditions?: string[] }
+): { input: string; payload: AiSemanticIntentPayloadV2 } {
+  return { input, payload: { rawInputEcho: input, intent: { ...intent, preconditions: intent.preconditions ?? [] } } };
 }
 
 void main().catch(error => { console.error(error); process.exitCode = 1; });

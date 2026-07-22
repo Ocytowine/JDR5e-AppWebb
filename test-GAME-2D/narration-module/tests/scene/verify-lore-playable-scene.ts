@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import {
   buildPlayableSceneFromLoreLocationV1,
+  buildSceneTransitionTopologyFromLoreLocationV1,
   buildPlayableSceneLocationAnswerV1,
   buildPlayableSceneObservationV1,
   toPlayableScenePublicContextV1,
@@ -61,6 +62,19 @@ async function main(): Promise<void> {
   const npc = result.scene.presentNpc[0];
   assert.ok(npc, "un rôle probable du wiki doit produire un PNJ local minimal");
   assert.match(npc.displayName, /Archiviste|Clerc|Garde/u);
+
+  const topology = buildSceneTransitionTopologyFromLoreLocationV1({
+    entity: compiled.value.entity,
+    scene: result.scene,
+    topologyVersion: 1
+  });
+  assert.equal(topology.topologyId, "lore-location:archives_de_lysenthe:topology");
+  for (const connection of topology.connections) {
+    assert.equal(connection.sourceSceneId, result.scene.sceneId);
+    assert.match(connection.boundaryRef, /^poi:/u);
+    assert.equal(connection.state, "UNKNOWN", "le lore ne doit pas inventer l'état runtime du passage");
+    assert.ok(connection.sourceRefs.some(ref => ref.startsWith("lore-attribute:")));
+  }
 
   console.log("lore-playable-scene-adapter/1: OK");
 }

@@ -626,10 +626,11 @@ function buildSemanticIntentPayloadSchemaV2() {
       intent: {
         type: "object",
         additionalProperties: false,
-        required: ["kind", "commitment", "playerGoal", "actionHint", "domainHint", "scope", "targetMention", "perception", "dialogueAct", "uncertainties", "clarificationPrompt", "confidence"],
+        required: ["kind", "commitment", "preconditions", "playerGoal", "actionHint", "domainHint", "scope", "targetMention", "perception", "dialogueAct", "uncertainties", "clarificationPrompt", "confidence"],
         properties: {
           kind: { enum: ["address_visible_actor", "move_near_visible_actor", "manipulate_visible_object", "traverse_visible_boundary", "observe_environment", "nonverbal_signal", "hypothetical_action", "context_question", "meta_request", "unclear_intent"] },
           commitment: { enum: ["none", "hypothetical", "conditional", "committed", "unclear"] },
+          preconditions: { type: "array", maxItems: 4, items: { type: "string" } },
           playerGoal: { type: "string" },
           actionHint: { type: ["string", "null"] },
           domainHint: { enum: ["scene_resolution", "social", "perception", "inventory", "tactical", "rest", "world", null] },
@@ -1001,6 +1002,7 @@ function buildRoleInstructions(request) {
         "kind=traverse_visible_boundary lorsque le but est de franchir une porte, une ouverture ou une limite vers un autre espace. targetMention désigne alors la limite visible franchie, même si le joueur nomme surtout la destination.",
         "kind=manipulate_visible_object lorsque le but porte sur l'objet dans la scène courante sans franchissement: ouvrir, fermer, déplacer, examiner par manipulation ou actionner.",
         "hypothetical_action est réservé à une possibilité non engagée et exige commitment=hypothetical. Une tentative, même prudente, discrète ou conditionnelle, n'est pas hypothétique dès que le joueur veut réellement l'accomplir.",
+        "preconditions recopie les conditions qui doivent être vraies ou vérifiées avant l'action; [] s'il n'y en a aucune. Toute action dépendant d'une précondition explicite utilise commitment=conditional, jamais committed, même si le joueur veut réellement agir une fois la condition satisfaite.",
         "targetMention décrit les mots ou l'ellipse employés. proposedRef peut utiliser uniquement une référence du referentRegistry fourni; sinon null.",
         "Avec contextLink=SCENE_DESCRIPTION, compare les noms, alias et propriétés publiques. Si un seul référent est le meilleur correspondant à la description ou à une comparaison exprimée, renseigne son proposedRef; garde null seulement si plusieurs candidats restent réellement plausibles.",
         "RECENT_FOCUS est permis lorsqu'un pronom ou une ellipse se rattache réellement au contexte récent. Ne choisis jamais arbitrairement un référent.",
@@ -1382,6 +1384,7 @@ function validateSemanticIntentPayloadV2(payload) {
   const domains = ["scene_resolution", "social", "perception", "inventory", "tactical", "rest", "world"];
   if (!kinds.includes(intent.kind)) issues.push("payload.intent.kind is invalid.");
   if (!commitments.includes(intent.commitment)) issues.push("payload.intent.commitment is invalid.");
+  if (!Array.isArray(intent.preconditions) || intent.preconditions.length > 4 || intent.preconditions.some(item => typeof item !== "string" || item.trim().length === 0)) issues.push("payload.intent.preconditions must contain at most four non-empty strings.");
   if (typeof intent.playerGoal !== "string" || intent.playerGoal.trim().length === 0) issues.push("payload.intent.playerGoal must be a non-empty string.");
   if (!(intent.actionHint === null || typeof intent.actionHint === "string")) issues.push("payload.intent.actionHint must be a string or null.");
   if (!(intent.domainHint === null || domains.includes(intent.domainHint))) issues.push("payload.intent.domainHint is invalid.");

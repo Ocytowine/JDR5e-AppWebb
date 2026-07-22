@@ -1,16 +1,13 @@
 # Suivi du travail
 
-Derniere mise a jour: 2026-07-21
+Derniere mise a jour: 2026-07-22
 
 Ce fichier est le tableau de bord court du depot. Les details techniques restent dans les documents lies; une tache ne doit pas etre dupliquee ici avec toute sa specification.
 
 ## En cours
 
-- [x] Relation publique ouverture-destination ajoutée au registre le 2026-07-21, avec résolution locale unique d'un franchissement même si l'IA omet `proposedRef`. Prochaine étape: trois benchmarks Luna consécutifs à 8/8.
-
-- [x] Contrat V2 clarifié le 2026-07-21 avec mouvements locaux et franchissements distincts, plus une cible descriptive fondée uniquement sur des propriétés visibles. Prochaine étape: rejouer le benchmark live Luna puis GPT-5.5.
-
-- [x] Benchmark live isolé de `player_intent_interpreter` sur 4 configurations le 2026-07-21: baseline maintenue à 6/8, Luna `none` plus rapide mais à 5/8. Prochaine étape: clarifier génériquement approche d'acteur et transition via ouverture, puis rejouer le benchmark.
+- [ ] Ouvrir la transition locale de scène sans créer de seconde topologie narrative.
+  Référence: `test-GAME-2D/narration-module/docs/Contrat-transition-locale-scene.md`. Les passages salle commune ↔ arrière-salle sont commités avec 8 secondes chacun et les tours relisent `scene.lifecycle`. Le `scene_writer` reçoit un contexte et un brief génériques depuis la scène active, avec historique filtré et gate factuelle. Le vertical automatisé couvre arrivée, observation, approche de lampe, examen borné des traces et retour à la seconde 16. Prochaine étape concrète: recette UI OpenAI de cette séquence.
 
 - [ ] Traiter l'audit technique post-I-06ZB avant d'ouvrir une nouvelle capacité narrative.
   References: `test-GAME-2D/narration-module/docs/Audit-technique-I06ZB.md`, `test-GAME-2D/narration-module/docs/Revue-technique-post-I06ZB.md`, `test-GAME-2D/narration-module/docs/Suivi-prochains-lots-narration.md`.
@@ -38,6 +35,10 @@ Ce fichier est le tableau de bord court du depot. Les details techniques restent
 - La parite directe import/plateau reste la reserve documentee d'I-02; elle ne doit pas etre contournee dans I-03.
 
 ## Termine recemment
+
+- [x] Premier socle fonctionnel post-consolidation `scene-transition/1`: connexions canoniques indépendantes des alias, distinction transition locale/voyage/passage à résoudre, contrôle de version et destination, sans hardcode de scène ni autorité de commit le 2026-07-22.
+
+- [x] `player_intent_interpreter` V2 certifié sur `gpt-5.6-luna/none` le 2026-07-22: gate finale 24/24, zéro retry, p95 de 2,633 à 3,761 s; mouvements, franchissements, relations de destination et préconditions conservés sans hardcode lexical.
 
 - [x] Observabilité V2 et gate répétée: métriques modèle/tokens/latence/fin/budgets/tailles dans la notification système, contexte V2 réduit, retry technique unique de 15 s et gate live trois répétitions avec seuils p95/max le 2026-07-21.
 - [x] Contrat compact `ai-intent-semantic/2`: compréhension IA ouverte conservée, action libre, portée de scène générique, projections runtime/legacy reconstruites localement, V1 compatible et quatre tests adversariaux sans lexique de scène le 2026-07-21.

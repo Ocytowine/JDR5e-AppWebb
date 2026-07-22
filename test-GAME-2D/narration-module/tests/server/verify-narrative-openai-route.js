@@ -653,12 +653,15 @@ async function main() {
   assert.equal(semanticIntentBody.text.format.schema.properties.contractVersion.enum[0], "ai-intent-semantic/2");
   assert.deepEqual(semanticIntentBody.text.format.schema.properties.payload.required, ["rawInputEcho", "intent"]);
   assert.equal(semanticIntentBody.text.format.schema.properties.payload.properties.intent.properties.actionHint.type.includes("string"), true);
+  assert.equal(semanticIntentBody.text.format.schema.properties.payload.properties.intent.required.includes("preconditions"), true);
+  assert.equal(semanticIntentBody.text.format.schema.properties.payload.properties.intent.properties.preconditions.maxItems, 4);
   assert.equal(semanticIntentBody.text.format.schema.properties.payload.properties.intent.properties.kind.enum.includes("move_near_visible_actor"), true);
   assert.equal(semanticIntentBody.text.format.schema.properties.payload.properties.intent.properties.kind.enum.includes("traverse_visible_boundary"), true);
   assert.equal(semanticIntentBody.input[0].content[0].text.includes("ni projection legacy"), true);
   assert.equal(semanticIntentBody.input[0].content[0].text.includes("Ce n'est ni address_visible_actor, ni nonverbal_signal"), true);
   assert.equal(semanticIntentBody.input[0].content[0].text.includes("la limite visible franchie"), true);
   assert.equal(semanticIntentBody.input[0].content[0].text.includes("plusieurs candidats restent réellement plausibles"), true);
+  assert.equal(semanticIntentBody.input[0].content[0].text.includes("Toute action dépendant d'une précondition explicite utilise commitment=conditional"), true);
   const mjPlannerBody = buildOpenAiResponsesBody(mjPlannerRequest(), { modelId: "gpt-4.1-mini" });
   assert.equal(mjPlannerBody.text.format.schema.properties.contractVersion.enum[0], "mj-planner/1");
   assert.equal(mjPlannerBody.text.format.schema.properties.role.enum[0], "mj_planner");
