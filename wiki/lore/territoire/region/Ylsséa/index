@@ -58,16 +58,26 @@ mots_cles:
   - ports
   - festivals maritimes
 ---
-Description courte : Région côtière connue pour ses paysages pittoresques et sa culture riche. Lysenthe est la capitale du royaume d'Atryade.
+## [COMMUN] Identité régionale
 
-Description longue : Ylsséa est une région côtière réputée pour ses plages de sable fin, ses falaises escarpées et un mélange harmonieux de nature sauvage et de villages charmants. La culture locale s'exprime à travers des festivals, des marchés artisanaux et une cuisine qui met en valeur les produits de la mer.
+Région côtière connue pour ses paysages pittoresques et sa culture riche. Lysenthe est la capitale du royaume d'Atryade.
 
-Traditions : fêtes maritimes annuelles, marchés artisanaux hebdomadaires, festivals de musique folklorique.
+## [COMMUN] Paysages observables
 
-Langues : Commun : 80%, Autres (elfe, orque) : 20%. Architecture côtière traditionnelle avec maisons en pierre et toits de tuiles.
+Ylsséa est une région côtière réputée pour ses plages de sable fin, ses falaises escarpées et un mélange harmonieux de nature sauvage et de villages charmants.
 
-Habits et musique : vêtements légers souvent agrémentés de tissus colorés portés en écharpe ou ceinture. Musique folklorique, danses en plein air lors des festivals de la mer.
+## [LOCAL] Vie culturelle et traditions
 
-Cuisine : plats à base de poissons et fruits de mer (soupes de poisson, ragoûts de fruits de mer, pain de seigle).
+La culture locale s'exprime à travers des festivals, des marchés artisanaux et une cuisine qui met en valeur les produits de la mer. Les traditions comprennent des fêtes maritimes annuelles, des marchés artisanaux hebdomadaires et des festivals de musique folklorique.
 
-Climat : océanique ; températures moyennes par saison (Natar 6, Odrinar 12, Selar 20, Falar 15).
+## [LOCAL] Langues et architecture
+
+Le commun représente 80 % des langues parlées ; d'autres langues, dont l'elfique et l'orque, représentent 20 %. L'architecture côtière traditionnelle emploie des maisons en pierre et des toits de tuiles.
+
+## [LOCAL] Habits, musique et cuisine
+
+Les vêtements légers sont souvent agrémentés de tissus colorés portés en écharpe ou en ceinture. La musique folklorique et les danses en plein air accompagnent les festivals de la mer. La cuisine repose sur les poissons et fruits de mer, notamment les soupes de poisson, les ragoûts de fruits de mer et le pain de seigle.
+
+## [COMMUN] Rythme saisonnier
+
+Le climat est océanique ; les températures moyennes sont de 6 en Natar, 12 en Odrinar, 20 en Selar et 15 en Falar.

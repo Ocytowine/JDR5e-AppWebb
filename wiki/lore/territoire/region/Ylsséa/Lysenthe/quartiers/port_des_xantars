@@ -14,9 +14,9 @@ territoire: astryade
 region: ylssea
 profil_population:
   especes_dominantes:
-    - humain
+    - humains
   especes_minoritaires:
-    - elfe
+    - elfes
   roles_communs:
     - docker
     - marin
@@ -44,9 +44,9 @@ profil_presence:
     - role: archiviste
       poids: 1
   ponderation_especes:
-    - espece: humain
+    - espece: humains
       poids: 6
-    - espece: elfe
+    - espece: elfes
       poids: 3
     - espece: autre
       poids: 1

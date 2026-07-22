@@ -108,6 +108,10 @@ Il distingue la cible complète du runtime de campagne et les capacités déjà 
 - [`Contrat-bootstrap-campagne.md`](Contrat-bootstrap-campagne.md) : contrat `FIGE` d'I-02, paquets immuables, ingestion wiki, import personnage et `RuleRegistry` MVP.
 - [`Matrice-preuves-I02.md`](Matrice-preuves-I02.md) : revue exécutable de la gate I-02 et réserve de parité tactique différée.
 - [`Contrat-contenu-lore.md`](Contrat-contenu-lore.md) : contrat `FIGE` `lore-authoring/1`, types auteur, niveaux de connaissance, relations et fragmentation déterministe.
+- [`Cadrage-lore-narratif-dynamique.md`](Cadrage-lore-narratif-dynamique.md) : audit du corpus `wiki/lore`, principes d'influence créative et feuille de route scènes/PNJ dynamiques.
+- [`Matrice-corpus-pilote-lore-narratif.md`](Matrice-corpus-pilote-lore-narratif.md) : couverture narrative et lacunes du vertical Ylsséa → Lysenthe → Archives.
+- [`Contrat-selection-influences-lore.md`](Contrat-selection-influences-lore.md) : contrat `lore-influence-packet/1`, héritage géographique et sélection sourcée des guides créatifs.
+- [`Contrat-creation-scene-guidee-lore.md`](Contrat-creation-scene-guidee-lore.md) : superposition de campagne et adaptation non committable vers une proposition dynamique `PLACE`.
 - [`Plan-implementation-narration.md`](Plan-implementation-narration.md) : lots I-00 à I-08, prérequis, scénarios et gates de livraison.
 - [`Plan-de-consolidation.md`](Plan-de-consolidation.md) : ateliers, checklist anti-oubli, critères de sortie et journal d'avancement.
 - [`Journal-des-decisions.md`](Journal-des-decisions.md) : décisions structurantes, raisons et conséquences.

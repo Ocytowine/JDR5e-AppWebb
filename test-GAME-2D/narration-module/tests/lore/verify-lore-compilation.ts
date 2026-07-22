@@ -56,6 +56,27 @@ async function listFiles(root: string): Promise<string[]> {
   return nested.flat().sort();
 }
 
+async function loadIndexedCatalogEntries(): Promise<Set<string>> {
+  const catalogs = [
+    { kind: "race", folder: "src/data/characters/races" },
+    { kind: "language", folder: "src/data/characters/languages" }
+  ] as const;
+  const entries = new Set<string>();
+  for (const catalog of catalogs) {
+    const folder = `${repositoryRoot}test-GAME-2D/${catalog.folder}`;
+    const index = JSON.parse(await readFile(`${folder}/index.json`, "utf8")) as { types?: unknown };
+    assert.ok(Array.isArray(index.types), `${catalog.folder}/index.json must expose a types array.`);
+    for (const relativePath of index.types) {
+      assert.equal(typeof relativePath, "string");
+      if (typeof relativePath !== "string") continue;
+      const definition = JSON.parse(await readFile(`${folder}/${relativePath.replace(/^\.\//u, "")}`, "utf8")) as { id?: unknown };
+      assert.equal(typeof definition.id, "string", `${relativePath} must expose a catalog id.`);
+      if (typeof definition.id === "string") entries.add(`${catalog.kind}:${definition.id}`);
+    }
+  }
+  return entries;
+}
+
 async function verifyProductionCorpus(): Promise<void> {
   const manifest = JSON.parse(await readFile(exclusionManifestPath, "utf8")) as {
     schemaVersion: number;
@@ -88,7 +109,7 @@ async function verifyProductionCorpus(): Promise<void> {
   const result = await compileLoreCorpusV1(inputs, {
     packageId: "jdr5e.production-lore",
     packageVersion: 1,
-    catalogEntries: new Set<string>()
+    catalogEntries: await loadIndexedCatalogEntries()
   });
   assert.equal(
     result.ok,
@@ -96,15 +117,19 @@ async function verifyProductionCorpus(): Promise<void> {
     result.ok ? undefined : result.diagnostics.map(value => `${value.sourcePath}: ${value.details.issue ?? value.code}`).join("\n")
   );
   if (!result.ok) return;
-  assert.equal(result.value.entities.length, 25);
+  assert.equal(result.value.entities.length, 28);
   assert.deepEqual(
     Object.fromEntries(
       [...new Set(result.value.entities.map(entity => entity.entityType))]
         .sort()
         .map(type => [type, result.value.entities.filter(entity => entity.entityType === type).length])
     ),
-    { batiment: 7, faction: 3, meta: 3, quartier: 7, region: 3, royaume: 1, ville: 1 }
+    { batiment: 7, culture: 1, espece: 2, faction: 3, meta: 3, quartier: 7, region: 3, royaume: 1, ville: 1 }
   );
+  const coastalCulture = result.value.entities.find(entity => entity.entityId === "culture_cotiere_ylssea");
+  assert.ok(coastalCulture, "The production package must include Ylsséa coastal usages.");
+  assert.ok(coastalCulture.relations.some(relation => relation.relation === "espece_associee" && relation.targetId === "humains"));
+  assert.ok(coastalCulture.relations.some(relation => relation.relation === "espece_associee" && relation.targetId === "elfes"));
   const archives = result.value.entities.find(entity => entity.entityId === "archives_de_lysenthe");
   assert.ok(archives, "The production package must include the Archives de Lysenthe.");
   const archivesDescriptor = result.value.manifest.entries.find(entry => entry.entryId === "archives_de_lysenthe");
@@ -114,8 +139,28 @@ async function verifyProductionCorpus(): Promise<void> {
   const archivesFragments = result.value.fragments.filter(fragment => fragment.entityId === "archives_de_lysenthe");
   assert.ok(archivesFragments.length > 0, "The Archives must expose field-addressable lore fragments.");
   assert.ok(archivesFragments.every(fragment => fragment.fieldPath && fragment.provenance.sourcePath === archives.provenance.sourcePath));
+  const narrativePilot = new Map([
+    ["ylssea", 5],
+    ["lysenthe", 4],
+    ["quartier_des_archives", 5],
+    ["archivistes_de_lysenthe", 2]
+  ]);
+  for (const [entityId, minimumBodyFragments] of narrativePilot) {
+    const source = result.value.entities.find(entity => entity.entityId === entityId);
+    assert.ok(source, `Narrative pilot entity ${entityId} must exist.`);
+    const bodyFragments = result.value.fragments.filter(fragment =>
+      fragment.entityId === entityId && fragment.fieldPath.startsWith("/body/")
+    );
+    assert.ok(
+      bodyFragments.length >= minimumBodyFragments,
+      `${entityId} must expose at least ${minimumBodyFragments} classified narrative body fragments.`
+    );
+    assert.ok(bodyFragments.every(fragment => fragment.topics.length > 0));
+  }
   console.log("PASS [lore-compiler] Archives de Lysenthe retain file and field provenance.");
-  console.log("PASS [lore-compiler] production corpus: 25 sources compiled, 1 explicit exclusion.");
+  console.log("PASS [lore-compiler] Lysenthe narrative pilot exposes classified regional, urban, district and faction fragments.");
+  console.log("PASS [lore-compiler] production catalog indexes resolve species and language references.");
+  console.log("PASS [lore-compiler] production corpus: 28 sources compiled, 1 explicit exclusion.");
 }
 
 async function verifyAuthorTemplates(): Promise<void> {

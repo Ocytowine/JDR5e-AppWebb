@@ -6,6 +6,9 @@ Ce fichier est le tableau de bord court du depot. Les details techniques restent
 
 ## En cours
 
+- [ ] Faire évoluer `wiki/lore` vers un guide prioritairement narratif pour les créations dynamiques.
+  Références: `test-GAME-2D/narration-module/docs/Cadrage-lore-narratif-dynamique.md`, `Contrat-selection-influences-lore.md` et `Contrat-creation-scene-guidee-lore.md`. Le port de projections et la gate `PLACE` sont couverts. `place-creation-command/1` prépare un commit atomique des registres lieu/topologie/faits, puis reconstruit la scène uniquement depuis les agrégats confirmés, sans matérialiser les rôles de population en PNJ. Prochaine étape concrète: brancher le runtime repository avec lease, commit et relecture post-commit, puis intégrer le lieu dynamique au catalogue de scènes du contrôleur, toujours sans appel OpenAI.
+
 - [ ] Ouvrir la transition locale de scène sans créer de seconde topologie narrative.
   Référence: `test-GAME-2D/narration-module/docs/Contrat-transition-locale-scene.md`. Les passages salle commune ↔ arrière-salle sont commités avec 8 secondes chacun et les tours relisent `scene.lifecycle`. Le `scene_writer` reçoit un contexte et un brief génériques depuis la scène active, avec historique filtré et gate factuelle. Le vertical automatisé couvre arrivée, observation, approche de lampe, examen borné des traces et retour à la seconde 16. Prochaine étape concrète: recette UI OpenAI de cette séquence.
 

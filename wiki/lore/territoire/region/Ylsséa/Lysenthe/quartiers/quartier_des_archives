@@ -26,9 +26,9 @@ profil_presence:
     - role: marchand
       poids: 1
   ponderation_especes:
-    - espece: humain
+    - espece: humains
       poids: 5
-    - espece: elfe
+    - espece: elfes
       poids: 4
     - espece: autre
       poids: 1
@@ -44,20 +44,24 @@ profil_social:
   hospitalite_envers_etrangers: reservee
   visibilite_violence: faible
 ---
-Resume : Noyau central de memoire ecrite et de commerce interieur, organise autour des Archives et de leur grande place.
+## [COMMUN] Cadre et architecture
 
-Cadre et architecture : Batiments de pierre monumentaux, colonnades civiles, places pavees et parvis de temples des Douze.
+Batiments de pierre monumentaux, colonnades civiles, places pavees et parvis de temples des Douze.
 
-Population et activites : Archivistes, copistes, juristes, libraires, marchands de valeur et pelerins des sanctuaires voisins.
+## [LOCAL] Population et activités
 
-Fonctions urbaines : Conservation des actes, circulation d'information, commerce de centre-ville et reference religieuse.
+Archivistes, copistes, juristes, libraires, marchands de valeur et pelerins des sanctuaires voisins. Le quartier assure la conservation des actes, la circulation d'information, le commerce de centre-ville et une fonction de reference religieuse.
 
-Lieux cles :
+## [COMMUN] Lieux clés
+
 - archives_de_lysenthe
 - place_des_archives
 
-Niveau de securite : eleve autour des depots documentaires, moyen sur la place.
+## [LOCAL] Sécurité visible
 
-Rumeurs :
+Le niveau de securite est eleve autour des depots documentaires et moyen sur la place.
+
+## [LOCAL] Rumeurs locales
+
 - Certains fonds ne sont consultables qu'avec mandat de haut rang.
 - Les archives religieuses et civiles seraient recoupees pour verifier les lignages.

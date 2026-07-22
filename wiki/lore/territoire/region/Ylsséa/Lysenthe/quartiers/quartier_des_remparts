@@ -26,9 +26,9 @@ profil_presence:
     - role: marchand
       poids: 1
   ponderation_especes:
-    - espece: humain
+    - espece: humains
       poids: 7
-    - espece: elfe
+    - espece: elfes
       poids: 2
     - espece: autre
       poids: 1

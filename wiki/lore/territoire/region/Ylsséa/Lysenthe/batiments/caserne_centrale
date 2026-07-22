@@ -28,9 +28,9 @@ factions_residentes:
   - garnison_de_lysenthe
 profil_population:
   especes_dominantes:
-    - humain
+    - humains
   especes_minoritaires:
-    - elfe
+    - elfes
   roles_communs:
     - garde
     - officier
@@ -50,9 +50,9 @@ profil_presence:
     - role: marchand_ambulant
       poids: 1
   ponderation_especes:
-    - espece: humain
+    - espece: humains
       poids: 7
-    - espece: elfe
+    - espece: elfes
       poids: 2
     - espece: autre
       poids: 1
