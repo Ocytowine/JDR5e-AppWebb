@@ -11,6 +11,8 @@ export * from "./placeCreationCommit";
 export * from "./placeCreationRuntime";
 export * from "./dynamicPlaceEntryRuntime";
 export * from "./loreGuidedDynamicPlacePreparation";
+export * from "./campaignDynamicPlaceRuntime";
+export * from "./catalogSceneTransitionRuntime";
 export * from "./sceneCatalog";
 export * from "./mjPlanning";
 export * from "./narrativeResolution";

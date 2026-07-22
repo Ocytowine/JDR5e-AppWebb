@@ -10,6 +10,7 @@ import {
   executePlaceCreationRuntimeV1,
   createLoreGuidedDynamicPlacePreparationPortV1,
   generateLoreGuidedPlaceCandidateV1,
+  isUnmappedVisibleCreationBoundaryV1,
   preparePlaceCreationCommandV1,
   resolveSceneV1,
   validatePlaceCreationProposalV1,
@@ -166,6 +167,7 @@ async function run(): Promise<void> {
     operationId: "operation-ai-place-candidate",
     brief: briefResult.brief,
     sourceSceneId: "wiki-location:archives_de_lysenthe",
+    sourceBoundaryRef: "poi:archives_de_lysenthe:poi:2",
     requestedDestinationDescription: "une rue secondaire proche des Archives",
     config: generatorConfig
   });
@@ -201,6 +203,19 @@ async function run(): Promise<void> {
     topologyVersion: 1,
     connections: []
   };
+  const boundaryScene = {
+    schemaVersion: 1 as const, contractVersion: "playable-scene-state/1" as const, sceneId: "wiki-location:archives_de_lysenthe", locationName: "Archives de Lysenthe",
+    perceptibleSituation: ["Archives"], visibleElements: [], presentNpc: [], perceptionClues: [], currentTension: "Calme", playerKnownFacts: [],
+    pointsOfInterest: [
+      { schemaVersion: 1 as const, pointId: "external-exit", label: "Place des Archives", visibleDescription: "Une sortie.", keywords: ["sortie"], destinationAliases: ["place des Archives"], version: 1 as const },
+      { schemaVersion: 1 as const, pointId: "archive-function", label: "Classement", visibleDescription: "Une fonction du lieu.", keywords: ["classement"], destinationAliases: [], version: 1 as const }
+    ],
+    localMemoryPolicy: { schemaVersion: 1 as const, maxShortTermNpcMemory: 5, version: 1 as const },
+    aiSceneWriterPolicy: { schemaVersion: 1 as const, mayCreate: [], mayReference: [], mustNotCreate: [], noveltyConstraints: [], version: 1 as const }, version: 1 as const
+  };
+  assert.equal(isUnmappedVisibleCreationBoundaryV1({ semanticKind: "traverse_visible_boundary", requiresClarification: false, targetRef: "poi:external-exit", activeScene: boundaryScene, topology }), true);
+  assert.equal(isUnmappedVisibleCreationBoundaryV1({ semanticKind: "traverse_visible_boundary", requiresClarification: false, targetRef: "poi:archive-function", activeScene: boundaryScene, topology }), false);
+  assert.equal(isUnmappedVisibleCreationBoundaryV1({ semanticKind: "traverse_visible_boundary", requiresClarification: false, targetRef: "poi:external-exit", activeScene: boundaryScene, topology: { ...topology, connections: [{ schemaVersion: 1, connectionId: "known", sourceSceneId: boundaryScene.sceneId, boundaryRef: "poi:external-exit", destinationRef: "location:known", scale: "LOCAL", state: "OPEN", sourceRefs: ["lore:test"], version: 1 }] } }), false);
   const placePolicy = {
     schemaVersion: 1 as const,
     contractVersion: "place-creation-validation/1" as const,
@@ -223,7 +238,7 @@ async function run(): Promise<void> {
     const productionPreparation = createLoreGuidedDynamicPlacePreparationPortV1({
       contextPort: {
         canCreate: () => true,
-        async buildContext() { return { ok: true, value: { brief: briefResult.brief, dynamicCreationPolicy: policy, placeValidationPolicy: placePolicy, topology, sourceSceneId: "wiki-location:archives_de_lysenthe", requestedDestinationDescription: "une rue secondaire proche des Archives", generatorConfig } }; }
+        async buildContext() { return { ok: true, value: { brief: briefResult.brief, dynamicCreationPolicy: policy, placeValidationPolicy: placePolicy, topology, sourceSceneId: "wiki-location:archives_de_lysenthe", sourceBoundaryRef: "poi:archives_de_lysenthe:poi:2", requestedDestinationDescription: "une rue secondaire proche des Archives", generatorConfig } }; }
       },
       worldPort: { async prepare() { throw new Error("world preparation is tested by the atomic entry suite"); } }
     });

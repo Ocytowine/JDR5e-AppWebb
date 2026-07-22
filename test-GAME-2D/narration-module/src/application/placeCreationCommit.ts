@@ -16,7 +16,7 @@ import {
   type OperationId,
   type WriterLease
 } from "../core";
-import type { DynamicCreationProposalV1 } from "../ai";
+import type { DynamicCreationProposalV1 } from "../ai/types";
 import {
   PLAYABLE_SCENE_CONTRACT_VERSION_V1,
   validatePlayableSceneV1,

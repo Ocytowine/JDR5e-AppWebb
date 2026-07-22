@@ -1,4 +1,4 @@
-import type { DynamicCreationProposalV1, CreationPersistenceDepthV1 } from "../ai";
+import type { DynamicCreationProposalV1, CreationPersistenceDepthV1 } from "../ai/types";
 import { validateSceneTransitionTopologyV1, type SceneBoundaryConnectionV1, type SceneTransitionTopologyV1 } from "./sceneTransition";
 
 export const PLACE_CREATION_VALIDATION_CONTRACT_V1 = "place-creation-validation/1" as const;

@@ -92,6 +92,8 @@ export interface NarrativeSceneTransitionRuntimeV1 {
 
 export interface NarrativeDynamicPlaceRuntimeV1 {
   canHandle(input: {
+    repository: CampaignRepository;
+    campaignId: CampaignId;
     interpretation: NarrativeIntentInterpretationV1;
     domainCommand: NarrativeDomainCommandV1 | null;
     activeScene: PlayableSceneStateV1;
@@ -269,7 +271,7 @@ export class NarrativeTurnControllerV1 {
       activeScene
     });
     if (!output.ok) {
-      await cancelReceivedOperationAfterFailure(this.repository, received.value.operationId);
+      await cancelUncommittedOperationAfterFailure(this.repository, received.value.operationId);
       return output;
     }
 
@@ -345,10 +347,10 @@ export class NarrativeTurnControllerV1 {
   }
 }
 
-async function cancelReceivedOperationAfterFailure(repository: CampaignRepository, operationId: OperationId): Promise<void> {
+async function cancelUncommittedOperationAfterFailure(repository: CampaignRepository, operationId: OperationId): Promise<void> {
   const current = await repository.getOperation(operationId);
-  if (!current.ok || current.value.phase !== "RECEIVED") return;
-  await repository.transitionOperation(operationId, "RECEIVED", "CANCELLED");
+  if (!current.ok || !["RECEIVED", "PREPARING", "SUSPENDED", "READY_TO_COMMIT"].includes(current.value.phase)) return;
+  await repository.transitionOperation(operationId, current.value.phase as "RECEIVED" | "PREPARING" | "SUSPENDED" | "READY_TO_COMMIT", "CANCELLED");
 }
 
 function upgradeLegacyControllerOutput(output: NarrativeTurnControllerOutputV1): NarrativeTurnControllerOutputV1 {
@@ -389,11 +391,14 @@ export async function createPrototypeNarrativeTurnControllerV1(options: {
   sceneTransitionRuntime?: NarrativeSceneTransitionRuntimeV1 | null;
   dynamicPlaceRuntime?: NarrativeDynamicPlaceRuntimeV1 | null;
   activeSceneResolver?: NarrativeActiveSceneResolverV1 | null;
+  initialScene?: { scene: PlayableSceneStateV1; locationRef: string };
+  initializeRepository?: (repository: CampaignRepository, campaignId: CampaignId, clock: RepositoryClock) => Promise<void>;
 } = {}): Promise<NarrativeTurnControllerV1> {
   const clock = options.clock ?? systemClock;
   const repository = new MemoryCampaignRepository({ clock });
   await ensurePrototypeCampaign(repository, clock);
-  await ensurePrototypeInnSceneTransitionStateV1(repository, DEFAULT_CAMPAIGN_ID, clock);
+  await ensurePrototypeInnSceneTransitionStateV1(repository, DEFAULT_CAMPAIGN_ID, clock, options.initialScene);
+  await options.initializeRepository?.(repository, DEFAULT_CAMPAIGN_ID, clock);
   return new NarrativeTurnControllerV1({
     repository,
     campaignId: DEFAULT_CAMPAIGN_ID,
@@ -420,6 +425,8 @@ export async function createBrowserPersistentNarrativeTurnControllerV1(options: 
   sceneTransitionRuntime?: NarrativeSceneTransitionRuntimeV1 | null;
   dynamicPlaceRuntime?: NarrativeDynamicPlaceRuntimeV1 | null;
   activeSceneResolver?: NarrativeActiveSceneResolverV1 | null;
+  initialScene?: { scene: PlayableSceneStateV1; locationRef: string };
+  initializeRepository?: (repository: CampaignRepository, campaignId: CampaignId, clock: RepositoryClock) => Promise<void>;
 } = {}): Promise<NarrativeTurnControllerV1> {
   const clock = options.clock ?? systemClock;
   if (!globalThis.indexedDB) return createPrototypeNarrativeTurnControllerV1({
@@ -429,14 +436,17 @@ export async function createBrowserPersistentNarrativeTurnControllerV1(options: 
     npcPerformerConfig: options.npcPerformerConfig,
     sceneTransitionRuntime: options.sceneTransitionRuntime,
     dynamicPlaceRuntime: options.dynamicPlaceRuntime,
-    activeSceneResolver: options.activeSceneResolver
+    activeSceneResolver: options.activeSceneResolver,
+    initialScene: options.initialScene,
+    initializeRepository: options.initializeRepository
   });
   const repository = await IndexedDbCampaignRepository.open({
     clock,
     databaseName: options.databaseName ?? "jdr5e-narration-prototype"
   });
   await ensurePrototypeCampaign(repository, clock);
-  await ensurePrototypeInnSceneTransitionStateV1(repository, DEFAULT_CAMPAIGN_ID, clock);
+  await ensurePrototypeInnSceneTransitionStateV1(repository, DEFAULT_CAMPAIGN_ID, clock, options.initialScene);
+  await options.initializeRepository?.(repository, DEFAULT_CAMPAIGN_ID, clock);
   return new NarrativeTurnControllerV1({
     repository,
     campaignId: DEFAULT_CAMPAIGN_ID,
@@ -664,7 +674,7 @@ async function buildResolvedOutput(input: {
   const resolutionStartedAt = Date.now();
   if (
     input.dynamicPlaceRuntime !== null &&
-    await input.dynamicPlaceRuntime.canHandle({ interpretation, domainCommand, activeScene: input.activeScene })
+    await input.dynamicPlaceRuntime.canHandle({ repository: input.repository, campaignId: input.campaignId, interpretation, domainCommand, activeScene: input.activeScene })
   ) {
     const creation = await input.dynamicPlaceRuntime.execute({
       repository: input.repository,

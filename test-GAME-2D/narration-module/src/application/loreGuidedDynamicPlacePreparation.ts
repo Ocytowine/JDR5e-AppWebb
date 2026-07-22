@@ -1,5 +1,6 @@
 import { coreError, type CampaignRecord, type CampaignRepository, type OperationRecord, type Result, type WriterLease } from "../core";
-import { validateDynamicCreationProposalV1, type DynamicCreationValidationPolicyV1 } from "../ai";
+import { validateDynamicCreationProposalV1 } from "../ai/validation";
+import type { DynamicCreationValidationPolicyV1 } from "../ai/types";
 import type { NarrativeDomainCommandV1 } from "./domainCommands";
 import type { NarrativeIntentInterpretationV1 } from "./intentClarification";
 import type { LoreGuidedSceneCreationBriefV1 } from "./loreGuidedSceneCreation";
@@ -25,6 +26,7 @@ export interface LoreGuidedDynamicPlaceCreativeContextV1 {
   placeValidationPolicy: PlaceCreationValidationPolicyV1;
   topology: SceneTransitionTopologyV1;
   sourceSceneId: string;
+  sourceBoundaryRef: string;
   requestedDestinationDescription: string;
   generatorConfig: LoreGuidedPlaceCandidateGeneratorConfigV1;
 }
@@ -36,6 +38,8 @@ export interface LoreGuidedDynamicPlaceCreativePreparationV1 extends DynamicPlac
 
 export interface LoreGuidedDynamicPlaceContextPortV1 {
   canCreate(input: {
+    repository: CampaignRepository;
+    campaignId: string;
     interpretation: NarrativeIntentInterpretationV1;
     domainCommand: NarrativeDomainCommandV1 | null;
     activeScene: PlayableSceneStateV1;
@@ -80,6 +84,7 @@ export function createLoreGuidedDynamicPlacePreparationPortV1(input: {
         operationId: request.operation.operationId,
         brief: context.value.brief,
         sourceSceneId: context.value.sourceSceneId,
+        sourceBoundaryRef: context.value.sourceBoundaryRef,
         requestedDestinationDescription: context.value.requestedDestinationDescription,
         config: context.value.generatorConfig
       });

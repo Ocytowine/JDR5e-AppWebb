@@ -1,4 +1,4 @@
-import type { DynamicCreationProposalV1, CreationPersistenceDepthV1 } from "../ai";
+import type { DynamicCreationProposalV1, CreationPersistenceDepthV1 } from "../ai/types";
 import type {
   LoreInfluenceDimensionV1,
   LoreInfluencePacketV1,

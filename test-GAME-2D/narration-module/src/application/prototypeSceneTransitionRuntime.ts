@@ -87,7 +87,12 @@ export function createPrototypeInnSceneTransitionRuntimeV1() {
   return createNarrativeSceneTransitionRuntimeV1(PREPARATION_PORT);
 }
 
-export async function ensurePrototypeInnSceneTransitionStateV1(repository: CampaignRepository, campaignId: CampaignId, clock: RepositoryClock): Promise<void> {
+export async function ensurePrototypeInnSceneTransitionStateV1(
+  repository: CampaignRepository,
+  campaignId: CampaignId,
+  clock: RepositoryClock,
+  initial: { scene: PlayableSceneStateV1; locationRef: string } = { scene: REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1, locationRef: PROTOTYPE_INN_COMMON_ROOM_REF_V1 }
+): Promise<void> {
   const [position, lifecycle] = await Promise.all([repository.getAggregate(campaignId, "world.position", POSITION_ID), repository.getAggregate(campaignId, "scene.lifecycle", PROTOTYPE_SCENE_LIFECYCLE_AGGREGATE_ID_V1)]);
   if (position.ok && lifecycle.ok) return;
   if (position.ok !== lifecycle.ok || (!position.ok && position.error.code !== "NOT_FOUND") || (!lifecycle.ok && lifecycle.error.code !== "NOT_FOUND")) throw new Error("Prototype scene transition state is inconsistent");
@@ -105,7 +110,7 @@ export async function ensurePrototypeInnSceneTransitionStateV1(repository: Campa
   const commandId = opaqueId<CommandId>("prototype-scene-transition-bootstrap-command");
   const commit = await repository.commit({ campaignId, operationId, commitId: opaqueId<CommitId>("prototype-scene-transition-bootstrap-commit"), idempotencyKey: operation.idempotencyKey, requestFingerprint: fingerprint, expectedCampaignRevision: campaign.value.campaignRevision, writerLease: lease.value,
     acceptedCommands: [{ schemaVersion: 1, contractId: "prototype.scene-transition", contractVersion: 1, commandId, campaignId, operationId, commandType: "prototype.scene-transition.bootstrap", target: { aggregateType: "world.position", aggregateId: POSITION_ID, expectedAggregateRevision: null }, payloadSchemaVersion: 1, payload, acceptedAtGameSecond: 0 }],
-    aggregateWrites: [{ aggregateType: "world.position", aggregateId: POSITION_ID, expectedAggregateRevision: null, payloadSchemaVersion: 1, payload: { characterId: "prototype-player", canonicalLocationRef: PROTOTYPE_INN_COMMON_ROOM_REF_V1 } }, { aggregateType: "scene.lifecycle", aggregateId: PROTOTYPE_SCENE_LIFECYCLE_AGGREGATE_ID_V1, expectedAggregateRevision: null, payloadSchemaVersion: 1, payload: { schemaVersion: 1, contractVersion: "scene-lifecycle/1", activeSceneId: REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1.sceneId, activeLocationRef: PROTOTYPE_INN_COMMON_ROOM_REF_V1, previousSceneId: null, enteredAtGameSecond: 0, lastTransitionRequestId: null, version: 1 } }],
+    aggregateWrites: [{ aggregateType: "world.position", aggregateId: POSITION_ID, expectedAggregateRevision: null, payloadSchemaVersion: 1, payload: { characterId: "prototype-player", canonicalLocationRef: initial.locationRef } }, { aggregateType: "scene.lifecycle", aggregateId: PROTOTYPE_SCENE_LIFECYCLE_AGGREGATE_ID_V1, expectedAggregateRevision: null, payloadSchemaVersion: 1, payload: { schemaVersion: 1, contractVersion: "scene-lifecycle/1", activeSceneId: initial.scene.sceneId, activeLocationRef: initial.locationRef, previousSceneId: null, enteredAtGameSecond: 0, lastTransitionRequestId: null, version: 1 } }],
     events: [{ schemaVersion: 1, eventId: opaqueId<EventId>("prototype-scene-transition-bootstrap-event"), campaignId, operationId, eventType: "prototype.scene-transition.initialized", origin: "SYSTEM", causation: { kind: "COMMAND", id: commandId }, aggregateRefs: [{ aggregateType: "world.position", aggregateId: POSITION_ID, aggregateRevision: 0 }, { aggregateType: "scene.lifecycle", aggregateId: PROTOTYPE_SCENE_LIFECYCLE_AGGREGATE_ID_V1, aggregateRevision: 0 }], visibility: { scope: "SYSTEM", actorIds: [] }, occurredAtGameSecond: 0, payloadSchemaVersion: 1, payload }], outboxTasks: [] });
   await repository.releaseWriterLease(lease.value); if (!commit.ok) throw new Error(commit.error.messageKey);
   const completed = await repository.completePresentation(operationId, "COMMITTED_RENDERED", 1, { initialized: true }); if (!completed.ok) throw new Error(completed.error.messageKey);

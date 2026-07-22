@@ -5,14 +5,23 @@ import {
   createBrowserPersistentNarrativeTurnControllerV1,
   createPrototypeNarrativeTurnControllerV1,
   enhanceNarrativeDisplayWithAiV1,
+  PROTOTYPE_SCENE_LIFECYCLE_AGGREGATE_ID_V1,
+  DYNAMIC_PLACE_FACTS_AGGREGATE_ID_V1,
+  DYNAMIC_PLACE_REGISTRY_AGGREGATE_ID_V1,
+  DYNAMIC_PLACE_TOPOLOGY_AGGREGATE_ID_V1,
+  ensureDynamicPlaceCreationStateV1,
+  createCampaignLoreGuidedDynamicPlaceRuntimeV1,
+  createCatalogSceneTransitionRuntimeV1,
+  resolveSceneV1,
   REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1,
   type AiNarrativeEnhancementResultV1,
   type AiIntentInterpreterConfigV1,
   type NpcPerformerConfigV1,
-  type NarrativeTurnControllerV1
+  type NarrativeTurnControllerV1,
+  type PlayableSceneStateV1
 } from "../../narration-module/src/application";
 import { FakeContractAiProviderV1 } from "../../narration-module/src/ai/FakeContractAiProvider";
-import type { JsonObject } from "../../narration-module/src/core";
+import type { CampaignId, CampaignRepository, JsonObject } from "../../narration-module/src/core";
 import type { AiModelRouteV1, AiRetryPolicyV1 } from "../../narration-module/src/ai/types";
 import type { NarrativeTurnControllerOutputV1 } from "../../narration-module/src/application";
 import type { DisplayPacketV1 } from "../../narration-module/src/scene";
@@ -23,9 +32,11 @@ import {
 } from "../ui/NarrativeConversationPanel";
 import {
   buildOpenAiIntentInterpreterConfigV1,
-  buildOpenAiNpcPerformerConfigV1
+  buildOpenAiNpcPerformerConfigV1,
+  buildOpenAiSceneCreatorConfigV1
 } from "./openAiNarrativeRuntimeConfig";
 import { ServerOpenAiEnhancementProviderV1 } from "./serverOpenAiEnhancementClient";
+import { buildArchiveLorePilotV1 } from "./archiveLorePilot";
 
 type NarrativeEnhancementMode = "local" | "openai";
 
@@ -35,10 +46,11 @@ export function NarrativeAppSurface() {
   const [pending, setPending] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [enhancementMode, setEnhancementMode] = useState<NarrativeEnhancementMode>("local");
+  const [openingScene, setOpeningScene] = useState<PlayableSceneStateV1 | null>(null);
   const [enhancementStatus, setEnhancementStatus] = useState<string>("Mode local actif pour l'interprétation et l'enrichissement.");
   const packets = useMemo(
-    () => [createWelcomePacket(), ...packetsFromController],
-    [packetsFromController]
+    () => [createWelcomePacket(openingScene ?? REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1), ...packetsFromController],
+    [openingScene, packetsFromController]
   );
 
   useEffect(() => {
@@ -46,7 +58,40 @@ export function NarrativeAppSurface() {
     setController(null);
     const intentInterpreterConfig = buildIntentInterpreterConfig(enhancementMode);
     const npcPerformerConfig = buildNpcPerformerConfig(enhancementMode);
-    void createBrowserPersistentNarrativeTurnControllerV1({ intentInterpreterConfig, npcPerformerConfig }).then(async nextController => {
+    void buildArchiveLorePilotV1().then(async archivePilot => {
+      const resolveSceneById = (repository: CampaignRepository, campaignId: CampaignId, sceneId: string) => resolveSceneV1({
+        sceneId,
+        sources: [{ sourceKind: "WIKI" as const, resolve: candidate => archivePilot.scenes.find(scene => scene.sceneId === candidate) ?? null }],
+        dynamicCatalog: { repository, campaignId, placeRegistryAggregateId: DYNAMIC_PLACE_REGISTRY_AGGREGATE_ID_V1, topologyAggregateId: DYNAMIC_PLACE_TOPOLOGY_AGGREGATE_ID_V1, factRegistryAggregateId: DYNAMIC_PLACE_FACTS_AGGREGATE_ID_V1 }
+      });
+      const activeSceneResolver = { async resolve(input: { repository: CampaignRepository; campaignId: CampaignId }) {
+        const lifecycle = await input.repository.getAggregate(input.campaignId, "scene.lifecycle", PROTOTYPE_SCENE_LIFECYCLE_AGGREGATE_ID_V1);
+        if (!lifecycle.ok) return lifecycle;
+        const resolved = await resolveSceneById(input.repository, input.campaignId, String(lifecycle.value.payload.activeSceneId));
+        return resolved.ok ? { ok: true as const, value: resolved.value.scene } : resolved;
+      } };
+      setOpeningScene(archivePilot.scene);
+      const dynamicPlaceRuntime = enhancementMode === "openai" ? createCampaignLoreGuidedDynamicPlaceRuntimeV1({ resolveLorePacket: sceneId => archivePilot.lorePacketBySceneId.get(sceneId) ?? null, generatorConfig: buildOpenAiSceneCreatorConfigV1() }) : null;
+      const sceneTransitionRuntime = createCatalogSceneTransitionRuntimeV1({
+        async resolveSource(sceneId, context) {
+          const resolved = await resolveSceneById(context.repository, context.campaignId as CampaignId, sceneId);
+          return resolved.ok ? { ok: true as const, value: resolved.value.scene } : resolved;
+        },
+        async resolveDestination(destinationRef, context) {
+        const authoredId = destinationRef.startsWith("location:") ? `wiki-location:${destinationRef.slice("location:".length)}` : null;
+        if (authoredId !== null && archivePilot.scenes.some(scene => scene.sceneId === authoredId)) {
+          return { ok: true as const, value: archivePilot.scenes.find(scene => scene.sceneId === authoredId)! };
+        }
+        const registry = await context.repository.getAggregate(context.campaignId as CampaignId, "world.place-registry", DYNAMIC_PLACE_REGISTRY_AGGREGATE_ID_V1);
+        if (!registry.ok) return registry;
+        const place = (registry.value.payload.places as Array<{ placeRef: string; arrivalSceneId: string }>).find(candidate => candidate.placeRef === destinationRef);
+        if (!place) return { ok: false as const, error: { code: "NOT_FOUND" as const, category: "INTEGRITY" as const, retry: "NEVER" as const, messageKey: "narrative.scene-catalog.destination-not-found", details: { destinationRef }, incidentId: null } };
+        const resolved = await resolveSceneById(context.repository, context.campaignId as CampaignId, place.arrivalSceneId);
+        return resolved.ok ? { ok: true as const, value: resolved.value.scene } : resolved;
+        }
+      });
+      return createBrowserPersistentNarrativeTurnControllerV1({ databaseName: "jdr5e-narration-archives-pilot-v3", intentInterpreterConfig, npcPerformerConfig, sceneTransitionRuntime, dynamicPlaceRuntime, initialScene: { scene: archivePilot.scene, locationRef: archivePilot.locationRef }, activeSceneResolver, initializeRepository: (repository, campaignId, clock) => ensureDynamicPlaceCreationStateV1({ repository, campaignId, clock, topology: archivePilot.topology }) });
+    }).then(async nextController => {
       const restored = await nextController.restoreRenderedThread();
       if (!cancelled) {
         if (restored.ok) {
@@ -57,7 +102,10 @@ export function NarrativeAppSurface() {
         setController(nextController);
       }
     }).catch(error => {
-      void createPrototypeNarrativeTurnControllerV1({ intentInterpreterConfig, npcPerformerConfig }).then(nextController => {
+      void buildArchiveLorePilotV1().then(archivePilot => {
+        setOpeningScene(archivePilot.scene);
+        return createPrototypeNarrativeTurnControllerV1({ intentInterpreterConfig, npcPerformerConfig, initialScene: { scene: archivePilot.scene, locationRef: archivePilot.locationRef }, initializeRepository: (repository, campaignId, clock) => ensureDynamicPlaceCreationStateV1({ repository, campaignId, clock, topology: archivePilot.topology }), activeSceneResolver: { async resolve() { return { ok: true as const, value: archivePilot.scene }; } } });
+      }).then(nextController => {
         if (!cancelled) setController(nextController);
       }).catch(fallbackError => {
         if (!cancelled) {
@@ -317,12 +365,11 @@ function formatDuration(value: number): string {
   return value >= 1_000 ? `${(value / 1_000).toFixed(2)} s` : `${Math.max(0, Math.round(value))} ms`;
 }
 
-function createWelcomePacket(): DisplayPacketV1 {
-  return createPlayableSceneOpeningPacket();
+function createWelcomePacket(scene: PlayableSceneStateV1): DisplayPacketV1 {
+  return createPlayableSceneOpeningPacket(scene);
 }
 
-function createPlayableSceneOpeningPacket(): DisplayPacketV1 {
-  const scene = REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1;
+function createPlayableSceneOpeningPacket(scene: PlayableSceneStateV1 = REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1): DisplayPacketV1 {
   const visibleNpc = scene.presentNpc
     .map(npc => `${npc.displayName}, ${npc.visibleState}`)
     .join(" ; ");

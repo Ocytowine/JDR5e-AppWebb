@@ -26,6 +26,7 @@ export async function generateLoreGuidedPlaceCandidateV1(input: {
   operationId: string;
   brief: LoreGuidedSceneCreationBriefV1;
   sourceSceneId: string;
+  sourceBoundaryRef: string;
   requestedDestinationDescription: string;
   config: LoreGuidedPlaceCandidateGeneratorConfigV1;
 }): Promise<LoreGuidedPlaceCandidateGenerationResultV1> {
@@ -50,6 +51,7 @@ async function buildRequest(input: {
   operationId: string;
   brief: LoreGuidedSceneCreationBriefV1;
   sourceSceneId: string;
+  sourceBoundaryRef: string;
   requestedDestinationDescription: string;
   config: LoreGuidedPlaceCandidateGeneratorConfigV1;
 }): Promise<AiCallRequestV1> {
@@ -58,8 +60,9 @@ async function buildRequest(input: {
     authority: "PROPOSE_ONLY",
     brief: input.brief,
     sourceSceneId: input.sourceSceneId,
+    sourceBoundaryRef: input.sourceBoundaryRef,
     requestedDestinationDescription: input.requestedDestinationDescription,
-    constraints: ["no commit", "no secret reveal", "no durable NPC materialization", "sourceRefs required on topology"]
+    constraints: ["no commit", "no secret reveal", "no durable NPC materialization", "sourceRefs required on topology", "the incoming connection must use sourceSceneId and sourceBoundaryRef exactly"]
   };
   const task = { requiredOutput: LORE_GUIDED_PLACE_CANDIDATE_CONTRACT_V1 };
   return {
