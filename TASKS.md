@@ -39,6 +39,8 @@ Ce fichier est le tableau de bord court du depot. Les details techniques restent
 
 ## Termine recemment
 
+- [x] Correctifs du contrat live `scene_creator`: validation dédiée, parent/profondeur verrouillés, topologie V1 garantie par le runtime, doublons authored pré-commit et fenêtre fournisseur dédiée de 55 s avec marge transport, avec régressions ciblées le 2026-07-22.
+
 - [x] Premier socle fonctionnel post-consolidation `scene-transition/1`: connexions canoniques indépendantes des alias, distinction transition locale/voyage/passage à résoudre, contrôle de version et destination, sans hardcode de scène ni autorité de commit le 2026-07-22.
 
 - [x] `player_intent_interpreter` V2 certifié sur `gpt-5.6-luna/none` le 2026-07-22: gate finale 24/24, zéro retry, p95 de 2,633 à 3,761 s; mouvements, franchissements, relations de destination et préconditions conservés sans hardcode lexical.

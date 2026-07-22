@@ -14,7 +14,8 @@ export class ServerOpenAiEnhancementProviderV1 implements ContractAiProviderV1 {
           "Content-Type": "application/json"
         },
         body: JSON.stringify({ request }),
-        signal: AbortSignal.timeout(request.limits.timeoutMs)
+        // The server owns the provider deadline; keep a transport margin so its diagnostic can arrive.
+        signal: AbortSignal.timeout(request.limits.timeoutMs + (request.role === "scene_creator" ? 5_000 : 1_000))
       });
       const data = await response.json().catch(() => null) as { output?: unknown; error?: unknown; issues?: unknown; metrics?: Omit<AiCallTelemetryV1, "schemaVersion" | "attemptId"> } | null;
       if (data?.metrics) this.telemetryByAttempt.set(request.attemptId, { schemaVersion: 1, attemptId: request.attemptId, ...data.metrics } as AiCallTelemetryV1);

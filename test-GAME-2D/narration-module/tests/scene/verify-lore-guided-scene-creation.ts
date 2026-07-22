@@ -5,6 +5,7 @@ import {
   buildDynamicPlaceCreationProposalV1,
   buildLoreGuidedSceneCreationBriefV1,
   buildLoreGuidedSceneCreationBriefFromCampaignV1,
+  buildSceneCreatorBriefViewV1,
   buildDynamicPlaceSceneAfterCommitV1,
   buildPlaceCreationCommitV1,
   executePlaceCreationRuntimeV1,
@@ -117,6 +118,7 @@ async function run(): Promise<void> {
   });
   assert.equal(briefResult.ok, true);
   if (!briefResult.ok) return;
+  assert.ok(JSON.stringify(buildSceneCreatorBriefViewV1(briefResult.brief)).length < JSON.stringify(briefResult.brief).length);
   assert.equal(briefResult.brief.nonCommittable, true);
   const overridden = briefResult.brief.strictConstraints.find(influence =>
     influence.entityId === "archives_de_lysenthe" && influence.fieldPath === "/resume"
@@ -168,6 +170,8 @@ async function run(): Promise<void> {
     brief: briefResult.brief,
     sourceSceneId: "wiki-location:archives_de_lysenthe",
     sourceBoundaryRef: "poi:archives_de_lysenthe:poi:2",
+    allowedParentLocationRefs: ["location:quartier_des_archives"],
+    allowedPersistenceDepths: ["LIGHT_REFERENCE", "FULL_ENTITY"],
     requestedDestinationDescription: "une rue secondaire proche des Archives",
     config: generatorConfig
   });
@@ -205,7 +209,7 @@ async function run(): Promise<void> {
   };
   const boundaryScene = {
     schemaVersion: 1 as const, contractVersion: "playable-scene-state/1" as const, sceneId: "wiki-location:archives_de_lysenthe", locationName: "Archives de Lysenthe",
-    perceptibleSituation: ["Archives"], visibleElements: [], presentNpc: [], perceptionClues: [], currentTension: "Calme", playerKnownFacts: [],
+    perceptibleSituation: ["Archives"], visibleElements: [{ schemaVersion: 1 as const, elementId: "building-description", label: "Bâtiment", description: "Le bâtiment des Archives.", keywords: ["bâtiment"], playerVisible: true as const, version: 1 as const }], presentNpc: [], perceptionClues: [], currentTension: "Calme", playerKnownFacts: [],
     pointsOfInterest: [
       { schemaVersion: 1 as const, pointId: "external-exit", label: "Place des Archives", visibleDescription: "Une sortie.", keywords: ["sortie"], destinationAliases: ["place des Archives"], version: 1 as const },
       { schemaVersion: 1 as const, pointId: "archive-function", label: "Classement", visibleDescription: "Une fonction du lieu.", keywords: ["classement"], destinationAliases: [], version: 1 as const }
@@ -214,6 +218,8 @@ async function run(): Promise<void> {
     aiSceneWriterPolicy: { schemaVersion: 1 as const, mayCreate: [], mayReference: [], mustNotCreate: [], noveltyConstraints: [], version: 1 as const }, version: 1 as const
   };
   assert.equal(isUnmappedVisibleCreationBoundaryV1({ semanticKind: "traverse_visible_boundary", requiresClarification: false, targetRef: "poi:external-exit", activeScene: boundaryScene, topology }), true);
+  assert.equal(isUnmappedVisibleCreationBoundaryV1({ semanticKind: "traverse_visible_boundary", requiresClarification: false, targetRef: null, activeScene: boundaryScene, topology }), true);
+  assert.equal(isUnmappedVisibleCreationBoundaryV1({ semanticKind: "traverse_visible_boundary", requiresClarification: false, targetRef: "element:building-description", activeScene: boundaryScene, topology }), true);
   assert.equal(isUnmappedVisibleCreationBoundaryV1({ semanticKind: "traverse_visible_boundary", requiresClarification: false, targetRef: "poi:archive-function", activeScene: boundaryScene, topology }), false);
   assert.equal(isUnmappedVisibleCreationBoundaryV1({ semanticKind: "traverse_visible_boundary", requiresClarification: false, targetRef: "poi:external-exit", activeScene: boundaryScene, topology: { ...topology, connections: [{ schemaVersion: 1, connectionId: "known", sourceSceneId: boundaryScene.sceneId, boundaryRef: "poi:external-exit", destinationRef: "location:known", scale: "LOCAL", state: "OPEN", sourceRefs: ["lore:test"], version: 1 }] } }), false);
   const placePolicy = {
@@ -235,16 +241,24 @@ async function run(): Promise<void> {
   const placeValidation = validatePlaceCreationProposalV1({ proposal: proposalResult.proposal, topology, policy: placePolicy });
   assert.equal(placeValidation.ok, true);
   if (placeValidation.ok) {
+    const oneWayGeneratorConfig = {
+      ...generatorConfig,
+      provider: { async generate(request: import("../../src/ai").AiCallRequestV1) { return { schemaVersion: 1 as const, contractVersion: request.contractVersion, outputId: "output-ai-place-one-way", callId: request.callId, attemptId: request.attemptId, packId: request.packId, snapshotId: request.snapshotId, role: request.role, status: "OK" as const, payload: { ...candidate, connectionIntents: candidate.connectionIntents.slice(0, 1) }, diagnostics: [], supersedesOutputId: null }; } }
+    };
     const productionPreparation = createLoreGuidedDynamicPlacePreparationPortV1({
       contextPort: {
         canCreate: () => true,
-        async buildContext() { return { ok: true, value: { brief: briefResult.brief, dynamicCreationPolicy: policy, placeValidationPolicy: placePolicy, topology, sourceSceneId: "wiki-location:archives_de_lysenthe", sourceBoundaryRef: "poi:archives_de_lysenthe:poi:2", requestedDestinationDescription: "une rue secondaire proche des Archives", generatorConfig } }; }
+        async buildContext() { return { ok: true, value: { brief: briefResult.brief, dynamicCreationPolicy: policy, placeValidationPolicy: placePolicy, topology, sourceSceneId: "wiki-location:archives_de_lysenthe", sourceLocationRef: "location:archives_de_lysenthe", sourceBoundaryRef: "poi:archives_de_lysenthe:poi:2", requestedDestinationDescription: "une rue secondaire proche des Archives", generatorConfig: oneWayGeneratorConfig } }; }
       },
       worldPort: { async prepare() { throw new Error("world preparation is tested by the atomic entry suite"); } }
     });
     const productionCreative = await productionPreparation.prepareCreative({ repository: {} as never, campaign: { campaignId: "campaign-1" } as never, operation: { operationId: "operation-production-preparation" } as never, rawInput: "Je sors vers une rue secondaire.", interpretation: {} as never, domainCommand: null, activeScene: {} as never });
     assert.equal(productionCreative.ok, true, productionCreative.ok ? undefined : productionCreative.error.messageKey);
-    if (productionCreative.ok) assert.equal(productionCreative.value.validation.ok, true);
+    if (productionCreative.ok) {
+      assert.equal(productionCreative.value.validation.ok, true);
+      assert.equal(productionCreative.value.validation.topologyAdditions.length, 2, "V1 publishes only the authoritative entry and return connections");
+      assert.equal(productionCreative.value.validation.topologyAdditions.some(connection => connection.sourceSceneId === candidate.arrivalSceneId && connection.destinationRef === "location:archives_de_lysenthe"), true);
+    }
     assert.equal(placeValidation.commitAuthority, false);
     assert.equal(placeValidation.topologyAdditions[0]?.destinationRef, "location:passage_des_copistes");
 
@@ -489,6 +503,13 @@ async function run(): Promise<void> {
   });
   assert.equal(ephemeral.ok, false);
   if (!ephemeral.ok) assert.equal(ephemeral.code, "PLACE_PERSISTENCE_REJECTED");
+  const collidingArrival = validatePlaceCreationProposalV1({
+    proposal: { ...proposalResult.proposal, proposedProperties: { ...proposalResult.proposal.proposedProperties, arrivalSceneId: "wiki-location:archives_de_lysenthe" } },
+    topology,
+    policy: placePolicy
+  });
+  assert.equal(collidingArrival.ok, false);
+  if (!collidingArrival.ok) assert.equal(collidingArrival.issues.includes("Arrival scene already exists: wiki-location:archives_de_lysenthe."), true);
 
   const invalidProjection = buildLoreGuidedSceneCreationBriefV1({
     briefId: "invalid",

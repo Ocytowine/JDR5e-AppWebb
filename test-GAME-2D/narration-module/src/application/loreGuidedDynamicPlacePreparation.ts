@@ -26,6 +26,7 @@ export interface LoreGuidedDynamicPlaceCreativeContextV1 {
   placeValidationPolicy: PlaceCreationValidationPolicyV1;
   topology: SceneTransitionTopologyV1;
   sourceSceneId: string;
+  sourceLocationRef: string;
   sourceBoundaryRef: string;
   requestedDestinationDescription: string;
   generatorConfig: LoreGuidedPlaceCandidateGeneratorConfigV1;
@@ -85,11 +86,32 @@ export function createLoreGuidedDynamicPlacePreparationPortV1(input: {
         brief: context.value.brief,
         sourceSceneId: context.value.sourceSceneId,
         sourceBoundaryRef: context.value.sourceBoundaryRef,
+        allowedParentLocationRefs: context.value.placeValidationPolicy.allowedParentLocationRefs,
+        allowedPersistenceDepths: context.value.placeValidationPolicy.allowedPersistenceDepths.filter((depth): depth is "LIGHT_REFERENCE" | "FULL_ENTITY" => depth !== "SCENE_EPHEMERAL"),
         requestedDestinationDescription: context.value.requestedDestinationDescription,
         config: context.value.generatorConfig
       });
-      if (!generated.ok) return failure("narrative.dynamic-place.ai-candidate-rejected", generated.issues);
-      const genericValidation = validateDynamicCreationProposalV1(generated.proposal, context.value.dynamicCreationPolicy);
+      if (!generated.ok) return failure("narrative.dynamic-place.ai-candidate-rejected", generated.issues, {
+        aiTelemetry: generated.telemetry.map(metric => ({
+          role: metric.role,
+          modelId: metric.modelId,
+          latencyMs: metric.latencyMs,
+          inputTokens: metric.inputTokens,
+          outputTokens: metric.outputTokens,
+          finishReason: metric.finishReason,
+          inputTokenBudget: metric.inputTokenBudget,
+          outputTokenBudget: metric.outputTokenBudget,
+          contextChars: metric.contextChars,
+          schemaChars: metric.schemaChars
+        }))
+      });
+      const proposal = completeRequiredPlaceConnectionsV1({
+        proposal: generated.proposal,
+        sourceSceneId: context.value.sourceSceneId,
+        sourceLocationRef: context.value.sourceLocationRef,
+        sourceBoundaryRef: context.value.sourceBoundaryRef
+      });
+      const genericValidation = validateDynamicCreationProposalV1(proposal, context.value.dynamicCreationPolicy);
       if (!genericValidation.ok) return failure("narrative.dynamic-place.generic-gate-rejected", genericValidation.issues);
       const placeValidation = validatePlaceCreationProposalV1({
         proposal: genericValidation.proposal,
@@ -110,6 +132,26 @@ export function createLoreGuidedDynamicPlacePreparationPortV1(input: {
   };
 }
 
-function failure(messageKey: string, issues: string[]): Result<never> {
-  return { ok: false, error: coreError("VALIDATION_FAILED", messageKey, { issues }) };
+/** Mechanical V1 topology belongs to the runtime; unmaterialized AI exits must never enter the world graph. */
+function completeRequiredPlaceConnectionsV1(input: {
+  proposal: import("../ai/types").DynamicCreationProposalV1;
+  sourceSceneId: string;
+  sourceLocationRef: string;
+  sourceBoundaryRef: string;
+}): import("../ai/types").DynamicCreationProposalV1 {
+  const properties = structuredClone(input.proposal.proposedProperties);
+  const proposedPlaceRef = typeof properties.proposedPlaceRef === "string" ? properties.proposedPlaceRef : "";
+  const arrivalSceneId = typeof properties.arrivalSceneId === "string" ? properties.arrivalSceneId : "";
+  const sourceRefs = input.proposal.existingFactRefsUsed.length > 0
+    ? [...input.proposal.existingFactRefsUsed]
+    : [`proposal:${input.proposal.proposalId}`];
+  const connections = [
+    { sourceSceneId: input.sourceSceneId, boundaryRef: input.sourceBoundaryRef, destinationRef: proposedPlaceRef, scale: "LOCAL", sourceRefs },
+    { sourceSceneId: arrivalSceneId, boundaryRef: "poi:return-to-source", destinationRef: input.sourceLocationRef, scale: "LOCAL", sourceRefs }
+  ];
+  return { ...structuredClone(input.proposal), proposedProperties: { ...properties, connectionIntents: connections } };
+}
+
+function failure(messageKey: string, issues: string[], details: Record<string, unknown> = {}): Result<never> {
+  return { ok: false, error: coreError("VALIDATION_FAILED", messageKey, { issues, ...details } as never) };
 }

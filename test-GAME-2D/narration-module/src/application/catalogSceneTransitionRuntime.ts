@@ -44,7 +44,19 @@ export function createCatalogSceneTransitionRuntimeV1(input: {
         idempotencyKey: requestInput.operation.idempotencyKey
       };
       const prepared = prepareSceneTransitionWorldRequestV1({ request: transitionRequest, registry: buildSceneReferentRegistryV1(source.value), topology, currentSceneVersion: source.value.version });
-      if (prepared.command === null) return failure("narrative.scene-transition.catalog-connection-rejected", { code: prepared.decision.code });
+      if (prepared.command === null) return failure("narrative.scene-transition.catalog-connection-rejected", {
+        decisionCode: prepared.decision.code,
+        decisionDisposition: prepared.decision.disposition,
+        decisionReason: prepared.decision.reason,
+        sourceSceneId: source.value.sceneId,
+        sourceSceneVersion: source.value.version,
+        boundaryRef: target.ref,
+        topologyId: topology.topologyId,
+        topologyVersion: topology.topologyVersion,
+        sourceConnections: topology.connections
+          .filter(connection => connection.sourceSceneId === source.value.sceneId)
+          .map(connection => ({ boundaryRef: connection.boundaryRef, destinationRef: connection.destinationRef, state: connection.state, scale: connection.scale }))
+      });
       const destination = await input.resolveDestination(prepared.command.destinationRef, { repository: requestInput.repository, campaignId: requestInput.campaign.campaignId });
       if (!destination.ok) return destination;
       const currentGameSecond = Number(clock.value.payload.elapsedGameSeconds);

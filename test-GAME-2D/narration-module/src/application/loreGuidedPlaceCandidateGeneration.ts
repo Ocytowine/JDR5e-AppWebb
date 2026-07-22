@@ -27,6 +27,8 @@ export async function generateLoreGuidedPlaceCandidateV1(input: {
   brief: LoreGuidedSceneCreationBriefV1;
   sourceSceneId: string;
   sourceBoundaryRef: string;
+  allowedParentLocationRefs: string[];
+  allowedPersistenceDepths: Array<"LIGHT_REFERENCE" | "FULL_ENTITY">;
   requestedDestinationDescription: string;
   config: LoreGuidedPlaceCandidateGeneratorConfigV1;
 }): Promise<LoreGuidedPlaceCandidateGenerationResultV1> {
@@ -52,17 +54,21 @@ async function buildRequest(input: {
   brief: LoreGuidedSceneCreationBriefV1;
   sourceSceneId: string;
   sourceBoundaryRef: string;
+  allowedParentLocationRefs: string[];
+  allowedPersistenceDepths: Array<"LIGHT_REFERENCE" | "FULL_ENTITY">;
   requestedDestinationDescription: string;
   config: LoreGuidedPlaceCandidateGeneratorConfigV1;
 }): Promise<AiCallRequestV1> {
   const roleContextPack = {
     schemaVersion: 1,
     authority: "PROPOSE_ONLY",
-    brief: input.brief,
+    brief: buildSceneCreatorBriefViewV1(input.brief),
     sourceSceneId: input.sourceSceneId,
     sourceBoundaryRef: input.sourceBoundaryRef,
+    allowedParentLocationRefs: [...input.allowedParentLocationRefs],
+    allowedPersistenceDepths: [...input.allowedPersistenceDepths],
     requestedDestinationDescription: input.requestedDestinationDescription,
-    constraints: ["no commit", "no secret reveal", "no durable NPC materialization", "sourceRefs required on topology", "the incoming connection must use sourceSceneId and sourceBoundaryRef exactly"]
+    constraints: ["no commit", "no secret reveal", "no durable NPC materialization", "sourceRefs required on topology", "requestedDepth must be one of allowedPersistenceDepths", "parentLocationRef must be one of allowedParentLocationRefs", "the incoming connection must use sourceSceneId and sourceBoundaryRef exactly"]
   };
   const task = { requiredOutput: LORE_GUIDED_PLACE_CANDIDATE_CONTRACT_V1 };
   return {
@@ -79,6 +85,26 @@ async function buildRequest(input: {
     contextFingerprint: await computeJsonFingerprint({ roleContextPack, task }) as `sha256:${string}`,
     idempotencyKey: `${input.operationId}:scene-creator`,
     input: { instructionsRef: "scene-creator/lore-guided-place/v1", roleContextPack, task },
-    limits: { inputTokenBudget: Math.min(2_000, input.config.route.inputTokenLimit), outputTokenBudget: Math.min(1_500, input.config.route.outputTokenLimit), timeoutMs: input.config.route.timeoutMs }
+    limits: { inputTokenBudget: Math.min(2_000, input.config.route.inputTokenLimit), outputTokenBudget: Math.min(2_000, input.config.route.outputTokenLimit), timeoutMs: input.config.route.timeoutMs }
+  };
+}
+
+/** Actor-specific view: authority stays in the full local brief; the model receives only useful lore and allowed refs. */
+export function buildSceneCreatorBriefViewV1(brief: LoreGuidedSceneCreationBriefV1) {
+  const compact = (values: LoreGuidedSceneCreationBriefV1["strictConstraints"]) => values.map(value => ({
+    fieldPath: value.fieldPath,
+    text: value.effectiveText,
+    sourceRefs: value.effectiveSourceRefs
+  }));
+  return {
+    contractVersion: brief.contractVersion,
+    creationType: brief.creationType,
+    anchorEntityId: brief.anchorEntityId,
+    geographicChain: brief.geographicChain,
+    strictConstraints: compact(brief.strictConstraints),
+    localGuidance: compact(brief.localGuidance),
+    regionalGuidance: compact(brief.regionalGuidance),
+    unresolvedDimensions: brief.unresolvedDimensions,
+    allowedSourceRefs: brief.sourceRefs
   };
 }

@@ -21,7 +21,7 @@ import {
   type PlayableSceneStateV1
 } from "../../narration-module/src/application";
 import { FakeContractAiProviderV1 } from "../../narration-module/src/ai/FakeContractAiProvider";
-import type { CampaignId, CampaignRepository, JsonObject } from "../../narration-module/src/core";
+import type { CampaignId, CampaignRepository, CoreError, JsonObject } from "../../narration-module/src/core";
 import type { AiModelRouteV1, AiRetryPolicyV1 } from "../../narration-module/src/ai/types";
 import type { NarrativeTurnControllerOutputV1 } from "../../narration-module/src/application";
 import type { DisplayPacketV1 } from "../../narration-module/src/scene";
@@ -36,7 +36,6 @@ import {
   buildOpenAiSceneCreatorConfigV1
 } from "./openAiNarrativeRuntimeConfig";
 import { ServerOpenAiEnhancementProviderV1 } from "./serverOpenAiEnhancementClient";
-import { buildArchiveLorePilotV1 } from "./archiveLorePilot";
 
 type NarrativeEnhancementMode = "local" | "openai";
 
@@ -58,7 +57,7 @@ export function NarrativeAppSurface() {
     setController(null);
     const intentInterpreterConfig = buildIntentInterpreterConfig(enhancementMode);
     const npcPerformerConfig = buildNpcPerformerConfig(enhancementMode);
-    void buildArchiveLorePilotV1().then(async archivePilot => {
+    void import("./archiveLorePilot").then(module => module.buildArchiveLorePilotV1()).then(async archivePilot => {
       const resolveSceneById = (repository: CampaignRepository, campaignId: CampaignId, sceneId: string) => resolveSceneV1({
         sceneId,
         sources: [{ sourceKind: "WIKI" as const, resolve: candidate => archivePilot.scenes.find(scene => scene.sceneId === candidate) ?? null }],
@@ -71,7 +70,13 @@ export function NarrativeAppSurface() {
         return resolved.ok ? { ok: true as const, value: resolved.value.scene } : resolved;
       } };
       setOpeningScene(archivePilot.scene);
-      const dynamicPlaceRuntime = enhancementMode === "openai" ? createCampaignLoreGuidedDynamicPlaceRuntimeV1({ resolveLorePacket: sceneId => archivePilot.lorePacketBySceneId.get(sceneId) ?? null, generatorConfig: buildOpenAiSceneCreatorConfigV1() }) : null;
+      const dynamicPlaceRuntime = enhancementMode === "openai" ? createCampaignLoreGuidedDynamicPlaceRuntimeV1({
+        resolveLorePacket: sceneId => archivePilot.lorePacketBySceneId.get(sceneId) ?? null,
+        resolveAuthoredSceneLocationRef: sceneId => archivePilot.locationRefBySceneId.get(sceneId) ?? null,
+        knownAuthoredSceneIds: archivePilot.scenes.map(scene => scene.sceneId),
+        knownAuthoredPlaces: archivePilot.authoredPlaces,
+        generatorConfig: buildOpenAiSceneCreatorConfigV1()
+      }) : null;
       const sceneTransitionRuntime = createCatalogSceneTransitionRuntimeV1({
         async resolveSource(sceneId, context) {
           const resolved = await resolveSceneById(context.repository, context.campaignId as CampaignId, sceneId);
@@ -90,7 +95,7 @@ export function NarrativeAppSurface() {
         return resolved.ok ? { ok: true as const, value: resolved.value.scene } : resolved;
         }
       });
-      return createBrowserPersistentNarrativeTurnControllerV1({ databaseName: "jdr5e-narration-archives-pilot-v3", intentInterpreterConfig, npcPerformerConfig, sceneTransitionRuntime, dynamicPlaceRuntime, initialScene: { scene: archivePilot.scene, locationRef: archivePilot.locationRef }, activeSceneResolver, initializeRepository: (repository, campaignId, clock) => ensureDynamicPlaceCreationStateV1({ repository, campaignId, clock, topology: archivePilot.topology }) });
+      return createBrowserPersistentNarrativeTurnControllerV1({ databaseName: "jdr5e-narration-archives-pilot-v4", intentInterpreterConfig, npcPerformerConfig, sceneTransitionRuntime, dynamicPlaceRuntime, initialScene: { scene: archivePilot.scene, locationRef: archivePilot.locationRef }, activeSceneResolver, initializeRepository: (repository, campaignId, clock) => ensureDynamicPlaceCreationStateV1({ repository, campaignId, clock, topology: archivePilot.topology }) });
     }).then(async nextController => {
       const restored = await nextController.restoreRenderedThread();
       if (!cancelled) {
@@ -102,7 +107,7 @@ export function NarrativeAppSurface() {
         setController(nextController);
       }
     }).catch(error => {
-      void buildArchiveLorePilotV1().then(archivePilot => {
+      void import("./archiveLorePilot").then(module => module.buildArchiveLorePilotV1()).then(archivePilot => {
         setOpeningScene(archivePilot.scene);
         return createPrototypeNarrativeTurnControllerV1({ intentInterpreterConfig, npcPerformerConfig, initialScene: { scene: archivePilot.scene, locationRef: archivePilot.locationRef }, initializeRepository: (repository, campaignId, clock) => ensureDynamicPlaceCreationStateV1({ repository, campaignId, clock, topology: archivePilot.topology }), activeSceneResolver: { async resolve() { return { ok: true as const, value: archivePilot.scene }; } } });
       }).then(nextController => {
@@ -131,6 +136,12 @@ export function NarrativeAppSurface() {
     void controller.submit(payload).then(async result => {
       if (!result.ok) {
         setErrorMessage(result.error.messageKey);
+        setPacketsFromController(previous => [...previous, createRuntimeFailurePacket({
+          error: result.error,
+          operationId: payload.clientRequestId,
+          sceneId: openingScene?.sceneId ?? "unknown-scene",
+          rawInput: payload.rawInput
+        })]);
         return;
       }
       const controllerFinishedAt = performance.now();
@@ -289,6 +300,31 @@ export function NarrativeAppSurface() {
       </div>
     </main>
   );
+}
+
+function createRuntimeFailurePacket(input: { error: CoreError; operationId: string; sceneId: string; rawInput: string }): DisplayPacketV1 {
+  const diagnostic = JSON.stringify(input.error.details, null, 2);
+  return {
+    schemaVersion: 1,
+    contractVersion: SCENE_SOCIAL_UI_CONTRACT_VERSION_V1,
+    operationId: input.operationId,
+    sceneId: input.sceneId,
+    displayBlocks: [{
+      blockId: `${input.operationId}:runtime-failure`,
+      kind: "SYSTEM_NOTICE",
+      speaker: { speakerId: "speaker-system", kind: "SYSTEM", displayName: "Système", roleLabel: "Notification système", ariaLabel: "Notification système", visualToken: "speaker-system" },
+      text: `Action non exécutée — diagnostic runtime\nErreur: ${input.error.messageKey}\nCode: ${input.error.code}; catégorie=${input.error.category}; reprise=${input.error.retry}.\nEntrée: ${input.rawInput}\nDétails:\n${diagnostic === "{}" ? "aucun détail fourni" : diagnostic}`,
+      ariaLabel: "Notification système: échec runtime diagnostiqué",
+      roleLabel: "Notification système",
+      visualStyleToken: "speaker-system",
+      sourceRefs: [`runtime-error:${input.error.messageKey}`],
+      isDegradedFallback: true
+    }],
+    rawInputAccess: { available: true, operationId: input.operationId },
+    rhythmDiagnostics: `runtime failure: ${input.error.messageKey}`,
+    reconstructionRefs: [`runtime-error:${input.error.messageKey}`],
+    version: 1
+  };
 }
 
 function appendNarrativeSystemTrace(input: {

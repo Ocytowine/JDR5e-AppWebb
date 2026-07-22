@@ -89,8 +89,8 @@ export function buildOpenAiSceneCreatorConfigV1(endpoint?: string): LoreGuidedPl
       schemaVersion: 1, routeId: "prototype-ui-openai-scene-creator", role: "scene_creator",
       providerKind: "FAKE_CONTRACT", providerId: "server-openai-route", modelId: "server-selected-openai-model",
       modelConfigVersion: "lore-guided-place-v1", certified: true,
-      allowedContractVersions: ["lore-guided-place-candidate/1"], inputTokenLimit: 2_000, outputTokenLimit: 1_500,
-      timeoutMs: 30_000, fallbackRouteIds: []
+      allowedContractVersions: ["lore-guided-place-candidate/1"], inputTokenLimit: 2_000, outputTokenLimit: 2_000,
+      timeoutMs: 55_000, fallbackRouteIds: []
     },
     retryPolicy: { schemaVersion: 1, role: "scene_creator", maxTechnicalRetries: 0, maxTargetedCorrections: 0, maxFullRegenerations: 0, allowFallback: false }
   };

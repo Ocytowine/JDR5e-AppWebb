@@ -449,11 +449,53 @@ async function runRoute(api, body) {
   return res;
 }
 
+function sceneCreatorOutputFor(req, overrides = {}) {
+  return {
+    schemaVersion: 1,
+    contractVersion: req.contractVersion,
+    outputId: "output-route-scene-creator-001",
+    callId: req.callId,
+    attemptId: req.attemptId,
+    packId: req.packId,
+    snapshotId: req.snapshotId,
+    role: req.role,
+    status: "OK",
+    payload: {
+      proposalId: "proposal-place-001",
+      requestedDepth: "LIGHT_REFERENCE",
+      displayName: "Passage des Copistes",
+      summary: "Un passage public proche des Archives.",
+      initialTension: "La circulation est ralentie par la pluie.",
+      perceptibleFeatures: ["pierre claire"],
+      populationRoles: ["copiste"],
+      localNorms: ["circulation ordonnée"],
+      proposedPlaceRef: "location:passage_des_copistes",
+      arrivalSceneId: "dynamic-place:passage_des_copistes",
+      parentLocationRef: "location:quartier_des_archives",
+      connectionIntents: [{
+        sourceSceneId: "wiki-location:archives_de_lysenthe",
+        boundaryRef: "poi:archives_de_lysenthe:poi:1",
+        destinationRef: "location:passage_des_copistes",
+        scale: "LOCAL",
+        sourceRefs: ["lore:archives_de_lysenthe"]
+      }],
+      reason: "Créer la destination extérieure demandée.",
+      expectedEffects: ["destination jouable"],
+      narrativeCommitments: ["identité stable du lieu"],
+      duplicatePolicy: "REJECT_IF_SIMILAR",
+      ...(overrides.payload || {})
+    },
+    diagnostics: [],
+    supersedesOutputId: null,
+    ...overrides
+  };
+}
+
 function sceneCreatorRequest(overrides = {}) {
   return request({
     role: "scene_creator",
     contractVersion: "lore-guided-place-candidate/1",
-    input: { instructionsRef: "scene-creator/lore-guided-place/v1", roleContextPack: { brief: {} }, task: { requiredOutput: "lore-guided-place-candidate/1" } },
+    input: { instructionsRef: "scene-creator/lore-guided-place/v1", roleContextPack: { brief: {}, allowedParentLocationRefs: ["location:quartier_des_archives"], allowedPersistenceDepths: ["LIGHT_REFERENCE", "FULL_ENTITY"] }, task: { requiredOutput: "lore-guided-place-candidate/1" } },
     limits: { inputTokenBudget: 2_000, outputTokenBudget: 1_500, timeoutMs: 30_000 },
     ...overrides
   });
@@ -511,7 +553,12 @@ async function main() {
   assert.equal(normalizedIntent.ok, true);
   const normalizedSceneCreator = normalizeAiCallRequest(sceneCreatorRequest());
   assert.equal(normalizedSceneCreator.ok, true);
-  assert.equal(buildStrictAiOutputSchema(sceneCreatorRequest()).schema.properties.payload.properties.connectionIntents.items.properties.sourceRefs.items.type, "string");
+  const sceneCreatorSchema = buildStrictAiOutputSchema(sceneCreatorRequest()).schema;
+  assert.equal(sceneCreatorSchema.properties.payload.properties.connectionIntents.items.properties.sourceRefs.items.type, "string");
+  assert.deepEqual(sceneCreatorSchema.properties.payload.properties.parentLocationRef.enum, ["location:quartier_des_archives"]);
+  assert.deepEqual(sceneCreatorSchema.properties.payload.properties.requestedDepth.enum, ["LIGHT_REFERENCE", "FULL_ENTITY"]);
+  assert.equal(sceneCreatorSchema.properties.payload.properties.perceptibleFeatures.minItems, 1);
+  assert.equal(sceneCreatorSchema.properties.payload.properties.narrativeCommitments.minItems, 1);
   const rejectedIntentContract = normalizeAiCallRequest(intentRequest({ contractVersion: "narrative-ai-resolution/1" }));
   assert.equal(rejectedIntentContract.ok, false);
   const rejectedMissingFingerprint = normalizeAiCallRequest(request({ contextFingerprint: undefined }));
@@ -576,6 +623,17 @@ async function main() {
   });
   assert.equal(rejectedSceneWriterBudget.ok, false);
   assert.equal(rejectedSceneWriterBudget.issues.includes("limits.outputTokenBudget must be between 1 and 1500."), true);
+  const normalizedSceneCreatorBudget = normalizeAiCallRequest({
+    ...sceneCreatorRequest(),
+    limits: { ...sceneCreatorRequest().limits, outputTokenBudget: 2_000, timeoutMs: 55_000 }
+  });
+  assert.equal(normalizedSceneCreatorBudget.ok, true);
+  const rejectedSceneCreatorTimeout = normalizeAiCallRequest({
+    ...sceneCreatorRequest(),
+    limits: { ...sceneCreatorRequest().limits, timeoutMs: 60_001 }
+  });
+  assert.equal(rejectedSceneCreatorTimeout.ok, false);
+  assert.equal(rejectedSceneCreatorTimeout.issues.includes("limits.timeoutMs must be between 1 and 60000."), true);
   const normalizedCriticBudget = normalizeAiCallRequest(request({
     role: "coherence_critic",
     limits: { inputTokenBudget: 900, outputTokenBudget: 1_600, timeoutMs: 1_000 }
@@ -734,6 +792,13 @@ async function main() {
   }, request());
   assert.equal(unusableExpression.ok, false);
   assert.equal(unusableExpression.issues.includes("status must be OK for a usable output."), true);
+  const validSceneCreator = validateEnvelope(sceneCreatorOutputFor(sceneCreatorRequest()), sceneCreatorRequest());
+  assert.equal(validSceneCreator.ok, true, validSceneCreator.issues?.join(" | "));
+  const invalidSceneCreator = validateEnvelope(sceneCreatorOutputFor(sceneCreatorRequest(), {
+    payload: { connectionIntents: [] }
+  }), sceneCreatorRequest());
+  assert.equal(invalidSceneCreator.ok, false);
+  assert.equal(invalidSceneCreator.issues.includes("payload.connectionIntents must contain 1 to 4 connections."), true);
   const systemNoticeScene = validateEnvelope(
     sceneOutputFor(sceneReq, {
       payload: {

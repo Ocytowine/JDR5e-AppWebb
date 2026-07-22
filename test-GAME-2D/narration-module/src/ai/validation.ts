@@ -705,6 +705,7 @@ export function validateAiRoleOutputEnvelopeV1(output: unknown, request: AiCallR
     if (request.role === "player_expression_adapter") issues.push(...validatePlayerExpressionPayload(envelope.payload));
     if (request.role === "coherence_critic") issues.push(...validateCoherenceCriticPayload(envelope.payload));
     if (request.role === "scene_writer") issues.push(...validateSceneWriterPayload(envelope.payload));
+    if (request.role === "scene_creator") issues.push(...validateSceneCreatorPayload(envelope.payload, request));
   }
 
   return {
@@ -714,6 +715,45 @@ export function validateAiRoleOutputEnvelopeV1(output: unknown, request: AiCallR
     failureCategory: issues.length === 0 ? null : "SCHEMA_VIOLATION",
     issues
   };
+}
+
+function validateSceneCreatorPayload(payload: unknown, request: AiCallRequestV1): string[] {
+  if (!isObject(payload)) return ["payload: expected object"];
+  const expectedKeys = [
+    "arrivalSceneId", "connectionIntents", "displayName", "duplicatePolicy", "expectedEffects",
+    "initialTension", "localNorms", "narrativeCommitments", "parentLocationRef", "perceptibleFeatures",
+    "populationRoles", "proposalId", "proposedPlaceRef", "reason", "requestedDepth", "summary"
+  ];
+  const issues = exactKeys(payload, expectedKeys, "payload");
+  for (const key of ["proposalId", "displayName", "summary", "initialTension", "proposedPlaceRef", "arrivalSceneId", "parentLocationRef", "reason"] as const) {
+    issues.push(...validateNonEmptyString(payload[key], `payload.${key}`));
+  }
+  if (!["SCENE_EPHEMERAL", "LIGHT_REFERENCE", "FULL_ENTITY"].includes(String(payload.requestedDepth))) issues.push("payload.requestedDepth: invalid depth");
+  for (const key of ["perceptibleFeatures", "populationRoles", "localNorms", "expectedEffects", "narrativeCommitments"] as const) {
+    if (!isStringArray(payload[key])) issues.push(`payload.${key}: expected string array`);
+  }
+  if (!["REUSE", "ENRICH", "CREATE_DISTINCT", "POSSIBLE_SAME_AS", "REJECT_IF_SIMILAR"].includes(String(payload.duplicatePolicy))) issues.push("payload.duplicatePolicy: invalid policy");
+  const roleContextPack = isObject(request.input.roleContextPack) ? request.input.roleContextPack : null;
+  const allowedParentLocationRefs = roleContextPack && isStringArray(roleContextPack.allowedParentLocationRefs)
+    ? roleContextPack.allowedParentLocationRefs
+    : [];
+  if (allowedParentLocationRefs.length > 0 && !allowedParentLocationRefs.includes(String(payload.parentLocationRef))) issues.push("payload.parentLocationRef: not allowed by scene creator context");
+  if (!Array.isArray(payload.connectionIntents) || payload.connectionIntents.length === 0 || payload.connectionIntents.length > 4) {
+    issues.push("payload.connectionIntents: expected 1 to 4 connections");
+  } else {
+    payload.connectionIntents.forEach((connection, index) => {
+      const path = `payload.connectionIntents[${index}]`;
+      if (!isObject(connection)) {
+        issues.push(`${path}: expected object`);
+        return;
+      }
+      issues.push(...exactKeys(connection, ["boundaryRef", "destinationRef", "scale", "sourceRefs", "sourceSceneId"], path));
+      for (const key of ["sourceSceneId", "boundaryRef", "destinationRef"] as const) issues.push(...validateNonEmptyString(connection[key], `${path}.${key}`));
+      if (!["LOCAL", "TRAVEL"].includes(String(connection.scale))) issues.push(`${path}.scale: invalid scale`);
+      if (!isStringArray(connection.sourceRefs) || connection.sourceRefs.length === 0 || connection.sourceRefs.some(ref => ref.trim().length === 0)) issues.push(`${path}.sourceRefs: expected non-empty string array`);
+    });
+  }
+  return issues;
 }
 
 function validateCoherenceCriticPayload(payload: unknown): string[] {

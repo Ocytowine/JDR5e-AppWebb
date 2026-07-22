@@ -118,20 +118,29 @@ function buildRolePayloadSchema(requestOrRole) {
   const role = typeof requestOrRole === "string" ? requestOrRole : requestOrRole.role;
   if (role === "scene_creator") {
     const stringArray = { type: "array", items: { type: "string" } };
+    const allowedParentLocationRefs = Array.isArray(requestOrRole?.input?.roleContextPack?.allowedParentLocationRefs)
+      ? requestOrRole.input.roleContextPack.allowedParentLocationRefs.filter(ref => typeof ref === "string" && ref.trim().length > 0)
+      : [];
+    const parentLocationRefSchema = allowedParentLocationRefs.length > 0
+      ? { type: "string", enum: allowedParentLocationRefs }
+      : { type: "string" };
+    const allowedPersistenceDepths = Array.isArray(requestOrRole?.input?.roleContextPack?.allowedPersistenceDepths)
+      ? requestOrRole.input.roleContextPack.allowedPersistenceDepths.filter(depth => ["LIGHT_REFERENCE", "FULL_ENTITY"].includes(depth))
+      : [];
     return {
       type: "object",
       additionalProperties: false,
       required: ["proposalId", "requestedDepth", "displayName", "summary", "initialTension", "perceptibleFeatures", "populationRoles", "localNorms", "proposedPlaceRef", "arrivalSceneId", "parentLocationRef", "connectionIntents", "reason", "expectedEffects", "narrativeCommitments", "duplicatePolicy"],
       properties: {
         proposalId: { type: "string" },
-        requestedDepth: { enum: ["SCENE_EPHEMERAL", "LIGHT_REFERENCE", "FULL_ENTITY"] },
+        requestedDepth: { enum: allowedPersistenceDepths.length > 0 ? allowedPersistenceDepths : ["LIGHT_REFERENCE", "FULL_ENTITY"] },
         displayName: { type: "string" }, summary: { type: "string" }, initialTension: { type: "string" },
-        perceptibleFeatures: stringArray, populationRoles: stringArray, localNorms: stringArray,
-        proposedPlaceRef: { type: "string" }, arrivalSceneId: { type: "string" }, parentLocationRef: { type: "string" },
+        perceptibleFeatures: { ...stringArray, minItems: 1 }, populationRoles: { ...stringArray, minItems: 1 }, localNorms: { ...stringArray, minItems: 1 },
+        proposedPlaceRef: { type: "string", pattern: "^[a-z][a-z0-9_-]*:.+" }, arrivalSceneId: { type: "string", pattern: "^[a-z][a-z0-9_-]*:.+" }, parentLocationRef: parentLocationRefSchema,
         connectionIntents: { type: "array", minItems: 1, maxItems: 4, items: { type: "object", additionalProperties: false,
           required: ["sourceSceneId", "boundaryRef", "destinationRef", "scale", "sourceRefs"],
           properties: { sourceSceneId: { type: "string" }, boundaryRef: { type: "string" }, destinationRef: { type: "string" }, scale: { enum: ["LOCAL", "TRAVEL"] }, sourceRefs: stringArray } } },
-        reason: { type: "string" }, expectedEffects: stringArray, narrativeCommitments: stringArray,
+        reason: { type: "string" }, expectedEffects: stringArray, narrativeCommitments: { ...stringArray, minItems: 1 },
         duplicatePolicy: { enum: ["REUSE", "ENRICH", "CREATE_DISTINCT", "POSSIBLE_SAME_AS", "REJECT_IF_SIMILAR"] }
       }
     };
@@ -747,7 +756,8 @@ function createNarrativeOpenAiEnhancementApi(options) {
           "Content-Type": "application/json",
           Authorization: `Bearer ${apiKey}`
         },
-        body: JSON.stringify(openAiBody)
+        body: JSON.stringify(openAiBody),
+        signal: AbortSignal.timeout(request.value.limits.timeoutMs)
       });
 
       if (!response || response.status < 200 || response.status >= 300) {
@@ -893,23 +903,28 @@ function normalizeAiCallRequest(value) {
         ? 2_000
         : request.role === "coherence_critic"
           ? 1_600
-      : request.role === "scene_writer" || request.role === "scene_creator"
+      : request.role === "scene_creator"
+        ? 2_000
+      : request.role === "scene_writer"
         ? 1_500
         : 1_000;
     if (!Number.isInteger(request.limits.outputTokenBudget) || request.limits.outputTokenBudget <= 0 || request.limits.outputTokenBudget > maxOutputTokenBudget) {
       issues.push(`limits.outputTokenBudget must be between 1 and ${maxOutputTokenBudget}.`);
     }
-    if (!Number.isInteger(request.limits.timeoutMs) || request.limits.timeoutMs <= 0 || request.limits.timeoutMs > 30_000) {
-      issues.push("limits.timeoutMs must be between 1 and 30000.");
+    const maxTimeoutMs = request.role === "scene_creator" ? 60_000 : 30_000;
+    if (!Number.isInteger(request.limits.timeoutMs) || request.limits.timeoutMs <= 0 || request.limits.timeoutMs > maxTimeoutMs) {
+      issues.push(`limits.timeoutMs must be between 1 and ${maxTimeoutMs}.`);
     }
   }
   return issues.length > 0 ? { ok: false, issues } : { ok: true, value: request };
 }
 
 function buildServerRoute(request, env) {
-  const intentReasoningEffort = request.role === "player_intent_interpreter"
+  const reasoningEffort = request.role === "player_intent_interpreter"
     ? normalizeReasoningEffort(env.NARRATION_OPENAI_INTENT_REASONING_EFFORT)
-    : null;
+    : request.role === "scene_creator"
+      ? normalizeReasoningEffort(env.NARRATION_OPENAI_SCENE_CREATOR_REASONING_EFFORT) || "low"
+      : null;
   return {
     modelId: request.role === "player_intent_interpreter"
       ? env.NARRATION_OPENAI_INTENT_MODEL || env.NARRATION_OPENAI_MODEL || DEFAULT_MODEL
@@ -917,7 +932,9 @@ function buildServerRoute(request, env) {
         ? env.NARRATION_OPENAI_MJ_PLANNER_MODEL || env.NARRATION_OPENAI_MODEL || DEFAULT_MODEL
         : request.role === "npc_performer"
           ? env.NARRATION_OPENAI_NPC_PERFORMER_MODEL || env.NARRATION_OPENAI_MODEL || DEFAULT_MODEL
-          : env.NARRATION_OPENAI_MODEL || DEFAULT_MODEL,
+          : request.role === "scene_creator"
+            ? env.NARRATION_OPENAI_SCENE_CREATOR_MODEL || env.NARRATION_OPENAI_MODEL || DEFAULT_MODEL
+            : env.NARRATION_OPENAI_MODEL || DEFAULT_MODEL,
     routeId: request.role === "scene_creator"
       ? "server-openai-narrative-scene-creator"
       : request.role === "scene_writer"
@@ -931,7 +948,7 @@ function buildServerRoute(request, env) {
           : request.role === "npc_performer"
             ? "server-openai-npc-performer"
             : "server-openai-narrative-expression",
-    reasoningEffort: intentReasoningEffort
+    reasoningEffort
   };
 }
 
@@ -1009,6 +1026,8 @@ function buildRoleInstructions(request) {
       "Tu n'as aucune autorité de commit, de vérité durable, de création de PNJ présent ni de révélation de secret.",
       "Respecte strictConstraints comme canon, localGuidance comme guide local et regionalGuidance comme inspiration souple.",
       "Produis des identifiants canoniques stables et des connexions explicites; chaque connexion déclare au moins une sourceRef fournie par le brief.",
+      "parentLocationRef doit recopier exactement une valeur de allowedParentLocationRefs; n'utilise pas une référence wiki à sa place.",
+      "requestedDepth doit recopier une valeur de allowedPersistenceDepths; ce parcours crée toujours un lieu persistant revisitable.",
       "populationRoles décrit seulement des rôles plausibles et ne matérialise aucun PNJ.",
       ...shared
     ].join("\n");
@@ -1276,6 +1295,9 @@ function validateEnvelope(output, request) {
 
 function validateRolePayload(payload, role, request = null) {
   const issues = [];
+  if (role === "scene_creator") {
+    return validateSceneCreatorPayload(payload, request);
+  }
   if (role === "player_intent_interpreter") {
     if (request?.contractVersion === SEMANTIC_INTENT_CONTRACT_VERSION) return validateSemanticIntentPayloadV2(payload);
     if (typeof payload.rawInputEcho !== "string") issues.push("payload.rawInputEcho must be a string.");
@@ -1444,6 +1466,57 @@ function validateSemanticIntentPayloadV2(payload) {
   if (intent.kind === "address_visible_actor" && (!intent.dialogueAct || typeof intent.dialogueAct !== "object")) issues.push("payload.intent.dialogueAct is required for speech.");
   if (intent.kind !== "address_visible_actor" && intent.dialogueAct !== null) issues.push("payload.intent.dialogueAct must be null outside speech.");
   if ((intent.kind === "unclear_intent" || intent.commitment === "unclear") && (typeof intent.clarificationPrompt !== "string" || intent.clarificationPrompt.trim().length === 0)) issues.push("payload.intent.clarificationPrompt is required for an unclear intention.");
+  return issues;
+}
+
+function validateSceneCreatorPayload(payload, request) {
+  const issues = [];
+  const requiredStrings = [
+    "proposalId", "displayName", "summary", "initialTension", "proposedPlaceRef",
+    "arrivalSceneId", "parentLocationRef", "reason"
+  ];
+  for (const key of requiredStrings) {
+    if (typeof payload[key] !== "string" || payload[key].trim().length === 0) {
+      issues.push(`payload.${key} must be a non-empty string.`);
+    }
+  }
+  if (!["SCENE_EPHEMERAL", "LIGHT_REFERENCE", "FULL_ENTITY"].includes(payload.requestedDepth)) {
+    issues.push("payload.requestedDepth is invalid.");
+  }
+  for (const key of ["perceptibleFeatures", "populationRoles", "localNorms", "expectedEffects", "narrativeCommitments"]) {
+    if (!Array.isArray(payload[key]) || payload[key].some(item => typeof item !== "string")) {
+      issues.push(`payload.${key} must be a string array.`);
+    }
+  }
+  if (!["REUSE", "ENRICH", "CREATE_DISTINCT", "POSSIBLE_SAME_AS", "REJECT_IF_SIMILAR"].includes(payload.duplicatePolicy)) {
+    issues.push("payload.duplicatePolicy is invalid.");
+  }
+  const allowedParentLocationRefs = Array.isArray(request?.input?.roleContextPack?.allowedParentLocationRefs)
+    ? request.input.roleContextPack.allowedParentLocationRefs
+    : [];
+  if (allowedParentLocationRefs.length > 0 && !allowedParentLocationRefs.includes(payload.parentLocationRef)) {
+    issues.push("payload.parentLocationRef is not allowed by the scene creator context.");
+  }
+  if (!Array.isArray(payload.connectionIntents) || payload.connectionIntents.length === 0 || payload.connectionIntents.length > 4) {
+    issues.push("payload.connectionIntents must contain 1 to 4 connections.");
+  } else {
+    payload.connectionIntents.forEach((connection, index) => {
+      const path = `payload.connectionIntents[${index}]`;
+      if (!connection || typeof connection !== "object" || Array.isArray(connection)) {
+        issues.push(`${path} must be an object.`);
+        return;
+      }
+      for (const key of ["sourceSceneId", "boundaryRef", "destinationRef"]) {
+        if (typeof connection[key] !== "string" || connection[key].trim().length === 0) {
+          issues.push(`${path}.${key} must be a non-empty string.`);
+        }
+      }
+      if (!["LOCAL", "TRAVEL"].includes(connection.scale)) issues.push(`${path}.scale is invalid.`);
+      if (!Array.isArray(connection.sourceRefs) || connection.sourceRefs.length === 0 || connection.sourceRefs.some(item => typeof item !== "string" || item.trim().length === 0)) {
+        issues.push(`${path}.sourceRefs must be a non-empty string array.`);
+      }
+    });
+  }
   return issues;
 }
 

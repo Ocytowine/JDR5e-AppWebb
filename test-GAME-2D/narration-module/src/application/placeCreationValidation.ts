@@ -73,6 +73,9 @@ export function validatePlaceCreationProposalV1(input: {
   }
   const properties = parseProperties(input.proposal.proposedProperties);
   if (properties === null) return { ok: false, code: "PLACE_PROPOSAL_INVALID", issues: ["Structured place properties are missing or invalid."] };
+  if (input.policy.knownSourceSceneIds.includes(properties.arrivalSceneId)) {
+    issues.push(`Arrival scene already exists: ${properties.arrivalSceneId}.`);
+  }
   if (!input.policy.allowedParentLocationRefs.includes(properties.parentLocationRef)) {
     issues.push(`Parent location ${properties.parentLocationRef} is not allowed.`);
   }

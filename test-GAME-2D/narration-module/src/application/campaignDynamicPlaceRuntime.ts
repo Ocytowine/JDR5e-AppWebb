@@ -6,7 +6,7 @@ import { createDynamicPlaceEntryRuntimeV1 } from "./dynamicPlaceEntryRuntime";
 import { createLoreGuidedDynamicPlacePreparationPortV1 } from "./loreGuidedDynamicPlacePreparation";
 import { buildLoreGuidedSceneCreationBriefV1 } from "./loreGuidedSceneCreation";
 import type { LoreGuidedPlaceCandidateGeneratorConfigV1 } from "./loreGuidedPlaceCandidateGeneration";
-import { buildSceneReferentRegistryV1, findSceneReferentByRefV1 } from "./sceneReferentRegistry";
+import { buildSceneReferentRegistryV1 } from "./sceneReferentRegistry";
 import type { PlaceRegistryStateV1, PlaceTopologyStateV1 } from "./placeCreationCommit";
 import {
   DYNAMIC_PLACE_FACTS_AGGREGATE_ID_V1,
@@ -31,6 +31,9 @@ const DEFAULT_TRANSITION_SECONDS = 8;
 export function createCampaignLoreGuidedDynamicPlaceRuntimeV1(input: {
   packet?: LoreInfluencePacketV1;
   resolveLorePacket?: (sceneId: string) => LoreInfluencePacketV1 | null;
+  resolveAuthoredSceneLocationRef?: (sceneId: string) => string | null;
+  knownAuthoredSceneIds?: readonly string[];
+  knownAuthoredPlaces?: readonly { placeRef: string; displayName: string; aliases: string[]; parentLocationRef: string; sourceRefs: string[] }[];
   generatorConfig: LoreGuidedPlaceCandidateGeneratorConfigV1;
   actorRef?: string;
   transitionSeconds?: number;
@@ -40,12 +43,10 @@ export function createCampaignLoreGuidedDynamicPlaceRuntimeV1(input: {
     contextPort: {
       async canCreate(request) {
         if (request.interpretation.semanticIntent.kind !== "traverse_visible_boundary" || request.interpretation.requiresClarification) return false;
-        const target = resolvedTargetRef(request.interpretation);
-        if (target === null) return false;
         const topology = await request.repository.getAggregate(request.campaignId as never, "world.scene-topology", DYNAMIC_PLACE_TOPOLOGY_AGGREGATE_ID_V1);
         if (!topology.ok) return false;
         const state = topology.value.payload as PlaceTopologyStateV1;
-        return isUnmappedVisibleCreationBoundaryV1({ semanticKind: request.interpretation.semanticIntent.kind, requiresClarification: request.interpretation.requiresClarification, targetRef: target, activeScene: request.activeScene, topology: state.topology });
+        return resolveUnmappedVisibleCreationBoundaryV1({ semanticKind: request.interpretation.semanticIntent.kind, requiresClarification: request.interpretation.requiresClarification, targetRef: resolvedTargetRef(request.interpretation), activeScene: request.activeScene, topology: state.topology }) !== null;
       },
       async buildContext(request) {
         const packet = input.resolveLorePacket?.(request.activeScene.sceneId) ?? input.packet ?? null;
@@ -58,7 +59,11 @@ export function createCampaignLoreGuidedDynamicPlaceRuntimeV1(input: {
         if (!registryAggregate.ok) return registryAggregate;
         const topologyState = topologyAggregate.value.payload as PlaceTopologyStateV1;
         const registry = registryAggregate.value.payload as PlaceRegistryStateV1;
-        const target = resolvedTargetRef(request.interpretation);
+        const sourceLocationRef = registry.places.find(place => place.arrivalSceneId === request.activeScene.sceneId)?.placeRef
+          ?? input.resolveAuthoredSceneLocationRef?.(request.activeScene.sceneId)
+          ?? null;
+        if (sourceLocationRef === null) return failure("narrative.dynamic-place.source-location-ref-missing", { sceneId: request.activeScene.sceneId });
+        const target = resolveUnmappedVisibleCreationBoundaryV1({ semanticKind: request.interpretation.semanticIntent.kind, requiresClarification: request.interpretation.requiresClarification, targetRef: resolvedTargetRef(request.interpretation), activeScene: request.activeScene, topology: topologyState.topology });
         if (target === null) return failure("narrative.dynamic-place.target-required");
         const brief = buildLoreGuidedSceneCreationBriefV1({ briefId: `${request.operation.operationId}:lore-brief`, packet, campaignProjections: [] });
         if (!brief.ok) return failure("narrative.dynamic-place.lore-brief-invalid", { issues: brief.issues });
@@ -80,13 +85,16 @@ export function createCampaignLoreGuidedDynamicPlaceRuntimeV1(input: {
           schemaVersion: 1, contractVersion: "place-creation-validation/1",
           allowedPersistenceDepths: ["LIGHT_REFERENCE", "FULL_ENTITY"],
           allowedParentLocationRefs: [`location:${parentEntityId}`],
-          knownSourceSceneIds: [request.activeScene.sceneId, ...registry.places.map(place => place.arrivalSceneId)],
-          knownPlaces: registry.places.map(place => ({ placeRef: place.placeRef, displayName: place.displayName, aliases: [], parentLocationRef: place.parentLocationRef, sourceRefs: place.sourceRefs })),
+          knownSourceSceneIds: [...new Set([...(input.knownAuthoredSceneIds ?? []), request.activeScene.sceneId, ...registry.places.map(place => place.arrivalSceneId)])],
+          knownPlaces: [
+            ...(input.knownAuthoredPlaces ?? []).map(place => ({ ...place, aliases: [...place.aliases], sourceRefs: [...place.sourceRefs] })),
+            ...registry.places.map(place => ({ placeRef: place.placeRef, displayName: place.displayName, aliases: [], parentLocationRef: place.parentLocationRef, sourceRefs: place.sourceRefs }))
+          ],
           maximumConnections: 3, version: 1
         };
         return { ok: true, value: {
           brief: brief.brief, dynamicCreationPolicy: dynamicPolicy, placeValidationPolicy: placePolicy,
-          topology: topologyState.topology, sourceSceneId: request.activeScene.sceneId, sourceBoundaryRef: target,
+          topology: topologyState.topology, sourceSceneId: request.activeScene.sceneId, sourceLocationRef, sourceBoundaryRef: target,
           requestedDestinationDescription: request.interpretation.semanticIntent.playerGoal,
           generatorConfig: input.generatorConfig
         } };
@@ -94,8 +102,7 @@ export function createCampaignLoreGuidedDynamicPlaceRuntimeV1(input: {
     },
     worldPort: {
       async prepare(request) {
-        const target = resolvedTargetRef(request.interpretation);
-        if (target === null) return failure("narrative.dynamic-place.target-required");
+        const target = request.creative.context.sourceBoundaryRef;
         const incoming = request.creative.validation.topologyAdditions.find(connection =>
           connection.sourceSceneId === request.activeScene.sceneId && connection.boundaryRef === target
         );
@@ -159,10 +166,32 @@ export function isUnmappedVisibleCreationBoundaryV1(input: {
   activeScene: PlayableSceneStateV1;
   topology: SceneTransitionTopologyV1;
 }): boolean {
-  if (input.semanticKind !== "traverse_visible_boundary" || input.requiresClarification || input.targetRef === null) return false;
-  const visible = findSceneReferentByRefV1(buildSceneReferentRegistryV1(input.activeScene), input.targetRef);
-  if (visible === null || !visible.interactionCapabilities.includes("manipulate") || visible.publicDestinationAliases.length === 0) return false;
-  return !input.topology.connections.some(connection => connection.sourceSceneId === input.activeScene.sceneId && connection.boundaryRef === input.targetRef);
+  return resolveUnmappedVisibleCreationBoundaryV1(input) !== null;
+}
+
+export function resolveUnmappedVisibleCreationBoundaryV1(input: {
+  semanticKind: string;
+  requiresClarification: boolean;
+  targetRef: string | null;
+  activeScene: PlayableSceneStateV1;
+  topology: SceneTransitionTopologyV1;
+}): string | null {
+  if (input.semanticKind !== "traverse_visible_boundary" || input.requiresClarification) return null;
+  const registry = buildSceneReferentRegistryV1(input.activeScene);
+  const candidates = registry.referents.filter(referent =>
+    referent.interactionCapabilities.includes("manipulate") && referent.publicDestinationAliases.length > 0 &&
+    !input.topology.connections.some(connection => connection.sourceSceneId === input.activeScene.sceneId && connection.boundaryRef === referent.canonicalRef)
+  );
+  if (input.targetRef !== null) {
+    if (candidates.some(candidate => candidate.canonicalRef === input.targetRef)) return input.targetRef;
+    const targetedReferent = registry.referents.find(referent => referent.canonicalRef === input.targetRef);
+    const targetsKnownConnection = input.topology.connections.some(connection =>
+      connection.sourceSceneId === input.activeScene.sceneId && connection.boundaryRef === input.targetRef
+    );
+    if (targetsKnownConnection || targetedReferent?.interactionCapabilities.includes("manipulate")) return null;
+    return candidates.length === 1 ? candidates[0]!.canonicalRef : null;
+  }
+  return candidates.length === 1 ? candidates[0]!.canonicalRef : null;
 }
 
 function resolvedTargetRef(interpretation: { referentResolution?: { resolvedTarget: { ref: string | null } | null } | null; semanticIntent: { target: { ref: string | null } | null } }): string | null {

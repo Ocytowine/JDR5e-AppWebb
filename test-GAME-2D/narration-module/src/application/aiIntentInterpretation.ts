@@ -793,7 +793,7 @@ function mapSemanticIntentV2ToNarrativeInterpretation(input: {
     return { ok: false, issues: ["V2 semantic confidence is low for a supposedly actionable intention."] };
   }
   const target = resolveSemanticTargetMentionV2(proposed.targetMention, input.localReferentHints, proposed.kind, input.referentRegistry);
-  const needsTarget = ["address_visible_actor", "move_near_visible_actor", "manipulate_visible_object", "traverse_visible_boundary", "nonverbal_signal"].includes(proposed.kind);
+  const needsTarget = ["address_visible_actor", "move_near_visible_actor", "manipulate_visible_object", "nonverbal_signal"].includes(proposed.kind);
   const requiresClarification = proposed.kind === "unclear_intent" || proposed.commitment === "unclear" || (needsTarget && target === null);
   const intentType = semanticKindToLegacyIntentType(proposed.kind);
   const legacyAction = legacyActionFromSemanticV2(proposed);

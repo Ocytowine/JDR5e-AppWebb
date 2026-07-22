@@ -5,38 +5,23 @@ import { buildPlayableSceneFromLoreLocationV1, buildSceneTransitionTopologyFromL
 import { selectLoreInfluencesV1 } from "../../narration-module/src/context";
 import type { SceneTransitionTopologyV1 } from "../../narration-module/src/application";
 
-const RAW_SOURCES = (typeof import.meta.glob === "function" ? import.meta.glob([
-    "../../../wiki/lore/territoire/astryade",
-    "../../../wiki/lore/territoire/region/Ylsséa/index",
-    "../../../wiki/lore/territoire/region/Ylsséa/Lysenthe/index",
-    "../../../wiki/lore/territoire/region/Ylsséa/Lysenthe/quartiers/quartier_des_archives",
-    "../../../wiki/lore/territoire/region/Ylsséa/Lysenthe/batiments/archives_de_lysenthe",
-    "../../../wiki/lore/factions/archivistes_de_lysenthe",
-    "../../../wiki/lore/populations/especes/humains.md",
-    "../../../wiki/lore/populations/especes/elfes.md",
-    "../../../wiki/lore/populations/cultures/culture_cotiere_ylssea.md"
-  ], { query: "?raw", import: "default", eager: true }) : {}) as Record<string, string>;
-const SOURCE_PATHS = [
-  "wiki/lore/territoire/astryade",
-  "wiki/lore/territoire/region/Ylsséa/index",
-  "wiki/lore/territoire/region/Ylsséa/Lysenthe/index",
-  "wiki/lore/territoire/region/Ylsséa/Lysenthe/quartiers/quartier_des_archives",
-  "wiki/lore/territoire/region/Ylsséa/Lysenthe/batiments/archives_de_lysenthe",
-  "wiki/lore/factions/archivistes_de_lysenthe",
-  "wiki/lore/populations/especes/humains.md",
-  "wiki/lore/populations/especes/elfes.md",
-  "wiki/lore/populations/cultures/culture_cotiere_ylssea.md"
-] as const;
+const RAW_LORE = import.meta.glob("../../../wiki/lore/**/*", { query: "?raw", import: "default", eager: true }) as Record<string, string>;
+const CATALOG_MODULES = import.meta.glob(["../data/characters/races/**/*.json", "../data/characters/languages/**/*.json"], { import: "default", eager: true }) as Record<string, { id?: unknown }>;
+
+const SOURCES = Object.entries(RAW_LORE)
+  .filter(([, sourceText]) => sourceText.startsWith("---\n") || sourceText.startsWith("---\r\n"))
+  .map(([modulePath, sourceText]) => ({ sourcePath: modulePath.replace(/^\.\.\/\.\.\/\.\.\//u, ""), sourceText }))
+  .sort((left, right) => left.sourcePath.localeCompare(right.sourcePath));
+
+const CATALOG_ENTRIES = new Set(Object.entries(CATALOG_MODULES).flatMap(([modulePath, value]) => {
+  if (typeof value.id !== "string") return [];
+  return [modulePath.includes("/races/") ? `race:${value.id}` : `language:${value.id}`];
+}));
 
 export async function buildArchiveLorePilotV1() {
   const compiled = await compileLoreCorpusV1(
-    SOURCE_PATHS.map(sourcePath => {
-      const moduleKey = `../../../${sourcePath}`;
-      const sourceText = RAW_SOURCES[moduleKey];
-      if (typeof sourceText !== "string") throw new Error(`Missing bundled lore source: ${sourcePath}`);
-      return { sourcePath, sourceText };
-    }),
-    { packageId: "jdr5e.archive-lore-pilot", packageVersion: 1 }
+    SOURCES.map(source => ({ ...source })),
+    { packageId: "jdr5e.archive-lore-pilot", packageVersion: 1, catalogEntries: CATALOG_ENTRIES }
   );
   if (!compiled.ok) throw new Error(`Archive lore compilation failed: ${compiled.diagnostics.map(value => value.messageKey).join(" | ")}`);
   const archive = compiled.value.entities.find(entity => entity.entityId === "archives_de_lysenthe");
@@ -46,6 +31,7 @@ export async function buildArchiveLorePilotV1() {
     .filter(entity => ["batiment", "quartier", "ville"].includes(entity.entityType))
     .map(entity => ({ entity, scene: buildPlayableSceneFromLoreLocationV1({ entity, fragments: compiled.value.fragments }).scene }));
   const sceneByEntityId = new Map(playableScenes.map(entry => [entry.entity.entityId, entry.scene]));
+  const locationRefBySceneId = new Map(playableScenes.map(entry => [entry.scene.sceneId, `location:${entry.entity.entityId}`] as const));
   const authoredConnections = playableScenes.flatMap(({ entity, scene }) =>
     buildSceneTransitionTopologyFromLoreLocationV1({ entity, scene, topologyVersion: 1 }).connections
   );
@@ -55,14 +41,24 @@ export async function buildArchiveLorePilotV1() {
     entities: compiled.value.entities,
     fragments: compiled.value.fragments,
     allowedKnowledgeLevels: ["COMMUN", "LOCAL"],
-    maximumInfluences: 100
+    maximumInfluences: 16
   });
   if (!influences.ok) throw new Error(`Archive lore influence selection failed: ${influences.issues.join(" | ")}`);
   const lorePacketBySceneId = new Map(playableScenes.map(entry => {
-    const selected = selectLoreInfluencesV1({ creationType: "PLACE", anchorEntityId: entry.entity.entityId, entities: compiled.value.entities, fragments: compiled.value.fragments, allowedKnowledgeLevels: ["COMMUN", "LOCAL"], maximumInfluences: 100 });
+    const selected = selectLoreInfluencesV1({ creationType: "PLACE", anchorEntityId: entry.entity.entityId, entities: compiled.value.entities, fragments: compiled.value.fragments, allowedKnowledgeLevels: ["COMMUN", "LOCAL"], maximumInfluences: 16 });
     if (!selected.ok) throw new Error(`Lore influence selection failed for ${entry.entity.entityId}: ${selected.issues.join(" | ")}`);
     return [entry.scene.sceneId, selected.packet] as const;
   }));
+  const authoredPlaces = playableScenes.map(entry => {
+    const packet = lorePacketBySceneId.get(entry.scene.sceneId)!;
+    return {
+      placeRef: locationRefBySceneId.get(entry.scene.sceneId)!,
+      displayName: entry.scene.locationName,
+      aliases: [],
+      parentLocationRef: `location:${packet.geographicChain[1] ?? packet.anchorEntityId}`,
+      sourceRefs: [...packet.sourceRefs]
+    };
+  });
   return {
     scene: playable.scene,
     scenes: playableScenes.map(entry => entry.scene),
@@ -71,6 +67,8 @@ export async function buildArchiveLorePilotV1() {
     fragments: compiled.value.fragments,
     influencePacket: influences.packet,
     lorePacketBySceneId,
+    authoredPlaces,
+    locationRefBySceneId,
     topology: {
       schemaVersion: 1,
       contractVersion: "scene-transition/1",
