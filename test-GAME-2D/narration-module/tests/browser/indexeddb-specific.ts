@@ -22,6 +22,7 @@ import {
   readyOperation
 } from "../contracts/verify-campaign-core";
 import { campaignBootstrapFixture } from "../contracts/verify-campaign-bootstrap";
+import { resolveSceneV1 } from "../../src/application";
 
 interface SpecificTest {
   name: string;
@@ -95,6 +96,40 @@ test("01 close and reopen preserves the active campaign", async () => {
   assert.deepEqual(expectOk(await second.getCampaign(campaign.campaignId)), campaign);
   second.close();
   await deleteTestDatabase(databaseName);
+});
+
+test("00 dynamic place catalog reconstructs an IndexedDB-confirmed scene", async () => {
+  const databaseName = name("dynamic-place-catalog");
+  const clock = new MutableClock();
+  const repository = await open(databaseName, clock);
+  try {
+    const campaign = await bootstrap(repository, clock, "dynamic_place_catalog");
+    const operation = await readyOperation(repository, campaign, clock, "dynamic_place_catalog");
+    const writerLease = await lease(repository, campaign.campaignId, "dynamic_place_catalog");
+    const placeId = id<AggregateId>("agg_dynamic_place_registry");
+    const topologyId = id<AggregateId>("agg_dynamic_topology");
+    const factsId = id<AggregateId>("agg_dynamic_place_facts");
+    const request = commitRequest({ campaign, operation, writerLease, suffix: "dynamic_place_catalog", aggregateType: "world.place-registry", aggregateId: placeId });
+    request.aggregateWrites = [
+      { aggregateType: "world.place-registry", aggregateId: placeId, expectedAggregateRevision: null, payloadSchemaVersion: 1, payload: { schemaVersion: 1, contractVersion: "world-place-registry/1", places: [{ schemaVersion: 1, placeRef: "location:indexeddb_lane", arrivalSceneId: "dynamic-place:indexeddb_lane", displayName: "Ruelle persistée", summary: "Une ruelle conservée dans la campagne.", initialTension: "Le passage reste calme.", parentLocationRef: "location:test", perceptibleFeatures: ["pavés humides"], populationRoles: ["passant"], localNorms: ["circulation discrète"], persistenceDepth: "LIGHT_REFERENCE", sourceRefs: ["lore:test"], createdByProposalId: "proposal:indexeddb", version: 1 }], version: 1 } },
+      { aggregateType: "world.scene-topology", aggregateId: topologyId, expectedAggregateRevision: null, payloadSchemaVersion: 1, payload: { schemaVersion: 1, contractVersion: "world-scene-topology/1", topology: { schemaVersion: 1, contractVersion: "scene-transition/1", topologyId: "topology-indexeddb", topologyVersion: 1, connections: [] }, version: 1 } },
+      { aggregateType: "campaign.place-facts", aggregateId: factsId, expectedAggregateRevision: null, payloadSchemaVersion: 1, payload: { schemaVersion: 1, contractVersion: "campaign-place-facts/1", facts: [{ schemaVersion: 1, placeRef: "location:indexeddb_lane", narrativeCommitments: ["stable_place_identity"], sourceRefs: ["lore:test"], createdByProposalId: "proposal:indexeddb", validFromGameSecond: 0, version: 1 }], version: 1 } }
+    ];
+    request.events[0].aggregateRefs = [
+      { aggregateType: "world.place-registry", aggregateId: placeId, aggregateRevision: 0 },
+      { aggregateType: "world.scene-topology", aggregateId: topologyId, aggregateRevision: 0 },
+      { aggregateType: "campaign.place-facts", aggregateId: factsId, aggregateRevision: 0 }
+    ];
+    expectOk(await repository.commit(request));
+    expectOk(await repository.releaseWriterLease(writerLease));
+    const resolved = expectOk(await resolveSceneV1({ sceneId: "dynamic-place:indexeddb_lane", sources: [], dynamicCatalog: { repository, campaignId: campaign.campaignId, placeRegistryAggregateId: placeId, topologyAggregateId: topologyId, factRegistryAggregateId: factsId } }));
+    assert.equal(resolved.sourceKind, "DYNAMIC_CAMPAIGN");
+    assert.equal(resolved.scene.locationName, "Ruelle persistée");
+    assert.equal(resolved.scene.presentNpc.length, 0);
+  } finally {
+    repository.close();
+    await deleteTestDatabase(databaseName);
+  }
 });
 
 test("01b atomic bootstrap survives close and reopen", async () => {

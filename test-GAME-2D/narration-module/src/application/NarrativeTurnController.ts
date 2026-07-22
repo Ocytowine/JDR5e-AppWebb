@@ -90,6 +90,23 @@ export interface NarrativeSceneTransitionRuntimeV1 {
   }>>;
 }
 
+export interface NarrativeDynamicPlaceRuntimeV1 {
+  canHandle(input: {
+    interpretation: NarrativeIntentInterpretationV1;
+    domainCommand: NarrativeDomainCommandV1 | null;
+    activeScene: PlayableSceneStateV1;
+  }): Promise<boolean> | boolean;
+  execute(input: {
+    repository: CampaignRepository;
+    campaignId: CampaignId;
+    operation: OperationRecord;
+    rawInput: string;
+    interpretation: NarrativeIntentInterpretationV1;
+    domainCommand: NarrativeDomainCommandV1 | null;
+    activeScene: PlayableSceneStateV1;
+  }): Promise<Result<Awaited<ReturnType<NarrativeSceneTransitionRuntimeV1["execute"]>> extends Result<infer T> ? T : never>>;
+}
+
 export interface NarrativeTurnInputV1 {
   schemaVersion: 1;
   clientRequestId: string;
@@ -141,6 +158,7 @@ export interface NarrativeTurnControllerOptions {
   mjPlannerConfig?: MjPlannerConfigV1 | null;
   npcPerformerConfig?: NpcPerformerConfigV1 | null;
   sceneTransitionRuntime?: NarrativeSceneTransitionRuntimeV1 | null;
+  dynamicPlaceRuntime?: NarrativeDynamicPlaceRuntimeV1 | null;
   activeSceneResolver?: NarrativeActiveSceneResolverV1 | null;
 }
 
@@ -157,6 +175,7 @@ export class NarrativeTurnControllerV1 {
   private readonly mjPlannerConfig: MjPlannerConfigV1 | null;
   private readonly npcPerformerConfig: NpcPerformerConfigV1 | null;
   private readonly sceneTransitionRuntime: NarrativeSceneTransitionRuntimeV1 | null;
+  private readonly dynamicPlaceRuntime: NarrativeDynamicPlaceRuntimeV1 | null;
   private readonly activeSceneResolver: NarrativeActiveSceneResolverV1 | null;
   private recentLocalReferents: LocalReferentHintV1[] = [];
   private recentSemanticTurns: RecentSemanticTurnV1[] = [];
@@ -176,6 +195,7 @@ export class NarrativeTurnControllerV1 {
       ? createDefaultNpcPerformerConfigV1()
       : options.npcPerformerConfig;
     this.sceneTransitionRuntime = options.sceneTransitionRuntime ?? null;
+    this.dynamicPlaceRuntime = options.dynamicPlaceRuntime ?? null;
     this.activeSceneResolver = options.activeSceneResolver ?? null;
   }
 
@@ -245,6 +265,7 @@ export class NarrativeTurnControllerV1 {
       localReferentHints: this.recentLocalReferents.filter(hint => hint.sceneId === activeScene.sceneId && hint.sceneVersion === activeScene.version),
       recentSemanticTurns: this.recentSemanticTurns,
       sceneTransitionRuntime: this.sceneTransitionRuntime,
+      dynamicPlaceRuntime: this.dynamicPlaceRuntime,
       activeScene
     });
     if (!output.ok) {
@@ -366,6 +387,7 @@ export async function createPrototypeNarrativeTurnControllerV1(options: {
   mjPlannerConfig?: MjPlannerConfigV1 | null;
   npcPerformerConfig?: NpcPerformerConfigV1 | null;
   sceneTransitionRuntime?: NarrativeSceneTransitionRuntimeV1 | null;
+  dynamicPlaceRuntime?: NarrativeDynamicPlaceRuntimeV1 | null;
   activeSceneResolver?: NarrativeActiveSceneResolverV1 | null;
 } = {}): Promise<NarrativeTurnControllerV1> {
   const clock = options.clock ?? systemClock;
@@ -382,6 +404,7 @@ export async function createPrototypeNarrativeTurnControllerV1(options: {
     sceneTransitionRuntime: options.sceneTransitionRuntime === undefined
       ? createPrototypeInnSceneTransitionRuntimeV1()
       : options.sceneTransitionRuntime,
+    dynamicPlaceRuntime: options.dynamicPlaceRuntime,
     activeSceneResolver: options.activeSceneResolver === undefined
       ? { resolve: resolvePrototypeInnActiveSceneV1 }
       : options.activeSceneResolver
@@ -395,6 +418,7 @@ export async function createBrowserPersistentNarrativeTurnControllerV1(options: 
   mjPlannerConfig?: MjPlannerConfigV1 | null;
   npcPerformerConfig?: NpcPerformerConfigV1 | null;
   sceneTransitionRuntime?: NarrativeSceneTransitionRuntimeV1 | null;
+  dynamicPlaceRuntime?: NarrativeDynamicPlaceRuntimeV1 | null;
   activeSceneResolver?: NarrativeActiveSceneResolverV1 | null;
 } = {}): Promise<NarrativeTurnControllerV1> {
   const clock = options.clock ?? systemClock;
@@ -404,6 +428,7 @@ export async function createBrowserPersistentNarrativeTurnControllerV1(options: 
     mjPlannerConfig: options.mjPlannerConfig,
     npcPerformerConfig: options.npcPerformerConfig,
     sceneTransitionRuntime: options.sceneTransitionRuntime,
+    dynamicPlaceRuntime: options.dynamicPlaceRuntime,
     activeSceneResolver: options.activeSceneResolver
   });
   const repository = await IndexedDbCampaignRepository.open({
@@ -422,6 +447,7 @@ export async function createBrowserPersistentNarrativeTurnControllerV1(options: 
     sceneTransitionRuntime: options.sceneTransitionRuntime === undefined
       ? createPrototypeInnSceneTransitionRuntimeV1()
       : options.sceneTransitionRuntime,
+    dynamicPlaceRuntime: options.dynamicPlaceRuntime,
     activeSceneResolver: options.activeSceneResolver === undefined
       ? { resolve: resolvePrototypeInnActiveSceneV1 }
       : options.activeSceneResolver
@@ -588,6 +614,7 @@ async function buildResolvedOutput(input: {
   localReferentHints?: LocalReferentHintV1[];
   recentSemanticTurns?: RecentSemanticTurnV1[];
   sceneTransitionRuntime: NarrativeSceneTransitionRuntimeV1 | null;
+  dynamicPlaceRuntime: NarrativeDynamicPlaceRuntimeV1 | null;
   activeScene: PlayableSceneStateV1;
 }): Promise<Result<{ output: NarrativeTurnControllerOutputV1; commit: unknown | null }>> {
   const resolvedOutputStartedAt = Date.now();
@@ -635,6 +662,34 @@ async function buildResolvedOutput(input: {
     : null;
   const domainCommand = buildNarrativeDomainCommandV1(interpretation);
   const resolutionStartedAt = Date.now();
+  if (
+    input.dynamicPlaceRuntime !== null &&
+    await input.dynamicPlaceRuntime.canHandle({ interpretation, domainCommand, activeScene: input.activeScene })
+  ) {
+    const creation = await input.dynamicPlaceRuntime.execute({
+      repository: input.repository,
+      campaignId: input.campaignId,
+      operation: input.operation,
+      rawInput: input.input.rawInput,
+      interpretation,
+      domainCommand,
+      activeScene: input.activeScene
+    });
+    if (!creation.ok) return creation;
+    return buildSceneChangeControllerResult({
+      input,
+      interpretation,
+      domainCommand,
+      planning,
+      interpretationResult,
+      interpretationMs,
+      planningMs,
+      resolutionStartedAt,
+      resolvedOutputStartedAt,
+      change: creation.value,
+      safetyNote: "Lieu dynamique créé par la capacité dédiée et rendu après commit confirmé."
+    });
+  }
   if (
     input.sceneTransitionRuntime !== null &&
     domainCommand !== null &&
@@ -773,6 +828,85 @@ async function buildResolvedOutput(input: {
           resolvedOutputMs: Date.now() - resolvedOutputStartedAt
         },
         aiTelemetry: [...(interpretationResult?.telemetry ?? []), ...(npcPerformance?.telemetry ?? [])]
+      }
+    }
+  };
+}
+
+function buildSceneChangeControllerResult(input: {
+  input: Parameters<typeof buildResolvedOutput>[0];
+  interpretation: NarrativeIntentInterpretationV1 & JsonObject;
+  domainCommand: NarrativeDomainCommandV1 | null;
+  planning: { plan: (MjPlannerPayloadV1 & JsonObject) | null; planningFailure: MjPlanningFailureV1 | null } | null;
+  interpretationResult: { telemetry: AiCallTelemetryV1[] } | null;
+  interpretationMs: number;
+  planningMs: number;
+  resolutionStartedAt: number;
+  resolvedOutputStartedAt: number;
+  change: {
+    commit: CommitRecord;
+    arrival: SceneArrivalStateV1;
+    displayPacket: DisplayPacketV1 & JsonObject;
+    characterExpression: string;
+    durationSeconds: number;
+  };
+  safetyNote: string;
+}): Result<{ output: NarrativeTurnControllerOutputV1; commit: unknown | null }> {
+  const resolution: NarrativeResolutionResultV1 = {
+    schemaVersion: 1,
+    contractVersion: "narrative-resolution/1",
+    resolutionId: `${input.input.operation.operationId}:resolution:scene-change`,
+    operationId: input.input.operation.operationId,
+    resultKind: "COMMIT_APPLIED",
+    interpretation: input.interpretation,
+    domainCommand: input.domainCommand,
+    characterExpression: {
+      schemaVersion: 1,
+      rawPlayerText: input.input.input.rawInput,
+      interpretedIntentId: input.interpretation.intentId,
+      expressionText: input.change.characterExpression,
+      fidelity: "STYLE_NORMALIZED",
+      addedCommitments: [],
+      preservedMeaning: true
+    },
+    preparedEffects: [],
+    handoff: null,
+    commitId: input.change.commit.commitId,
+    noGameTime: input.change.durationSeconds === 0,
+    safetyNotes: [input.safetyNote],
+    perception: null
+  };
+  return {
+    ok: true,
+    value: {
+      commit: input.change.commit,
+      output: {
+        schemaVersion: 1,
+        contractVersion: "narrative-turn-controller/1",
+        operationId: input.input.operation.operationId,
+        clientRequestId: input.input.input.clientRequestId,
+        noCommit: false,
+        noGameTime: input.change.durationSeconds === 0,
+        interpretation: input.interpretation,
+        domainCommand: input.domainCommand,
+        mjPlan: input.planning?.plan ?? null,
+        mjPlannerFailure: input.planning?.planningFailure as (MjPlanningFailureV1 & JsonObject) | null ?? null,
+        npcPerformance: null,
+        npcPerformanceFailure: null,
+        suspendedIntent: null,
+        resolution,
+        sceneState: createInitialReferenceSceneStateV1(),
+        sceneArrival: input.change.arrival,
+        activeScene: input.change.arrival.scene,
+        displayPacket: input.change.displayPacket,
+        stageTimings: {
+          interpretationMs: input.interpretationMs,
+          planningMs: input.planningMs,
+          resolutionMs: Date.now() - input.resolutionStartedAt,
+          npcPerformanceMs: 0,
+          resolvedOutputMs: Date.now() - input.resolvedOutputStartedAt
+        },
+        aiTelemetry: [...(input.interpretationResult?.telemetry ?? [])]
       }
     }
   };

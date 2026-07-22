@@ -7,20 +7,30 @@ import {
   buildLoreGuidedSceneCreationBriefFromCampaignV1,
   buildDynamicPlaceSceneAfterCommitV1,
   buildPlaceCreationCommitV1,
+  executePlaceCreationRuntimeV1,
+  createLoreGuidedDynamicPlacePreparationPortV1,
+  generateLoreGuidedPlaceCandidateV1,
   preparePlaceCreationCommandV1,
+  resolveSceneV1,
   validatePlaceCreationProposalV1,
   type CampaignLoreProjectionV1
 } from "../../src/application";
 import type { SceneTransitionTopologyV1 } from "../../src/application";
 import {
   opaqueId,
+  computeRequestFingerprint,
+  MemoryCampaignRepository,
   validateCommitRequest,
   type AggregateId,
   type AggregateRecord,
   type CampaignId,
   type CommitId,
   type CommitRecord,
+  type CommandId,
+  type EventId,
+  type IdempotencyKey,
   type OperationId,
+  type RequestId,
   type WriterId
 } from "../../src/core";
 import { compileLoreSourceV1, type LoreEntityV1, type LoreFragmentV1 } from "../../src/bootstrap/lore";
@@ -146,6 +156,21 @@ async function run(): Promise<void> {
     narrativeCommitments: ["stable_place_identity"],
     duplicatePolicy: "REJECT_IF_SIMILAR" as const
   };
+  const generatorConfig = {
+    provider: { async generate(request: import("../../src/ai").AiCallRequestV1) { return { schemaVersion: 1, contractVersion: request.contractVersion, outputId: "output-ai-place", callId: request.callId, attemptId: request.attemptId, packId: request.packId, snapshotId: request.snapshotId, role: request.role, status: "OK", payload: candidate, diagnostics: [], supersedesOutputId: null }; } },
+    route: { schemaVersion: 1 as const, routeId: "test-scene-creator", role: "scene_creator" as const, providerKind: "FAKE_CONTRACT" as const, providerId: "test", modelId: "test", modelConfigVersion: "1", certified: true, allowedContractVersions: ["lore-guided-place-candidate/1"], inputTokenLimit: 4000, outputTokenLimit: 1500, timeoutMs: 1000, fallbackRouteIds: [] },
+    retryPolicy: { schemaVersion: 1 as const, role: "scene_creator" as const, maxTechnicalRetries: 0, maxTargetedCorrections: 0, maxFullRegenerations: 0, allowFallback: false }
+  };
+  const generated = await generateLoreGuidedPlaceCandidateV1({
+    campaignId: "campaign-1",
+    operationId: "operation-ai-place-candidate",
+    brief: briefResult.brief,
+    sourceSceneId: "wiki-location:archives_de_lysenthe",
+    requestedDestinationDescription: "une rue secondaire proche des Archives",
+    config: generatorConfig
+  });
+  assert.equal(generated.ok, true, generated.ok ? undefined : generated.issues.join(" | "));
+  if (generated.ok) assert.equal(generated.proposal.proposalType, "PLACE");
   const proposalResult = buildDynamicPlaceCreationProposalV1({ brief: briefResult.brief, candidate });
   assert.equal(proposalResult.ok, true);
   if (!proposalResult.ok) return;
@@ -195,6 +220,16 @@ async function run(): Promise<void> {
   const placeValidation = validatePlaceCreationProposalV1({ proposal: proposalResult.proposal, topology, policy: placePolicy });
   assert.equal(placeValidation.ok, true);
   if (placeValidation.ok) {
+    const productionPreparation = createLoreGuidedDynamicPlacePreparationPortV1({
+      contextPort: {
+        canCreate: () => true,
+        async buildContext() { return { ok: true, value: { brief: briefResult.brief, dynamicCreationPolicy: policy, placeValidationPolicy: placePolicy, topology, sourceSceneId: "wiki-location:archives_de_lysenthe", requestedDestinationDescription: "une rue secondaire proche des Archives", generatorConfig } }; }
+      },
+      worldPort: { async prepare() { throw new Error("world preparation is tested by the atomic entry suite"); } }
+    });
+    const productionCreative = await productionPreparation.prepareCreative({ repository: {} as never, campaign: { campaignId: "campaign-1" } as never, operation: { operationId: "operation-production-preparation" } as never, rawInput: "Je sors vers une rue secondaire.", interpretation: {} as never, domainCommand: null, activeScene: {} as never });
+    assert.equal(productionCreative.ok, true, productionCreative.ok ? undefined : productionCreative.error.messageKey);
+    if (productionCreative.ok) assert.equal(productionCreative.value.validation.ok, true);
     assert.equal(placeValidation.commitAuthority, false);
     assert.equal(placeValidation.topologyAdditions[0]?.destinationRef, "location:passage_des_copistes");
 
@@ -332,6 +367,98 @@ async function run(): Promise<void> {
       factRegistryAggregate: factRegistry
     });
     assert.equal(staleCommit.ok, false);
+
+    const repository = new MemoryCampaignRepository();
+    const runtimeCampaignId = opaqueId<CampaignId>("campaign-place-runtime");
+    const runtimeCampaign = {
+      schemaVersion: 1 as const,
+      campaignId: runtimeCampaignId,
+      campaignRevision: 0,
+      status: "ACTIVE" as const,
+      clockAggregateId: opaqueId<AggregateId>("agg-clock-place-runtime"),
+      dependencies: { contentPackageId: "lore.test", contentPackageVersion: 1, rulesetId: "rules.test", rulesetVersion: 1, calendarId: "calendar.test", calendarVersion: 1 },
+      writeBlock: null,
+      lastCommitId: null,
+      createdAt: "2026-07-22T12:00:00.000Z",
+      updatedAt: "2026-07-22T12:00:00.000Z"
+    };
+    assert.equal((await repository.createCampaign(runtimeCampaign, { elapsedGameSeconds: 0, calendarId: "calendar.test", calendarVersion: 1 })).ok, true);
+    const seedPayload = { purpose: "initialize-place-creation-aggregates" };
+    const seedOperationId = opaqueId<OperationId>("operation-place-runtime-seed");
+    const seedIdempotency = opaqueId<IdempotencyKey>("idem-place-runtime-seed");
+    const seedFingerprint = await computeRequestFingerprint("world.place-registry.initialize", 1, seedPayload);
+    const seedOperation = {
+      schemaVersion: 1 as const, operationId: seedOperationId, campaignId: runtimeCampaignId,
+      clientRequestId: opaqueId<RequestId>("request-place-runtime-seed"), idempotencyKey: seedIdempotency,
+      requestFingerprint: seedFingerprint, operationKind: "world.place-registry.initialize", requestPayloadSchemaVersion: 1,
+      requestPayload: seedPayload, phase: "RECEIVED" as const, observedCampaignRevision: 0, commitId: null,
+      completionMode: null, resultPayloadSchemaVersion: null, resultPayload: null, failure: null,
+      receivedAt: "2026-07-22T12:00:00.000Z", updatedAt: "2026-07-22T12:00:00.000Z"
+    };
+    assert.equal((await repository.receiveOperation(seedOperation)).ok, true);
+    assert.equal((await repository.transitionOperation(seedOperationId, "RECEIVED", "PREPARING")).ok, true);
+    assert.equal((await repository.transitionOperation(seedOperationId, "PREPARING", "READY_TO_COMMIT")).ok, true);
+    const seedLease = await repository.acquireWriterLease(runtimeCampaignId, opaqueId<WriterId>("writer-place-runtime-seed"), 120_000);
+    assert.equal(seedLease.ok, true);
+    if (!seedLease.ok) return;
+    const runtimePlaceId = opaqueId<AggregateId>("agg-place-registry-runtime");
+    const runtimeTopologyId = opaqueId<AggregateId>("agg-scene-topology-runtime");
+    const runtimeFactsId = opaqueId<AggregateId>("agg-place-facts-runtime");
+    const seedCommandId = opaqueId<CommandId>("command-place-runtime-seed");
+    const seedCommit = await repository.commit({
+      campaignId: runtimeCampaignId, operationId: seedOperationId, commitId: opaqueId<CommitId>("commit-place-runtime-seed"),
+      idempotencyKey: seedIdempotency, requestFingerprint: seedFingerprint, expectedCampaignRevision: 0, writerLease: seedLease.value,
+      acceptedCommands: [{ schemaVersion: 1, contractId: "place-registry-bootstrap", contractVersion: 1, commandId: seedCommandId,
+        campaignId: runtimeCampaignId, operationId: seedOperationId, commandType: "place.registry.initialize",
+        target: { aggregateType: "world.place-registry", aggregateId: runtimePlaceId, expectedAggregateRevision: null },
+        payloadSchemaVersion: 1, payload: seedPayload, acceptedAtGameSecond: 0 }],
+      aggregateWrites: [
+        { aggregateType: "world.place-registry", aggregateId: runtimePlaceId, expectedAggregateRevision: null, payloadSchemaVersion: 1, payload: { schemaVersion: 1, contractVersion: "world-place-registry/1", places: [], version: 1 } },
+        { aggregateType: "world.scene-topology", aggregateId: runtimeTopologyId, expectedAggregateRevision: null, payloadSchemaVersion: 1, payload: { schemaVersion: 1, contractVersion: "world-scene-topology/1", topology, version: 1 } },
+        { aggregateType: "campaign.place-facts", aggregateId: runtimeFactsId, expectedAggregateRevision: null, payloadSchemaVersion: 1, payload: { schemaVersion: 1, contractVersion: "campaign-place-facts/1", facts: [], version: 1 } }
+      ],
+      events: [{ schemaVersion: 1, eventId: opaqueId<EventId>("event-place-runtime-seed"), campaignId: runtimeCampaignId,
+        operationId: seedOperationId, eventType: "world.place-registry.initialized", origin: "SYSTEM", causation: { kind: "COMMAND", id: seedCommandId },
+        aggregateRefs: [
+          { aggregateType: "world.place-registry", aggregateId: runtimePlaceId, aggregateRevision: 0 },
+          { aggregateType: "world.scene-topology", aggregateId: runtimeTopologyId, aggregateRevision: 0 },
+          { aggregateType: "campaign.place-facts", aggregateId: runtimeFactsId, aggregateRevision: 0 }
+        ], visibility: { scope: "SYSTEM", actorIds: [] }, occurredAtGameSecond: 0, payloadSchemaVersion: 1, payload: seedPayload }],
+      outboxTasks: []
+    });
+    assert.equal(seedCommit.ok, true);
+    assert.equal((await repository.releaseWriterLease(seedLease.value)).ok, true);
+    assert.equal((await repository.completePresentation(seedOperationId, "COMMITTED_RENDERED", 1, { initialized: true })).ok, true);
+
+    const runtimePayload = { proposalId: proposalResult.proposal.proposalId };
+    const runtimeOperationId = opaqueId<OperationId>("operation-place-runtime-create");
+    const runtimeFingerprint = await computeRequestFingerprint("narrative.place.create", 1, runtimePayload);
+    const runtimeOperation = {
+      ...seedOperation,
+      operationId: runtimeOperationId,
+      clientRequestId: opaqueId<RequestId>("request-place-runtime-create"),
+      idempotencyKey: opaqueId<IdempotencyKey>("idem-place-runtime-create"),
+      requestFingerprint: runtimeFingerprint,
+      operationKind: "narrative.place.create",
+      requestPayload: runtimePayload,
+      observedCampaignRevision: 1
+    };
+    assert.equal((await repository.receiveOperation(runtimeOperation)).ok, true);
+    const runtimeResult = await executePlaceCreationRuntimeV1({
+      repository, campaignId: runtimeCampaignId, operation: runtimeOperation, validation: placeValidation,
+      placeRegistryAggregateId: runtimePlaceId, topologyAggregateId: runtimeTopologyId, factRegistryAggregateId: runtimeFactsId,
+      commandId: "command-place-runtime-create", commitId: opaqueId<CommitId>("commit-place-runtime-create"), acceptedAtGameSecond: 0
+    });
+    assert.equal(runtimeResult.ok, true, runtimeResult.ok ? undefined : runtimeResult.error.messageKey);
+    if (!runtimeResult.ok) return;
+    assert.equal(runtimeResult.value.scene.sceneId, "dynamic-place:passage_des_copistes");
+    const catalogResult = await resolveSceneV1({
+      sceneId: runtimeResult.value.scene.sceneId,
+      sources: [{ sourceKind: "PREPARED", resolve: () => null }],
+      dynamicCatalog: { repository, campaignId: runtimeCampaignId, placeRegistryAggregateId: runtimePlaceId, topologyAggregateId: runtimeTopologyId, factRegistryAggregateId: runtimeFactsId }
+    });
+    assert.equal(catalogResult.ok, true);
+    if (catalogResult.ok) assert.equal(catalogResult.value.sourceKind, "DYNAMIC_CAMPAIGN");
   }
   const duplicateProposal = {
     ...proposalResult.proposal,

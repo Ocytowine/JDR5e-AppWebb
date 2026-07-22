@@ -10,6 +10,7 @@ export type AiRoleV1 =
   | "rules_adjudicator"
   | "coherence_critic"
   | "scene_writer"
+  | "scene_creator"
   | "clarification_writer";
 
 export interface AiModelRouteV1 {

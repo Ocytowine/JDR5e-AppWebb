@@ -1,6 +1,6 @@
 # Contrat de préparation d'une scène guidée par le lore
 
-Statut : `IMPLEMENTE — COMMANDE ET COMMIT ATOMIQUE PREPARES`
+Statut : `IMPLEMENTE — RUNTIME TRANSACTIONNEL ET CATALOGUE DYNAMIQUE`
 
 Version : `lore-guided-scene-creation-brief/1`
 
@@ -15,7 +15,7 @@ L'adaptateur possède deux responsabilités :
 1. superposer des projections de campagne déjà validées sur les influences du lore initial ;
 2. convertir une candidate de lieu explicite en `DynamicCreationProposalV1` de type `PLACE`.
 
-Il ne construit pas encore de `PlayableSceneStateV1` et ne persiste rien.
+L'étape créative reste non committable. Seul le runtime transactionnel, après toutes les validations métier, peut persister la proposition et reconstruire un `PlayableSceneStateV1` depuis les agrégats confirmés.
 
 ## Projection de campagne
 
@@ -182,14 +182,33 @@ Le `scene_writer` peut référencer les sources committées, mais ne peut ajoute
 
 La rue du test reste une candidate contractuelle et n'est pas ajoutée au wiki ou à IndexedDB.
 
-## Limites avant branchement jouable
+## Limites avant branchement au contrôleur
 
 - aucun adaptateur concret IndexedDB de `CampaignLoreProjectionReaderV1` n'est encore branché ;
 - la détection de doublon textuel est exacte après normalisation, sans rapprochement sémantique ;
-- aucune IA n'est appelée pour produire la candidate ;
-- aucun runtime applicatif n'acquiert encore le lease et n'exécute le `CommitRequest` dans le repository ;
-- la nouvelle scène n'est pas encore enregistrée dans un catalogue de scènes actives ni atteinte par le contrôleur joueur.
+- les adaptateurs de préparation production doivent encore relier le corpus wiki et le domaine monde du prototype à l'assembleur transactionnel ;
+- la candidate IA est couverte par contrat et faux provider, mais sa recette OpenAI live reste à exécuter.
 
 ## Prochaine étape
 
-Brancher un runtime applicatif qui relit les trois agrégats, acquiert le lease, prépare puis exécute ce commit dans le repository, et ne publie la scène reconstruite qu'après confirmation. Le branchement OpenAI vient après cette gate.
+Fournir les adaptateurs de préparation du prototype, puis tester le parcours OpenAI live complet vers un lieu absent de la topologie.
+
+## Branchement runtime transactionnel
+
+Le contrat est désormais exécuté par `placeCreationRuntime.ts` après validation de la proposition. Ce runtime ne crée ni prose ni lore : il relit les registres courants, acquiert un lease d'écriture, prépare le commit atomique lieu/topologie/faits, l'applique une seule fois, puis relit les trois agrégats avant de reconstruire la scène jouable. Une erreur de persistance dont l'issue est inconnue est réconciliée par la clé d'idempotence avant toute nouvelle tentative.
+
+`sceneCatalog.ts` fournit ensuite une façade de lecture unique. Elle consulte les sources préparées, les scènes wiki, puis les lieux dynamiques de campagne. Elle ne possède aucune base parallèle : une scène dynamique est reconstruite depuis les agrégats confirmés du repository et leur commit commun le plus récent.
+
+## Génération de candidate et contrôleur
+
+`scene_creator` est un rôle IA séparé sous `lore-guided-place-candidate/1`. Il reçoit le brief borné, la scène source et la destination demandée, puis produit uniquement une `LoreGuidedPlaceCandidateV1`. Son schéma serveur est strict et son résultat repasse obligatoirement par `buildDynamicPlaceCreationProposalV1`; il n'a ni autorité de validation métier, ni autorité de commit.
+
+Le contrôleur expose `NarrativeDynamicPlaceRuntimeV1`. Sa méthode `canHandle` reçoit l'intention structurée, la commande de domaine et la scène active : la détection appartient donc au domaine monde, sans analyse lexicale ajoutée au contrôleur. La suite Chromium confirme également qu'un lieu dynamique committé dans IndexedDB est reconstruit par le catalogue sans stockage parallèle ni PNJ implicite.
+
+`dynamicPlaceEntryRuntime.ts` fournit l'assembleur transactionnel de cette capacité. Il fusionne le commit de création avec le segment temporel préparé par le domaine monde, puis ajoute position et cycle de scène. Horloge, lieu, topologie, faits, position et scène active sont ainsi publiés dans un seul commit. Après écriture, les cinq agrégats métier concernés sont relus et la narration d'arrivée n'est construite que si la création et l'entrée portent le même `commitId` confirmé.
+
+La préparation est divisée en deux phases. `prepareCreative` exécute la sélection du lore, l'éventuel appel IA et les gates sans lease d'écriture. `prepareWorldCommit` relit et prépare les artefacts monde/temps sous lease juste avant le commit. Une latence fournisseur ne peut donc pas immobiliser inutilement l'écrivain de campagne.
+
+`loreGuidedDynamicPlacePreparation.ts` fournit l'adaptateur de production entre ces deux phases. Le port de contexte doit livrer un brief de lore, les politiques génériques et `PLACE`, la topologie courante et la configuration du générateur. L'adaptateur appelle alors `scene_creator`, valide la proposition générique, valide le lieu et transmet uniquement le résultat accepté au port monde. Le port monde reste seul responsable du segment temporel, de la position et du cycle de scène.
+
+Cette injection est intentionnelle : une scène sans ancrage géographique fiable, comme l'actuelle fixture isolée de l'Auberge du Seuil, ne reçoit pas artificiellement une ville ou une rue codée en dur. La capacité devient active dès que l'assemblage applicatif fournit un contexte de lore réel pour la scène source.

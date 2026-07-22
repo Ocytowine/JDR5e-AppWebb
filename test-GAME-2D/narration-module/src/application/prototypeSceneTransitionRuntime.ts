@@ -17,11 +17,15 @@ import {
   PROTOTYPE_INN_SCENE_TRANSITION_TOPOLOGY_V1
 } from "./prototypeInnSceneTransitionContent";
 
-const POSITION_ID = opaqueId<AggregateId>("agg-prototype-world-position-player");
+export const PROTOTYPE_POSITION_AGGREGATE_ID_V1 = opaqueId<AggregateId>("agg-prototype-world-position-player");
 export const PROTOTYPE_SCENE_LIFECYCLE_AGGREGATE_ID_V1 = opaqueId<AggregateId>("agg-prototype-scene-lifecycle");
-const SCHEDULE_ID = opaqueId<AggregateId>("agg-prototype-world-schedule");
-const CURSOR_ID = opaqueId<AggregateId>("agg-prototype-world-simulation-cursor");
-const PROCESS_ID = opaqueId<AggregateId>("agg-prototype-process-state");
+export const PROTOTYPE_SCHEDULE_AGGREGATE_ID_V1 = opaqueId<AggregateId>("agg-prototype-world-schedule");
+export const PROTOTYPE_CURSOR_AGGREGATE_ID_V1 = opaqueId<AggregateId>("agg-prototype-world-simulation-cursor");
+export const PROTOTYPE_PROCESS_AGGREGATE_ID_V1 = opaqueId<AggregateId>("agg-prototype-process-state");
+const POSITION_ID = PROTOTYPE_POSITION_AGGREGATE_ID_V1;
+const SCHEDULE_ID = PROTOTYPE_SCHEDULE_AGGREGATE_ID_V1;
+const CURSOR_ID = PROTOTYPE_CURSOR_AGGREGATE_ID_V1;
+const PROCESS_ID = PROTOTYPE_PROCESS_AGGREGATE_ID_V1;
 const PREPARATION_PORT: SceneTransitionRuntimePreparationPortV1 = {
   async prepare(input) {
     const target = input.interpretation.referentResolution?.resolvedTarget ?? input.interpretation.semanticIntent.target;
@@ -107,10 +111,11 @@ export async function ensurePrototypeInnSceneTransitionStateV1(repository: Campa
   const completed = await repository.completePresentation(operationId, "COMMITTED_RENDERED", 1, { initialized: true }); if (!completed.ok) throw new Error(completed.error.messageKey);
 }
 
-async function optionalAggregate(repository: CampaignRepository, campaignId: CampaignId, type: string, id: AggregateId): Promise<Result<AggregateRecord | null>> {
+export async function readOptionalPrototypeAggregateV1(repository: CampaignRepository, campaignId: CampaignId, type: string, id: AggregateId): Promise<Result<AggregateRecord | null>> {
   const result = await repository.getAggregate(campaignId, type, id);
   return result.ok ? { ok: true, value: result.value } : result.error.code === "NOT_FOUND" ? { ok: true, value: null } : result;
 }
+const optionalAggregate = readOptionalPrototypeAggregateV1;
 
 export async function resolvePrototypeInnActiveSceneV1(input: { repository: CampaignRepository; campaignId: CampaignId }): Promise<Result<PlayableSceneStateV1>> {
   const lifecycle = await input.repository.getAggregate(input.campaignId, "scene.lifecycle", PROTOTYPE_SCENE_LIFECYCLE_AGGREGATE_ID_V1);

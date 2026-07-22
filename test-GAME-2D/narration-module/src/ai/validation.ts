@@ -470,7 +470,7 @@ function validatePlannerPayload(payload: unknown): string[] {
         issues.push(`${path}: expected object`);
         return;
       }
-      if (!["intent_interpreter", "player_intent_interpreter", "mj_planner", "player_expression_adapter", "npc_performer", "rules_adjudicator", "coherence_critic", "scene_writer", "clarification_writer"].includes(String(assignment.role))) issues.push(`${path}.role: invalid role`);
+      if (!["intent_interpreter", "player_intent_interpreter", "mj_planner", "player_expression_adapter", "npc_performer", "rules_adjudicator", "coherence_critic", "scene_writer", "scene_creator", "clarification_writer"].includes(String(assignment.role))) issues.push(`${path}.role: invalid role`);
       if (!(assignment.actorId === null || typeof assignment.actorId === "string")) issues.push(`${path}.actorId: expected string or null`);
       issues.push(...validateNonEmptyString(assignment.reason, `${path}.reason`));
     });

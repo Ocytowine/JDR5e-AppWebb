@@ -7,6 +7,9 @@ import {
   type CampaignClockPayload,
   type CampaignId,
   type CampaignRecord,
+  type CommandId,
+  type CommitId,
+  type EventId,
   type RepositoryClock
 } from "../../src/core";
 import {
@@ -308,6 +311,51 @@ async function main(): Promise<void> {
   assert.equal(cancelledOperation.ok && cancelledOperation.value.phase, "CANCELLED", "l'opération échouée doit libérer la campagne");
   const recoveredTurn = await failureController.submit({ schemaVersion: 1, clientRequestId: "req-failure-release-2", rawInput: "Je regarde la serveuse." });
   assert.equal(recoveredTurn.ok, true, "le tour suivant ne doit pas rencontrer campaign-busy");
+
+  let dynamicCapabilityCalled = false;
+  const dynamicController = new NarrativeTurnControllerV1({
+    repository,
+    campaignId,
+    clock,
+    idPrefix: "dynamic-route",
+    dynamicPlaceRuntime: {
+      canHandle() { dynamicCapabilityCalled = true; return true; },
+      async execute(input) {
+        const preparing = await input.repository.transitionOperation(input.operation.operationId, "RECEIVED", "PREPARING");
+        if (!preparing.ok) return preparing;
+        const ready = await input.repository.transitionOperation(input.operation.operationId, "PREPARING", "READY_TO_COMMIT");
+        if (!ready.ok) return ready;
+        const currentCampaign = await input.repository.getCampaign(input.campaignId);
+        if (!currentCampaign.ok) return currentCampaign;
+        const writerLease = await input.repository.acquireWriterLease(input.campaignId, opaqueId("writer-dynamic-controller"), 120_000);
+        if (!writerLease.ok) return writerLease;
+        const aggregateId = opaqueId<AggregateId>("agg-dynamic-controller-proof");
+        const commandId = opaqueId<CommandId>("command-dynamic-controller-proof");
+        const committed = await input.repository.commit({
+          campaignId: input.campaignId, operationId: input.operation.operationId, commitId: opaqueId<CommitId>("commit-dynamic-controller-proof"),
+          idempotencyKey: input.operation.idempotencyKey, requestFingerprint: input.operation.requestFingerprint,
+          expectedCampaignRevision: currentCampaign.value.campaignRevision, writerLease: writerLease.value,
+          acceptedCommands: [{ schemaVersion: 1, contractId: "dynamic-controller-proof", contractVersion: 1, commandId, campaignId: input.campaignId,
+            operationId: input.operation.operationId, commandType: "dynamic.place.proof", target: { aggregateType: "test.dynamic-place", aggregateId, expectedAggregateRevision: null },
+            payloadSchemaVersion: 1, payload: { routed: true }, acceptedAtGameSecond: 0 }],
+          aggregateWrites: [{ aggregateType: "test.dynamic-place", aggregateId, expectedAggregateRevision: null, payloadSchemaVersion: 1, payload: { routed: true } }],
+          events: [{ schemaVersion: 1, eventId: opaqueId<EventId>("event-dynamic-controller-proof"), campaignId: input.campaignId, operationId: input.operation.operationId,
+            eventType: "dynamic.place.proof", origin: "SYSTEM", causation: { kind: "COMMAND", id: commandId }, aggregateRefs: [{ aggregateType: "test.dynamic-place", aggregateId, aggregateRevision: 0 }],
+            visibility: { scope: "SYSTEM", actorIds: [] }, occurredAtGameSecond: 0, payloadSchemaVersion: 1, payload: { routed: true } }], outboxTasks: []
+        });
+        await input.repository.releaseWriterLease(writerLease.value);
+        if (!committed.ok) return committed;
+        return { ok: true, value: { commit: committed.value, arrival: { schemaVersion: 1, contractVersion: "scene-arrival/1", commitId: committed.value.commitId,
+          transitionRequestId: `${input.operation.operationId}:dynamic`, destinationRef: "location:dynamic-test", previousSceneId: input.activeScene.sceneId,
+          enteredAtGameSecond: 0, scene: input.activeScene, authoritySourceRefs: ["test:dynamic-route"], reconstructionRefs: [`commit:${committed.value.commitId}`], narrationStatus: "READY_AFTER_COMMIT", version: 1 },
+          displayPacket: first.value.output.displayPacket, characterExpression: input.rawInput, durationSeconds: 0 } };
+      }
+    }
+  });
+  const dynamicTurn = await dynamicController.submit({ schemaVersion: 1, clientRequestId: "req-dynamic-route", rawInput: "Je m'approche du garde." });
+  assert.equal(dynamicTurn.ok, true, dynamicTurn.ok ? undefined : dynamicTurn.error.messageKey);
+  assert.equal(dynamicCapabilityCalled, true, "le contrôleur doit consulter la capacité de création dynamique structurée");
+  if (dynamicTurn.ok) assert.equal(dynamicTurn.value.output.resolution.safetyNotes.some(note => note.includes("Lieu dynamique créé")), true);
 
   console.log("narrative-turn-controller/1: OK");
 }

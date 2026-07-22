@@ -449,6 +449,16 @@ async function runRoute(api, body) {
   return res;
 }
 
+function sceneCreatorRequest(overrides = {}) {
+  return request({
+    role: "scene_creator",
+    contractVersion: "lore-guided-place-candidate/1",
+    input: { instructionsRef: "scene-creator/lore-guided-place/v1", roleContextPack: { brief: {} }, task: { requiredOutput: "lore-guided-place-candidate/1" } },
+    limits: { inputTokenBudget: 2_000, outputTokenBudget: 1_500, timeoutMs: 30_000 },
+    ...overrides
+  });
+}
+
 function semanticIntentRequest(overrides = {}) {
   return intentRequest({
     contractVersion: "ai-intent-semantic/2",
@@ -486,7 +496,7 @@ function assertOpenAiStrictObjectShape(schema, path = "schema") {
 }
 
 async function main() {
-  [request(), intentRequest(), mjPlannerRequest(), npcPerformerRequest()].forEach(roleRequest => {
+  [request(), intentRequest(), mjPlannerRequest(), npcPerformerRequest(), sceneCreatorRequest()].forEach(roleRequest => {
     const schema = buildStrictAiOutputSchema(roleRequest).schema;
     assertEveryArraySchemaHasItems(schema);
     assertOpenAiStrictObjectShape(schema);
@@ -499,6 +509,9 @@ async function main() {
   assert.equal(normalizedNpcPerformer.ok, true);
   const normalizedIntent = normalizeAiCallRequest(intentRequest());
   assert.equal(normalizedIntent.ok, true);
+  const normalizedSceneCreator = normalizeAiCallRequest(sceneCreatorRequest());
+  assert.equal(normalizedSceneCreator.ok, true);
+  assert.equal(buildStrictAiOutputSchema(sceneCreatorRequest()).schema.properties.payload.properties.connectionIntents.items.properties.sourceRefs.items.type, "string");
   const rejectedIntentContract = normalizeAiCallRequest(intentRequest({ contractVersion: "narrative-ai-resolution/1" }));
   assert.equal(rejectedIntentContract.ok, false);
   const rejectedMissingFingerprint = normalizeAiCallRequest(request({ contextFingerprint: undefined }));

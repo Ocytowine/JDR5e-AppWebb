@@ -18,6 +18,7 @@ import { buildSceneArrivalAfterCommitV1 } from "../../src/application/sceneArriv
 import { buildSceneArrivalDisplayPacketV1, buildSceneArrivalRenderPlanV1 } from "../../src/application/sceneArrivalRender";
 import { WATCHTOWER_DAWN_PLAYABLE_SCENE_V1 } from "../../src/application/playableScene";
 import { createNarrativeSceneTransitionRuntimeV1 } from "../../src/application/sceneTransitionRuntime";
+import { mergePlaceCreationWithTemporalCommitV1 } from "../../src/application/dynamicPlaceEntryRuntime";
 import {
   AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V2,
   buildActiveSceneContextPackV1,
@@ -161,6 +162,38 @@ assert.deepEqual(replay, atomic, "un rejeu avec les mêmes versions doit prépar
 const staleAtomic = augmentTemporalCommitWithSceneTransitionV1({ temporalCommit, command: prepared.command, result: { ...worldResult, expectedPositionRevision: 4 }, currentGameSecond: 100, currentPositionAggregate: currentPosition, sceneLifecycleAggregate: currentLifecycle });
 assert.equal(staleAtomic.ok, false);
 assert.equal(temporalCommit.aggregateWrites.length, 1, "un rejet ne doit laisser aucune écriture partielle");
+
+const placeCreationCommit: CommitRequest = {
+  ...temporalCommit,
+  acceptedCommands: [{
+    schemaVersion: 1, contractId: "place-creation-command", contractVersion: 1,
+    commandId: opaqueId<CommandId>("command-place-composite-1"), campaignId, operationId,
+    commandType: "world.create-place", target: { aggregateType: "world.place-registry", aggregateId: opaqueId<AggregateId>("agg-places-1"), expectedAggregateRevision: 0 },
+    payloadSchemaVersion: 1, payload: { proposalId: "proposal-composite-1" }, acceptedAtGameSecond: 108
+  }],
+  aggregateWrites: [
+    { aggregateType: "world.place-registry", aggregateId: opaqueId<AggregateId>("agg-places-1"), expectedAggregateRevision: 0, payloadSchemaVersion: 1, payload: { places: ["location:service-room"] } },
+    { aggregateType: "world.scene-topology", aggregateId: opaqueId<AggregateId>("agg-topology-1"), expectedAggregateRevision: 0, payloadSchemaVersion: 1, payload: { connections: ["connection-service-door"] } },
+    { aggregateType: "campaign.place-facts", aggregateId: opaqueId<AggregateId>("agg-place-facts-1"), expectedAggregateRevision: 0, payloadSchemaVersion: 1, payload: { facts: ["stable-place"] } }
+  ],
+  events: [{
+    schemaVersion: 1, eventId: opaqueId("event-place-composite-1"), campaignId, operationId,
+    eventType: "world.place.created", origin: "AI_PROPOSAL", causation: { kind: "COMMAND", id: "command-place-composite-1" },
+    aggregateRefs: [
+      { aggregateType: "world.place-registry", aggregateId: opaqueId<AggregateId>("agg-places-1"), aggregateRevision: 1 },
+      { aggregateType: "world.scene-topology", aggregateId: opaqueId<AggregateId>("agg-topology-1"), aggregateRevision: 1 },
+      { aggregateType: "campaign.place-facts", aggregateId: opaqueId<AggregateId>("agg-place-facts-1"), aggregateRevision: 1 }
+    ], visibility: { scope: "SYSTEM", actorIds: [] }, occurredAtGameSecond: 108, payloadSchemaVersion: 1, payload: { placeRef: "location:service-room" }
+  }]
+};
+const mergedCreation = mergePlaceCreationWithTemporalCommitV1({ temporalCommit, placeCommit: placeCreationCommit, writerLease: temporalCommit.writerLease });
+assert.equal(mergedCreation.ok, true, mergedCreation.ok ? undefined : mergedCreation.issues.join(" | "));
+if (!mergedCreation.ok) throw new Error("composite creation merge failed");
+const atomicCreationAndEntry = augmentTemporalCommitWithSceneTransitionV1({ temporalCommit: mergedCreation.commit, command: prepared.command, result: worldResult, currentGameSecond: 100, currentPositionAggregate: currentPosition, sceneLifecycleAggregate: currentLifecycle });
+assert.equal(atomicCreationAndEntry.ok, true, atomicCreationAndEntry.ok ? undefined : atomicCreationAndEntry.issues.join(" | "));
+if (!atomicCreationAndEntry.ok) throw new Error("atomic creation and entry failed");
+assert.equal(atomicCreationAndEntry.value.aggregateWrites.length, 6, "time, place, topology, facts, position and scene lifecycle must share one commit");
+assert.equal(validateCommitRequest(atomicCreationAndEntry.value).valid, true);
 
 const committed: CommitRecord = {
   schemaVersion: 1,

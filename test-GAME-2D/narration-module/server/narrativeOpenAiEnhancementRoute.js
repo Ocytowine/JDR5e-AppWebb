@@ -1,11 +1,12 @@
 "use strict";
 
-const ALLOWED_ROLES = new Set(["player_expression_adapter", "scene_writer", "coherence_critic", "player_intent_interpreter", "mj_planner", "npc_performer"]);
+const ALLOWED_ROLES = new Set(["player_expression_adapter", "scene_writer", "scene_creator", "coherence_critic", "player_intent_interpreter", "mj_planner", "npc_performer"]);
 const CONTRACT_VERSION = "narrative-ai-resolution/1";
 const INTENT_CONTRACT_VERSION = "ai-intent-interpretation/1";
 const SEMANTIC_INTENT_CONTRACT_VERSION = "ai-intent-semantic/2";
 const MJ_PLANNER_CONTRACT_VERSION = "mj-planner/1";
 const NPC_PERFORMER_CONTRACT_VERSION = "npc-performer/1";
+const SCENE_CREATOR_CONTRACT_VERSION = "lore-guided-place-candidate/1";
 const DEFAULT_MODEL = "gpt-4.1-mini";
 
 // Source active pour la route serveur: le schéma est construit par requête afin
@@ -115,6 +116,26 @@ const STRICT_AI_OUTPUT_SCHEMA = {
 
 function buildRolePayloadSchema(requestOrRole) {
   const role = typeof requestOrRole === "string" ? requestOrRole : requestOrRole.role;
+  if (role === "scene_creator") {
+    const stringArray = { type: "array", items: { type: "string" } };
+    return {
+      type: "object",
+      additionalProperties: false,
+      required: ["proposalId", "requestedDepth", "displayName", "summary", "initialTension", "perceptibleFeatures", "populationRoles", "localNorms", "proposedPlaceRef", "arrivalSceneId", "parentLocationRef", "connectionIntents", "reason", "expectedEffects", "narrativeCommitments", "duplicatePolicy"],
+      properties: {
+        proposalId: { type: "string" },
+        requestedDepth: { enum: ["SCENE_EPHEMERAL", "LIGHT_REFERENCE", "FULL_ENTITY"] },
+        displayName: { type: "string" }, summary: { type: "string" }, initialTension: { type: "string" },
+        perceptibleFeatures: stringArray, populationRoles: stringArray, localNorms: stringArray,
+        proposedPlaceRef: { type: "string" }, arrivalSceneId: { type: "string" }, parentLocationRef: { type: "string" },
+        connectionIntents: { type: "array", minItems: 1, maxItems: 4, items: { type: "object", additionalProperties: false,
+          required: ["sourceSceneId", "boundaryRef", "destinationRef", "scale", "sourceRefs"],
+          properties: { sourceSceneId: { type: "string" }, boundaryRef: { type: "string" }, destinationRef: { type: "string" }, scale: { enum: ["LOCAL", "TRAVEL"] }, sourceRefs: stringArray } } },
+        reason: { type: "string" }, expectedEffects: stringArray, narrativeCommitments: stringArray,
+        duplicatePolicy: { enum: ["REUSE", "ENRICH", "CREATE_DISTINCT", "POSSIBLE_SAME_AS", "REJECT_IF_SIMILAR"] }
+      }
+    };
+  }
   if (role === "player_intent_interpreter") {
     if (typeof requestOrRole === "object" && requestOrRole.contractVersion === SEMANTIC_INTENT_CONTRACT_VERSION) {
       return buildSemanticIntentPayloadSchemaV2();
@@ -446,7 +467,7 @@ function buildRolePayloadSchema(requestOrRole) {
             additionalProperties: false,
             required: ["role", "actorId", "reason"],
             properties: {
-              role: { enum: ["intent_interpreter", "player_intent_interpreter", "mj_planner", "player_expression_adapter", "npc_performer", "rules_adjudicator", "coherence_critic", "scene_writer", "clarification_writer"] },
+              role: { enum: ["intent_interpreter", "player_intent_interpreter", "mj_planner", "player_expression_adapter", "npc_performer", "rules_adjudicator", "coherence_critic", "scene_writer", "scene_creator", "clarification_writer"] },
               actorId: { type: ["string", "null"] },
               reason: { type: "string" }
             }
@@ -872,7 +893,7 @@ function normalizeAiCallRequest(value) {
         ? 2_000
         : request.role === "coherence_critic"
           ? 1_600
-      : request.role === "scene_writer"
+      : request.role === "scene_writer" || request.role === "scene_creator"
         ? 1_500
         : 1_000;
     if (!Number.isInteger(request.limits.outputTokenBudget) || request.limits.outputTokenBudget <= 0 || request.limits.outputTokenBudget > maxOutputTokenBudget) {
@@ -897,7 +918,9 @@ function buildServerRoute(request, env) {
         : request.role === "npc_performer"
           ? env.NARRATION_OPENAI_NPC_PERFORMER_MODEL || env.NARRATION_OPENAI_MODEL || DEFAULT_MODEL
           : env.NARRATION_OPENAI_MODEL || DEFAULT_MODEL,
-    routeId: request.role === "scene_writer"
+    routeId: request.role === "scene_creator"
+      ? "server-openai-narrative-scene-creator"
+      : request.role === "scene_writer"
       ? "server-openai-narrative-scene-writer"
       : request.role === "coherence_critic"
         ? "server-openai-narrative-coherence-critic"
@@ -920,6 +943,7 @@ function contractVersionForRole(role) {
   if (role === "player_intent_interpreter") return INTENT_CONTRACT_VERSION;
   if (role === "mj_planner") return MJ_PLANNER_CONTRACT_VERSION;
   if (role === "npc_performer") return NPC_PERFORMER_CONTRACT_VERSION;
+  if (role === "scene_creator") return SCENE_CREATOR_CONTRACT_VERSION;
   return CONTRACT_VERSION;
 }
 
@@ -978,6 +1002,17 @@ function buildRoleInstructions(request) {
     "Utilise diagnostics=[] si tout va bien, supersedesOutputId=null et status=OK pour une sortie utilisable.",
     "Si tu ne peux pas respecter le contrat, status=PARTIAL_UNUSABLE ou CANNOT_COMPLY avec un diagnostic, sans inventer de contenu."
   ];
+
+  if (request.role === "scene_creator") {
+    return [
+      "Tu proposes un lieu de jeu nouveau à partir du brief de lore fourni.",
+      "Tu n'as aucune autorité de commit, de vérité durable, de création de PNJ présent ni de révélation de secret.",
+      "Respecte strictConstraints comme canon, localGuidance comme guide local et regionalGuidance comme inspiration souple.",
+      "Produis des identifiants canoniques stables et des connexions explicites; chaque connexion déclare au moins une sourceRef fournie par le brief.",
+      "populationRoles décrit seulement des rôles plausibles et ne matérialise aucun PNJ.",
+      ...shared
+    ].join("\n");
+  }
 
   if (request.role === "player_expression_adapter") {
     return [
@@ -1437,7 +1472,7 @@ function validateMjPlannerPayload(payload, request) {
   const allowedBeatKinds = new Set(["CONTEXT_RESPONSE", "LOCAL_ACTION_ATTEMPT", "ACTOR_REACTION_EXPECTED", "DOMAIN_BLOCKED", "CLARIFICATION"]);
   const allowedDomains = new Set(["scene_resolution", "social", "perception", "inventory", "tactical", "rest", "world"]);
   const allowedRuntimeStatuses = new Set(["SUPPORTED_BY_CURRENT_RUNTIME", "UNSUPPORTED_DOMAIN", "NEEDS_CLARIFICATION", "AI_INTERPRETATION_FAILED"]);
-  const allowedActorRoles = new Set(["intent_interpreter", "player_intent_interpreter", "mj_planner", "player_expression_adapter", "npc_performer", "rules_adjudicator", "coherence_critic", "scene_writer", "clarification_writer"]);
+  const allowedActorRoles = new Set(["intent_interpreter", "player_intent_interpreter", "mj_planner", "player_expression_adapter", "npc_performer", "rules_adjudicator", "coherence_critic", "scene_writer", "scene_creator", "clarification_writer"]);
   const allowedHandoffs = new Set(["ASK_PLAYER", "CONTINUE_AUTOMATICALLY", "CLARIFY", "END_TURN"]);
   const sourceIntent = request?.input?.task?.interpretation || null;
   if (payload.schemaVersion !== 1) issues.push("payload.schemaVersion must be 1.");
