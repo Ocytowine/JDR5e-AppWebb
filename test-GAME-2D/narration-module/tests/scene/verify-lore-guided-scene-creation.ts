@@ -9,6 +9,7 @@ import {
   buildDynamicPlaceSceneAfterCommitV1,
   buildPlaceCreationCommitV1,
   executePlaceCreationRuntimeV1,
+  ensureDynamicPlaceCreationStateV1,
   createLoreGuidedDynamicPlacePreparationPortV1,
   generateLoreGuidedPlaceCandidateV1,
   isUnmappedVisibleCreationBoundaryV1,
@@ -524,6 +525,59 @@ async function run(): Promise<void> {
   });
   assert.equal(invalidCandidate.ok, false);
   if (!invalidCandidate.ok) assert.equal(invalidCandidate.code, "PLACE_CANDIDATE_INVALID");
+  for (const [index, failurePoint] of ["AFTER_AGGREGATES", "AFTER_COMMANDS", "AFTER_EVENTS", "AFTER_OUTBOX", "BEFORE_PUBLISH"].entries()) {
+    let injectFailure = true;
+    const bootstrapRepository = new MemoryCampaignRepository({
+      clock: { now: () => new Date("2026-07-22T12:00:00.000Z") },
+      failureInjector(point) {
+        if (injectFailure && point === failurePoint) throw new Error(`Injected at ${point}`);
+      }
+    });
+    const campaignId = opaqueId<CampaignId>(`campaign-dynamic-bootstrap-failure-${index}`);
+    const created = await bootstrapRepository.createCampaign({
+      schemaVersion: 1,
+      campaignId,
+      campaignRevision: 0,
+      status: "ACTIVE",
+      clockAggregateId: opaqueId<AggregateId>(`agg-clock-dynamic-bootstrap-failure-${index}`),
+      dependencies: { contentPackageId: "lore.test", contentPackageVersion: 1, rulesetId: "rules.test", rulesetVersion: 1, calendarId: "calendar.test", calendarVersion: 1 },
+      writeBlock: null,
+      lastCommitId: null,
+      createdAt: "2026-07-22T12:00:00.000Z",
+      updatedAt: "2026-07-22T12:00:00.000Z"
+    }, { elapsedGameSeconds: 0, calendarId: "calendar.test", calendarVersion: 1 });
+    assert.equal(created.ok, true);
+    let bootstrapRejected = false;
+    try {
+      await ensureDynamicPlaceCreationStateV1({
+        repository: bootstrapRepository,
+        campaignId,
+        clock: { now: () => new Date("2026-07-22T12:00:00.000Z") },
+        topology
+      });
+    } catch {
+      bootstrapRejected = true;
+    }
+    assert.equal(bootstrapRejected, true, `${failurePoint} must reject the interrupted bootstrap`);
+    for (const [aggregateType, aggregateId] of [
+      ["world.place-registry", "agg-dynamic-place-registry"],
+      ["world.scene-topology", "agg-dynamic-place-topology"],
+      ["campaign.place-facts", "agg-dynamic-place-facts"]
+    ] as const) {
+      const absent = await bootstrapRepository.getAggregate(campaignId, aggregateType, aggregateId);
+      assert.equal(absent.ok, false, `${failurePoint} must not publish ${aggregateType}`);
+    }
+    injectFailure = false;
+    await ensureDynamicPlaceCreationStateV1({
+      repository: bootstrapRepository,
+      campaignId,
+      clock: { now: () => new Date("2026-07-22T12:00:00.000Z") },
+      topology
+    });
+    const operation = await bootstrapRepository.getOperation(opaqueId<OperationId>("dynamic-place-bootstrap"));
+    assert.equal(operation.ok, true);
+    if (operation.ok) assert.equal(operation.value.phase, "COMPLETED");
+  }
   console.log("lore-guided-scene-creation-brief/1: projections, PLACE gate, atomic commit and post-commit playable scene OK");
 }
 

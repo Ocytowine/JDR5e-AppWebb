@@ -7,6 +7,7 @@ import {
   type CampaignRepository,
   type CommitId,
   type OperationRecord,
+  type OperationPhase,
   type OperationId,
   type Result,
   type RepositoryClock,
@@ -36,18 +37,38 @@ export async function ensureDynamicPlaceCreationStateV1(input: { repository: Cam
     ["campaign.place-facts", DYNAMIC_PLACE_FACTS_AGGREGATE_ID_V1]
   ] as const;
   const current = await Promise.all(ids.map(([type, id]) => input.repository.getAggregate(input.campaignId, type, id)));
-  if (current.every(result => result.ok)) return;
+  const operationId = opaqueId<OperationId>("dynamic-place-bootstrap");
+  if (current.every(result => result.ok)) {
+    const existingOperation = await input.repository.getOperation(operationId);
+    if (existingOperation.ok && existingOperation.value.phase === "COMMITTED_PENDING_RENDER") {
+      const completed = await input.repository.completePresentation(operationId, "COMMITTED_RENDERED", 1, { initialized: true });
+      if (!completed.ok) throw new Error(completed.error.messageKey);
+    }
+    return;
+  }
   if (current.some(result => !result.ok && result.error.code !== "NOT_FOUND") || current.some(result => result.ok)) throw new Error("Dynamic place bootstrap state is inconsistent");
   const campaign = await input.repository.getCampaign(input.campaignId); if (!campaign.ok) throw new Error(campaign.error.messageKey);
-  const operationId = opaqueId<OperationId>("dynamic-place-bootstrap");
   const payload = { kind: "dynamic.place.bootstrap", topologyId: input.topology.topologyId };
   const fingerprint = await computeRequestFingerprint("dynamic.place.bootstrap", 1, payload);
   const now = input.clock.now().toISOString();
   const operation: OperationRecord = { schemaVersion: 1, operationId, campaignId: input.campaignId, clientRequestId: opaqueId<RequestId>("dynamic-place-bootstrap"), idempotencyKey: opaqueId<IdempotencyKey>("dynamic-place-bootstrap"), requestFingerprint: fingerprint, operationKind: "dynamic.place.bootstrap", requestPayloadSchemaVersion: 1, requestPayload: payload, phase: "RECEIVED", observedCampaignRevision: campaign.value.campaignRevision, commitId: null, completionMode: null, resultPayloadSchemaVersion: null, resultPayload: null, failure: null, receivedAt: now, updatedAt: now };
   const received = await input.repository.receiveOperation(operation); if (!received.ok) throw new Error(received.error.messageKey);
   if (received.value.phase === "COMPLETED") return;
-  const preparing = await input.repository.transitionOperation(operationId, "RECEIVED", "PREPARING"); if (!preparing.ok) throw new Error(preparing.error.messageKey);
-  const ready = await input.repository.transitionOperation(operationId, "PREPARING", "READY_TO_COMMIT"); if (!ready.ok) throw new Error(ready.error.messageKey);
+  let phase: OperationPhase = received.value.phase;
+  if (phase === "RECEIVED") {
+    const preparing = await input.repository.transitionOperation(operationId, "RECEIVED", "PREPARING"); if (!preparing.ok) throw new Error(preparing.error.messageKey);
+    phase = preparing.value.phase;
+  }
+  if (phase === "PREPARING") {
+    const ready = await input.repository.transitionOperation(operationId, "PREPARING", "READY_TO_COMMIT"); if (!ready.ok) throw new Error(ready.error.messageKey);
+    phase = ready.value.phase;
+  }
+  if (phase === "COMMITTED_PENDING_RENDER") {
+    const completed = await input.repository.completePresentation(operationId, "COMMITTED_RENDERED", 1, { initialized: true });
+    if (!completed.ok) throw new Error(completed.error.messageKey);
+    return;
+  }
+  if (phase !== "READY_TO_COMMIT") throw new Error(`Dynamic place bootstrap cannot resume from ${phase}`);
   const lease = await input.repository.acquireWriterLease(input.campaignId, opaqueId<WriterId>("dynamic-place-bootstrap-writer"), 120_000); if (!lease.ok) throw new Error(lease.error.messageKey);
   const commandId = opaqueId<CommandId>("dynamic-place-bootstrap-command");
   let commit;
@@ -61,6 +82,10 @@ export async function ensureDynamicPlaceCreationStateV1(input: { repository: Cam
     ], events: [{ schemaVersion: 1, eventId: opaqueId<EventId>("dynamic-place-bootstrap-event"), campaignId: input.campaignId, operationId, eventType: "dynamic.place.initialized", origin: "SYSTEM", causation: { kind: "COMMAND", id: commandId }, aggregateRefs: ids.map(([aggregateType, aggregateId]) => ({ aggregateType, aggregateId, aggregateRevision: 0 })), visibility: { scope: "SYSTEM", actorIds: [] }, occurredAtGameSecond: 0, payloadSchemaVersion: 1, payload }], outboxTasks: [] });
   } finally {
     await input.repository.releaseWriterLease(lease.value);
+  }
+  if (!commit.ok && commit.error.code === "PERSISTENCE_FAILURE") {
+    const recovered = await input.repository.getCommitByIdempotencyKey(input.campaignId, operation.idempotencyKey);
+    if (recovered.ok && recovered.value.requestFingerprint === fingerprint) commit = recovered;
   }
   if (!commit.ok) throw new Error(commit.error.messageKey);
   const completed = await input.repository.completePresentation(operationId, "COMMITTED_RENDERED", 1, { initialized: true }); if (!completed.ok) throw new Error(completed.error.messageKey);

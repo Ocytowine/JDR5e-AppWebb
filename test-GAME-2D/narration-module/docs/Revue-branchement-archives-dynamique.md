@@ -28,6 +28,7 @@ Date: 2026-07-22
 - Le schéma pouvait encore laisser choisir une profondeur éphémère ou des listes essentielles vides avant un rejet local tardif: les profondeurs autorisées et les minima structurels sont maintenant imposés dès la sortie OpenAI.
 - Les doublons ne couvraient que les créations dynamiques et la scène active: le catalogue des scènes et lieux wiki est maintenant injecté dans la politique, et une collision d'identifiant d'arrivée est rejetée avant commit.
 - Le délai générique de 30 secondes coupait régulièrement le `scene_creator` alors que son contexte était déjà compact. Ce rôle dispose maintenant de 55 secondes côté fournisseur et le transport client garde 5 secondes de marge pour recevoir le résultat ou le diagnostic serveur; les rôles interactifs courts conservent leurs délais actuels.
+- Le bootstrap des registres dynamiques ne savait pas reprendre une opération restée `READY_TO_COMMIT` après rollback et pouvait laisser une présentation post-commit inachevée. Il reprend désormais selon la phase persistée, réconcilie un résultat de commit inconnu par idempotence et finalise une opération déjà committée. Les cinq points de panne atomiques du repository sont couverts.
 
 ## Limites encore ouvertes
 
@@ -35,4 +36,3 @@ Date: 2026-07-22
 - Le corpus complet est encore embarqué par `import.meta.glob`; un catalogue généré réduira le bundle et évitera de compiler le wiki au démarrage.
 - Les projections de campagne qui corrigent le lore initial ne sont pas encore injectées dans le brief UI.
 - La scène dynamique V1 expose volontairement seulement son retour. La génération récursive de nouvelles sorties demandera un contrat ultérieur capable de matérialiser leurs destinations, plutôt que des connexions IA orphelines.
-- La récupération du bootstrap après une interruption exactement entre ses phases d'opération mérite un test d'injection de panne dédié.

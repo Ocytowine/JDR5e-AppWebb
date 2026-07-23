@@ -1,13 +1,13 @@
 # Suivi du travail
 
-Derniere mise a jour: 2026-07-22
+Derniere mise a jour: 2026-07-23
 
 Ce fichier est le tableau de bord court du depot. Les details techniques restent dans les documents lies; une tache ne doit pas etre dupliquee ici avec toute sa specification.
 
 ## En cours
 
 - [ ] Faire évoluer `wiki/lore` vers un guide prioritairement narratif pour les créations dynamiques.
-  Références: `test-GAME-2D/narration-module/docs/Handoff-scene-creator-archives-live.md`, `Cadrage-lore-narratif-dynamique.md`, `Contrat-selection-influences-lore.md`, `Contrat-creation-scene-guidee-lore.md` et `Revue-branchement-archives-dynamique.md`. La surface démarre aux Archives de Lysenthe depuis le wiki, suit les connexions connues par un runtime de catalogue et confie une sortie externe inconnue à `scene_creator`. Le commit atomique couvre lieu, faits, topologie, temps, position et cycle de scène; la résolution IndexedDB couvre les scènes wiki et dynamiques. Prochaine étape concrète: exécuter la recette OpenAI live Archives → destination absente → retour, puis ajouter l'injection de panne du bootstrap.
+  Références: `test-GAME-2D/narration-module/docs/Handoff-scene-creator-archives-live.md`, `Cadrage-lore-narratif-dynamique.md`, `Contrat-selection-influences-lore.md`, `Contrat-creation-scene-guidee-lore.md` et `Revue-branchement-archives-dynamique.md`. La surface démarre aux Archives de Lysenthe depuis le wiki, suit les connexions connues par un runtime de catalogue et confie une sortie externe inconnue à `scene_creator`. Le commit atomique couvre lieu, faits, topologie, temps, position et cycle de scène; la résolution IndexedDB couvre les scènes wiki et dynamiques. Le bootstrap des registres dynamiques reprend désormais après rollback depuis son opération existante et finalise une présentation interrompue après commit. Prochaine étape concrète: configurer la clé fournisseur et exécuter la recette OpenAI live Archives → destination absente → retour, puis réduire le contrat V2 de `scene_creator`.
 
 - [ ] Ouvrir la transition locale de scène sans créer de seconde topologie narrative.
   Référence: `test-GAME-2D/narration-module/docs/Contrat-transition-locale-scene.md`. Les passages salle commune ↔ arrière-salle sont commités avec 8 secondes chacun et les tours relisent `scene.lifecycle`. Le `scene_writer` reçoit un contexte et un brief génériques depuis la scène active, avec historique filtré et gate factuelle. Le vertical automatisé couvre arrivée, observation, approche de lampe, examen borné des traces et retour à la seconde 16. Prochaine étape concrète: recette UI OpenAI de cette séquence.
@@ -38,6 +38,8 @@ Ce fichier est le tableau de bord court du depot. Les details techniques restent
 - La parite directe import/plateau reste la reserve documentee d'I-02; elle ne doit pas etre contournee dans I-03.
 
 ## Termine recemment
+
+- [x] Reprise du bootstrap des registres de lieux dynamiques après panne atomique: cinq points d'injection vérifient l'absence de publication partielle, le rejeu reprend depuis `READY_TO_COMMIT` et une présentation post-commit inachevée est finalisée le 2026-07-23.
 
 - [x] Correctifs du contrat live `scene_creator`: validation dédiée, parent/profondeur verrouillés, topologie V1 garantie par le runtime, doublons authored pré-commit et fenêtre fournisseur dédiée de 55 s avec marge transport, avec régressions ciblées le 2026-07-22.
 
