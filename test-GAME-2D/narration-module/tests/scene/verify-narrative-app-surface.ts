@@ -9,7 +9,7 @@ const surfaceHtml = renderToStaticMarkup(React.createElement(NarrativeAppSurface
 
 assert.match(surfaceHtml, /Surface dédiée au module narration/, "surface narration rendue");
 assert.match(surfaceHtml, /Auberge du Seuil/, "amorce de scene jouable rendue");
-assert.match(surfaceHtml, /scene est ouverte/, "le fil initial attend une intention joueur");
+assert.match(surfaceHtml, /scène est ouverte/, "le fil initial attend une intention joueur");
 assert.equal(surfaceHtml.includes("La surface narration est pr"), false, "ancien message prototype absent du fil rendu");
 assert.equal(surfaceHtml.includes("Mode prototype"), false, "ancienne notification prototype absente du fil rendu");
 assert.match(surfaceHtml, /Fil narratif/, "panneau narratif rendu");
@@ -19,6 +19,7 @@ assert.match(surfaceHtml, /Locale/, "mode local rendu");
 assert.match(surfaceHtml, /OpenAI/, "mode OpenAI rendu");
 
 const narrativeSurfaceSource = readFileSync(resolve("src/narration-ui/NarrativeAppSurface.tsx"), "utf8");
+const turnControllerSource = readFileSync(resolve("narration-module/src/application/NarrativeTurnController.ts"), "utf8");
 const openAiRuntimeConfigSource = readFileSync(resolve("src/narration-ui/openAiNarrativeRuntimeConfig.ts"), "utf8");
 const presentationVariationSource = readFileSync(resolve("narration-module/src/application/presentationVariation.ts"), "utf8");
 const serverOpenAiClientSource = readFileSync(resolve("src/narration-ui/serverOpenAiEnhancementClient.ts"), "utf8");
@@ -38,10 +39,18 @@ assert.equal(narrativeSurfaceSource.includes("OpenAI appelé, mais aucune narrat
 assert.equal(narrativeSurfaceSource.includes("RENDER_AUTHORITY_REJECTION"), true, "surface distingue un rejet sémantique contrôlé d'une panne OpenAI");
 assert.equal(narrativeSurfaceSource.includes("Texte IA candidat rejeté par la frontière d'autorité"), true, "surface explique le maintien du rendu autorisé sans faux diagnostic serveur");
 assert.equal(narrativeSurfaceSource.includes("Réaction PNJ IA indisponible ou rejetée : réaction locale bornée conservée"), true, "surface rend visible le repli du performer PNJ");
+assert.equal(narrativeSurfaceSource.includes("setEnhancementStatus"), false, "le ruban de mode ne conserve plus le diagnostic du dernier tour");
+assert.equal(narrativeSurfaceSource.includes("Diagnostic du tour:"), true, "les incidents d'enrichissement pertinents rejoignent la notification système du tour");
 assert.equal(narrativeSurfaceSource.includes("Trace système et mémoire"), true, "trace mémoire intégrée à la notification système existante");
 assert.equal(narrativeSurfaceSource.includes("total avant affichage"), true, "latence de bout en bout visible dans la notification système");
 assert.equal(narrativeSurfaceSource.includes("Détail contrôleur"), true, "latence interne détaillée dans la notification système existante");
 assert.equal(narrativeSurfaceSource.includes("output.aiTelemetry"), true, "métriques fournisseur intégrées à la notification système existante");
+assert.equal(turnControllerSource.includes("input.change.aiTelemetry"), true, "les métriques du scene_creator suivent le changement de scène jusqu'à la sortie contrôleur");
+assert.equal(
+  narrativeSurfaceSource.includes("output.sceneArrival !== null && output.activeScene.sceneId !== output.sceneArrival.scene.sceneId"),
+  true,
+  "le writer post-commit est refusé seulement si la scène active ne correspond pas à la destination"
+);
 assert.equal(narrativeSurfaceSource.includes("contexte=${metric.contextChars}"), true, "taille du contexte IA visible sans panneau UI séparé");
 assert.equal(narrativeSurfaceSource.includes("Répliques PNJ antérieures visibles"), true, "répliques mémorisées visibles sans panneau UI séparé");
 assert.equal(narrativeSurfaceSource.includes("Couples intention → réponse"), true, "continuité conversationnelle visible sous forme de couples dans le bloc système");

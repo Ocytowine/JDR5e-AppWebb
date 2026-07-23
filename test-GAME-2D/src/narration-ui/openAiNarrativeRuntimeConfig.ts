@@ -5,7 +5,7 @@ import {
   type AiIntentInterpreterConfigV1,
   type NpcPerformerConfigV1
 } from "../../narration-module/src/application";
-import type { LoreGuidedPlaceCandidateGeneratorConfigV1 } from "../../narration-module/src/application";
+import type { LoreGuidedPlaceCandidateGeneratorConfigV2 } from "../../narration-module/src/application";
 import { ServerOpenAiEnhancementProviderV1 } from "./serverOpenAiEnhancementClient";
 
 export function buildOpenAiIntentInterpreterConfigV1(endpoint?: string): AiIntentInterpreterConfigV1 {
@@ -82,14 +82,14 @@ export function buildOpenAiNpcPerformerConfigV1(endpoint?: string): NpcPerformer
   };
 }
 
-export function buildOpenAiSceneCreatorConfigV1(endpoint?: string): LoreGuidedPlaceCandidateGeneratorConfigV1 {
+export function buildOpenAiSceneCreatorConfigV2(endpoint?: string): LoreGuidedPlaceCandidateGeneratorConfigV2 {
   return {
     provider: new ServerOpenAiEnhancementProviderV1(endpoint),
     route: {
       schemaVersion: 1, routeId: "prototype-ui-openai-scene-creator", role: "scene_creator",
       providerKind: "FAKE_CONTRACT", providerId: "server-openai-route", modelId: "server-selected-openai-model",
-      modelConfigVersion: "lore-guided-place-v1", certified: true,
-      allowedContractVersions: ["lore-guided-place-candidate/1"], inputTokenLimit: 2_000, outputTokenLimit: 2_000,
+      modelConfigVersion: "lore-guided-place-v2", certified: true,
+      allowedContractVersions: ["lore-guided-place-candidate/2"], inputTokenLimit: 2_000, outputTokenLimit: 1_500,
       timeoutMs: 55_000, fallbackRouteIds: []
     },
     retryPolicy: { schemaVersion: 1, role: "scene_creator", maxTechnicalRetries: 0, maxTargetedCorrections: 0, maxFullRegenerations: 0, allowFallback: false }

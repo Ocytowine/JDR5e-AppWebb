@@ -108,6 +108,43 @@ function main(): void {
     buildPlayableSceneSocialPossibilityAnswerV1(WATCHTOWER_DAWN_PLAYABLE_SCENE_V1, "Puis-je parler à la vigie ?"),
     /Vigie fatiguée/u
   );
+  const marketSpeechInterpretation = {
+    ...interpretation("speech", "Saluer le cartographe"),
+    target: { kind: "npc", ref: "npc:npc-cartographe-ambre", label: "Cartographe à l'écharpe ambre" },
+    referentResolution: {
+      schemaVersion: 1,
+      usedPreviousContext: false,
+      source: "current_input",
+      resolvedTarget: { kind: "npc", ref: "npc:npc-cartographe-ambre", label: "Cartographe à l'écharpe ambre" },
+      evidence: ["cartographe"],
+      ambiguity: "none",
+      confidence: "high"
+    },
+    semanticIntent: {
+      ...interpretation("speech", "Saluer le cartographe").semanticIntent,
+      kind: "address_visible_actor",
+      target: { kind: "npc", ref: "npc:npc-cartographe-ambre", label: "Cartographe à l'écharpe ambre" },
+      dialogueAct: {
+        schemaVersion: 1,
+        act: "INITIATE_CONVERSATION",
+        contentGoal: "Saluer le cartographe.",
+        addresseeRef: "npc:npc-cartographe-ambre"
+      }
+    }
+  } as NarrativeIntentInterpretationV1;
+  const marketSpeechBlocks = buildReferenceSceneBlocksV1({
+    operationId: "op-market-dynamic-greeting",
+    rawInput: "Je salue le cartographe.",
+    interpretation: marketSpeechInterpretation,
+    resolution: {
+      ...resolution("op-market-dynamic-greeting", "COMMIT_APPLIED"),
+      interpretation: marketSpeechInterpretation as NarrativeResolutionResultV1["interpretation"]
+    },
+    playableScene: MARKET_NIGHT_PLAYABLE_SCENE_V1
+  });
+  assert.equal(marketSpeechBlocks[0]?.speaker.displayName, "Cartographe à l'écharpe ambre");
+  assert.match(marketSpeechBlocks[0]?.text ?? "", /Cartographe à l'écharpe ambre/u);
+  assert.doesNotMatch(marketSpeechBlocks[0]?.text ?? "", /garde blessé/u, "un fallback dynamique ne doit jamais revenir à la fixture du garde");
 
   const invalid = validatePlayableSceneV1({
     ...WATCHTOWER_DAWN_PLAYABLE_SCENE_V1,
@@ -168,6 +205,7 @@ function resolution(
     commitId: null,
     noGameTime: true,
     safetyNotes: [],
+    actionAdjudication: null,
     perception: null
   };
 }

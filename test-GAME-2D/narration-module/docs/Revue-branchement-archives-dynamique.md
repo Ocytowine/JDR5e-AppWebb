@@ -1,6 +1,6 @@
 # Revue du branchement Archives de Lysenthe → scènes dynamiques
 
-Date: 2026-07-22
+Date: 2026-07-23
 
 ## Parcours retenu
 
@@ -29,10 +29,13 @@ Date: 2026-07-22
 - Les doublons ne couvraient que les créations dynamiques et la scène active: le catalogue des scènes et lieux wiki est maintenant injecté dans la politique, et une collision d'identifiant d'arrivée est rejetée avant commit.
 - Le délai générique de 30 secondes coupait régulièrement le `scene_creator` alors que son contexte était déjà compact. Ce rôle dispose maintenant de 55 secondes côté fournisseur et le transport client garde 5 secondes de marge pour recevoir le résultat ou le diagnostic serveur; les rôles interactifs courts conservent leurs délais actuels.
 - Le bootstrap des registres dynamiques ne savait pas reprendre une opération restée `READY_TO_COMMIT` après rollback et pouvait laisser une présentation post-commit inachevée. Il reprend désormais selon la phase persistée, réconcilie un résultat de commit inconnu par idempotence et finalise une opération déjà committée. Les cinq points de panne atomiques du repository sont couverts.
+- `lore-guided-place-candidate/2` retire les intentions de connexion du candidat IA. V1 reste accepté pour compatibilité, tandis que le pilote et son schéma strict utilisent V2; l'entrée et le retour restent exclusivement construits par le runtime.
+- La télémétrie de succès de `scene_creator` suit désormais le changement de scène jusqu'à `NarrativeTurnControllerOutputV1` et à la notification système. Une métrique locale explicite signale l'absence éventuelle de métriques fournisseur.
 
 ## Limites encore ouvertes
 
-- La recette OpenAI live reste nécessaire pour mesurer la latence et découvrir une éventuelle sortie créative refusée par les gates de lore ou de doublon; l'entrée et le retour ne dépendent plus de cette sortie.
+- La recette OpenAI live est certifiée sur le parcours création, rechargement pendant la scène dynamique et retour. La création reste lente, entre 21,8 et 26,0 secondes sur les essais du 2026-07-23.
+- Le choix UI OpenAI revient à `Locale` après rechargement; la recette doit actuellement le réactiver avant le tour suivant.
 - Le corpus complet est encore embarqué par `import.meta.glob`; un catalogue généré réduira le bundle et évitera de compiler le wiki au démarrage.
 - Les projections de campagne qui corrigent le lore initial ne sont pas encore injectées dans le brief UI.
 - La scène dynamique V1 expose volontairement seulement son retour. La génération récursive de nouvelles sorties demandera un contrat ultérieur capable de matérialiser leurs destinations, plutôt que des connexions IA orphelines.

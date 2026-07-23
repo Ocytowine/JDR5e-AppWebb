@@ -42,3 +42,17 @@ La dernière série du 2026-07-22 valide trois passages consécutifs à 8/8, soi
 | 3 | 8/8 | 2,279 s | 2,846 s | 15 674 / 2 366 |
 
 Décision : `gpt-5.6-luna` avec `reasoning=none` est certifié pour le seul rôle `player_intent_interpreter`. Les modèles de prose et les pipelines ennemis restent indépendants.
+
+## Contrôle après correctifs des scènes dynamiques — 2026-07-23
+
+Trois passages supplémentaires avec `gpt-5.6-luna/none` donnent `7/8`, `8/8`, puis `8/8`, soit 23/24 décisions correctes sans retry.
+
+| Passage | Qualité | p50 | p95/max | Tokens entrée/sortie |
+|---|---:|---:|---:|---:|
+| 1 | 7/8 | 2,368 s | 3,791 s | 16 234 / 2 374 |
+| 2 | 8/8 | 2,400 s | 2,955 s | 16 234 / 2 341 |
+| 3 | 8/8 | 2,203 s | 4,080 s | 16 234 / 2 336 |
+
+Agrégat des 24 appels : 23/24, p50 2,368 s, p95 3,832 s, maximum 4,080 s, 48 702 tokens d'entrée, 7 051 tokens de sortie et zéro retry. L'unique écart reconnaît correctement `traverse_visible_boundary` et `UNSUPPORTED_DOMAIN`, mais omet ponctuellement la cible `poi:back-room-door`. Les deux répétitions suivantes conservent cette cible.
+
+Décision : la configuration reste la baseline interactive, mais cette série ne renouvelle pas à elle seule la gate stricte de trois passages consécutifs à 8/8. Aucun changement de modèle n'est justifié par cette mesure.

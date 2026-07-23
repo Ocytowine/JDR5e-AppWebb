@@ -41,6 +41,7 @@ export function buildActiveSceneNarrativeBriefV1(input: {
     visibleReferentRefs: [
       ...input.activeScene.visibleElements.map(element => `element:${element.elementId}`),
       ...input.activeScene.presentNpc.map(npc => `npc:${npc.actorId}`),
+      ...input.activeScene.ambientPopulation.map(presence => `npc:${presence.actorId}`),
       ...input.activeScene.pointsOfInterest.map(point => `poi:${point.pointId}`)
     ],
     priorSceneIdsForbidden: [...new Set((input.priorDisplayPackets ?? []).map(packet => packet.sceneId).filter(sceneId => sceneId !== input.activeScene.sceneId))],
@@ -71,7 +72,7 @@ export async function buildActiveSceneContextPackV1(input: {
     task: "Raconter uniquement le résultat confirmé dans la scène active, sans autorité métier ni import d'une autre scène.",
     perspective: { kind: "PLAYER_CHARACTER", actorId: "player-character:prototype" },
     baseCampaignRevision: 0,
-    dependencyVersions: [{ sourceRef: sceneMemoryRef, properties: ["locationName", "perceptibleSituation", "visibleElements", "presentNpc", "pointsOfInterest", "currentTension", "playerKnownFacts", "aiSceneWriterPolicy"] }],
+    dependencyVersions: [{ sourceRef: sceneMemoryRef, properties: ["locationName", "perceptibleSituation", "visibleElements", "presentNpc", "ambientPopulation", "pointsOfInterest", "currentTension", "playerKnownFacts", "aiSceneWriterPolicy"] }],
     creativeScope: {
       mayCreate: [...input.activeScene.aiSceneWriterPolicy.mayCreate],
       mayReference: [sceneRef, ...input.activeScene.aiSceneWriterPolicy.mayReference],
@@ -85,7 +86,15 @@ export async function buildActiveSceneContextPackV1(input: {
     budget: { unit: "MODEL_TOKENS_ESTIMATE", maximum: 1_200, reservedForInstructionsAndSchema: 250, reservedForOutput: 350, reservedForInput: 600, reservedForMandatory: 360, consumedByBlocks: 360, remainingMargin: 240, reductionStepsApplied: [] },
     blocks: [{
       blockId: `${input.operationId}:active-scene`, blockKind: "SCENE", sourceRefs: [sceneMemoryRef], visibility: "PLAYER_CHARACTER", actorScope: [],
-      text: [`Lieu: ${input.activeScene.locationName}.`, ...input.activeScene.perceptibleSituation, `Éléments visibles: ${input.activeScene.visibleElements.map(element => `${element.label}: ${element.description}`).join(" | ") || "aucun"}.`, `Présences visibles: ${input.activeScene.presentNpc.map(npc => `${npc.displayName}: ${npc.visibleState}`).join(" | ") || "aucune"}.`, `Passages et points d'intérêt: ${input.activeScene.pointsOfInterest.map(point => `${point.label}: ${point.visibleDescription}`).join(" | ") || "aucun"}.`, `Tension: ${input.activeScene.currentTension}`].join(" "),
+      text: [
+        `Lieu: ${input.activeScene.locationName}.`,
+        ...input.activeScene.perceptibleSituation,
+        `Éléments visibles: ${input.activeScene.visibleElements.map(element => `${element.label}: ${element.description}`).join(" | ") || "aucun"}.`,
+        `Figures individualisées: ${input.activeScene.presentNpc.map(npc => `${npc.displayName}: ${npc.visibleState}`).join(" | ") || "aucune"}.`,
+        `Population ambiante: ${input.activeScene.ambientPopulation.map(presence => `${presence.displayName}: ${presence.visibleActivity}; apparence ${presence.visibleAppearance}; allure ${presence.demeanor}`).join(" | ") || "aucune"}.`,
+        `Passages et points d'intérêt: ${input.activeScene.pointsOfInterest.map(point => `${point.label}: ${point.visibleDescription}`).join(" | ") || "aucun"}.`,
+        `Tension: ${input.activeScene.currentTension}`
+      ].join(" "),
       payload: input.activeScene as unknown as JsonObject, tokenEstimate: 260
     }, ...(visibleHistory.entries.length === 0 ? [] : [{
       blockId: `${input.operationId}:active-scene-history`, blockKind: "MEMORY_CAPSULE" as const, sourceRefs: [sceneMemoryRef], visibility: "PLAYER_CHARACTER" as const, actorScope: [], text: visibleHistory.text, payload: visibleHistory as unknown as JsonObject, tokenEstimate: visibleHistory.tokenEstimate

@@ -24,6 +24,7 @@ export const MVP_RULE_IDS_V1 = [
   "core.character.armor-class",
   "core.character.passive-perception",
   "core.character.capability-availability",
+  "core.check.difficulty-class",
   "core.inventory.containment",
   "core.inventory.equipment-slots",
   "core.inventory.physical-currency",

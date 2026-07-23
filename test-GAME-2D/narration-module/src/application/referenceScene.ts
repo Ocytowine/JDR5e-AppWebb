@@ -442,7 +442,7 @@ export function buildReferenceSceneBlocksV1(input: {
     })];
   }
   if (input.interpretation.intentType === "speech" || input.interpretation.intentType === "mixed") {
-    const target = speechTarget(input.rawInput, input.interpretation);
+    const target = speechTarget(input.rawInput, input.interpretation, playableScene);
     return [
       referenceBlock({
         operationId: input.operationId,
@@ -452,7 +452,8 @@ export function buildReferenceSceneBlocksV1(input: {
         displayName: target.displayName,
         text: buildNpcDialogueFallbackV1(
           target.actorId,
-          input.interpretation.semanticIntent.dialogueAct?.act ?? "OTHER"
+          input.interpretation.semanticIntent.dialogueAct?.act ?? "OTHER",
+          target.displayName
         ).text,
         sourceRefs: [`reference-scene:${REFERENCE_PLAYABLE_SCENE_ID_V1}`, `resolution:${input.resolution.resolutionId}:speech-reaction`]
       })
@@ -579,7 +580,11 @@ function possibilityNarration(rawInput: string): string {
   return "La possibilité est notée sans être exécutée. La scène reste dans l'Auberge du Seuil, sous la pluie, avec le garde blessé, la serveuse nerveuse et la porte du fond comme points d'attention.";
 }
 
-function speechTarget(_rawInput: string, interpretation?: NarrativeIntentInterpretationV1): { actorId: "npc-garde-blesse" | "npc-serveuse-nerveuse"; displayName: string } {
+function speechTarget(
+  _rawInput: string,
+  interpretation: NarrativeIntentInterpretationV1 | undefined,
+  playableScene: PlayableSceneStateV1
+): { actorId: string; displayName: string } {
   const structuredRef = interpretation?.referentResolution?.resolvedTarget?.ref ?? interpretation?.target?.ref ?? null;
   if (structuredRef === "npc:npc-serveuse-nerveuse" || structuredRef === "npc-serveuse-nerveuse") {
     return { actorId: "npc-serveuse-nerveuse", displayName: "Serveuse nerveuse" };
@@ -587,7 +592,13 @@ function speechTarget(_rawInput: string, interpretation?: NarrativeIntentInterpr
   if (structuredRef === "npc:npc-garde-blesse" || structuredRef === "npc-garde-blesse") {
     return { actorId: "npc-garde-blesse", displayName: "Garde blessé" };
   }
-  return { actorId: "npc-garde-blesse", displayName: "Garde blessé" };
+  const actorId = structuredRef?.replace(/^npc:/u, "") ?? "";
+  const actor = playableScene.presentNpc.find(candidate => candidate.actorId === actorId)
+    ?? playableScene.ambientPopulation.find(candidate => candidate.actorId === actorId);
+  return {
+    actorId: actor?.actorId ?? (actorId || "npc-inconnu"),
+    displayName: actor?.displayName ?? interpretation?.referentResolution?.resolvedTarget?.label ?? "Interlocuteur"
+  };
 }
 
 function observationNarration(rawInput: string, sceneState?: ReferenceSceneStateV1): string {
@@ -657,6 +668,10 @@ function actionNarration(
     resolution.preparedEffects.some(effect => effect.effectType === "LOCAL_SCENE_ACTION_RECORDED") &&
     target?.kind === "npc"
   ) {
+    if (target.ref !== "npc:npc-serveuse-nerveuse" && target.ref !== "npc-serveuse-nerveuse" &&
+      target.ref !== "npc:npc-garde-blesse" && target.ref !== "npc-garde-blesse") {
+      return `Tu te places près de ${target.label?.toLowerCase() ?? "l'interlocuteur visible"}, à portée de voix. Aucune parole n'est encore échangée et aucune réaction de sa part n'est résolue.`;
+    }
     return target.ref === "npc:npc-serveuse-nerveuse" || target.ref === "npc-serveuse-nerveuse"
       ? "Tu te places près de la serveuse nerveuse, à portée de voix. Aucune parole n'est encore échangée et aucune réaction de sa part n'est résolue."
       : "Tu te places près du garde blessé, à portée de voix. Aucune parole n'est encore échangée et aucune réaction de sa part n'est résolue.";

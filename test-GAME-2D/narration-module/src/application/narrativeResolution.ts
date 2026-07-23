@@ -22,6 +22,10 @@ import { isAiInterpretationFailureDiagnosticV1, validateCanonicalIntentAuthority
 import { validateNarrativeDomainCommandV1, type NarrativeDomainCommandV1 } from "./domainCommands";
 import { REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1, type PlayableSceneStateV1 } from "./playableScene";
 import { resolvePerceptionV1, type PerceptionResolutionV1 } from "./perceptionResolution";
+import { adjudicateContextualActionV1, type ContextualActionAdjudicationV1 } from "./contextualActionAdjudication";
+import { loadActiveMechanicalCharacterContextV1 } from "./mechanicalCharacterContextLoader";
+import { resolveSkillCheckDifficultyV1, type RelevantMechanicalCharacterContextV1 } from "./skillCheckProposal";
+import { loadPinnedNarrativeRuleRegistryV1 } from "./pinnedRuleRegistry";
 import { buildSceneReferentRegistryV1, findSceneReferentByRefV1 } from "./sceneReferentRegistry";
 import { routeNarrativeSemanticIntentV1 } from "./runtimeCapabilityRouting";
 import {
@@ -36,6 +40,14 @@ import {
   type LoadedReferenceSceneStateV1,
   type ReferenceSceneStateV1
 } from "./referenceSceneState";
+import {
+  appendSceneActorV1,
+  applySceneActorRegistryV1,
+  buildSceneActorPromotionV1,
+  loadSceneActorRegistryV1,
+  SCENE_ACTOR_REGISTRY_AGGREGATE_TYPE_V1,
+  type LoadedSceneActorRegistryV1
+} from "./sceneActorRegistry";
 
 export const NARRATIVE_RESOLUTION_CONTRACT_VERSION_V1 = "narrative-resolution/1" as const;
 
@@ -94,6 +106,7 @@ export interface NarrativeResolutionResultV1 extends JsonObject {
   commitId: string | null;
   noGameTime: boolean;
   safetyNotes: string[];
+  actionAdjudication: ContextualActionAdjudicationV1 | null;
   perception: PerceptionResolutionV1 | null;
 }
 
@@ -113,6 +126,7 @@ export interface NarrativeResolutionOutputV1 {
   displayPacket: DisplayPacketV1 & JsonObject;
   commit: CommitRecord | null;
   sceneState: ReferenceSceneStateV1;
+  playableScene: PlayableSceneStateV1;
 }
 
 export async function resolveNarrativeTurnV1(input: NarrativeResolutionInputV1): Promise<Result<NarrativeResolutionOutputV1>> {
@@ -132,16 +146,74 @@ export async function resolveNarrativeTurnV1(input: NarrativeResolutionInputV1):
     campaignId: input.campaignId
   });
   if (!loadedSceneState.ok) return loadedSceneState;
+  const loadedSceneActors = await loadSceneActorRegistryV1({
+    repository: input.repository,
+    campaignId: input.campaignId,
+    sceneId: playableScene.sceneId
+  });
+  if (!loadedSceneActors.ok) return loadedSceneActors;
+  const hydratedPlayableScene = applySceneActorRegistryV1(playableScene, loadedSceneActors.value.state);
 
-  const deterministic = buildDeterministicResolution(input.operation, input.rawInput, input.interpretation, input.domainCommand, input.suspendedIntent, playableScene);
+  const mechanicalContext = input.interpretation.semanticIntent.kind === "observe_environment" &&
+    input.interpretation.semanticIntent.perception?.depth === "SEARCH"
+    ? await loadActiveMechanicalCharacterContextV1({
+      repository: input.repository,
+      campaignId: input.campaignId,
+      ability: "SAG",
+      skillId: "perception",
+      passiveKind: "PERCEPTION"
+    })
+    : { ok: true as const, value: null };
+  if (!mechanicalContext.ok) return mechanicalContext;
+  let actionAdjudication = adjudicateContextualActionV1({
+    interpretation: input.interpretation,
+    scene: hydratedPlayableScene,
+    mechanicalCharacterContext: mechanicalContext.value
+  });
+  if (actionAdjudication.checkProposal?.difficulty.status === "BAND_SELECTED") {
+    const pinnedRegistry = await loadPinnedNarrativeRuleRegistryV1({
+      repository: input.repository,
+      campaignId: input.campaignId
+    });
+    if (!pinnedRegistry.ok) return pinnedRegistry;
+    if (pinnedRegistry.value !== null) {
+      const resolvedDifficulty = await resolveSkillCheckDifficultyV1({
+        proposal: actionAdjudication.checkProposal,
+        registry: pinnedRegistry.value
+      });
+      if (!resolvedDifficulty.ok) {
+        return {
+          ok: false,
+          error: coreError("VALIDATION_FAILED", "narrative.skill-check.difficulty-resolution-failed", {
+            code: resolvedDifficulty.code
+          })
+        };
+      }
+      actionAdjudication = {
+        ...actionAdjudication,
+        checkProposal: resolvedDifficulty.value
+      };
+    }
+  }
+  const deterministic = buildDeterministicResolution(
+    input.operation,
+    input.rawInput,
+    input.interpretation,
+    input.domainCommand,
+    input.suspendedIntent,
+    hydratedPlayableScene,
+    mechanicalContext.value,
+    actionAdjudication
+  );
   if (deterministic.resultKind !== "COMMIT_PREPARED") {
     return {
       ok: true,
       value: {
         result: deterministic,
-        displayPacket: buildResolutionDisplayPacket(input.operation.operationId, input.rawInput, deterministic, loadedSceneState.value.state, playableScene),
+        displayPacket: buildResolutionDisplayPacket(input.operation.operationId, input.rawInput, deterministic, loadedSceneState.value.state, hydratedPlayableScene),
         commit: null,
-        sceneState: loadedSceneState.value.state
+        sceneState: loadedSceneState.value.state,
+        playableScene: hydratedPlayableScene
       }
     };
   }
@@ -167,7 +239,9 @@ export async function resolveNarrativeTurnV1(input: NarrativeResolutionInputV1):
     expectedCampaignRevision: currentCampaign.value.campaignRevision,
     writerLease: writerLease.value,
     resolution: deterministic,
-    loadedSceneState: loadedSceneState.value
+    loadedSceneState: loadedSceneState.value,
+    loadedSceneActors: loadedSceneActors.value,
+    playableScene: hydratedPlayableScene
   });
   const commit = await input.repository.commit(commitRequest);
   const released = await input.repository.releaseWriterLease(writerLease.value);
@@ -180,6 +254,18 @@ export async function resolveNarrativeTurnV1(input: NarrativeResolutionInputV1):
     interpretation: input.interpretation,
     resolution: deterministic
   });
+  const promotedActor = buildSceneActorPromotionV1({
+    scene: hydratedPlayableScene,
+    registry: loadedSceneActors.value.state,
+    interpretation: input.interpretation,
+    operationId: input.operation.operationId
+  });
+  const nextPlayableScene = promotedActor === null
+    ? hydratedPlayableScene
+    : applySceneActorRegistryV1(
+      hydratedPlayableScene,
+      appendSceneActorV1(loadedSceneActors.value.state, promotedActor)
+    );
   const applied: NarrativeResolutionResultV1 = {
     ...deterministic,
     resultKind: "COMMIT_APPLIED",
@@ -190,14 +276,15 @@ export async function resolveNarrativeTurnV1(input: NarrativeResolutionInputV1):
     ]
   };
 
-  const displayPacket = buildResolutionDisplayPacket(input.operation.operationId, input.rawInput, applied, nextSceneState, playableScene);
+  const displayPacket = buildResolutionDisplayPacket(input.operation.operationId, input.rawInput, applied, nextSceneState, nextPlayableScene);
   return {
     ok: true,
     value: {
       result: applied,
       displayPacket,
       commit: commit.value,
-      sceneState: nextSceneState
+      sceneState: nextSceneState,
+      playableScene: nextPlayableScene
     }
   };
 }
@@ -208,8 +295,15 @@ export function buildDeterministicResolution(
   interpretation: NarrativeIntentInterpretationV1,
   domainCommand: NarrativeDomainCommandV1 | null,
   suspendedIntent: SuspendedIntentRecordV1 | null,
-  playableScene: PlayableSceneStateV1 = REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1
+  playableScene: PlayableSceneStateV1 = REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1,
+  mechanicalCharacterContext: RelevantMechanicalCharacterContextV1 | null = null,
+  precomputedActionAdjudication: ContextualActionAdjudicationV1 | null = null
 ): NarrativeResolutionResultV1 {
+  const actionAdjudication = precomputedActionAdjudication ?? adjudicateContextualActionV1({
+    interpretation,
+    scene: playableScene,
+    mechanicalCharacterContext
+  });
   const base = {
     schemaVersion: 1 as const,
     contractVersion: NARRATIVE_RESOLUTION_CONTRACT_VERSION_V1,
@@ -223,6 +317,7 @@ export function buildDeterministicResolution(
     commitId: null,
     noGameTime: true,
     safetyNotes: [...interpretation.safetyNotes],
+    actionAdjudication,
     perception: null
   };
 
@@ -247,6 +342,26 @@ export function buildDeterministicResolution(
       ...base,
       resultKind: "NO_COMMIT_RESPONSE",
       safetyNotes: [...base.safetyNotes, "Réponse sans commit métier."]
+    };
+  }
+
+  if (actionAdjudication.disposition === "NEEDS_CLARIFICATION") {
+    return {
+      ...base,
+      resultKind: "CLARIFICATION_REQUIRED",
+      safetyNotes: [...base.safetyNotes, `Arbitrage contextuel: ${actionAdjudication.reason}`]
+    };
+  }
+
+  if (actionAdjudication.disposition === "IMPOSSIBLE") {
+    return {
+      ...base,
+      resultKind: "RESOLUTION_PROPOSED",
+      characterExpression: buildCharacterExpression(rawInput, interpretation),
+      safetyNotes: [
+        ...base.safetyNotes,
+        `Action refusée avant jet selon ${actionAdjudication.ruleRefs.join(", ") || "les faits de scène"}: ${actionAdjudication.reason}`
+      ]
     };
   }
 
@@ -287,11 +402,15 @@ export function buildDeterministicResolution(
 
   if (interpretation.semanticIntent.kind === "observe_environment") {
     const target = interpretation.referentResolution?.resolvedTarget ?? interpretation.semanticIntent.target ?? null;
-    const perception = resolvePerceptionV1({
+    const perceptionBase = resolvePerceptionV1({
       semanticIntent: interpretation.semanticIntent,
       targetRef: target?.ref ?? null,
-      scene: playableScene
+      scene: playableScene,
+      mechanicalCharacterContext
     });
+    const perception = perceptionBase === null || actionAdjudication.checkProposal === null
+      ? perceptionBase
+      : { ...perceptionBase, checkProposal: actionAdjudication.checkProposal };
     return {
       ...base,
       resultKind: perception?.status === "NEEDS_CLARIFICATION" ? "CLARIFICATION_REQUIRED" : "RESOLUTION_PROPOSED",
@@ -423,6 +542,8 @@ function buildNarrativeCommitRequest(input: {
   writerLease: CommitRequest["writerLease"];
   resolution: NarrativeResolutionResultV1;
   loadedSceneState: LoadedReferenceSceneStateV1;
+  loadedSceneActors: LoadedSceneActorRegistryV1;
+  playableScene: PlayableSceneStateV1;
 }): CommitRequest {
   const localAction = input.resolution.preparedEffects.find(effect => effect.effectType === "LOCAL_SCENE_ACTION_RECORDED") ?? null;
   const isLocalAction = localAction !== null;
@@ -440,6 +561,18 @@ function buildNarrativeCommitRequest(input: {
   const nextSceneRevision = input.loadedSceneState.aggregateRevision === null
     ? 0
     : input.loadedSceneState.aggregateRevision + 1;
+  const promotedActor = buildSceneActorPromotionV1({
+    scene: input.playableScene,
+    registry: input.loadedSceneActors.state,
+    interpretation: input.resolution.interpretation,
+    operationId: input.operation.operationId
+  });
+  const nextActorRegistry = promotedActor === null
+    ? input.loadedSceneActors.state
+    : appendSceneActorV1(input.loadedSceneActors.state, promotedActor);
+  const nextActorRegistryRevision = input.loadedSceneActors.aggregateRevision === null
+    ? 0
+    : input.loadedSceneActors.aggregateRevision + 1;
   return {
     campaignId: input.campaignId,
     operationId: input.operation.operationId,
@@ -497,7 +630,13 @@ function buildNarrativeCommitRequest(input: {
       expectedAggregateRevision: input.loadedSceneState.aggregateRevision,
       payloadSchemaVersion: 1,
       payload: nextSceneState
-    }],
+    }, ...(promotedActor === null ? [] : [{
+      aggregateType: SCENE_ACTOR_REGISTRY_AGGREGATE_TYPE_V1,
+      aggregateId: input.loadedSceneActors.aggregateId,
+      expectedAggregateRevision: input.loadedSceneActors.aggregateRevision,
+      payloadSchemaVersion: 1,
+      payload: nextActorRegistry
+    }])],
     events: [{
       schemaVersion: 1,
       eventId,
@@ -549,7 +688,30 @@ function buildNarrativeCommitRequest(input: {
         backRoomDoorHighlighted: nextSceneState.backRoomDoorHighlighted,
         interactionCount: nextSceneState.interactionCount
       }
-    }],
+    }, ...(promotedActor === null ? [] : [{
+      schemaVersion: 1 as const,
+      eventId: opaqueId<EventId>(`${input.operation.operationId}:evt:scene-actor-promoted`),
+      campaignId: input.campaignId,
+      operationId: input.operation.operationId,
+      eventType: "scene.actor.promoted",
+      origin: "PLAYER_INTENT" as const,
+      causation: { kind: "COMMAND" as const, id: commandId },
+      aggregateRefs: [{
+        aggregateType: SCENE_ACTOR_REGISTRY_AGGREGATE_TYPE_V1,
+        aggregateId: input.loadedSceneActors.aggregateId,
+        aggregateRevision: nextActorRegistryRevision
+      }],
+      visibility: { scope: "SYSTEM" as const, actorIds: [] },
+      occurredAtGameSecond: 0,
+      payloadSchemaVersion: 1,
+      payload: {
+        schemaVersion: 1,
+        sceneId: input.playableScene.sceneId,
+        actorId: promotedActor.actorId,
+        source: "AMBIENT_POPULATION",
+        version: 1
+      }
+    }])],
     outboxTasks: []
   };
 }
@@ -728,6 +890,14 @@ function resolutionNotice(resolution: NarrativeResolutionResultV1): string {
       "Effet: aucun résultat n'a été inventé par la narration."
     ].join("\n");
   }
+  if (resolution.actionAdjudication?.disposition === "IMPOSSIBLE") {
+    return [
+      "Action impossible dans le contexte actuel - aucun jet",
+      ...diagnostic,
+      `Raison: ${resolution.actionAdjudication.reason}`,
+      "Effet: aucun jet, coût, temps de jeu ou commit métier n'a été déclenché."
+    ].join("\n");
+  }
   if (
     resolution.resultKind === "RESOLUTION_PROPOSED" &&
     resolution.interpretation.semanticIntent.kind === "observe_environment"
@@ -770,6 +940,7 @@ function resolutionDiagnosticLines(resolution: NarrativeResolutionResultV1): str
     semanticIntent: interpretation.semanticIntent,
     runtimeSuggestion: runtimeHandling
   });
+  const adjudicationDiagnostics = buildActionAdjudicationDiagnosticLinesV1(resolution.actionAdjudication);
   return [
     `Intention canonique: ${interpretation.semanticIntent.kind}; projection de compatibilité non autoritaire: ${interpretation.intentType}${interpretation.action === null ? "" : ` / action=${interpretation.action}`}.`,
     `Acte de dialogue: ${interpretation.semanticIntent.dialogueAct === null || interpretation.semanticIntent.dialogueAct === undefined
@@ -780,9 +951,55 @@ function resolutionDiagnosticLines(resolution: NarrativeResolutionResultV1): str
     runtimeHandling === null
       ? "Runtime: non renseigné."
       : `Suggestion IA: ${runtimeHandling.status}, domaine=${runtimeHandling.requiredDomain ?? "aucun"}.`,
-    `Routage NAR-131: ${runtimeRoute.routeId}, capacité=${runtimeRoute.capabilityId ?? "aucune"}, disposition=${runtimeRoute.disposition}.`,
+    `Éligibilité NAR-131 avant validation de la cible: ${runtimeRoute.routeId}, capacité=${runtimeRoute.capabilityId ?? "aucune"}, disposition=${runtimeRoute.disposition}.`,
+    ...adjudicationDiagnostics,
     `Décision runtime locale: ${runtimeDecision.status}, domaine=${runtimeDecision.requiredDomain ?? "aucun"}, journalisation=${resolution.commitId !== null ? "appliquée" : runtimeDecision.noCommit ? "aucune" : "préparée"}, concordance IA=${runtimeDecision.aiSuggestionMatched ? "oui" : "non"}.`
   ];
+}
+
+export function buildActionAdjudicationDiagnosticLinesV1(
+  adjudication: ContextualActionAdjudicationV1 | null
+): string[] {
+  if (adjudication === null) return ["Arbitrage contextuel: non renseigné."];
+  const lines = [
+    `Arbitrage contextuel: ${adjudication.disposition}, portée=${adjudication.resolutionScope}. Raison: ${adjudication.reason}`,
+    `Sources de décision: faits=${adjudication.sourceRefs.join(" | ") || "aucun"}; règles=${adjudication.ruleRefs.join(" | ") || "aucune"}.`
+  ];
+  const proposal = adjudication.checkProposal;
+  if (proposal === null) return lines;
+  const mechanical = proposal.characterContext;
+  lines.push(
+    `Test proposé: ${abilityLabel(proposal.ability)} / ${proposal.skillId ?? "sans compétence"}; objectif=${proposal.goal}.`
+  );
+  lines.push(mechanical === null
+    ? "Personnage: projection mécanique non disponible; aucun modificateur n'est supposé."
+    : `Personnage: modificateur total=${signed(mechanical.totalModifier)} (${abilityLabel(mechanical.ability)} ${signed(mechanical.abilityModifier)}, maîtrise x${mechanical.proficiencyRank}, bonus ${signed(mechanical.proficiencyBonus)}); background=${mechanical.backgroundId || "aucun"}.`);
+  if (proposal.difficulty.status === "REQUIRES_ADJUDICATION") {
+    lines.push("Difficulté: bande et DD en attente d'arbitrage; aucun DD n'est inventé.");
+  } else if (proposal.difficulty.status === "BAND_SELECTED") {
+    const assessment = proposal.difficulty.assessment;
+    lines.push(
+      `Difficulté: bande ${proposal.difficulty.band} sélectionnée; DD en attente de conversion par le ruleset.`,
+      `Facteurs publics: ${assessment?.publicReasons.join(" | ") || "aucun"}; facteurs privés appliqués=${assessment?.privateFactorCount ?? 0}.`
+    );
+  } else {
+    lines.push(`Difficulté: ${proposal.difficulty.band}, DD ${proposal.difficulty.dc}; règle=${proposal.difficulty.ruleRef}.`);
+  }
+  lines.push(
+    `Passif: ${proposal.passive.eligible ? `éligible, score=${proposal.passive.score ?? "indisponible"}` : `non éligible (${proposal.passive.reason})`}.`,
+    `Enjeux: succès=${proposal.stakes.success} Échec=${proposal.stakes.failure}`,
+    "Jet: non lancé; aucun résultat, coût temporel ou conséquence n'est encore committé."
+  );
+  return lines;
+}
+
+function abilityLabel(ability: RelevantMechanicalCharacterContextV1["ability"]): string {
+  const labels = { FOR: "Force", DEX: "Dextérité", CON: "Constitution", INT: "Intelligence", SAG: "Sagesse", CHA: "Charisme" } as const;
+  return `${labels[ability]} (${ability})`;
+}
+
+function signed(value: number): string {
+  return value >= 0 ? `+${value}` : String(value);
 }
 
 function resolvedTargetRef(resolution: NarrativeResolutionResultV1): string | null {

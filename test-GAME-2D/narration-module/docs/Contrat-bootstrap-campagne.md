@@ -379,6 +379,7 @@ Le ruleset MVP doit posséder des entrées versionnées couvrant au moins :
 10. influence contextuelle de l'apparence sans mutation du Charisme;
 11. refus d'une action impossible avant jet ou consommation;
 12. priorité explicite des règles maison sur toute connaissance générique de D&D.
+13. conversion déterministe d'une bande de difficulté explicitement arbitrée en DD.
 
 Les identifiants initiaux sont figés comme suit. `—` signifie que la règle est un invariant de sélection ou un contrat d'arbitrage et non un calcul autonome.
 
@@ -391,6 +392,7 @@ Les identifiants initiaux sont figés comme suit. `—` signifie que la règle e
 | `core.character.armor-class` | déterministe | `character.compute-armor-class` | meilleure armure valide équipée, modificateur DEX borné par l'armure, puis boucliers et effets déclarés |
 | `core.character.passive-perception` | déterministe | `character.compute-passive-perception` | base 10 + SAG + maîtrise ou expertise applicable |
 | `core.character.capability-availability` | déterministe | `character.resolve-capability-availability` | une capacité absente, non préparée ou sans précondition ne peut être utilisée |
+| `core.check.difficulty-class` | déterministe | `check.resolve-difficulty-class` | très facile 5, facile 10, moyenne 15, difficile 20, très difficile 25, presque impossible 30 |
 | `core.inventory.containment` | déterministe | `inventory.validate-containment` | instances uniques, graphe sans cycle, contenant existant et accessible |
 | `core.inventory.equipment-slots` | déterministe | `inventory.validate-equipment-slots` | compatibilité de slot et exclusivité selon le catalogue |
 | `core.inventory.physical-currency` | déterministe | `inventory.resolve-physical-currency` | seule la monnaie matérialisée et accessible peut être transférée |
@@ -416,9 +418,9 @@ Toute décision mécanique conserve :
 - l'identifiant de l'exécuteur et sa version de contrat;
 - le résultat ou le code de refus.
 
-L'implémentation `RuleRegistryV1` recalcule les empreintes de chaque définition et du manifeste, vérifie la compatibilité exacte du paquet, exige l'inventaire des quinze règles V1 et refuse exécuteur absent, relation manquante, cycle ou incompatibilité active. `resolveActiveRules` applique uniquement les relations `overrides` et `specializes`; aucune priorité numérique implicite n'existe. Une exécution déterministe retourne un `RuleDecisionV1` citant règle, version, paramètres, références de contenu, exécuteur et version de contrat.
+L'implémentation `RuleRegistryV1` recalcule les empreintes de chaque définition et du manifeste, vérifie la compatibilité exacte du paquet, exige l'inventaire des seize règles V1 et refuse exécuteur absent, relation manquante, cycle ou incompatibilité active. `resolveActiveRules` applique uniquement les relations `overrides` et `specializes`; aucune priorité numérique implicite n'existe. Une exécution déterministe retourne un `RuleDecisionV1` citant règle, version, paramètres, références de contenu, exécuteur et version de contrat.
 
-Le manifeste MVP est construit par `createMvpRulesetManifestV1`. Onze règles disposent d'exécuteurs purs dans le module narration; les trois invariants descriptifs ne mutent rien et `house.social.observable-appearance` reste explicitement `ADJUDICATION_REQUIRED`.
+Le manifeste MVP est construit par `createMvpRulesetManifestV1`. L'ajout de `core.check.difficulty-class` porte le paquet à `rulesetVersion: 2`; une campagne épinglée sur la version 1 ne l'adopte donc pas silencieusement. Douze règles disposent d'exécuteurs purs dans le module narration; les trois invariants descriptifs ne mutent rien et `house.social.observable-appearance` reste explicitement `ADJUDICATION_REQUIRED`.
 
 ### 6.4 Arbitrage ponctuel
 

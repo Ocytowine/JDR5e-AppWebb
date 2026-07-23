@@ -450,7 +450,7 @@ async function runRoute(api, body) {
 }
 
 function sceneCreatorOutputFor(req, overrides = {}) {
-  return {
+  const output = {
     schemaVersion: 1,
     contractVersion: req.contractVersion,
     outputId: "output-route-scene-creator-001",
@@ -489,6 +489,10 @@ function sceneCreatorOutputFor(req, overrides = {}) {
     supersedesOutputId: null,
     ...overrides
   };
+  if (req.contractVersion === "lore-guided-place-candidate/2" && !overrides.payload?.connectionIntents) {
+    delete output.payload.connectionIntents;
+  }
+  return output;
 }
 
 function sceneCreatorRequest(overrides = {}) {
@@ -497,6 +501,14 @@ function sceneCreatorRequest(overrides = {}) {
     contractVersion: "lore-guided-place-candidate/1",
     input: { instructionsRef: "scene-creator/lore-guided-place/v1", roleContextPack: { brief: {}, allowedParentLocationRefs: ["location:quartier_des_archives"], allowedPersistenceDepths: ["LIGHT_REFERENCE", "FULL_ENTITY"] }, task: { requiredOutput: "lore-guided-place-candidate/1" } },
     limits: { inputTokenBudget: 2_000, outputTokenBudget: 1_500, timeoutMs: 30_000 },
+    ...overrides
+  });
+}
+
+function sceneCreatorRequestV2(overrides = {}) {
+  return sceneCreatorRequest({
+    contractVersion: "lore-guided-place-candidate/2",
+    input: { instructionsRef: "scene-creator/lore-guided-place/v2", roleContextPack: { brief: {}, allowedParentLocationRefs: ["location:quartier_des_archives"], allowedPersistenceDepths: ["LIGHT_REFERENCE", "FULL_ENTITY"] }, task: { requiredOutput: "lore-guided-place-candidate/2" } },
     ...overrides
   });
 }
@@ -538,7 +550,7 @@ function assertOpenAiStrictObjectShape(schema, path = "schema") {
 }
 
 async function main() {
-  [request(), intentRequest(), mjPlannerRequest(), npcPerformerRequest(), sceneCreatorRequest()].forEach(roleRequest => {
+  [request(), intentRequest(), mjPlannerRequest(), npcPerformerRequest(), sceneCreatorRequest(), sceneCreatorRequestV2()].forEach(roleRequest => {
     const schema = buildStrictAiOutputSchema(roleRequest).schema;
     assertEveryArraySchemaHasItems(schema);
     assertOpenAiStrictObjectShape(schema);
@@ -559,6 +571,11 @@ async function main() {
   assert.deepEqual(sceneCreatorSchema.properties.payload.properties.requestedDepth.enum, ["LIGHT_REFERENCE", "FULL_ENTITY"]);
   assert.equal(sceneCreatorSchema.properties.payload.properties.perceptibleFeatures.minItems, 1);
   assert.equal(sceneCreatorSchema.properties.payload.properties.narrativeCommitments.minItems, 1);
+  const normalizedSceneCreatorV2 = normalizeAiCallRequest(sceneCreatorRequestV2());
+  assert.equal(normalizedSceneCreatorV2.ok, true);
+  const sceneCreatorSchemaV2 = buildStrictAiOutputSchema(sceneCreatorRequestV2()).schema;
+  assert.equal(Object.hasOwn(sceneCreatorSchemaV2.properties.payload.properties, "connectionIntents"), false);
+  assert.equal(sceneCreatorSchemaV2.properties.payload.required.includes("connectionIntents"), false);
   const rejectedIntentContract = normalizeAiCallRequest(intentRequest({ contractVersion: "narrative-ai-resolution/1" }));
   assert.equal(rejectedIntentContract.ok, false);
   const rejectedMissingFingerprint = normalizeAiCallRequest(request({ contextFingerprint: undefined }));
@@ -794,6 +811,12 @@ async function main() {
   assert.equal(unusableExpression.issues.includes("status must be OK for a usable output."), true);
   const validSceneCreator = validateEnvelope(sceneCreatorOutputFor(sceneCreatorRequest()), sceneCreatorRequest());
   assert.equal(validSceneCreator.ok, true, validSceneCreator.issues?.join(" | "));
+  const validSceneCreatorV2 = validateEnvelope(sceneCreatorOutputFor(sceneCreatorRequestV2()), sceneCreatorRequestV2());
+  assert.equal(validSceneCreatorV2.ok, true, validSceneCreatorV2.issues?.join(" | "));
+  const topologicalSceneCreatorV2 = validateEnvelope(sceneCreatorOutputFor(sceneCreatorRequestV2(), {
+    payload: { connectionIntents: sceneCreatorOutputFor(sceneCreatorRequest()).payload.connectionIntents }
+  }), sceneCreatorRequestV2());
+  assert.equal(topologicalSceneCreatorV2.ok, false);
   const invalidSceneCreator = validateEnvelope(sceneCreatorOutputFor(sceneCreatorRequest(), {
     payload: { connectionIntents: [] }
   }), sceneCreatorRequest());

@@ -125,6 +125,7 @@ test("00 dynamic place catalog reconstructs an IndexedDB-confirmed scene", async
     const resolved = expectOk(await resolveSceneV1({ sceneId: "dynamic-place:indexeddb_lane", sources: [], dynamicCatalog: { repository, campaignId: campaign.campaignId, placeRegistryAggregateId: placeId, topologyAggregateId: topologyId, factRegistryAggregateId: factsId } }));
     assert.equal(resolved.sourceKind, "DYNAMIC_CAMPAIGN");
     assert.equal(resolved.scene.locationName, "Ruelle persistée");
+    assert.deepEqual(resolved.scene.ambientPopulation.map(presence => presence.publicRole), ["passant"]);
     assert.equal(resolved.scene.presentNpc.length, 0);
   } finally {
     repository.close();

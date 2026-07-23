@@ -144,7 +144,7 @@ async function input(): Promise<CampaignBootstrapInputV1> {
     contentPackageId: packageId,
     contentPackageVersion: 1,
     rulesetId: "rules.jdr5e",
-    rulesetVersion: 1,
+    rulesetVersion: 2,
     calendarId: "calendar.astryade",
     calendarVersion: 1,
     initialLocationId: "archives_de_lysenthe",

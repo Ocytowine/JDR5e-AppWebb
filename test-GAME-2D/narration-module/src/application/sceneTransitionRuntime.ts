@@ -103,7 +103,8 @@ export function createNarrativeSceneTransitionRuntimeV1(
               durationSeconds: prepared.value.worldResult.durationSeconds
             }) as ReturnType<typeof buildSceneArrivalDisplayPacketV1> & JsonObject,
             characterExpression: prepared.value.characterExpression,
-            durationSeconds: prepared.value.worldResult.durationSeconds
+            durationSeconds: prepared.value.worldResult.durationSeconds,
+            aiTelemetry: []
           }
         };
       } finally {

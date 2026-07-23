@@ -75,13 +75,11 @@ export function buildPlayableSceneFromLoreLocationV1(input: {
   const withheldFragments = relevantFragments.filter(fragment => !PLAYER_VISIBLE_LEVELS.has(fragment.knowledgeLevel));
   const sceneId = input.sceneId ?? `wiki-location:${input.entity.entityId}`;
   const attributes = input.entity.attributes as Record<string, unknown>;
-  const summary = input.entity.body.trim().length > 0 ? input.entity.body.trim() : input.entity.displayName;
-  const visibleTexts = visibleFragments.map(fragment => fragment.text.trim()).filter(Boolean);
-  const perceptibleSituation = uniqueNonEmpty([
-    input.entity.displayName,
-    input.entity.body.trim(),
-    ...visibleTexts
-  ]).slice(0, 4);
+  const authoredSummary = typeof attributes.resume === "string" ? attributes.resume.trim() : "";
+  const summary = authoredSummary || input.entity.body.trim() || input.entity.displayName;
+  // The opening is a scene-setting sentence, not a dump of every public lore fragment.
+  // Detailed public facts remain available through visible elements, points of interest and observations.
+  const perceptibleSituation = [summary];
   const scene: PlayableSceneStateV1 = {
     schemaVersion: 1,
     contractVersion: PLAYABLE_SCENE_CONTRACT_VERSION_V1,
@@ -90,6 +88,7 @@ export function buildPlayableSceneFromLoreLocationV1(input: {
     perceptibleSituation: perceptibleSituation.length > 0 ? perceptibleSituation : [summary],
     visibleElements: buildVisibleElements(input.entity, visibleFragments),
     presentNpc: buildNpcFromPresence(input.entity),
+    ambientPopulation: [],
     pointsOfInterest: buildPointsOfInterest(input.entity),
     perceptionClues: [],
     currentTension: buildTension(input.entity),
@@ -158,10 +157,10 @@ function buildNpcFromPresence(entity: LoreEntityV1): PlayableSceneNpcV1[] {
   return [{
     schemaVersion: 1,
     actorId: `npc-${entity.entityId}-${slug(role)}`,
-    displayName: `${displayRole} de ${entity.displayName}`,
-    narrativeLabel: `le ${displayRole.toLowerCase()} de ${entity.displayName}`,
+    displayName: displayRole,
+    narrativeLabel: `le ${displayRole.toLowerCase()} en fonction`,
     publicRole: displayRole,
-    visibleState: `présent à ${entity.displayName}, occupé par la fonction publique du lieu`,
+    visibleState: "en fonction dans ce lieu",
     keywords: uniqueNonEmpty([role, displayRole, entity.displayName]),
     defaultReply: `« ${entity.displayName} suit ses procédures. Si vous avez une demande, formulez-la clairement. »`,
     repeatedReply: `« Je vous ai entendu. Pour ${entity.displayName}, seules les demandes claires et autorisées avancent. »`,
@@ -177,7 +176,10 @@ function buildPointsOfInterest(entity: LoreEntityV1): PlayableScenePointOfIntere
   const functions = Array.isArray(attributes.fonction_principale)
     ? attributes.fonction_principale.filter((value): value is string => typeof value === "string")
     : [];
-  const values = [...connected.slice(0, 2), ...functions.slice(0, 1)];
+  const values = [
+    ...connected.slice(0, 2).map(value => ({ value, kind: "connection" as const })),
+    ...functions.slice(0, 1).map(value => ({ value, kind: "function" as const }))
+  ];
   if (values.length === 0) return [{
     schemaVersion: 1,
     pointId: `${entity.entityId}:main`,
@@ -187,13 +189,15 @@ function buildPointsOfInterest(entity: LoreEntityV1): PlayableScenePointOfIntere
     destinationAliases: [],
     version: 1
   }];
-  return values.map((value, index) => ({
+  return values.map(({ value, kind }, index) => ({
     schemaVersion: 1,
     pointId: `${entity.entityId}:poi:${index + 1}`,
-    label: titleCase(value.replace(/^external:/u, "").replaceAll("_", " ")),
+    label: sentenceCase(value.replace(/^external:/u, "").replaceAll("_", " ")),
     visibleDescription: value.startsWith("external:")
-      ? `Connexion externe visible ou connue: ${value.slice("external:".length).replaceAll("_", " ")}.`
-      : `Élément associé au lieu: ${value.replaceAll("_", " ")}.`,
+      ? `Un passage visible mène vers ${value.slice("external:".length).replaceAll("_", " ")}.`
+      : kind === "connection"
+        ? `${sentenceCase(value.replaceAll("_", " "))} est directement accessible depuis ce lieu.`
+        : `Ce lieu est consacré à ${value.replaceAll("_", " ")}.`,
     keywords: uniqueNonEmpty([value, ...value.split(/[_\s-]+/u)]),
     destinationAliases: value.startsWith("external:")
       ? [value.slice("external:".length).replaceAll("_", " ")]
@@ -222,6 +226,11 @@ function uniqueNonEmpty(values: string[]): string[] {
 
 function titleCase(value: string): string {
   return value.replace(/\b\p{L}/gu, match => match.toLocaleUpperCase("fr-FR"));
+}
+
+function sentenceCase(value: string): string {
+  const normalized = value.trim().toLocaleLowerCase("fr-FR");
+  return normalized.charAt(0).toLocaleUpperCase("fr-FR") + normalized.slice(1);
 }
 
 function slug(value: string): string {

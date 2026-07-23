@@ -61,6 +61,7 @@ function resolution(
     commitId: null,
     noGameTime: true,
     safetyNotes: [],
+    actionAdjudication: null,
     perception: null
   };
 }

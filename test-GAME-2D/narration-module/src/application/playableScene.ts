@@ -25,6 +25,24 @@ export interface PlayableSceneNpcV1 extends JsonObject {
   version: 1;
 }
 
+export interface PlayableSceneAmbientPresenceV1 extends JsonObject {
+  schemaVersion: 1;
+  actorId: string;
+  displayName: string;
+  publicRole: string;
+  visibleActivity: string;
+  visibleAppearance: string;
+  demeanor: string;
+  immediateGoal: string;
+  currentPressure: string;
+  speechStyle: string[];
+  conversationalHooks: string[];
+  boundaries: string[];
+  knowledgeRefs: string[];
+  keywords: string[];
+  version: 1;
+}
+
 export interface PlayableScenePointOfInterestV1 extends JsonObject {
   schemaVersion: 1;
   pointId: string;
@@ -54,6 +72,7 @@ export interface PlayableSceneStateV1 extends JsonObject {
   perceptibleSituation: string[];
   visibleElements: PlayableSceneVisibleElementV1[];
   presentNpc: PlayableSceneNpcV1[];
+  ambientPopulation: PlayableSceneAmbientPresenceV1[];
   pointsOfInterest: PlayableScenePointOfInterestV1[];
   perceptionClues: PlayableScenePerceptionClueV1[];
   currentTension: string;
@@ -85,6 +104,19 @@ export interface PlayableScenePublicContextV1 extends JsonObject {
     displayName: string;
     publicRole: string;
     visibleState: string;
+  }>;
+  ambientPopulation: Array<{
+    actorId: string;
+    displayName: string;
+    publicRole: string;
+    visibleActivity: string;
+    visibleAppearance: string;
+    demeanor: string;
+    immediateGoal: string;
+    currentPressure: string;
+    speechStyle: string[];
+    conversationalHooks: string[];
+    boundaries: string[];
   }>;
   currentTension: string;
   playerKnownFacts: string[];
@@ -150,6 +182,7 @@ export const REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1: PlayableSceneStateV1 = {
     repeatedReply: "La serveuse garde le gobelet entre ses mains, attentive à la suite de l'échange.",
     version: 1
   }],
+  ambientPopulation: [],
   pointsOfInterest: [{
     schemaVersion: 1,
     pointId: "back-room-door",
@@ -286,6 +319,7 @@ export const WATCHTOWER_DAWN_PLAYABLE_SCENE_V1: PlayableSceneStateV1 = {
     repeatedReply: "La vigie ne quitte pas la route des yeux. « Je vous ai entendu. La poussière au sud, la longue-vue fissurée, et personne pour relayer mon tour. »",
     version: 1
   }],
+  ambientPopulation: [],
   pointsOfInterest: [{
     schemaVersion: 1,
     pointId: "south-road",
@@ -326,6 +360,22 @@ export function validatePlayableSceneV1(scene: PlayableSceneStateV1): { ok: true
   if (!scene.locationName.trim()) issues.push("locationName is required.");
   if (scene.perceptibleSituation.length === 0) issues.push("perceptibleSituation must not be empty.");
   if (scene.visibleElements.some(element => !element.playerVisible)) issues.push("visibleElements must be player-visible only.");
+  if (scene.ambientPopulation?.some(presence => !presence.actorId.trim() || !presence.displayName.trim() || !presence.publicRole.trim())) {
+    issues.push("ambientPopulation entries require actorId, displayName and publicRole.");
+  }
+  if (scene.ambientPopulation.some(presence =>
+    !presence.visibleActivity.trim() ||
+    !presence.visibleAppearance.trim() ||
+    !presence.demeanor.trim() ||
+    !presence.immediateGoal.trim() ||
+    !presence.currentPressure.trim() ||
+    presence.speechStyle.length === 0 ||
+    presence.conversationalHooks.length === 0 ||
+    presence.boundaries.length === 0 ||
+    [...presence.speechStyle, ...presence.conversationalHooks, ...presence.boundaries, ...presence.knowledgeRefs].some(value => !value.trim())
+  )) issues.push("ambientPopulation personality seeds must be complete and non-empty.");
+  const actorIds = [...scene.presentNpc.map(npc => npc.actorId), ...(scene.ambientPopulation ?? []).map(presence => presence.actorId)];
+  if (new Set(actorIds).size !== actorIds.length) issues.push("scene actor ids must be unique across presentNpc and ambientPopulation.");
   if (scene.localMemoryPolicy.maxShortTermNpcMemory < 1 || scene.localMemoryPolicy.maxShortTermNpcMemory > 10) {
     issues.push("maxShortTermNpcMemory must stay bounded between 1 and 10.");
   }
@@ -345,6 +395,19 @@ export function toPlayableScenePublicContextV1(scene: PlayableSceneStateV1): Pla
       displayName: npc.displayName,
       publicRole: npc.publicRole,
       visibleState: npc.visibleState
+    })),
+    ambientPopulation: (scene.ambientPopulation ?? []).map(presence => ({
+      actorId: presence.actorId,
+      displayName: presence.displayName,
+      publicRole: presence.publicRole,
+      visibleActivity: presence.visibleActivity,
+      visibleAppearance: presence.visibleAppearance,
+      demeanor: presence.demeanor,
+      immediateGoal: presence.immediateGoal,
+      currentPressure: presence.currentPressure,
+      speechStyle: [...presence.speechStyle],
+      conversationalHooks: [...presence.conversationalHooks],
+      boundaries: [...presence.boundaries]
     })),
     currentTension: scene.currentTension,
     playerKnownFacts: [...scene.playerKnownFacts],

@@ -56,12 +56,16 @@ const search = resolvePerceptionV1({
 assert.equal(search?.status, "CHECK_REQUIRED");
 assert.deepEqual(search?.revealedClueRefs, []);
 assert.equal(search?.withheldClueRefs.includes("waitress-hidden-motive"), true);
-assert.deepEqual(search?.checkProposal, {
-  domain: "perception",
-  goal: "cause de sa nervosité",
-  targetRef: target.ref,
-  commitAuthority: false
-});
+assert.equal(search?.checkProposal?.contractVersion, "skill-check-proposal/1");
+assert.equal(search?.checkProposal?.domain, "perception");
+assert.equal(search?.checkProposal?.goal, "cause de sa nervosité");
+assert.equal(search?.checkProposal?.targetRef, target.ref);
+assert.equal(search?.checkProposal?.ability, "SAG");
+assert.equal(search?.checkProposal?.skillId, "perception");
+assert.equal(search?.checkProposal?.difficulty.status, "BAND_SELECTED");
+assert.equal(search?.checkProposal?.difficulty.band, "MEDIUM");
+assert.equal(search?.checkProposal?.difficulty.dc, null);
+assert.equal(search?.checkProposal?.commitAuthority, false);
 
 const speech: AiStructuredSemanticIntentV1 = {
   ...observation("GLANCE", "observer"),

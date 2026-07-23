@@ -205,7 +205,7 @@ export async function enhanceNarrativeDisplayWithAiV1(input: {
         },
         limits: {
           inputTokenBudget: 900,
-          outputTokenBudget: 1_200,
+          outputTokenBudget: Math.min(1_500, input.config.sceneWriterRoute.outputTokenLimit),
           timeoutMs: input.config.sceneWriterRoute.timeoutMs
         }
       }

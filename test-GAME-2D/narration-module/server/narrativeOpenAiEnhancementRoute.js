@@ -6,7 +6,8 @@ const INTENT_CONTRACT_VERSION = "ai-intent-interpretation/1";
 const SEMANTIC_INTENT_CONTRACT_VERSION = "ai-intent-semantic/2";
 const MJ_PLANNER_CONTRACT_VERSION = "mj-planner/1";
 const NPC_PERFORMER_CONTRACT_VERSION = "npc-performer/1";
-const SCENE_CREATOR_CONTRACT_VERSION = "lore-guided-place-candidate/1";
+const SCENE_CREATOR_CONTRACT_VERSION_V1 = "lore-guided-place-candidate/1";
+const SCENE_CREATOR_CONTRACT_VERSION_V2 = "lore-guided-place-candidate/2";
 const DEFAULT_MODEL = "gpt-4.1-mini";
 
 // Source active pour la route serveur: le schéma est construit par requête afin
@@ -127,22 +128,26 @@ function buildRolePayloadSchema(requestOrRole) {
     const allowedPersistenceDepths = Array.isArray(requestOrRole?.input?.roleContextPack?.allowedPersistenceDepths)
       ? requestOrRole.input.roleContextPack.allowedPersistenceDepths.filter(depth => ["LIGHT_REFERENCE", "FULL_ENTITY"].includes(depth))
       : [];
+    const v2 = typeof requestOrRole === "object" && requestOrRole.contractVersion === SCENE_CREATOR_CONTRACT_VERSION_V2;
+    const required = ["proposalId", "requestedDepth", "displayName", "summary", "initialTension", "perceptibleFeatures", "populationRoles", "localNorms", "proposedPlaceRef", "arrivalSceneId", "parentLocationRef", "reason", "expectedEffects", "narrativeCommitments", "duplicatePolicy"];
+    if (!v2) required.push("connectionIntents");
+    const properties = {
+      proposalId: { type: "string" },
+      requestedDepth: { enum: allowedPersistenceDepths.length > 0 ? allowedPersistenceDepths : ["LIGHT_REFERENCE", "FULL_ENTITY"] },
+      displayName: { type: "string" }, summary: { type: "string" }, initialTension: { type: "string" },
+      perceptibleFeatures: { ...stringArray, minItems: 1 }, populationRoles: { ...stringArray, minItems: 1 }, localNorms: { ...stringArray, minItems: 1 },
+      proposedPlaceRef: { type: "string", pattern: "^[a-z][a-z0-9_-]*:.+" }, arrivalSceneId: { type: "string", pattern: "^[a-z][a-z0-9_-]*:.+" }, parentLocationRef: parentLocationRefSchema,
+      reason: { type: "string" }, expectedEffects: stringArray, narrativeCommitments: { ...stringArray, minItems: 1 },
+      duplicatePolicy: { enum: ["REUSE", "ENRICH", "CREATE_DISTINCT", "POSSIBLE_SAME_AS", "REJECT_IF_SIMILAR"] }
+    };
+    if (!v2) properties.connectionIntents = { type: "array", minItems: 1, maxItems: 4, items: { type: "object", additionalProperties: false,
+      required: ["sourceSceneId", "boundaryRef", "destinationRef", "scale", "sourceRefs"],
+      properties: { sourceSceneId: { type: "string" }, boundaryRef: { type: "string" }, destinationRef: { type: "string" }, scale: { enum: ["LOCAL", "TRAVEL"] }, sourceRefs: stringArray } } };
     return {
       type: "object",
       additionalProperties: false,
-      required: ["proposalId", "requestedDepth", "displayName", "summary", "initialTension", "perceptibleFeatures", "populationRoles", "localNorms", "proposedPlaceRef", "arrivalSceneId", "parentLocationRef", "connectionIntents", "reason", "expectedEffects", "narrativeCommitments", "duplicatePolicy"],
-      properties: {
-        proposalId: { type: "string" },
-        requestedDepth: { enum: allowedPersistenceDepths.length > 0 ? allowedPersistenceDepths : ["LIGHT_REFERENCE", "FULL_ENTITY"] },
-        displayName: { type: "string" }, summary: { type: "string" }, initialTension: { type: "string" },
-        perceptibleFeatures: { ...stringArray, minItems: 1 }, populationRoles: { ...stringArray, minItems: 1 }, localNorms: { ...stringArray, minItems: 1 },
-        proposedPlaceRef: { type: "string", pattern: "^[a-z][a-z0-9_-]*:.+" }, arrivalSceneId: { type: "string", pattern: "^[a-z][a-z0-9_-]*:.+" }, parentLocationRef: parentLocationRefSchema,
-        connectionIntents: { type: "array", minItems: 1, maxItems: 4, items: { type: "object", additionalProperties: false,
-          required: ["sourceSceneId", "boundaryRef", "destinationRef", "scale", "sourceRefs"],
-          properties: { sourceSceneId: { type: "string" }, boundaryRef: { type: "string" }, destinationRef: { type: "string" }, scale: { enum: ["LOCAL", "TRAVEL"] }, sourceRefs: stringArray } } },
-        reason: { type: "string" }, expectedEffects: stringArray, narrativeCommitments: { ...stringArray, minItems: 1 },
-        duplicatePolicy: { enum: ["REUSE", "ENRICH", "CREATE_DISTINCT", "POSSIBLE_SAME_AS", "REJECT_IF_SIMILAR"] }
-      }
+      required,
+      properties
     };
   }
   if (role === "player_intent_interpreter") {
@@ -721,6 +726,7 @@ function createNarrativeOpenAiEnhancementApi(options) {
   async function tryHandle(req, res) {
     if (req.method !== "POST" || req.url !== "/api/narration/enhance-openai") return false;
     const startedAtMs = Date.now();
+    let normalizedRequest = null;
     try {
       const body = await parseJsonBody(req);
       const request = normalizeAiCallRequest(body && body.request);
@@ -731,6 +737,7 @@ function createNarrativeOpenAiEnhancementApi(options) {
           issues: request.issues
         });
       }
+      normalizedRequest = request.value;
 
       if (env.NARRATION_OPENAI_LIVE !== "1") {
         return sendJson(res, 200, {
@@ -844,6 +851,34 @@ function createNarrativeOpenAiEnhancementApi(options) {
         }
       });
     } catch (error) {
+      if (normalizedRequest !== null) {
+        const message = error instanceof Error ? error.message : String(error);
+        const route = buildServerRoute(normalizedRequest, env);
+        return sendJson(res, 200, {
+          ok: false,
+          error: "NARRATIVE_OPENAI_ROUTE_FAILURE",
+          output: errorEnvelope(
+            normalizedRequest,
+            "OPENAI_ROUTE_EXCEPTION",
+            `Server-side OpenAI call failed: ${sanitizeProviderErrorText(message) || "unknown error"}.`
+          ),
+          metrics: {
+            providerId: "openai",
+            modelId: route.modelId,
+            reasoningEffort: route.reasoningEffort,
+            role: normalizedRequest.role,
+            latencyMs: Date.now() - startedAtMs,
+            inputTokens: null,
+            outputTokens: null,
+            totalTokens: null,
+            finishReason: error instanceof Error ? error.name : "route_exception",
+            inputTokenBudget: normalizedRequest.limits.inputTokenBudget,
+            outputTokenBudget: normalizedRequest.limits.outputTokenBudget,
+            contextChars: JSON.stringify(normalizedRequest.input).length,
+            schemaChars: JSON.stringify(buildStrictAiOutputSchema(normalizedRequest)).length
+          }
+        });
+      }
       return sendJson(res, 500, {
         ok: false,
         error: "NARRATIVE_OPENAI_ROUTE_FAILURE",
@@ -881,7 +916,9 @@ function normalizeAiCallRequest(value) {
   const expectedContractVersion = contractVersionForRole(request.role);
   const acceptedContractVersions = request.role === "player_intent_interpreter"
     ? [INTENT_CONTRACT_VERSION, SEMANTIC_INTENT_CONTRACT_VERSION]
-    : [expectedContractVersion];
+    : request.role === "scene_creator"
+      ? [SCENE_CREATOR_CONTRACT_VERSION_V1, SCENE_CREATOR_CONTRACT_VERSION_V2]
+      : [expectedContractVersion];
   if (!acceptedContractVersions.includes(request.contractVersion)) issues.push(`contractVersion must be one of: ${acceptedContractVersions.join(", ")}.`);
   if (typeof request.contextFingerprint === "string" && !/^sha256:[a-f0-9]{64}$/u.test(request.contextFingerprint)) {
     issues.push("contextFingerprint must be a sha256 fingerprint.");
@@ -960,7 +997,7 @@ function contractVersionForRole(role) {
   if (role === "player_intent_interpreter") return INTENT_CONTRACT_VERSION;
   if (role === "mj_planner") return MJ_PLANNER_CONTRACT_VERSION;
   if (role === "npc_performer") return NPC_PERFORMER_CONTRACT_VERSION;
-  if (role === "scene_creator") return SCENE_CREATOR_CONTRACT_VERSION;
+  if (role === "scene_creator") return SCENE_CREATOR_CONTRACT_VERSION_V2;
   return CONTRACT_VERSION;
 }
 
@@ -1021,14 +1058,17 @@ function buildRoleInstructions(request) {
   ];
 
   if (request.role === "scene_creator") {
+    const v2 = request.contractVersion === SCENE_CREATOR_CONTRACT_VERSION_V2;
     return [
       "Tu proposes un lieu de jeu nouveau à partir du brief de lore fourni.",
       "Tu n'as aucune autorité de commit, de vérité durable, de création de PNJ présent ni de révélation de secret.",
       "Respecte strictConstraints comme canon, localGuidance comme guide local et regionalGuidance comme inspiration souple.",
-      "Produis des identifiants canoniques stables et des connexions explicites; chaque connexion déclare au moins une sourceRef fournie par le brief.",
+      v2
+        ? "Produis des identifiants canoniques stables. Ne propose aucune connexion ni topologie : le runtime les construit après validation."
+        : "Produis des identifiants canoniques stables et des connexions explicites; chaque connexion déclare au moins une sourceRef fournie par le brief.",
       "parentLocationRef doit recopier exactement une valeur de allowedParentLocationRefs; n'utilise pas une référence wiki à sa place.",
       "requestedDepth doit recopier une valeur de allowedPersistenceDepths; ce parcours crée toujours un lieu persistant revisitable.",
-      "populationRoles décrit seulement des rôles plausibles et ne matérialise aucun PNJ.",
+      "populationRoles contient uniquement des intitulés de rôles courts et ciblables, au singulier, sans action ni description (par exemple: archiviste, copiste, garde). Le runtime peut les projeter en présences locales, jamais en PNJ durables.",
       ...shared
     ].join("\n");
   }
@@ -1093,6 +1133,7 @@ function buildRoleInstructions(request) {
       "Une approche seule comme 'je m'approche du garde' ou 'je me dirige vers le garde' n'est pas une parole: intentType=action, semanticIntent.kind=nonverbal_signal, action=act, sans reaction PNJ automatique.",
       "Une action explicite doit etre intentType=action, commitment=committed, expectedTimeEffect=DOMAIN_TO_DECIDE.",
       "Une action implicite contextuelle comme 'je mets la main sur la poignee et pivote le mecanisme' devant une porte visible peut etre comprise comme semanticIntent.kind=manipulate_visible_object et canonicalActionHint=open sans exiger le mot ouvrir.",
+      "Un déplacement engagé vers un type de lieu ou une destination proche explicitement décrite, par exemple 'je me dirige vers une rue calme non loin', est traverse_visible_boundary avec scope=SCENE_TRANSITION, domainHint=world et targetMention.candidateKind=place. La destination peut ne pas encore avoir de proposedRef: conserve alors sa description dans targetMention.surface sans transformer l'intention en move_near_visible_actor ni demander une clarification artificielle.",
       "Pour une manipulation locale bornée qui ne doit ni franchir un passage ni changer de scène, ajoute exactement scene_transition dans semanticIntent.forbiddenInterpretations. Ne l'ajoute pas si le but réel du joueur est précisément d'entrer, sortir, voyager ou changer de scène.",
       "Si le joueur designe un PNJ visible par description publique unique, par exemple 'la femme' pour la serveuse ou 'l'homme blesse' pour le garde, resous vers ce PNJ visible au lieu du PNJ par defaut.",
       "Si task.localReferentHints contient un referent recent unique compatible avec une ellipse ou un pronom local ('le', 'la', 'lui', \"l'\"), renseigne target et referentResolution avec source=recent_visible_focus; sinon laisse le referent ambigu et demande clarification.",
@@ -1102,6 +1143,7 @@ function buildRoleInstructions(request) {
       "Une question meta ou interface doit etre intentType=meta_question, commitment=none, expectedTimeEffect=NO_GAME_TIME.",
       "Une question sur l'etat percu de la scene, l'environnement, la meteo, le lieu ou ce que le personnage peut savoir sans agir est une question de contexte: intentType=meta_question, commitment=none, expectedTimeEffect=NO_GAME_TIME.",
       "Une demande polie adressee au MJ comme 'peux-tu me decrire l'auberge ?' est une question de contexte, pas une possibilite d'action.",
+      "Une demande de description visuelle d'un acteur à la troisième personne, par exemple 'peux-tu décrire ses habits ou ses traits distinctifs ?', vise l'observation de cet acteur: utilise observe_environment avec une perception adaptée. Ne la transforme pas en question que le personnage poserait au PNJ, sauf si le joueur formule explicitement une adresse directe comme 'je lui demande de décrire...'.",
       "Une ellipse objet sans verbe clair, par exemple 'la bourse du garde ?' ou 'et la porte du fond ?', doit etre unclear_commitment avec requiresClarification=true, pas possibility_query.",
       "Une formulation elliptique ou ambigue doit etre intentType=unclear_commitment, commitment=unclear, requiresClarification=true.",
       "Interdit: transformer une possibilite en action executee, accorder un succes social, reveler un secret, creer un objet ou PNJ durable, ou declencher un handoff definitif."
@@ -1171,7 +1213,8 @@ function buildRoleInstructions(request) {
       "Lis task.dialogueAct comme contrat du tour: INITIATE_CONVERSATION ouvre seulement le contact et ne doit inventer aucune question; ASK_QUESTION répond à contentGoal; MAKE_STATEMENT accuse réception sans la transformer en question; REQUEST_ACTION accepte, refuse ou hésite sans décider un succès; OTHER reste prudent.",
       "Avant d'écrire la prose, remplis reactionFrame: sourceDialogueAct recopie exactement task.dialogueAct.act, addressedContentGoal recopie exactement task.dialogueAct.contentGoal, et responseMode vaut respectivement ACKNOWLEDGE_CONTACT, ANSWER_QUESTION, ACKNOWLEDGE_STATEMENT, RESPOND_TO_REQUEST ou CAUTIOUS_RESPONSE.",
       "La réaction doit répondre au but sémantique du tour courant, ou exprimer clairement un refus, une ignorance ou une esquive portant sur ce but.",
-      "Respecte task.knowledgeEnvelope.visibleSituation et roleContextPack.spatialContext comme contraintes spatiales strictes. Le joueur est déjà dans la salle commune: ne l'invite jamais à entrer dans l'auberge ou à se mettre à l'abri comme s'il était dehors. La porte du fond est celle de l'arrière-salle, pas l'entrée.",
+      "Respecte task.knowledgeEnvelope.visibleSituation et roleContextPack.spatialContext comme contraintes spatiales strictes. N'utilise jamais une autre scène, un autre lieu ou une autre entrée que ceux fournis.",
+      "Si visibleActor fournit demeanor, immediateGoal, currentPressure, speechStyle, conversationalHooks ou boundaries, incarne-les sans les réciter ni les présenter comme une fiche. Ils guident le ton, le rythme, les priorités et les limites du PNJ.",
       "Évite de répéter mot pour mot une formulation de priorNpcUtterances. Ne répète pas mécaniquement le nom ou la position d'un acteur déjà établi, par exemple 'près du garde', sauf si cette précision change réellement le sens.",
       "N'affirme jamais que le PNJ a déjà dit, promis, interdit, couvert ou expliqué quelque chose sauf si la réplique exacte apparaît dans task.knowledgeEnvelope.priorNpcUtterances.",
       "knowledgeUsed et chaque speechActs[].sourceRefs doivent contenir uniquement des valeurs recopiées exactement depuis task.knowledgeEnvelope.allowedSourceRefs. N'invente aucun préfixe task.*, aucun suffixe et aucune nouvelle référence.",
@@ -1190,6 +1233,9 @@ function buildRoleInstructions(request) {
   return [
     ...shared,
     "Role scene_writer: ajoute seulement une narration MJ atmospherique ancree dans les resolutions deja confirmees.",
+    "Pour une arrivée après transition, raconte la scène destination fournie dans le bloc SCENE. N'importe jamais une présence, un décor ou une tension de la scène précédente.",
+    "ambientPopulation décrit une foule visible, pas une liste de PNJ individualisés. Mets-la en mouvement en une ou deux phrases, regroupe les rôles et ne récite jamais 'Présences visibles' suivi d'un inventaire.",
+    "presentNpc contient seulement les figures déjà individualisées; tu peux les distinguer de la foule sans leur inventer de biographie, d'action nouvelle ou de connaissance.",
     "task.renderAuthority.allowedClaims est la liste positive des affirmations que tu peux formuler. Ne complète pas un objet ou un acteur par des propriétés plausibles mais absentes.",
     "Si texturePolicy.allowed=true, la texture reste TURN_ONLY: elle peut seulement reformuler une sensation déjà sourcée, accentuer une tension confirmée ou relier stylistiquement des faits autorisés.",
     "Interdit même comme texture: matériau ou usure non fournis, état interne ou mécanique, fonctionnement, causalité passée, nouvelle source sonore ou lumineuse, présence, action ou réaction non autorisée, détail utilisable comme indice ou règle.",
@@ -1471,6 +1517,7 @@ function validateSemanticIntentPayloadV2(payload) {
 
 function validateSceneCreatorPayload(payload, request) {
   const issues = [];
+  const v2 = request?.contractVersion === SCENE_CREATOR_CONTRACT_VERSION_V2;
   const requiredStrings = [
     "proposalId", "displayName", "summary", "initialTension", "proposedPlaceRef",
     "arrivalSceneId", "parentLocationRef", "reason"
@@ -1497,9 +1544,11 @@ function validateSceneCreatorPayload(payload, request) {
   if (allowedParentLocationRefs.length > 0 && !allowedParentLocationRefs.includes(payload.parentLocationRef)) {
     issues.push("payload.parentLocationRef is not allowed by the scene creator context.");
   }
-  if (!Array.isArray(payload.connectionIntents) || payload.connectionIntents.length === 0 || payload.connectionIntents.length > 4) {
+  if (v2 && Object.prototype.hasOwnProperty.call(payload, "connectionIntents")) {
+    issues.push("payload.connectionIntents is forbidden by lore-guided-place-candidate/2.");
+  } else if (!v2 && (!Array.isArray(payload.connectionIntents) || payload.connectionIntents.length === 0 || payload.connectionIntents.length > 4)) {
     issues.push("payload.connectionIntents must contain 1 to 4 connections.");
-  } else {
+  } else if (!v2) {
     payload.connectionIntents.forEach((connection, index) => {
       const path = `payload.connectionIntents[${index}]`;
       if (!connection || typeof connection !== "object" || Array.isArray(connection)) {

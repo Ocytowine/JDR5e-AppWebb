@@ -1,12 +1,12 @@
 import { coreError, type CampaignRecord, type CampaignRepository, type OperationRecord, type Result, type WriterLease } from "../core";
 import { validateDynamicCreationProposalV1 } from "../ai/validation";
-import type { DynamicCreationValidationPolicyV1 } from "../ai/types";
+import type { AiCallTelemetryV1, DynamicCreationValidationPolicyV1 } from "../ai/types";
 import type { NarrativeDomainCommandV1 } from "./domainCommands";
 import type { NarrativeIntentInterpretationV1 } from "./intentClarification";
 import type { LoreGuidedSceneCreationBriefV1 } from "./loreGuidedSceneCreation";
 import {
-  generateLoreGuidedPlaceCandidateV1,
-  type LoreGuidedPlaceCandidateGeneratorConfigV1
+  generateLoreGuidedPlaceCandidateV2,
+  type LoreGuidedPlaceCandidateGeneratorConfigV2
 } from "./loreGuidedPlaceCandidateGeneration";
 import {
   type DynamicPlaceEntryCreativePreparationV1,
@@ -29,12 +29,13 @@ export interface LoreGuidedDynamicPlaceCreativeContextV1 {
   sourceLocationRef: string;
   sourceBoundaryRef: string;
   requestedDestinationDescription: string;
-  generatorConfig: LoreGuidedPlaceCandidateGeneratorConfigV1;
+  generatorConfig: LoreGuidedPlaceCandidateGeneratorConfigV2;
 }
 
 export interface LoreGuidedDynamicPlaceCreativePreparationV1 extends DynamicPlaceEntryCreativePreparationV1 {
   context: LoreGuidedDynamicPlaceCreativeContextV1;
   proposalId: string;
+  aiTelemetry: AiCallTelemetryV1[];
 }
 
 export interface LoreGuidedDynamicPlaceContextPortV1 {
@@ -80,7 +81,7 @@ export function createLoreGuidedDynamicPlacePreparationPortV1(input: {
     async prepareCreative(request) {
       const context = await input.contextPort.buildContext(request);
       if (!context.ok) return context;
-      const generated = await generateLoreGuidedPlaceCandidateV1({
+      const generated = await generateLoreGuidedPlaceCandidateV2({
         campaignId: request.campaign.campaignId,
         operationId: request.operation.operationId,
         brief: context.value.brief,
@@ -124,7 +125,8 @@ export function createLoreGuidedDynamicPlacePreparationPortV1(input: {
         value: {
           validation: placeValidation,
           context: context.value,
-          proposalId: generated.proposal.proposalId
+          proposalId: generated.proposal.proposalId,
+          aiTelemetry: generated.telemetry
         }
       };
     },

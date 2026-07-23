@@ -33,7 +33,7 @@ import {
 import {
   buildOpenAiIntentInterpreterConfigV1,
   buildOpenAiNpcPerformerConfigV1,
-  buildOpenAiSceneCreatorConfigV1
+  buildOpenAiSceneCreatorConfigV2
 } from "./openAiNarrativeRuntimeConfig";
 import { ServerOpenAiEnhancementProviderV1 } from "./serverOpenAiEnhancementClient";
 
@@ -46,7 +46,9 @@ export function NarrativeAppSurface() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [enhancementMode, setEnhancementMode] = useState<NarrativeEnhancementMode>("local");
   const [openingScene, setOpeningScene] = useState<PlayableSceneStateV1 | null>(null);
-  const [enhancementStatus, setEnhancementStatus] = useState<string>("Mode local actif pour l'interprétation et l'enrichissement.");
+  const modeStatus = enhancementMode === "openai"
+    ? "Mode OpenAI actif. Un fallback local reste disponible si une sortie distante est inutilisable."
+    : "Mode local actif pour l'interprétation et l'enrichissement.";
   const packets = useMemo(
     () => [createWelcomePacket(openingScene ?? REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1), ...packetsFromController],
     [openingScene, packetsFromController]
@@ -75,7 +77,7 @@ export function NarrativeAppSurface() {
         resolveAuthoredSceneLocationRef: sceneId => archivePilot.locationRefBySceneId.get(sceneId) ?? null,
         knownAuthoredSceneIds: archivePilot.scenes.map(scene => scene.sceneId),
         knownAuthoredPlaces: archivePilot.authoredPlaces,
-        generatorConfig: buildOpenAiSceneCreatorConfigV1()
+        generatorConfig: buildOpenAiSceneCreatorConfigV2()
       }) : null;
       const sceneTransitionRuntime = createCatalogSceneTransitionRuntimeV1({
         async resolveSource(sceneId, context) {
@@ -158,10 +160,17 @@ export function NarrativeAppSurface() {
       const statusMessage = orchestrationStatus.length === 0
         ? enhancement.status
         : `${orchestrationStatus} ${enhancement.status}`;
+      const turnDiagnostics = [
+        ...(enhancement.attemptedEnhancement !== null &&
+          (enhancement.attemptedEnhancement.incidents.length > 0 || enhancement.attemptedEnhancement.fallbackKind !== "NONE")
+          ? [enhancement.status]
+          : [])
+      ];
       const packetBeforeProjection = appendNarrativeSystemTrace({
         packet: enhancement.displayPacket,
         output: result.value.output,
         priorPackets: packetsFromController,
+        turnDiagnostics,
         timings: {
           controllerMs: controllerFinishedAt - submittedAt,
           enhancementMs: enhancementFinishedAt - controllerFinishedAt,
@@ -183,11 +192,11 @@ export function NarrativeAppSurface() {
         return;
       }
       const projectionFinishedAt = performance.now();
-      setEnhancementStatus(statusMessage);
       const enhanced = appendNarrativeSystemTrace({
         packet: enhancement.displayPacket,
         output: result.value.output,
         priorPackets: packetsFromController,
+        turnDiagnostics,
         timings: {
           controllerMs: controllerFinishedAt - submittedAt,
           enhancementMs: enhancementFinishedAt - controllerFinishedAt,
@@ -258,10 +267,7 @@ export function NarrativeAppSurface() {
                 name="narrative-ai-mode"
                 value="local"
                 checked={enhancementMode === "local"}
-                onChange={() => {
-                  setEnhancementMode("local");
-                  setEnhancementStatus("Mode local actif pour l'interprétation et l'enrichissement.");
-                }}
+                onChange={() => setEnhancementMode("local")}
               />{" "}
               Locale
             </label>
@@ -271,15 +277,12 @@ export function NarrativeAppSurface() {
                 name="narrative-ai-mode"
                 value="openai"
                 checked={enhancementMode === "openai"}
-                onChange={() => {
-                  setEnhancementMode("openai");
-                  setEnhancementStatus("Mode OpenAI demandé pour l'interprétation et l'enrichissement. Fallback local si la route serveur est désactivée.");
-                }}
+                onChange={() => setEnhancementMode("openai")}
               />{" "}
               OpenAI
             </label>
             <p style={{ margin: "8px 0 0", color: "rgba(255,255,255,0.62)", fontSize: 12 }}>
-              {enhancementStatus}
+              {modeStatus}
             </p>
           </fieldset>
           {errorMessage && (
@@ -331,18 +334,20 @@ function appendNarrativeSystemTrace(input: {
   packet: DisplayPacketV1;
   output: NarrativeTurnControllerOutputV1;
   priorPackets: DisplayPacketV1[];
+  turnDiagnostics?: string[];
   timings: { controllerMs: number; enhancementMs: number; projectionMs: number; totalMs: number };
 }): DisplayPacketV1 & JsonObject {
-  const actorRef = input.output.npcPerformance?.actorId
+  const resolvedRef = input.output.npcPerformance?.actorId
     ?? input.output.interpretation.referentResolution?.resolvedTarget?.ref
     ?? input.output.interpretation.semanticIntent.target?.ref
     ?? null;
+  const actorRef = resolvedRef?.startsWith("npc:") ? resolvedRef : null;
   const actorId = actorRef?.replace(/^npc:/u, "") ?? null;
-  const actorDisplayName = actorId === "npc-serveuse-nerveuse"
-    ? "Serveuse nerveuse"
-    : actorId === "npc-garde-blesse"
-      ? "Garde blessé"
-      : null;
+  const actorDisplayName = actorId === null
+    ? null
+    : input.output.activeScene.presentNpc.find(npc => npc.actorId === actorId)?.displayName
+      ?? input.output.activeScene.ambientPopulation?.find(presence => presence.actorId === actorId)?.displayName
+      ?? null;
   const rememberedPlayerIntents = actorId === null
     ? []
     : input.output.sceneState.shortTermNpcMemory
@@ -374,6 +379,7 @@ function appendNarrativeSystemTrace(input: {
     `IA ${metric.role}: modèle=${metric.modelId}; raisonnement=${metric.reasoningEffort ?? "standard"}; latence=${formatDuration(metric.latencyMs)}; tokens=${metric.inputTokens ?? "?"}+${metric.outputTokens ?? "?"}/${metric.totalTokens ?? "?"}; fin=${metric.finishReason ?? "?"}; budgets=${metric.inputTokenBudget}/${metric.outputTokenBudget}; contexte=${metric.contextChars} caractères; schéma=${metric.schemaChars ?? "?"} caractères.`
   );
   const traceLines = [
+    ...(input.turnDiagnostics ?? []).map(message => `Diagnostic du tour: ${message}`),
     "Trace système et mémoire",
     `Pipeline PNJ: ${performerOutcome}; acteur=${actorRef ?? "aucun"}; acte=${input.output.interpretation.semanticIntent.dialogueAct?.act ?? "aucun"}.`,
     `Intentions joueur mémorisées (${rememberedPlayerIntents.length}): ${rememberedPlayerIntents.join(" | ") || "aucune"}.`,
@@ -413,12 +419,12 @@ function createPlayableSceneOpeningPacket(scene: PlayableSceneStateV1 = REFERENC
     .map(point => `${point.label} : ${point.visibleDescription}`)
     .join(" ");
   const openingText = [
-    `Tu es dans la salle commune de l'${scene.locationName}.`,
+    `Tu te trouves à ${scene.locationName}.`,
     scene.perceptibleSituation.join(" "),
-    visibleNpc ? `Presences visibles : ${visibleNpc}.` : "",
+    visibleNpc ? `Présences visibles : ${visibleNpc}.` : "",
     visiblePoints,
     `Tension actuelle : ${scene.currentTension}`,
-    "Aucune action n'est encore engagee : la scene est ouverte et attend ta premiere intention."
+    "Aucune action n'est encore engagée : la scène est ouverte et attend ta première intention."
   ].filter(Boolean).join(" ");
   return {
     schemaVersion: 1,
@@ -517,7 +523,7 @@ async function enhancePrototypePacket(
   finalEnhancement: AiNarrativeEnhancementResultV1;
   attemptedEnhancement: AiNarrativeEnhancementResultV1 | null;
 }> {
-  if (output.sceneArrival !== null) {
+  if (output.sceneArrival !== null && output.activeScene.sceneId !== output.sceneArrival.scene.sceneId) {
     const finalEnhancement: AiNarrativeEnhancementResultV1 = {
       schemaVersion: 1,
       contractVersion: "narrative-ai-resolution/1",
@@ -526,11 +532,29 @@ async function enhancePrototypePacket(
       fallbackKind: "NONE",
       displayPacket: output.displayPacket,
       incidents: [],
-      safetyNotes: ["Arrivée reconstruite après commit depuis la scène destination; aucun writer lié à l'ancienne scène n'a été appelé."]
+      safetyNotes: ["Arrivée reconstruite après commit, mais la scène active ne correspond pas à la destination; writer refusé."]
     };
     return {
       displayPacket: output.displayPacket,
-      status: "Transition confirmée par le monde; scène d'arrivée reconstruite après commit.",
+      status: "Transition confirmée, mais enrichissement refusé car la scène active ne correspond pas à la destination.",
+      finalEnhancement,
+      attemptedEnhancement: null
+    };
+  }
+  if (output.suspendedIntent !== null || output.resolution.resultKind === "CLARIFICATION_REQUIRED") {
+    const finalEnhancement: AiNarrativeEnhancementResultV1 = {
+      schemaVersion: 1,
+      contractVersion: "narrative-ai-resolution/1",
+      enhanced: false,
+      usedFallback: false,
+      fallbackKind: "NONE",
+      displayPacket: output.displayPacket,
+      incidents: [],
+      safetyNotes: ["Clarification déterministe conservée sans scene_writer afin de ne pas répéter la scène."]
+    };
+    return {
+      displayPacket: output.displayPacket,
+      status: "Clarification demandée sans réécriture de la scène.",
       finalEnhancement,
       attemptedEnhancement: null
     };
@@ -761,7 +785,7 @@ const prototypeSceneWriterRoute: AiModelRouteV1 = {
   allowedContractVersions: ["narrative-ai-resolution/1"],
   inputTokenLimit: 2_000,
   outputTokenLimit: 1_500,
-  timeoutMs: 1_000,
+  timeoutMs: 30_000,
   fallbackRouteIds: []
 };
 

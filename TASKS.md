@@ -6,8 +6,11 @@ Ce fichier est le tableau de bord court du depot. Les details techniques restent
 
 ## En cours
 
+- [ ] Donner du caractère aux PNJ locaux sans promouvoir toute la foule en personnages durables.
+  Référence: `test-GAME-2D/narration-module/docs/Contrat-population-ambiante-et-arrivee-narrative.md`. Les rôles dynamiques vivent dans `ambientPopulation`; la première parole ciblée promeut atomiquement la présence dans un registre `scene.actor-registry`, puis toute reconstruction la replace dans `presentNpc` avec la même identité et la même amorce de personnalité. La mémoire courte reste liée à cet identifiant stable. Prochaine étape concrète: recette UI sortie-retour avec dialogue long, puis définir la promotion volontaire `SCENE_ACTOR` vers `CAMPAIGN_NPC`.
+
 - [ ] Faire évoluer `wiki/lore` vers un guide prioritairement narratif pour les créations dynamiques.
-  Références: `test-GAME-2D/narration-module/docs/Handoff-scene-creator-archives-live.md`, `Cadrage-lore-narratif-dynamique.md`, `Contrat-selection-influences-lore.md`, `Contrat-creation-scene-guidee-lore.md` et `Revue-branchement-archives-dynamique.md`. La surface démarre aux Archives de Lysenthe depuis le wiki, suit les connexions connues par un runtime de catalogue et confie une sortie externe inconnue à `scene_creator`. Le commit atomique couvre lieu, faits, topologie, temps, position et cycle de scène; la résolution IndexedDB couvre les scènes wiki et dynamiques. Le bootstrap des registres dynamiques reprend désormais après rollback depuis son opération existante et finalise une présentation interrompue après commit. Prochaine étape concrète: configurer la clé fournisseur et exécuter la recette OpenAI live Archives → destination absente → retour, puis réduire le contrat V2 de `scene_creator`.
+  Références: `test-GAME-2D/narration-module/docs/Handoff-scene-creator-archives-live.md`, `Benchmark-scene-creator-V2.md`, `Cadrage-lore-narratif-dynamique.md`, `Contrat-selection-influences-lore.md`, `Contrat-creation-scene-guidee-lore.md` et `Revue-branchement-archives-dynamique.md`. La surface démarre aux Archives de Lysenthe depuis le wiki, suit les connexions connues par un runtime de catalogue et confie une sortie externe inconnue à `scene_creator`. Le contrat actif `lore-guided-place-candidate/2` ne demande plus de topologie à l'IA; V1 reste accepté en compatibilité et le runtime construit toujours l'entrée et le retour. La télémétrie de succès suit la création jusqu'à la notification, avec trace locale explicite si les métriques fournisseur manquent. `gpt-5.6-luna/none` est certifié sur trois triplets à 9/9 sans retry, p50 globale 5,514 s, contre 20,855 s pour `gpt-5.5/low`. Prochaine étape concrète: appliquer la configuration retenue, puis générer un catalogue lore de build.
 
 - [ ] Ouvrir la transition locale de scène sans créer de seconde topologie narrative.
   Référence: `test-GAME-2D/narration-module/docs/Contrat-transition-locale-scene.md`. Les passages salle commune ↔ arrière-salle sont commités avec 8 secondes chacun et les tours relisent `scene.lifecycle`. Le `scene_writer` reçoit un contexte et un brief génériques depuis la scène active, avec historique filtré et gate factuelle. Le vertical automatisé couvre arrivée, observation, approche de lampe, examen borné des traces et retour à la seconde 16. Prochaine étape concrète: recette UI OpenAI de cette séquence.
@@ -20,6 +23,8 @@ Ce fichier est le tableau de bord court du depot. Les details techniques restent
 
 ## Prochaines etapes
 
+- [ ] Préparer l'arbitrage contextuel des actions avant d'ouvrir le moteur de dés.
+  Références: `test-GAME-2D/narration-module/docs/Plan-arbitrage-actions-et-tests-competences.md` et `Contrat-resolution-tests-competence.md`. `dice-roll-record/1` committe un unique d20 Web Crypto par `checkId`, rejoue sans nouveau tirage et refuse une proposition conflictuelle. Prochaine étape concrète: préparer les conséquences et le temps depuis le résultat persisté, puis seulement ouvrir le déclenchement UI.
 - [ ] Réaliser la revue de gate post-I-06ZR et décider de la prochaine capacité narrative sans rouvrir les autorités IA fermées.
 - [ ] Migrer `wiki/lore/gouvernances/primauté` vers un futur type de gouvernance et retirer alors son exclusion explicite.
 - [ ] Préparer après I-06A le branchement UI narratif progressif, sans appel fournisseur direct depuis React tant que les projections ne sont pas validées.
@@ -38,6 +43,34 @@ Ce fichier est le tableau de bord court du depot. Les details techniques restent
 - La parite directe import/plateau reste la reserve documentee d'I-02; elle ne doit pas etre contournee dans I-03.
 
 ## Termine recemment
+
+- [x] Déplacement libre vers une destination locale décrite: `traverse_visible_boundary` conserve le lieu demandé même sans référent existant et ouvre une frontière synthétique validée par le `scene_creator`, au lieu d'un faux `move_near_visible_actor`; plafond `scene_writer` aligné à 1 500 tokens pour les arrivées structurées le 2026-07-23.
+
+- [x] Clarification du statut UI narration: le ruban sous le sélecteur affiche uniquement le mode courant; les incidents d'enrichissement pertinents sont rattachés à la notification système du tour sans conserver un faux état global le 2026-07-23.
+
+- [x] Correctif de la description visuelle des PNJ locaux: demande à la troisième personne routée vers l'observation, apparence visible stable ajoutée aux amorces d'acteur et paquet `npc_performer` dédupliqué pour réduire latence et timeouts le 2026-07-23.
+
+- [x] Suppression du dernier fallback de fixture `Garde blessé` pour les interlocuteurs dynamiques: le renderer et le performer local conservent désormais l'identifiant et le nom de la cible visible lors d'un rejet du critique le 2026-07-23.
+
+- [x] Correctif du `scene_writer` live: remplacement du timeout de fixture de 1 s par 30 s et retour d'un diagnostic structuré lors d'une exception serveur, au lieu d'un HTTP 500 opaque le 2026-07-23.
+
+- [x] Promotion locale persistante `ambientPopulation` → `SCENE_ACTOR`: registre par scène écrit avec l'acte de parole, reconstruction dans `presentNpc`, identité et caractère stables après sortie-retour le 2026-07-23.
+
+- [x] Première fondation des scènes habitées: séparation `ambientPopulation`/`presentNpc`, ciblabilité conservée, amorces locales de personnalité, contexte performer générique et passe `scene_writer` post-commit bornée à la scène destination le 2026-07-23.
+
+- [x] Banc live `scene_creator` V2 ajouté et comparaison certifiée: `gpt-5.5/low` accepte 3/3; `gpt-5.6-luna/none` réussit trois triplets à 9/9 sans retry, p50 globale 5,514 s et max 14,198 s contre p50 20,855 s pour la baseline le 2026-07-23.
+
+- [x] Contrôle live `player_intent_interpreter` après correctifs dynamiques: `gpt-5.6-luna/none` obtient 23/24 sans retry, p50 global 2,368 s, p95 3,832 s et max 4,080 s; un oubli ponctuel de cible de transition empêche de renouveler la gate stricte 24/24 le 2026-07-23.
+
+- [x] Recette étendue Archives → Perron → dialogue à deux tours → retour validée; nettoyage des points wiki techniques, accents d'ouverture, trace PNJ et contrat de rôles courts du `scene_creator` le 2026-07-23.
+
+- [x] Suppression de la fuite de fixture `Garde blessé` dans les scènes dynamiques: contexte `npc_performer`, sources, spatialité, identité affichée, fallback et mémoire acceptent désormais l'acteur de la scène active; rôles ambiants présentés sous un libellé court le 2026-07-23.
+
+- [x] Cohérence jouable des scènes dynamiques: rôles de population projetés en présences locales ciblables sans entité durable, clarification sans répétition du `scene_writer`, retour francisé et ouverture wiki réduite au résumé auteur, avec régression « je m'approche d'un copiste » et build global le 2026-07-23.
+
+- [x] `scene_creator` V2 et observabilité de succès: candidat créatif sans `connectionIntents`, compatibilité V1 serveur/pipeline, topologie locale inchangée et métriques propagées jusqu'au bloc système le 2026-07-23.
+
+- [x] Recette OpenAI live Archives certifiée avec `gpt-5.6-luna/none` pour l'intention et `gpt-5.5` pour `scene_creator`: création atomique d'un parvis absent, restauration IndexedDB pendant la scène dynamique et retour sans recréation le 2026-07-23.
 
 - [x] Reprise du bootstrap des registres de lieux dynamiques après panne atomique: cinq points d'injection vérifient l'absence de publication partielle, le rejeu reprend depuis `READY_TO_COMMIT` et une présentation post-commit inachevée est finalisée le 2026-07-23.
 

@@ -719,11 +719,13 @@ export function validateAiRoleOutputEnvelopeV1(output: unknown, request: AiCallR
 
 function validateSceneCreatorPayload(payload: unknown, request: AiCallRequestV1): string[] {
   if (!isObject(payload)) return ["payload: expected object"];
+  const v2 = request.contractVersion === "lore-guided-place-candidate/2";
   const expectedKeys = [
-    "arrivalSceneId", "connectionIntents", "displayName", "duplicatePolicy", "expectedEffects",
+    "arrivalSceneId", "displayName", "duplicatePolicy", "expectedEffects",
     "initialTension", "localNorms", "narrativeCommitments", "parentLocationRef", "perceptibleFeatures",
     "populationRoles", "proposalId", "proposedPlaceRef", "reason", "requestedDepth", "summary"
   ];
+  if (!v2) expectedKeys.push("connectionIntents");
   const issues = exactKeys(payload, expectedKeys, "payload");
   for (const key of ["proposalId", "displayName", "summary", "initialTension", "proposedPlaceRef", "arrivalSceneId", "parentLocationRef", "reason"] as const) {
     issues.push(...validateNonEmptyString(payload[key], `payload.${key}`));
@@ -738,10 +740,11 @@ function validateSceneCreatorPayload(payload: unknown, request: AiCallRequestV1)
     ? roleContextPack.allowedParentLocationRefs
     : [];
   if (allowedParentLocationRefs.length > 0 && !allowedParentLocationRefs.includes(String(payload.parentLocationRef))) issues.push("payload.parentLocationRef: not allowed by scene creator context");
-  if (!Array.isArray(payload.connectionIntents) || payload.connectionIntents.length === 0 || payload.connectionIntents.length > 4) {
+  const connectionIntents = payload.connectionIntents;
+  if (!v2 && (!Array.isArray(connectionIntents) || connectionIntents.length === 0 || connectionIntents.length > 4)) {
     issues.push("payload.connectionIntents: expected 1 to 4 connections");
-  } else {
-    payload.connectionIntents.forEach((connection, index) => {
+  } else if (!v2 && Array.isArray(connectionIntents)) {
+    connectionIntents.forEach((connection: unknown, index: number) => {
       const path = `payload.connectionIntents[${index}]`;
       if (!isObject(connection)) {
         issues.push(`${path}: expected object`);

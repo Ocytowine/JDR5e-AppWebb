@@ -12,6 +12,12 @@ import {
   type RulesetManifestV1
 } from "../../src/bootstrap/index";
 import { assert } from "../contracts/assertions";
+import {
+  buildUnresolvedSkillCheckProposalV1,
+  assessDifficultyBandV1,
+  selectSkillCheckDifficultyBandV1,
+  resolveSkillCheckDifficultyV1
+} from "../../src/application";
 
 function clone<T>(value: T): T {
   return structuredClone(value);
@@ -26,7 +32,7 @@ async function manifestFor(definitions: RuleDefinitionV1[]): Promise<RulesetMani
   const base: Omit<RulesetManifestV1, "rootFingerprint"> = {
     schemaVersion: 1,
     rulesetId: "rules.jdr5e",
-    rulesetVersion: 1,
+    rulesetVersion: 2,
     compatibleContentPackages: [{ packageId: "content.jdr5e", minimumVersion: 1, maximumVersion: 2 }],
     rules
   };
@@ -57,7 +63,7 @@ async function run(): Promise<void> {
   const loaded = await load(clone(MVP_RULE_DEFINITIONS_V1), MVP_RULE_EXECUTORS_V1, manifest);
   assert.equal(loaded.ok, true, loaded.ok ? undefined : loaded.diagnostics.map(value => value.code).join(", "));
   if (!loaded.ok) return;
-  assert.equal(loaded.value.listRules().length, 15);
+  assert.equal(loaded.value.listRules().length, 16);
   console.log("PASS [rule-registry] strict MVP inventory loads with verified fingerprints");
 
   const ability = await loaded.value.execute(
@@ -94,6 +100,49 @@ async function run(): Promise<void> {
     assert.equal(unavailable.value.ruleVersion, 1);
   }
   console.log("PASS [rule-registry] NAR-ACC-008 refuses an impossible capability before any roll or cost");
+
+  for (const [band, dc] of [["VERY_EASY", 5], ["EASY", 10], ["MEDIUM", 15], ["HARD", 20], ["VERY_HARD", 25], ["NEARLY_IMPOSSIBLE", 30]] as const) {
+    const difficulty = await loaded.value.execute(
+      { ruleId: "core.check.difficulty-class", ruleVersion: 1 },
+      { band }
+    );
+    assert.equal(difficulty.ok, true);
+    if (difficulty.ok) assert.deepEqual(difficulty.value.output, { band, dc });
+  }
+  const unresolvedCheck = buildUnresolvedSkillCheckProposalV1({
+    checkId: "check:find-hidden-person",
+    domain: "rules",
+    goal: "retrouver une personne dissimulée",
+    targetRef: null,
+    ability: "SAG",
+    skillId: "perception",
+    passiveEligible: false,
+    passiveReason: "Recherche active.",
+    successStake: "La piste est retrouvée.",
+    failureStake: "La piste n'est pas retrouvée et le temps peut avancer.",
+    sourceRefs: ["scene:test"]
+  });
+  assert.equal(unresolvedCheck.difficulty.dc, null);
+  const selectedCheck = selectSkillCheckDifficultyBandV1(
+    unresolvedCheck,
+    assessDifficultyBandV1({ baseBand: "MEDIUM", factors: [{
+      factorId: "target.concealed",
+      shift: 1,
+      publicReason: "La cible cherche activement à dissimuler sa piste.",
+      sourceRef: "scene:test",
+      visibility: "PLAYER_VISIBLE"
+    }] })
+  );
+  const resolvedCheck = await resolveSkillCheckDifficultyV1({
+    proposal: selectedCheck,
+    registry: loaded.value
+  });
+  assert.equal(resolvedCheck.ok, true);
+  if (resolvedCheck.ok) {
+    assert.equal(resolvedCheck.value.difficulty.dc, 20);
+    assert.equal(resolvedCheck.value.difficulty.ruleRef, "core.check.difficulty-class@1");
+  }
+  console.log("PASS [rule-registry] explicit difficulty bands resolve to versioned DC values");
 
   const appearance = await loaded.value.execute(
     { ruleId: "core.character.visible-appearance", ruleVersion: 1 },
@@ -217,7 +266,7 @@ async function run(): Promise<void> {
   malformed[0].unexpected = true;
   expectDiagnostic(await load(malformed), "RULESET_SCHEMA_INVALID");
   console.log("PASS [rule-registry] incompatible content, tampering, missing executors, invalid graph and conflicts are rejected");
-  console.log("PASS [rule-registry] 11 executable rules, 3 invariants/descriptions and 1 adjudication rule.");
+  console.log("PASS [rule-registry] 12 executable rules, 3 invariants/descriptions and 1 adjudication rule.");
 }
 
 void run().catch(error => {

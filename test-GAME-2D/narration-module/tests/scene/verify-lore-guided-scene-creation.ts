@@ -7,14 +7,22 @@ import {
   buildLoreGuidedSceneCreationBriefFromCampaignV1,
   buildSceneCreatorBriefViewV1,
   buildDynamicPlaceSceneAfterCommitV1,
+  buildSceneReferentRegistryV1,
+  buildSceneArrivalDisplayPacketV1,
+  buildSceneActorPromotionV1,
   buildPlaceCreationCommitV1,
   executePlaceCreationRuntimeV1,
   ensureDynamicPlaceCreationStateV1,
   createLoreGuidedDynamicPlacePreparationPortV1,
   generateLoreGuidedPlaceCandidateV1,
+  generateLoreGuidedPlaceCandidateV2,
   isUnmappedVisibleCreationBoundaryV1,
   preparePlaceCreationCommandV1,
   resolveSceneV1,
+  resolveSceneReferentTextV1,
+  resolveNpcSpeakerV1,
+  appendSceneActorV1,
+  applySceneActorRegistryV1,
   validatePlaceCreationProposalV1,
   type CampaignLoreProjectionV1
 } from "../../src/application";
@@ -210,7 +218,7 @@ async function run(): Promise<void> {
   };
   const boundaryScene = {
     schemaVersion: 1 as const, contractVersion: "playable-scene-state/1" as const, sceneId: "wiki-location:archives_de_lysenthe", locationName: "Archives de Lysenthe",
-    perceptibleSituation: ["Archives"], visibleElements: [{ schemaVersion: 1 as const, elementId: "building-description", label: "Bâtiment", description: "Le bâtiment des Archives.", keywords: ["bâtiment"], playerVisible: true as const, version: 1 as const }], presentNpc: [], perceptionClues: [], currentTension: "Calme", playerKnownFacts: [],
+    perceptibleSituation: ["Archives"], visibleElements: [{ schemaVersion: 1 as const, elementId: "building-description", label: "Bâtiment", description: "Le bâtiment des Archives.", keywords: ["bâtiment"], playerVisible: true as const, version: 1 as const }], presentNpc: [], ambientPopulation: [], perceptionClues: [], currentTension: "Calme", playerKnownFacts: [],
     pointsOfInterest: [
       { schemaVersion: 1 as const, pointId: "external-exit", label: "Place des Archives", visibleDescription: "Une sortie.", keywords: ["sortie"], destinationAliases: ["place des Archives"], version: 1 as const },
       { schemaVersion: 1 as const, pointId: "archive-function", label: "Classement", visibleDescription: "Une fonction du lieu.", keywords: ["classement"], destinationAliases: [], version: 1 as const }
@@ -219,6 +227,7 @@ async function run(): Promise<void> {
     aiSceneWriterPolicy: { schemaVersion: 1 as const, mayCreate: [], mayReference: [], mustNotCreate: [], noveltyConstraints: [], version: 1 as const }, version: 1 as const
   };
   assert.equal(isUnmappedVisibleCreationBoundaryV1({ semanticKind: "traverse_visible_boundary", requiresClarification: false, targetRef: "poi:external-exit", activeScene: boundaryScene, topology }), true);
+  assert.equal(isUnmappedVisibleCreationBoundaryV1({ semanticKind: "traverse_visible_boundary", requiresClarification: false, targetRef: "requested-destination:une-rue-calme-non-loin", activeScene: boundaryScene, topology }), true, "une destination proche explicitement demandée ouvre une création bornée sans faux référent acteur");
   assert.equal(isUnmappedVisibleCreationBoundaryV1({ semanticKind: "traverse_visible_boundary", requiresClarification: false, targetRef: null, activeScene: boundaryScene, topology }), true);
   assert.equal(isUnmappedVisibleCreationBoundaryV1({ semanticKind: "traverse_visible_boundary", requiresClarification: false, targetRef: "element:building-description", activeScene: boundaryScene, topology }), true);
   assert.equal(isUnmappedVisibleCreationBoundaryV1({ semanticKind: "traverse_visible_boundary", requiresClarification: false, targetRef: "poi:archive-function", activeScene: boundaryScene, topology }), false);
@@ -244,8 +253,25 @@ async function run(): Promise<void> {
   if (placeValidation.ok) {
     const oneWayGeneratorConfig = {
       ...generatorConfig,
-      provider: { async generate(request: import("../../src/ai").AiCallRequestV1) { return { schemaVersion: 1 as const, contractVersion: request.contractVersion, outputId: "output-ai-place-one-way", callId: request.callId, attemptId: request.attemptId, packId: request.packId, snapshotId: request.snapshotId, role: request.role, status: "OK" as const, payload: { ...candidate, connectionIntents: candidate.connectionIntents.slice(0, 1) }, diagnostics: [], supersedesOutputId: null }; } }
+      route: { ...generatorConfig.route, modelConfigVersion: "2", allowedContractVersions: ["lore-guided-place-candidate/2"] },
+      provider: {
+        async generate(request: import("../../src/ai").AiCallRequestV1) {
+          const { connectionIntents: _ignored, ...candidateV2 } = candidate;
+          return { schemaVersion: 1 as const, contractVersion: request.contractVersion, outputId: "output-ai-place-v2", callId: request.callId, attemptId: request.attemptId, packId: request.packId, snapshotId: request.snapshotId, role: request.role, status: "OK" as const, payload: candidateV2, diagnostics: [], supersedesOutputId: null };
+        }
+      }
     };
+    const generatedV2 = await generateLoreGuidedPlaceCandidateV2({
+      campaignId: "campaign-1", operationId: "operation-ai-place-candidate-v2", brief: briefResult.brief,
+      sourceSceneId: "wiki-location:archives_de_lysenthe", sourceBoundaryRef: "poi:archives_de_lysenthe:poi:2",
+      allowedParentLocationRefs: ["location:quartier_des_archives"], allowedPersistenceDepths: ["LIGHT_REFERENCE", "FULL_ENTITY"],
+      requestedDestinationDescription: "une rue secondaire proche des Archives", config: oneWayGeneratorConfig
+    });
+    assert.equal(generatedV2.ok, true, generatedV2.ok ? undefined : generatedV2.issues.join(" | "));
+    if (generatedV2.ok) {
+      assert.equal(Object.hasOwn(generatedV2.candidate, "connectionIntents"), false);
+      assert.equal(generatedV2.telemetry[0]?.finishReason, "provider_metrics_missing");
+    }
     const productionPreparation = createLoreGuidedDynamicPlacePreparationPortV1({
       contextPort: {
         canCreate: () => true,
@@ -259,6 +285,8 @@ async function run(): Promise<void> {
       assert.equal(productionCreative.value.validation.ok, true);
       assert.equal(productionCreative.value.validation.topologyAdditions.length, 2, "V1 publishes only the authoritative entry and return connections");
       assert.equal(productionCreative.value.validation.topologyAdditions.some(connection => connection.sourceSceneId === candidate.arrivalSceneId && connection.destinationRef === "location:archives_de_lysenthe"), true);
+      assert.equal(productionCreative.value.aiTelemetry[0]?.role, "scene_creator");
+      assert.equal(productionCreative.value.aiTelemetry[0]?.finishReason, "provider_metrics_missing");
     }
     assert.equal(placeValidation.commitAuthority, false);
     assert.equal(placeValidation.topologyAdditions[0]?.destinationRef, "location:passage_des_copistes");
@@ -372,8 +400,95 @@ async function run(): Promise<void> {
     assert.equal(sceneResult.ok, true, sceneResult.ok ? undefined : sceneResult.issues.join(" | "));
     if (sceneResult.ok) {
       assert.equal(sceneResult.scene.sceneId, "dynamic-place:passage_des_copistes");
-      assert.equal(sceneResult.scene.presentNpc.length, 0, "population roles must not materialize NPCs automatically");
+      assert.equal(sceneResult.scene.presentNpc.length, 0, "aucun rôle de foule n'est pré-promu en PNJ individualisé");
+      assert.deepEqual(
+        sceneResult.scene.ambientPopulation.map(presence => presence.publicRole),
+        ["clerc", "copiste", "garde"],
+        "les rôles de population deviennent une foule locale ciblable sans créer d'entités durables"
+      );
+      assert.ok(sceneResult.scene.ambientPopulation.every(presence => presence.actorId.includes(":ambient:")));
+      assert.ok(sceneResult.scene.ambientPopulation.every(presence =>
+        presence.demeanor.length > 0 &&
+        presence.visibleAppearance.length > 0 &&
+        presence.immediateGoal.length > 0 &&
+        presence.currentPressure.length > 0 &&
+        presence.speechStyle.length > 0 &&
+        presence.conversationalHooks.length > 0 &&
+        presence.boundaries.length > 0
+      ), "chaque présence ambiante reçoit une amorce de personnalité stable");
+      const copiste = resolveSceneReferentTextV1(
+        buildSceneReferentRegistryV1(sceneResult.scene),
+        "je m'approche d'un copiste"
+      );
+      assert.equal(copiste.status, "RESOLVED", "un rôle ambiant annoncé doit être ciblable au tour suivant");
+      if (copiste.status === "RESOLVED") assert.equal(copiste.referent.kind, "npc");
+      const ambientSpeaker = resolveNpcSpeakerV1(
+        `npc:${sceneResult.scene.ambientPopulation[0]!.actorId}`,
+        sceneResult.scene
+      );
+      assert.equal(ambientSpeaker.displayName, "Clerc");
+      assert.equal(ambientSpeaker.displayName === "Garde blessé", false);
+      const ambientCopiste = sceneResult.scene.ambientPopulation[1]!;
+      const promotion = buildSceneActorPromotionV1({
+        scene: sceneResult.scene,
+        registry: {
+          schemaVersion: 1,
+          contractVersion: "scene-actor-registry/1",
+          sceneId: sceneResult.scene.sceneId,
+          actors: [],
+          version: 1
+        },
+        interpretation: {
+          semanticIntent: {
+            kind: "address_visible_actor",
+            target: { ref: `npc:${ambientCopiste.actorId}` }
+          }
+        } as never,
+        operationId: "operation-address-ambient-copiste"
+      });
+      assert.ok(promotion !== null, "la première parole ciblée doit préparer une promotion SCENE_ACTOR");
+      if (promotion !== null) {
+        const registry = appendSceneActorV1({
+          schemaVersion: 1,
+          contractVersion: "scene-actor-registry/1",
+          sceneId: sceneResult.scene.sceneId,
+          actors: [],
+          version: 1
+        }, promotion);
+        const promotedScene = applySceneActorRegistryV1(sceneResult.scene, registry);
+        assert.equal(promotedScene.ambientPopulation.some(actor => actor.actorId === ambientCopiste.actorId), false);
+        assert.equal(promotedScene.presentNpc.some(actor => actor.actorId === ambientCopiste.actorId), true);
+        const reconstructedScene = applySceneActorRegistryV1(sceneResult.scene, registry);
+        const reconstructedCopiste = reconstructedScene.presentNpc.find(actor => actor.actorId === ambientCopiste.actorId);
+        assert.equal(reconstructedCopiste?.displayName, ambientCopiste.displayName, "l'identité survit à une reconstruction sortie-retour");
+        assert.equal((reconstructedCopiste as Record<string, unknown> | undefined)?.demeanor, ambientCopiste.demeanor, "l'allure stable survit à une reconstruction");
+        assert.deepEqual((reconstructedCopiste as Record<string, unknown> | undefined)?.speechStyle, ambientCopiste.speechStyle, "la voix stable survit à une reconstruction");
+      }
+      const arrivalPacket = buildSceneArrivalDisplayPacketV1({
+        operationId: "operation-arrival-ambient-population",
+        rawInput: "je sors vers le passage",
+        characterExpression: "Je gagne le passage.",
+        durationSeconds: 8,
+        arrival: {
+          schemaVersion: 1,
+          contractVersion: "scene-arrival/1",
+          commitId: committed.commitId,
+          transitionRequestId: "transition:ambient-population",
+          destinationRef: "location:passage_des_copistes",
+          previousSceneId: "wiki-location:archives_de_lysenthe",
+          enteredAtGameSecond: 128,
+          scene: sceneResult.scene,
+          authoritySourceRefs: ["lore:test"],
+          reconstructionRefs: [`commit:${committed.commitId}`],
+          narrationStatus: "READY_AFTER_COMMIT",
+          version: 1
+        }
+      });
+      const arrivalNarration = arrivalPacket.displayBlocks.find(block => block.kind === "GM_NARRATION")?.text ?? "";
+      assert.ok(/Le lieu est habité/u.test(arrivalNarration));
+      assert.equal(arrivalNarration.includes("Présences visibles :"), false, "le fallback d'arrivée ne récite pas un inventaire de PNJ");
       assert.ok(sceneResult.scene.pointsOfInterest.some(point => point.destinationAliases.some(alias => alias.includes("Archives de lysenthe"))));
+      assert.ok(sceneResult.scene.pointsOfInterest.some(point => point.label.startsWith("Retour vers ")));
     }
     const unconfirmedScene = buildDynamicPlaceSceneAfterCommitV1({
       commit: committed,

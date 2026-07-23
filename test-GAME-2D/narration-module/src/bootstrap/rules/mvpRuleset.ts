@@ -12,6 +12,7 @@ const deterministicSpecs: DeterministicSpec[] = [
   ["core.character.armor-class", "character.compute-armor-class", "Classe d'armure", "Utilise la meilleure armure équipée, le plafond de Dextérité et les boucliers déclarés."],
   ["core.character.passive-perception", "character.compute-passive-perception", "Perception passive", "Calcule base 10 plus Sagesse et maîtrise ou expertise applicable."],
   ["core.character.capability-availability", "character.resolve-capability-availability", "Disponibilité d'une capacité", "Refuse une capacité absente, non préparée, sans ressource ou sans précondition.", ["NAR-ACC-008"]],
+  ["core.check.difficulty-class", "check.resolve-difficulty-class", "Classe de difficulté d'un test", "Convertit une bande de difficulté explicitement arbitrée en DD: très facile 5, facile 10, moyenne 15, difficile 20, très difficile 25, presque impossible 30."],
   ["core.inventory.containment", "inventory.validate-containment", "Contenance d'inventaire", "Exige des instances uniques, des contenants existants et un graphe sans cycle."],
   ["core.inventory.equipment-slots", "inventory.validate-equipment-slots", "Emplacements d'équipement", "Exige des emplacements compatibles et exclusifs."],
   ["core.inventory.physical-currency", "inventory.resolve-physical-currency", "Monnaie physique", "Compte uniquement les pièces matérialisées et accessibles."],
@@ -166,6 +167,19 @@ export const MVP_RULE_EXECUTORS_V1: RuleExecutorV1[] = [
     if (input.prerequisitesMet === false) reasons.push("PREREQUISITE_MISSING");
     return { available: reasons.length === 0, reasons };
   }),
+  executor("check.resolve-difficulty-class", input => {
+    const values = {
+      VERY_EASY: 5,
+      EASY: 10,
+      MEDIUM: 15,
+      HARD: 20,
+      VERY_HARD: 25,
+      NEARLY_IMPOSSIBLE: 30
+    } as const;
+    const band = typeof input.band === "string" ? input.band : "";
+    if (!(band in values)) throw new Error("unknown difficulty band");
+    return { band, dc: values[band as keyof typeof values] };
+  }),
   executor("inventory.validate-containment", input => {
     const items = asArray(input.items);
     const ids = new Set<string>();
@@ -224,7 +238,8 @@ export const MVP_RULE_EXECUTORS_V1: RuleExecutorV1[] = [
 export async function createMvpRulesetManifestV1(
   contentPackageId = "content.jdr5e",
   minimumVersion = 1,
-  maximumVersion = 1
+  maximumVersion = 1,
+  rulesetVersion = 2
 ): Promise<RulesetManifestV1> {
   const rules = await Promise.all(MVP_RULE_DEFINITIONS_V1.map(async definition => ({
     ruleId: definition.ruleId,
@@ -234,7 +249,7 @@ export async function createMvpRulesetManifestV1(
   const base: Omit<RulesetManifestV1, "rootFingerprint"> = {
     schemaVersion: 1,
     rulesetId: "rules.jdr5e",
-    rulesetVersion: 1,
+    rulesetVersion,
     compatibleContentPackages: [{ packageId: contentPackageId, minimumVersion, maximumVersion }],
     rules
   };

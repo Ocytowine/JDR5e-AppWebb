@@ -886,6 +886,9 @@ function resolveSemanticTargetMentionV2(
       : undefined;
     const described = resolveSceneReferentDescriptionV1(referentRegistry, mention.surface, candidateKind);
     if (described.status === "RESOLVED") return toNarrativeIntentTargetV1(described.referent);
+    if (semanticKind === "traverse_visible_boundary" && mention.candidateKind === "place" && mention.surface.trim()) {
+      return { kind: "place", ref: null, label: mention.surface.trim() };
+    }
   }
   return null;
 }

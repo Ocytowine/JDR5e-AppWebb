@@ -295,10 +295,13 @@ export function buildDynamicPlaceSceneAfterCommitV1(input: {
     perceptibleSituation: [place.summary, ...place.perceptibleFeatures],
     visibleElements: place.perceptibleFeatures.map((feature, index) => ({ schemaVersion: 1, elementId: `${place.arrivalSceneId}:feature:${index + 1}`, label: feature, description: feature, keywords: [feature], playerVisible: true, version: 1 })),
     presentNpc: [],
+    ambientPopulation: place.populationRoles.map((role, index) => buildAmbientScenePresence(place, role, index, fact.sourceRefs)),
     pointsOfInterest: outgoing.map(connection => ({
       schemaVersion: 1,
       pointId: connection.boundaryRef.slice(connection.boundaryRef.indexOf(":") + 1),
-      label: humanize(connection.boundaryRef),
+      label: connection.boundaryRef === "poi:return-to-source"
+        ? `Retour vers ${humanize(connection.destinationRef)}`
+        : humanize(connection.boundaryRef),
       visibleDescription: `Passage vers ${humanize(connection.destinationRef)}.`,
       keywords: [connection.boundaryRef, connection.destinationRef],
       destinationAliases: [humanize(connection.destinationRef)],
@@ -313,7 +316,7 @@ export function buildDynamicPlaceSceneAfterCommitV1(input: {
       mayCreate: [],
       mayReference: [...fact.sourceRefs],
       mustNotCreate: ["nouveau fait durable", "PNJ durable", "connexion topologique"],
-      noveltyConstraints: ["respecter la scène dynamique committée", "ne pas promouvoir les rôles de population en présences réelles"],
+      noveltyConstraints: ["respecter la scène dynamique committée", "ne pas promouvoir les présences ambiantes en PNJ durables"],
       version: 1
     },
     version: 1
@@ -358,4 +361,51 @@ function unique(values: string[]): string[] {
 function humanize(ref: string): string {
   const value = ref.slice(ref.indexOf(":") + 1).replaceAll("_", " ").replaceAll("-", " ");
   return value.charAt(0).toLocaleUpperCase("fr-FR") + value.slice(1);
+}
+
+function buildAmbientScenePresence(
+  place: DynamicPlaceRecordV1,
+  role: string,
+  index: number,
+  knowledgeRefs: string[]
+): PlayableSceneStateV1["ambientPopulation"][number] {
+  const normalizedRole = role.trim();
+  const roleLabel = ambientRoleLabel(normalizedRole);
+  const singularLabel = singularizeFirstWord(roleLabel);
+  const displayName = singularLabel.charAt(0).toLocaleUpperCase("fr-FR") + singularLabel.slice(1);
+  const profiles = [
+    { demeanor: "méthodique et réservé", speechStyle: "phrases précises, peu d'emphase", visibleAppearance: "tenue de travail sobre, gestes soigneux et doigts marqués par son activité" },
+    { demeanor: "attentif mais pressé", speechStyle: "réponses brèves, regard souvent ramené à son travail", visibleAppearance: "vêtement pratique ajusté pour le mouvement, pli net et accessoire de travail visible" },
+    { demeanor: "calme et observateur", speechStyle: "ton mesuré, silences avant les réponses", visibleAppearance: "silhouette posée, tenue entretenue et regard qui s'attarde sur les détails" },
+    { demeanor: "sociable avec prudence", speechStyle: "formules courtoises, détails donnés seulement si utiles", visibleAppearance: "tenue locale soignée, posture ouverte mais effets personnels gardés près du corps" }
+  ] as const;
+  const profile = profiles[index % profiles.length]!;
+  return {
+    schemaVersion: 1,
+    actorId: `${place.arrivalSceneId}:ambient:${index + 1}`,
+    displayName,
+    publicRole: roleLabel,
+    visibleActivity: normalizedRole === roleLabel ? `poursuit son activité de ${singularLabel}` : normalizedRole,
+    visibleAppearance: profile.visibleAppearance,
+    demeanor: profile.demeanor,
+    immediateGoal: `mener à bien son activité de ${singularLabel} sans perdre le fil`,
+    currentPressure: place.initialTension,
+    speechStyle: [profile.speechStyle],
+    conversationalHooks: unique([place.displayName, roleLabel, ...place.localNorms.slice(0, 1)]),
+    boundaries: ["reste dans les limites de son rôle public", "ne transforme pas une conversation en engagement durable"],
+    knowledgeRefs: [...knowledgeRefs],
+    keywords: unique([normalizedRole, roleLabel, singularLabel, displayName]),
+    version: 1
+  };
+}
+
+function ambientRoleLabel(value: string): string {
+  return value
+    .replace(/[.,;:!?]+$/gu, "")
+    .split(/\s+(?:en déplacement|attendant|transportant|venus?|venues?|cherchant|traversant|chargés?|chargées?|occupés?|occupées?|porteurs?|porteuses?|soumis|soumises)\b/iu, 1)[0]!
+    .trim();
+}
+
+function singularizeFirstWord(value: string): string {
+  return value.replace(/^([\p{L}-]+)s\b/iu, "$1");
 }

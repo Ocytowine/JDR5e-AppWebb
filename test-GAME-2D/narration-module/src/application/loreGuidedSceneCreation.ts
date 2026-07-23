@@ -94,6 +94,8 @@ export interface LoreGuidedPlaceCandidateV1 {
   duplicatePolicy: DynamicCreationProposalV1["duplicatePolicy"];
 }
 
+export interface LoreGuidedPlaceCandidateV2 extends Omit<LoreGuidedPlaceCandidateV1, "connectionIntents"> {}
+
 export type DynamicPlaceProposalBuildResultV1 =
   | { ok: true; proposal: DynamicCreationProposalV1 }
   | { ok: false; code: "PLACE_CANDIDATE_INVALID"; issues: string[] };
@@ -215,6 +217,7 @@ export async function buildLoreGuidedSceneCreationBriefFromCampaignV1(input: {
 export function buildDynamicPlaceCreationProposalV1(input: {
   brief: LoreGuidedSceneCreationBriefV1;
   candidate: LoreGuidedPlaceCandidateV1;
+  allowRuntimeTopology?: boolean;
 }): DynamicPlaceProposalBuildResultV1 {
   const issues: string[] = [];
   if (input.brief.contractVersion !== LORE_GUIDED_SCENE_CREATION_BRIEF_VERSION_V1 || input.brief.nonCommittable !== true) {
@@ -236,7 +239,7 @@ export function buildDynamicPlaceCreationProposalV1(input: {
     ["connectionIntents", input.candidate.connectionIntents]
   ] as const) {
     if (field === "connectionIntents") {
-      if (values.length === 0) issues.push("connectionIntents must not be empty.");
+      if (values.length === 0 && input.allowRuntimeTopology !== true) issues.push("connectionIntents must not be empty.");
     } else if ((values as string[]).length === 0 || (values as string[]).some(value => !value.trim())) {
       issues.push(`${field} must contain non-empty values.`);
     }
@@ -293,6 +296,18 @@ export function buildDynamicPlaceCreationProposalV1(input: {
     duplicatePolicy: input.candidate.duplicatePolicy
   };
   return { ok: true, proposal };
+}
+
+/** V2 carries creative place material only; the runtime adds the authoritative topology afterwards. */
+export function buildDynamicPlaceCreationProposalV2(input: {
+  brief: LoreGuidedSceneCreationBriefV1;
+  candidate: LoreGuidedPlaceCandidateV2;
+}): DynamicPlaceProposalBuildResultV1 {
+  return buildDynamicPlaceCreationProposalV1({
+    brief: input.brief,
+    candidate: { ...input.candidate, connectionIntents: [] },
+    allowRuntimeTopology: true
+  });
 }
 
 function influenceKey(entityId: string, fieldPath: string): string {

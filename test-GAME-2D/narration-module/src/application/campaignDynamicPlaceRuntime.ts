@@ -5,7 +5,7 @@ import type { DynamicCreationValidationPolicyV1 } from "../ai/types";
 import { createDynamicPlaceEntryRuntimeV1 } from "./dynamicPlaceEntryRuntime";
 import { createLoreGuidedDynamicPlacePreparationPortV1 } from "./loreGuidedDynamicPlacePreparation";
 import { buildLoreGuidedSceneCreationBriefV1 } from "./loreGuidedSceneCreation";
-import type { LoreGuidedPlaceCandidateGeneratorConfigV1 } from "./loreGuidedPlaceCandidateGeneration";
+import type { LoreGuidedPlaceCandidateGeneratorConfigV2 } from "./loreGuidedPlaceCandidateGeneration";
 import { buildSceneReferentRegistryV1 } from "./sceneReferentRegistry";
 import type { PlaceRegistryStateV1, PlaceTopologyStateV1 } from "./placeCreationCommit";
 import {
@@ -34,7 +34,7 @@ export function createCampaignLoreGuidedDynamicPlaceRuntimeV1(input: {
   resolveAuthoredSceneLocationRef?: (sceneId: string) => string | null;
   knownAuthoredSceneIds?: readonly string[];
   knownAuthoredPlaces?: readonly { placeRef: string; displayName: string; aliases: string[]; parentLocationRef: string; sourceRefs: string[] }[];
-  generatorConfig: LoreGuidedPlaceCandidateGeneratorConfigV1;
+  generatorConfig: LoreGuidedPlaceCandidateGeneratorConfigV2;
   actorRef?: string;
   transitionSeconds?: number;
 }) {
@@ -177,6 +177,7 @@ export function resolveUnmappedVisibleCreationBoundaryV1(input: {
   topology: SceneTransitionTopologyV1;
 }): string | null {
   if (input.semanticKind !== "traverse_visible_boundary" || input.requiresClarification) return null;
+  if (input.targetRef?.startsWith("requested-destination:")) return input.targetRef;
   const registry = buildSceneReferentRegistryV1(input.activeScene);
   const candidates = registry.referents.filter(referent =>
     referent.interactionCapabilities.includes("manipulate") && referent.publicDestinationAliases.length > 0 &&
@@ -194,8 +195,20 @@ export function resolveUnmappedVisibleCreationBoundaryV1(input: {
   return candidates.length === 1 ? candidates[0]!.canonicalRef : null;
 }
 
-function resolvedTargetRef(interpretation: { referentResolution?: { resolvedTarget: { ref: string | null } | null } | null; semanticIntent: { target: { ref: string | null } | null } }): string | null {
-  return interpretation.referentResolution?.resolvedTarget?.ref ?? interpretation.semanticIntent.target?.ref ?? null;
+function resolvedTargetRef(interpretation: {
+  referentResolution?: { resolvedTarget: { kind: string; ref: string | null; label?: string | null } | null } | null;
+  semanticIntent: { target: { kind: string; ref: string | null; label?: string | null } | null };
+}): string | null {
+  const target = interpretation.referentResolution?.resolvedTarget ?? interpretation.semanticIntent.target ?? null;
+  if (target?.ref) return target.ref;
+  const label = typeof target?.label === "string" ? target.label : null;
+  if (target?.kind === "place" && label?.trim()) return `requested-destination:${slugRequestedDestination(label)}`;
+  return null;
+}
+
+function slugRequestedDestination(value: string): string {
+  return value.toLowerCase().normalize("NFD").replace(/\p{Diacritic}/gu, "")
+    .replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-|-$/gu, "").slice(0, 80) || "lieu-proche";
 }
 
 function failure(messageKey: string, details: Record<string, unknown> = {}): Result<never> {

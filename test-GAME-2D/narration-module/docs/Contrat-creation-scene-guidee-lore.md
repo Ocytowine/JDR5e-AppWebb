@@ -153,7 +153,7 @@ L'événement `world.place.created` reste `SYSTEM` : la création de l'entité n
 - apparaissent avec leur révision exacte dans `CommitRecord` ;
 - contiennent le lieu, son fait et sa topologie committés.
 
-La scène reconstruite utilise l'identité stable `arrivalSceneId`, les éléments perceptibles, la tension initiale, les normes locales et les sorties topologiques. Les rôles de population ne deviennent jamais automatiquement des PNJ présents.
+La scène reconstruite utilise l'identité stable `arrivalSceneId`, les éléments perceptibles, la tension initiale, les normes locales et les sorties topologiques. Chaque rôle de population rejoint `ambientPopulation` avec un identifiant stable dérivé de `arrivalSceneId`, afin qu'un rôle annoncé au joueur soit immédiatement ciblable sans encombrer `presentNpc`. Cette projection reçoit une amorce locale de personnalité, mais ne crée ni entité de personnage durable, ni fait de campagne supplémentaire. Voir `Contrat-population-ambiante-et-arrivee-narrative.md`.
 
 Le `scene_writer` peut référencer les sources committées, mais ne peut ajouter un nouveau fait durable, un PNJ durable ou une connexion topologique.
 
@@ -176,7 +176,7 @@ Le `scene_writer` peut référencer les sources committées, mais ne peut ajoute
 - rejet d'une révision d'agrégat obsolète ;
 - reconstruction de `PlayableSceneStateV1` après commit confirmé ;
 - refus de reconstruire depuis un agrégat non confirmé ;
-- absence de matérialisation automatique des rôles de population en PNJ ;
+- matérialisation des rôles annoncés en présences locales ciblables, sans promotion en entités durables ;
 - rejet d'une projection visant un champ absent ;
 - rejet d'une candidate incomplète.
 
@@ -201,7 +201,7 @@ Le contrat est désormais exécuté par `placeCreationRuntime.ts` après validat
 
 ## Génération de candidate et contrôleur
 
-`scene_creator` est un rôle IA séparé sous `lore-guided-place-candidate/1`. Il reçoit le brief borné, la scène source et la destination demandée, puis produit uniquement une `LoreGuidedPlaceCandidateV1`. Son schéma serveur est strict et son résultat repasse obligatoirement par `buildDynamicPlaceCreationProposalV1`; il n'a ni autorité de validation métier, ni autorité de commit.
+`scene_creator` est un rôle IA séparé. Le contrat actif `lore-guided-place-candidate/2` reçoit le brief borné, la scène source et la destination demandée, puis produit uniquement une `LoreGuidedPlaceCandidateV2` créative, sans connexion. Son schéma serveur est strict et son résultat repasse obligatoirement par `buildDynamicPlaceCreationProposalV2`; il n'a ni autorité topologique, ni autorité de validation métier, ni autorité de commit. `lore-guided-place-candidate/1` reste accepté comme contrat de compatibilité et conserve son validateur dédié.
 
 Le contrôleur expose `NarrativeDynamicPlaceRuntimeV1`. Sa méthode `canHandle` reçoit l'intention structurée, la commande de domaine et la scène active : la détection appartient donc au domaine monde, sans analyse lexicale ajoutée au contrôleur. La suite Chromium confirme également qu'un lieu dynamique committé dans IndexedDB est reconstruit par le catalogue sans stockage parallèle ni PNJ implicite.
 

@@ -13,6 +13,7 @@ import {
   type WriterLease
 } from "../core";
 import type { DisplayPacketV1 } from "../scene";
+import type { AiCallTelemetryV1 } from "../ai/types";
 import type { NarrativeDynamicPlaceRuntimeV1 } from "./NarrativeTurnController";
 import { buildSceneArrivalAfterCommitV1, type SceneArrivalStateV1 } from "./sceneArrival";
 import { buildSceneArrivalDisplayPacketV1 } from "./sceneArrivalRender";
@@ -47,6 +48,7 @@ export interface DynamicPlaceEntryPreparationV1 {
 
 export interface DynamicPlaceEntryCreativePreparationV1 {
   validation: Extract<PlaceCreationValidationResultV1, { ok: true }>;
+  aiTelemetry?: AiCallTelemetryV1[];
 }
 
 export interface DynamicPlaceEntryPreparationPortV1<TCreative extends DynamicPlaceEntryCreativePreparationV1 = DynamicPlaceEntryCreativePreparationV1> {
@@ -183,7 +185,8 @@ export function createDynamicPlaceEntryRuntimeV1<TCreative extends DynamicPlaceE
               durationSeconds: prepared.value.worldResult.durationSeconds
             }) as DisplayPacketV1 & JsonObject,
             characterExpression: prepared.value.characterExpression,
-            durationSeconds: prepared.value.worldResult.durationSeconds
+            durationSeconds: prepared.value.worldResult.durationSeconds,
+            aiTelemetry: [...(creative.value.aiTelemetry ?? [])]
           }
         };
       } finally {

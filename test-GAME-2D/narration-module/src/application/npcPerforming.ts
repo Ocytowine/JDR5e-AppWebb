@@ -18,7 +18,8 @@ import type { NarrativeResolutionResultV1 } from "./narrativeResolution";
 import type { ReferenceSceneStateV1 } from "./referenceSceneState";
 import { reconstructRenderedNpcUtterancesV1 } from "./narrativeRenderProjection";
 import { responseModeForDialogueActV1, validateNpcDialogueReactionV1 } from "./npcDialogueReactionValidation";
-import { buildNpcDialogueFallbackV1 } from "./npcDialogueFallback";
+import { buildNpcDialogueFallbackV1, type NpcDialogueActKindV1 } from "./npcDialogueFallback";
+import type { PlayableSceneStateV1 } from "./playableScene";
 
 export const NPC_PERFORMER_CONTRACT_VERSION_V1 = "npc-performer/1" as const;
 
@@ -54,12 +55,17 @@ export interface NpcPerformanceResultV1 {
 
 export class LocalNpcPerformerProviderV1 implements ContractAiProviderV1 {
   async generate(request: AiCallRequestV1): Promise<unknown> {
-    const task = request.input.task as { actorId?: unknown; interpretation?: unknown; sceneState?: unknown };
+    const task = request.input.task as {
+      actorId?: unknown;
+      interpretation?: unknown;
+      dialogueAct?: { act?: unknown; contentGoal?: unknown } | null;
+      intentId?: unknown;
+      knowledgeEnvelope?: { visibleSituation?: { visibleActor?: { displayName?: unknown } | null } };
+    };
     const actorId = typeof task.actorId === "string" ? task.actorId : "npc:npc-garde-blesse";
     const interpretation = isNarrativeIntentInterpretation(task.interpretation)
       ? task.interpretation
       : null;
-    const sceneState = isReferenceSceneState(task.sceneState) ? task.sceneState : null;
     return {
       schemaVersion: 1,
       contractVersion: request.contractVersion,
@@ -70,7 +76,17 @@ export class LocalNpcPerformerProviderV1 implements ContractAiProviderV1 {
       snapshotId: request.snapshotId,
       role: request.role,
       status: "OK",
-      payload: buildLocalNpcPerformancePayload(actorId, interpretation, sceneState),
+      payload: buildLocalNpcPerformancePayload(
+        actorId,
+        interpretation,
+        null,
+        typeof task.knowledgeEnvelope?.visibleSituation?.visibleActor?.displayName === "string"
+          ? task.knowledgeEnvelope.visibleSituation.visibleActor.displayName
+          : null,
+        typeof task.dialogueAct?.act === "string" ? task.dialogueAct.act as NpcDialogueActKindV1 : null,
+        typeof task.dialogueAct?.contentGoal === "string" ? task.dialogueAct.contentGoal : null,
+        typeof task.intentId === "string" ? task.intentId : null
+      ),
       diagnostics: [],
       supersedesOutputId: null
     } satisfies AiRoleOutputEnvelopeV1<NpcPerformerPayloadV1>;
@@ -135,6 +151,7 @@ export async function performNpcTurnV1(input: {
   mjPlan: MjPlannerPayloadV1 | null;
   resolution: NarrativeResolutionResultV1;
   sceneState: ReferenceSceneStateV1;
+  activeScene: PlayableSceneStateV1;
   config: NpcPerformerConfigV1;
 }): Promise<NpcPerformanceResultV1> {
   if (!shouldCallNpcPerformerV1(input)) {
@@ -358,6 +375,7 @@ export function applyNpcPerformanceToDisplayPacketV1(input: {
   displayPacket: DisplayPacketV1 & JsonObject;
   performance: (NpcPerformerPayloadV1 & JsonObject) | null;
   performanceFailure?: (NpcPerformanceFailureV1 & JsonObject) | null;
+  activeScene: PlayableSceneStateV1;
 }): DisplayPacketV1 & JsonObject {
   const performance = input.performance;
   const utterance = performance?.utterances[0] ?? null;
@@ -382,7 +400,7 @@ export function applyNpcPerformanceToDisplayPacketV1(input: {
     displayBlocks: input.displayPacket.displayBlocks.map(block => {
       if (replaced || block.kind !== "NPC_SPEECH") return block;
       replaced = true;
-      const speaker = npcSpeakerForActorId(performance.actorId);
+      const speaker = resolveNpcSpeakerV1(performance.actorId, input.activeScene);
       return {
         ...block,
         speaker: {
@@ -405,26 +423,40 @@ export function applyNpcPerformanceToDisplayPacketV1(input: {
   } as DisplayPacketV1 & JsonObject;
 }
 
-function npcSpeakerForActorId(actorId: string): { speakerId: string; displayName: string } {
+export function resolveNpcSpeakerV1(actorId: string, activeScene: PlayableSceneStateV1): { speakerId: string; displayName: string } {
   if (actorId === "npc:npc-serveuse-nerveuse" || actorId === "npc-serveuse-nerveuse") {
     return { speakerId: "speaker-serveuse-nerveuse", displayName: "Serveuse nerveuse" };
   }
-  return { speakerId: "speaker-garde-blesse", displayName: "Garde blessé" };
+  if (actorId === "npc:npc-garde-blesse" || actorId === "npc-garde-blesse") {
+    return { speakerId: "speaker-garde-blesse", displayName: "Garde blessé" };
+  }
+  const normalizedActorId = actorId.replace(/^npc:/u, "");
+  const actor = activeScene.presentNpc.find(npc => npc.actorId === normalizedActorId);
+  const ambientActor = activeScene.ambientPopulation?.find(presence => presence.actorId === normalizedActorId);
+  return {
+    speakerId: `speaker-${normalizedActorId.replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-|-$/gu, "") || "npc"}`,
+    displayName: actor?.displayName ?? ambientActor?.displayName ?? "Interlocuteur"
+  };
 }
 
 function buildLocalNpcPerformancePayload(
   actorId: string,
   interpretation: NarrativeIntentInterpretationV1 | null,
-  _sceneState: ReferenceSceneStateV1 | null
+  _sceneState: ReferenceSceneStateV1 | null,
+  actorDisplayName: string | null = null,
+  dialogueActOverride: NpcDialogueActKindV1 | null = null,
+  dialogueContentGoalOverride: string | null = null,
+  intentIdOverride: string | null = null
 ): NpcPerformerPayloadV1 {
-  const knownActorId = actorId === "npc:npc-serveuse-nerveuse" || actorId === "npc-serveuse-nerveuse" ? "npc:npc-serveuse-nerveuse" : "npc:npc-garde-blesse";
-  const dialogueAct = interpretation?.semanticIntent.dialogueAct?.act ?? "OTHER";
-  const dialogueContentGoal = interpretation?.semanticIntent.dialogueAct?.contentGoal ?? "Réagir prudemment à l'interlocuteur.";
-  const fallback = buildNpcDialogueFallbackV1(knownActorId, dialogueAct);
+  const knownActorId = actorId;
+  const dialogueAct = dialogueActOverride ?? interpretation?.semanticIntent.dialogueAct?.act ?? "OTHER";
+  const dialogueContentGoal = dialogueContentGoalOverride ?? interpretation?.semanticIntent.dialogueAct?.contentGoal ?? "Réagir prudemment à l'interlocuteur.";
+  const intentId = intentIdOverride ?? interpretation?.intentId ?? "intent:unknown";
+  const fallback = buildNpcDialogueFallbackV1(knownActorId, dialogueAct, actorDisplayName);
   const content = fallback.text;
   return {
     schemaVersion: 1,
-    performanceId: `${interpretation?.intentId ?? "intent:unknown"}:npc-performance:1`,
+    performanceId: `${intentId}:npc-performance:1`,
     actorId: knownActorId,
     reactionFrame: {
       schemaVersion: 1,
@@ -433,7 +465,7 @@ function buildLocalNpcPerformancePayload(
       addressedContentGoal: dialogueContentGoal
     },
     utterances: [{
-      utteranceId: `${interpretation?.intentId ?? "intent:unknown"}:npc-utterance:1`,
+      utteranceId: `${intentId}:npc-utterance:1`,
       text: content,
       audience: ["player-character"],
       speechActs: [{
@@ -441,8 +473,7 @@ function buildLocalNpcPerformancePayload(
         content,
         epistemicBasis: "known",
         sourceRefs: [
-          "reference-scene:reference-inn-rain-001",
-          `intent:${interpretation?.intentId ?? "unknown"}`
+          `intent:${intentId}`
         ]
       }]
     }],
@@ -450,8 +481,7 @@ function buildLocalNpcPerformancePayload(
     durableCommitments: [],
     revealedRefs: [],
     knowledgeUsed: [
-      "reference-scene:reference-inn-rain-001",
-      `intent:${interpretation?.intentId ?? "unknown"}`
+      `intent:${intentId}`
     ],
     safetyConstraints: {
       noMechanicalSuccess: true,
@@ -472,6 +502,7 @@ async function buildNpcPerformerRequestV1(input: {
   mjPlan: MjPlannerPayloadV1 | null;
   resolution: NarrativeResolutionResultV1;
   sceneState: ReferenceSceneStateV1;
+  activeScene: PlayableSceneStateV1;
   config: NpcPerformerConfigV1;
 }): Promise<AiCallRequestV1> {
   const snapshotId = `${input.operationId}:snapshot:npc-performance`;
@@ -481,12 +512,12 @@ async function buildNpcPerformerRequestV1(input: {
     role: "npc_performer",
     authority: "PERFORM_VISIBLE_ACTOR_ONLY",
     actorId: input.actorId,
-    visibleScene: "reference-inn-rain-001",
+    visibleScene: input.activeScene.sceneId,
+    visibleActor: findVisibleActorV1(input.activeScene, input.actorId),
     spatialContext: {
-      playerLocation: "inside_inn_common_room",
-      playerAlreadyInside: true,
-      entranceCompleted: true,
-      backRoomDoorIsNotInnEntrance: true
+      playerLocation: input.activeScene.locationName,
+      perceptibleSituation: [...input.activeScene.perceptibleSituation],
+      currentTension: input.activeScene.currentTension
     },
     forbiddenAuthority: ["commit", "time", "inventory", "tactical", "rest", "durable_lore", "secret_reveal", "social_success"]
   };
@@ -511,7 +542,7 @@ async function buildNpcPerformerRequestV1(input: {
       .map(utterance => utterance.text)
   })).filter(entry => entry.npcUtterances.length > 0);
   const allowedSourceRefs = [
-    "reference-scene:reference-inn-rain-001",
+    `playable-scene:${input.activeScene.sceneId}`,
     `intent:${input.interpretation.intentId}`,
     ...renderedNpcUtterances.flatMap(utterance => [
       `operation:${utterance.sourceOperationId}`,
@@ -521,24 +552,25 @@ async function buildNpcPerformerRequestV1(input: {
   const task = {
     rawInput: input.rawInput,
     actorId: input.actorId,
-    interpretation: input.interpretation,
-    mjPlan: input.mjPlan,
-    resolution: input.resolution,
-    sceneState: input.sceneState,
+    intentId: input.interpretation.intentId,
+    interpretation: {
+      intentId: input.interpretation.intentId,
+      coreMeaning: input.interpretation.coreMeaning,
+      semanticIntent: input.interpretation.semanticIntent,
+      target: input.interpretation.target ?? null,
+      referentResolution: input.interpretation.referentResolution ?? null
+    },
     dialogueAct: input.interpretation.semanticIntent.dialogueAct ?? null,
     knowledgeEnvelope: {
       allowedSourceRefs: [...new Set(allowedSourceRefs)],
-      publicFactRefs: ["reference-scene:reference-inn-rain-001"],
+      publicFactRefs: [`playable-scene:${input.activeScene.sceneId}`],
       priorPlayerSpeech,
       priorNpcUtterances: renderedNpcUtterances,
       dialogueHistory,
       visibleSituation: {
-        playerLocation: "Le joueur se trouve déjà dans la salle commune de l'auberge.",
-        forbiddenContradictions: [
-          "Ne pas inviter le joueur à entrer dans l'auberge.",
-          "Ne pas proposer au joueur de se mettre à l'abri de la pluie comme s'il était encore dehors.",
-          "La porte du fond mène à l'arrière-salle; ce n'est pas la porte d'entrée."
-        ]
+        playerLocation: input.activeScene.locationName,
+        visibleActor: findVisibleActorV1(input.activeScene, input.actorId),
+        forbiddenContradictions: ["Ne pas déplacer le joueur ou le PNJ hors de la scène active.", "Ne pas inventer une présence, une issue ou un événement absent du contexte visible."]
       },
       memoryLimit: priorNpcUtterances.ok
         ? "Seules les répliques EXACT reconstruites depuis les projections de rendu persistées peuvent être rappelées; leur contenu reste une parole attribuée, jamais une vérité objective."
@@ -570,6 +602,13 @@ async function buildNpcPerformerRequestV1(input: {
       timeoutMs: input.config.route.timeoutMs
     }
   };
+}
+
+function findVisibleActorV1(scene: PlayableSceneStateV1, actorId: string): JsonObject | null {
+  const matches = (candidateId: string) => `npc:${candidateId}` === actorId || candidateId === actorId;
+  const npc = scene.presentNpc.find(candidate => matches(candidate.actorId));
+  if (npc) return npc;
+  return scene.ambientPopulation?.find(candidate => matches(candidate.actorId)) ?? null;
 }
 function isNarrativeIntentInterpretation(value: unknown): value is NarrativeIntentInterpretationV1 {
   return value !== null &&

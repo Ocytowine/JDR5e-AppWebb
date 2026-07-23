@@ -61,6 +61,20 @@ export function buildSceneReferentRegistryV1(scene: PlayableSceneStateV1): Scene
       sourceRef: `scene:${scene.sceneId}:npc:${npc.actorId}`,
       version: 1 as const
     })),
+    ...(scene.ambientPopulation ?? []).map(presence => ({
+      schemaVersion: 1 as const,
+      canonicalRef: `npc:${presence.actorId}`,
+      kind: "npc" as const,
+      displayName: presence.displayName,
+      publicAliases: unique([presence.displayName, presence.publicRole, ...presence.keywords]),
+      publicProperties: [presence.publicRole, presence.visibleActivity, "présence ambiante"],
+      publicDestinationAliases: [],
+      present: true as const,
+      visible: true as const,
+      interactionCapabilities: ["speech", "nonverbal_signal", "observe"] as SceneInteractionCapabilityV1[],
+      sourceRef: `scene:${scene.sceneId}:ambient:${presence.actorId}`,
+      version: 1 as const
+    })),
     ...scene.pointsOfInterest.map(point => ({
       schemaVersion: 1 as const,
       canonicalRef: `poi:${point.pointId}`,

@@ -1,6 +1,19 @@
 # Relève — création dynamique de scène depuis les Archives
 
-Date: 2026-07-22
+Date: 2026-07-23
+
+## Certification live du 2026-07-23
+
+Le parcours Archives → destination absente → rechargement sur la scène dynamique → retour vers les Archives est certifié avec `gpt-5.6-luna/none` pour `player_intent_interpreter` et `gpt-5.5` pour `scene_creator`.
+
+- création observée entre 21,8 et 26,0 secondes selon les essais ;
+- interprétation observée entre 3,0 et 3,8 secondes ;
+- commit dynamique confirmé avec 8 secondes de jeu ;
+- projection et commit dynamique relus après rechargement d'IndexedDB ;
+- retour vers la scène wiki en 2,6 à 2,8 secondes, avec 8 secondes supplémentaires ;
+- aucun timeout à 30 secondes, rejet de gate ou incident console.
+
+La sélection UI OpenAI revient encore à `Locale` après rechargement. La télémétrie de succès de `scene_creator` est désormais propagée jusqu'à la notification; si le fournisseur omet ses métriques, une ligne locale explicite utilise `finishReason=provider_metrics_missing` au lieu de masquer l'appel.
 
 Ce document permet à une nouvelle session de reprendre le travail sans reconstruire l'historique des décisions. Il complète `TASKS.md` et `Revue-branchement-archives-dynamique.md`. Le dépôt contient des modifications locales non committées: les conserver et ne pas réécrire les fichiers générés manuellement.
 
@@ -36,9 +49,9 @@ Le pilote compile actuellement tout le corpus `wiki/lore` dans le client, puis c
 
 ### `scene_creator`
 
-Il propose seulement la matière créative du lieu: nom, résumé, tension, traits perceptibles, rôles de population, normes et engagements narratifs. Il n'a aucune autorité de commit, ne matérialise aucun PNJ et ne révèle aucun secret.
+Il propose seulement la matière créative du lieu: nom, résumé, tension, traits perceptibles, rôles de population, normes et engagements narratifs. Il n'a aucune autorité de commit, ne crée aucun personnage durable et ne révèle aucun secret. Après commit, le runtime projette chaque rôle de population en présence anonyme locale ciblable; cette présence reste bornée à la scène reconstruite.
 
-Le contrat live est `lore-guided-place-candidate/1`. Le serveur et le pipeline TypeScript possèdent chacun un validateur dédié. Ne jamais laisser `scene_creator` tomber dans le validateur de `scene_writer`, qui attend `payload.narrationBlocks`.
+Le contrat live actif est `lore-guided-place-candidate/2`. Il contient uniquement la matière créative et aucun champ topologique. Le serveur continue d'accepter V1 pour compatibilité, mais le pilote émet V2. Le serveur et le pipeline TypeScript possèdent chacun un validateur dédié. Ne jamais laisser `scene_creator` tomber dans le validateur de `scene_writer`, qui attend `payload.narrationBlocks`.
 
 ### Runtime monde et topologie
 
@@ -89,6 +102,9 @@ Le commit atomique est préparé par `dynamicPlaceEntryRuntime.ts`. Aucun rendu 
 7. L'IA omettait la connexion de retour. La topologie entrée/retour est maintenant construite par le runtime.
 8. Une scène ou un lieu authored pouvait être recréé. Le catalogue authored alimente maintenant la politique de doublon.
 9. L'appel était coupé à exactement 30 secondes. Le `scene_creator` dispose maintenant de 55 secondes côté fournisseur et le client garde 5 secondes de marge transport.
+10. La narration annonçait des copistes alors que `presentNpc` restait vide; le rôle était donc impossible à cibler au tour suivant. Les rôles committés deviennent désormais des présences locales `ambient`, sans création de PNJ durable. Les clarifications n'appellent plus `scene_writer`, le retour est libellé en français et l'ouverture utilise une formulation générique correcte. L'adaptateur wiki n'y concatène plus le corps et plusieurs fragments publics: il emploie le résumé auteur comme amorce courte, les détails restant accessibles par les éléments visibles et l'observation.
+11. Le `npc_performer` et la projection de sa réplique conservaient des valeurs de la scène de test (`reference-inn-rain-001`, salle commune, garde blessé). Le contrôleur transmet désormais la scène active au performer; son contexte spatial, ses sources publiques, l'acteur visible et le nom du locuteur proviennent tous de cette scène. Les identités inconnues ne retombent plus sur le garde. Les libellés de rôles ambiants sont aussi réduits à un rôle ciblable au lieu d'afficher toute leur phrase descriptive.
+12. La recette étendue Perron → salutation → question sur le rôle → retour confirme la continuité d'acteur, le couplage mémoire intention-réplique et la réutilisation topologique. Le nettoyage suivant retire les formulations techniques des points wiki, restaure les accents de l'ouverture, réserve le mot « acteur » de la trace aux seules cibles PNJ et impose au `scene_creator` des intitulés de population courts au singulier.
 
 ## État des délais OpenAI
 
@@ -105,19 +121,9 @@ Le contexte compact observé lors du dernier test live faisait 6 541 caractères
 
 ## Suite directe
 
-1. Redémarrer complètement `npm run dev` afin de reconstruire le client et recharger la route serveur.
-2. Depuis une campagne propre aux Archives, envoyer « je sors du bâtiment ».
-3. Vérifier que la notification ne contient plus de timeout à 30 secondes.
-4. En cas de succès, vérifier dans le fil:
-   - expression joueur;
-   - narration d'arrivée seulement après commit;
-   - notification système avec destination, scène, temps et commit;
-   - scène active différente des Archives;
-   - un point de retour visible.
-5. Demander le retour vers les Archives et vérifier qu'aucun nouveau lieu n'est créé.
-6. Recharger la page et vérifier que la scène active et le lieu dynamique sont reconstruits depuis IndexedDB.
-7. Après validation fonctionnelle, réduire le contrat V2 du `scene_creator`: supprimer les champs topologiques désormais ignorés et benchmarker un modèle plus rapide pour ce rôle uniquement.
-8. Ajouter ensuite le test d'injection de panne du bootstrap entre ses phases, déjà signalé dans `TASKS.md`.
+1. Benchmarker un modèle plus rapide pour `scene_creator` avec la télémétrie désormais visible.
+2. Générer un catalogue lore au build afin de ne plus compiler le corpus complet dans le client.
+3. Décider si le mode IA choisi doit être restauré après rechargement ou rester volontairement local par défaut.
 
 ## Comment analyser le prochain rejet
 

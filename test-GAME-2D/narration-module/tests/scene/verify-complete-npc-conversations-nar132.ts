@@ -11,6 +11,9 @@ import type { AiNarrativeEnhancementResultV1 } from "../../src/application/aiNar
 interface CapturedPerformerTask {
   actorId?: string;
   dialogueAct?: { act?: string };
+  mjPlan?: unknown;
+  resolution?: unknown;
+  sceneState?: unknown;
   knowledgeEnvelope?: {
     priorPlayerSpeech?: Array<{ operationId: string; playerIntentSummary: string }>;
     priorNpcUtterances?: Array<{ text: string; sourceOperationId: string }>;
@@ -47,6 +50,7 @@ async function main(): Promise<void> {
 
   assert.equal(outputs.every(output => output.noGameTime), true, "aucun tour de recette ne fait avancer le temps");
   assert.equal(capturedTasks[0]?.dialogueAct?.act, "INITIATE_CONVERSATION", "la salutation ouvre le contact sans devenir une question");
+  assert.equal(capturedTasks.every(task => task.mjPlan === undefined && task.resolution === undefined && task.sceneState === undefined), true, "le paquet performer ne duplique plus les agrégats et plans complets");
   assert.equal(transition.resolution.resultKind, "HANDOFF_REQUIRED", "la transition de scène fermée produit un handoff");
   assert.equal(transition.noCommit, true, "la transition fermée ne committe rien");
   assert.equal(transition.domainCommand?.payload.runtimeRouteDisposition, "HANDOFF");

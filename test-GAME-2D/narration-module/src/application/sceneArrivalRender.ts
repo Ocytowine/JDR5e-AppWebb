@@ -58,9 +58,24 @@ export function buildSceneArrivalDisplayPacketV1(input: Parameters<typeof buildS
 
 function buildDeterministicArrivalNarration(arrival: SceneArrivalStateV1): string {
   const situation = arrival.scene.perceptibleSituation.join(" ");
-  const actors = arrival.scene.presentNpc.length === 0
-    ? "Aucune présence n'est immédiatement mise en avant."
-    : `Présences visibles : ${arrival.scene.presentNpc.map(npc => `${npc.displayName}, ${npc.visibleState}`).join(" ; ")}.`;
+  const actors = buildVisiblePopulationNarration(arrival);
   const points = arrival.scene.pointsOfInterest.map(point => `${point.label} : ${point.visibleDescription}`).join(" ");
   return `Tu arrives à ${arrival.scene.locationName}. ${situation} ${actors} ${points} Tension actuelle : ${arrival.scene.currentTension}`.replace(/\s+/gu, " ").trim();
+}
+
+function buildVisiblePopulationNarration(arrival: SceneArrivalStateV1): string {
+  const foreground = arrival.scene.presentNpc.map(npc => `${npc.displayName}, ${npc.visibleState}`);
+  const ambient = arrival.scene.ambientPopulation ?? [];
+  if (foreground.length > 0) return `Quelques figures se détachent : ${foreground.join(" ; ")}.`;
+  if (ambient.length === 0) return "Aucune présence particulière ne se détache pour le moment.";
+  const activities = ambient.slice(0, 3).map(presence =>
+    `${presence.displayName.toLocaleLowerCase("fr-FR")} ${presence.visibleActivity}`
+  );
+  const continuation = ambient.length > 3 ? " D'autres silhouettes entretiennent le mouvement du lieu." : "";
+  return `Le lieu est habité : ${joinFrenchList(activities)}.${continuation}`;
+}
+
+function joinFrenchList(values: string[]): string {
+  if (values.length < 2) return values[0] ?? "";
+  return `${values.slice(0, -1).join(", ")} et ${values.at(-1)}`;
 }

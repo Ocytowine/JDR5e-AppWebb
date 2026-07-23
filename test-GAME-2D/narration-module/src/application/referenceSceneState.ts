@@ -33,7 +33,7 @@ export interface ReferenceSceneStateV1 extends JsonObject {
 export interface ReferenceSceneShortTermNpcMemoryEntryV1 extends JsonObject {
   schemaVersion: 1;
   memoryId: string;
-  actorId: "npc-garde-blesse" | "npc-serveuse-nerveuse";
+  actorId: string;
   actorDisplayName: string;
   operationId: string;
   playerIntentSummary: string;
@@ -164,11 +164,10 @@ function appendNpcShortTermMemoryV1(input: {
   playerIntentSummary: string;
   nextOrder: number;
   actor: {
-    actorId: "npc-garde-blesse" | "npc-serveuse-nerveuse";
+    actorId: string;
     actorDisplayName: string;
   };
 }): ReferenceSceneShortTermNpcMemoryEntryV1[] {
-  const isWaitress = input.actor.actorId === "npc-serveuse-nerveuse";
   const entry: ReferenceSceneShortTermNpcMemoryEntryV1 = {
     schemaVersion: 1,
     memoryId: `${input.operationId}:memory:${input.actor.actorId}`,
@@ -176,9 +175,7 @@ function appendNpcShortTermMemoryV1(input: {
     actorDisplayName: input.actor.actorDisplayName,
     operationId: input.operationId,
     playerIntentSummary: input.playerIntentSummary,
-    npcContinuitySummary: isWaitress
-      ? "Le joueur s'est adressé à la serveuse; aucune ancienne réplique PNJ n'est déduite de cette entrée."
-      : "Le joueur s'est adressé au garde; aucune ancienne réplique PNJ n'est déduite de cette entrée.",
+    npcContinuitySummary: `Le joueur s'est adressé à ${input.actor.actorDisplayName}; aucune ancienne réplique PNJ n'est déduite de cette entrée.`,
     visibleToPlayer: true,
     order: input.nextOrder,
     version: 1
@@ -191,17 +188,19 @@ function appendNpcShortTermMemoryV1(input: {
 }
 
 function speechTarget(interpretation: NarrativeIntentInterpretationV1): {
-  actorId: "npc-garde-blesse" | "npc-serveuse-nerveuse";
+  actorId: string;
   actorDisplayName: string;
 } {
-  const structuredRef = interpretation.referentResolution?.resolvedTarget?.ref ?? interpretation.semanticIntent.target?.ref ?? null;
+  const target = interpretation.referentResolution?.resolvedTarget ?? interpretation.semanticIntent.target ?? null;
+  const structuredRef = target?.ref ?? null;
   if (structuredRef === "npc:npc-serveuse-nerveuse" || structuredRef === "npc-serveuse-nerveuse") {
     return { actorId: "npc-serveuse-nerveuse", actorDisplayName: "Serveuse nerveuse" };
   }
   if (structuredRef === "npc:npc-garde-blesse" || structuredRef === "npc-garde-blesse") {
     return { actorId: "npc-garde-blesse", actorDisplayName: "Garde blessé" };
   }
-  return { actorId: "npc-garde-blesse", actorDisplayName: "Garde blessé" };
+  const actorId = structuredRef?.replace(/^npc:/u, "") || "npc-inconnu";
+  return { actorId, actorDisplayName: target?.label?.trim() || "Interlocuteur" };
 }
 
 function normalizeShortTermNpcMemory(value: unknown): ReferenceSceneShortTermNpcMemoryEntryV1[] {
@@ -216,8 +215,8 @@ function normalizeShortTermNpcMemory(value: unknown): ReferenceSceneShortTermNpc
       typeof (entry as { npcContinuitySummary?: unknown }).npcContinuitySummary === "string";
   }).map(entry => ({
     ...entry,
-    actorId: entry.actorId === "npc-serveuse-nerveuse" ? "npc-serveuse-nerveuse" as const : "npc-garde-blesse" as const,
-    actorDisplayName: typeof entry.actorDisplayName === "string" ? entry.actorDisplayName : "Garde blessé",
+    actorId: typeof entry.actorId === "string" && entry.actorId.trim() ? entry.actorId : "npc-inconnu",
+    actorDisplayName: typeof entry.actorDisplayName === "string" ? entry.actorDisplayName : "Interlocuteur",
     visibleToPlayer: true as const,
     version: 1 as const
   }));

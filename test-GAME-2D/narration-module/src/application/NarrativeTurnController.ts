@@ -53,6 +53,7 @@ import {
   resolveNarrativeTurnV1,
   type NarrativeResolutionResultV1
 } from "./narrativeResolution";
+import { adjudicateContextualActionV1 } from "./contextualActionAdjudication";
 import {
   recordNarrativeRenderedProjectionV1,
   restoreNarrativeRenderedThreadV1,
@@ -61,6 +62,7 @@ import {
   type RestoredNarrativeThreadV1
 } from "./narrativeRenderProjection";
 import { createInitialReferenceSceneStateV1, type ReferenceSceneStateV1 } from "./referenceSceneState";
+import { applyPersistedSceneActorsV1 } from "./sceneActorRegistry";
 import { buildNarrativeDomainCommandV1, type NarrativeDomainCommandV1 } from "./domainCommands";
 import type { SceneArrivalStateV1 } from "./sceneArrival";
 import {
@@ -87,6 +89,7 @@ export interface NarrativeSceneTransitionRuntimeV1 {
     displayPacket: DisplayPacketV1 & JsonObject;
     characterExpression: string;
     durationSeconds: number;
+    aiTelemetry?: AiCallTelemetryV1[];
   }>>;
 }
 
@@ -211,7 +214,7 @@ export class NarrativeTurnControllerV1 {
       ? { ok: true as const, value: REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1 }
       : await this.activeSceneResolver.resolve({ repository: this.repository, campaignId: this.campaignId });
     if (!activeSceneResult.ok) return activeSceneResult;
-    const activeScene = activeSceneResult.value;
+    let activeScene = activeSceneResult.value;
 
     const requestPayload = buildRequestPayload(input);
     const operationKind = "narrative.turn.input";
@@ -254,6 +257,16 @@ export class NarrativeTurnControllerV1 {
         }
       };
     }
+    const hydratedSceneResult = await applyPersistedSceneActorsV1({
+      repository: this.repository,
+      campaignId: this.campaignId,
+      scene: activeScene
+    });
+    if (!hydratedSceneResult.ok) {
+      await cancelUncommittedOperationAfterFailure(this.repository, received.value.operationId);
+      return hydratedSceneResult;
+    }
+    activeScene = hydratedSceneResult.value;
 
     const output = await buildResolvedOutput({
       repository: this.repository,
@@ -601,6 +614,7 @@ export function buildNoCommitOutput(
       commitId: null,
       noGameTime: true,
       safetyNotes: ["Sortie legacy conservée pour compatibilité de test."],
+      actionAdjudication: null,
       perception: null
     },
     sceneState: createInitialReferenceSceneStateV1(),
@@ -737,6 +751,7 @@ async function buildResolvedOutput(input: {
       commitId: transition.value.commit.commitId,
       noGameTime: false,
       safetyNotes: ["Transition de scène résolue par le domaine monde et rendue après commit confirmé."],
+      actionAdjudication: adjudicateContextualActionV1({ interpretation, scene: input.activeScene }),
       perception: null
     };
     return {
@@ -769,7 +784,7 @@ async function buildResolvedOutput(input: {
             npcPerformanceMs: 0,
             resolvedOutputMs: Date.now() - resolvedOutputStartedAt
           },
-          aiTelemetry: [...(interpretationResult?.telemetry ?? [])]
+          aiTelemetry: [...(interpretationResult?.telemetry ?? []), ...(transition.value.aiTelemetry ?? [])]
         }
       }
     };
@@ -798,13 +813,15 @@ async function buildResolvedOutput(input: {
       mjPlan: planning?.plan ?? null,
       resolution: resolution.value.result,
       sceneState: resolution.value.sceneState,
+      activeScene: resolution.value.playableScene,
       config: input.npcPerformerConfig
     });
   const npcPerformanceMs = Date.now() - npcPerformanceStartedAt;
   const displayPacket = applyNpcPerformanceToDisplayPacketV1({
     displayPacket: resolution.value.displayPacket,
     performance: npcPerformance?.performance ?? null,
-    performanceFailure: npcPerformance?.performanceFailure as (NpcPerformanceFailureV1 & JsonObject) | null ?? null
+    performanceFailure: npcPerformance?.performanceFailure as (NpcPerformanceFailureV1 & JsonObject) | null ?? null,
+    activeScene: resolution.value.playableScene
   });
 
   return {
@@ -828,7 +845,7 @@ async function buildResolvedOutput(input: {
         resolution: resolution.value.result,
         sceneState: resolution.value.sceneState,
         sceneArrival: null,
-        activeScene: input.activeScene,
+        activeScene: resolution.value.playableScene,
         displayPacket,
         stageTimings: {
           interpretationMs,
@@ -859,6 +876,7 @@ function buildSceneChangeControllerResult(input: {
     displayPacket: DisplayPacketV1 & JsonObject;
     characterExpression: string;
     durationSeconds: number;
+    aiTelemetry?: AiCallTelemetryV1[];
   };
   safetyNote: string;
 }): Result<{ output: NarrativeTurnControllerOutputV1; commit: unknown | null }> {
@@ -884,6 +902,7 @@ function buildSceneChangeControllerResult(input: {
     commitId: input.change.commit.commitId,
     noGameTime: input.change.durationSeconds === 0,
     safetyNotes: [input.safetyNote],
+    actionAdjudication: adjudicateContextualActionV1({ interpretation: input.interpretation, scene: input.input.activeScene }),
     perception: null
   };
   return {
@@ -916,7 +935,7 @@ function buildSceneChangeControllerResult(input: {
           npcPerformanceMs: 0,
           resolvedOutputMs: Date.now() - input.resolvedOutputStartedAt
         },
-        aiTelemetry: [...(input.interpretationResult?.telemetry ?? [])]
+        aiTelemetry: [...(input.interpretationResult?.telemetry ?? []), ...(input.change.aiTelemetry ?? [])]
       }
     }
   };

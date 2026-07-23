@@ -4,13 +4,22 @@ import { runAiPipelineCallV1 } from "../ai/pipeline";
 import type { AiCallRequestV1, AiCallTelemetryV1, AiModelRouteV1, AiRetryPolicyV1, AiRoleOutputEnvelopeV1, DynamicCreationProposalV1 } from "../ai/types";
 import {
   buildDynamicPlaceCreationProposalV1,
+  buildDynamicPlaceCreationProposalV2,
   type LoreGuidedPlaceCandidateV1,
+  type LoreGuidedPlaceCandidateV2,
   type LoreGuidedSceneCreationBriefV1
 } from "./loreGuidedSceneCreation";
 
 export const LORE_GUIDED_PLACE_CANDIDATE_CONTRACT_V1 = "lore-guided-place-candidate/1" as const;
+export const LORE_GUIDED_PLACE_CANDIDATE_CONTRACT_V2 = "lore-guided-place-candidate/2" as const;
 
 export interface LoreGuidedPlaceCandidateGeneratorConfigV1 {
+  provider: ContractAiProviderV1;
+  route: AiModelRouteV1 & { role: "scene_creator" };
+  retryPolicy: AiRetryPolicyV1 & { role: "scene_creator" };
+}
+
+export interface LoreGuidedPlaceCandidateGeneratorConfigV2 {
   provider: ContractAiProviderV1;
   route: AiModelRouteV1 & { role: "scene_creator" };
   retryPolicy: AiRetryPolicyV1 & { role: "scene_creator" };
@@ -48,6 +57,55 @@ export async function generateLoreGuidedPlaceCandidateV1(input: {
     : { ok: false, code: "AI_CANDIDATE_REJECTED", issues: built.issues, telemetry };
 }
 
+export async function generateLoreGuidedPlaceCandidateV2(input: {
+  campaignId: string;
+  operationId: string;
+  brief: LoreGuidedSceneCreationBriefV1;
+  sourceSceneId: string;
+  sourceBoundaryRef: string;
+  allowedParentLocationRefs: string[];
+  allowedPersistenceDepths: Array<"LIGHT_REFERENCE" | "FULL_ENTITY">;
+  requestedDestinationDescription: string;
+  config: LoreGuidedPlaceCandidateGeneratorConfigV2;
+}): Promise<
+  | { ok: true; candidate: LoreGuidedPlaceCandidateV2; proposal: DynamicCreationProposalV1; telemetry: AiCallTelemetryV1[] }
+  | { ok: false; code: "AI_CANDIDATE_REJECTED"; issues: string[]; telemetry: AiCallTelemetryV1[] }
+> {
+  const request = await buildRequest(input, LORE_GUIDED_PLACE_CANDIDATE_CONTRACT_V2);
+  const startedAt = Date.now();
+  const run = await runAiPipelineCallV1({
+    request,
+    route: input.config.route,
+    retryPolicy: input.config.retryPolicy,
+    provider: input.config.provider
+  });
+  const telemetry: AiCallTelemetryV1[] = run.telemetry.length > 0
+    ? run.telemetry
+    : [{
+        schemaVersion: 1,
+        providerId: input.config.route.providerId,
+        modelId: input.config.route.modelId,
+        reasoningEffort: null,
+        role: "scene_creator",
+        attemptId: request.attemptId,
+        latencyMs: Date.now() - startedAt,
+        inputTokens: null,
+        outputTokens: null,
+        totalTokens: null,
+        finishReason: "provider_metrics_missing",
+        inputTokenBudget: request.limits.inputTokenBudget,
+        outputTokenBudget: request.limits.outputTokenBudget,
+        contextChars: JSON.stringify(request.input).length,
+        schemaChars: null
+      }];
+  if (!run.acceptedOutput) return { ok: false, code: "AI_CANDIDATE_REJECTED", issues: run.validation.issues, telemetry };
+  const candidate = (run.acceptedOutput as AiRoleOutputEnvelopeV1<LoreGuidedPlaceCandidateV2>).payload;
+  const built = buildDynamicPlaceCreationProposalV2({ brief: input.brief, candidate });
+  return built.ok
+    ? { ok: true, candidate, proposal: built.proposal, telemetry }
+    : { ok: false, code: "AI_CANDIDATE_REJECTED", issues: built.issues, telemetry };
+}
+
 async function buildRequest(input: {
   campaignId: string;
   operationId: string;
@@ -57,8 +115,8 @@ async function buildRequest(input: {
   allowedParentLocationRefs: string[];
   allowedPersistenceDepths: Array<"LIGHT_REFERENCE" | "FULL_ENTITY">;
   requestedDestinationDescription: string;
-  config: LoreGuidedPlaceCandidateGeneratorConfigV1;
-}): Promise<AiCallRequestV1> {
+  config: LoreGuidedPlaceCandidateGeneratorConfigV1 | LoreGuidedPlaceCandidateGeneratorConfigV2;
+}, contractVersion: typeof LORE_GUIDED_PLACE_CANDIDATE_CONTRACT_V1 | typeof LORE_GUIDED_PLACE_CANDIDATE_CONTRACT_V2 = LORE_GUIDED_PLACE_CANDIDATE_CONTRACT_V1): Promise<AiCallRequestV1> {
   const roleContextPack = {
     schemaVersion: 1,
     authority: "PROPOSE_ONLY",
@@ -68,7 +126,9 @@ async function buildRequest(input: {
     allowedParentLocationRefs: [...input.allowedParentLocationRefs],
     allowedPersistenceDepths: [...input.allowedPersistenceDepths],
     requestedDestinationDescription: input.requestedDestinationDescription,
-    constraints: ["no commit", "no secret reveal", "no durable NPC materialization", "sourceRefs required on topology", "requestedDepth must be one of allowedPersistenceDepths", "parentLocationRef must be one of allowedParentLocationRefs", "the incoming connection must use sourceSceneId and sourceBoundaryRef exactly"]
+    constraints: contractVersion === LORE_GUIDED_PLACE_CANDIDATE_CONTRACT_V2
+      ? ["no commit", "no secret reveal", "populationRoles must be short singular role labels without actions or descriptions", "no durable NPC materialization", "no topology proposal", "requestedDepth must be one of allowedPersistenceDepths", "parentLocationRef must be one of allowedParentLocationRefs"]
+      : ["no commit", "no secret reveal", "populationRoles must be short singular role labels without actions or descriptions", "no durable NPC materialization", "sourceRefs required on topology", "requestedDepth must be one of allowedPersistenceDepths", "parentLocationRef must be one of allowedParentLocationRefs", "the incoming connection must use sourceSceneId and sourceBoundaryRef exactly"]
   };
   const task = { requiredOutput: LORE_GUIDED_PLACE_CANDIDATE_CONTRACT_V1 };
   return {
@@ -80,11 +140,11 @@ async function buildRequest(input: {
     snapshotId: `${input.operationId}:snapshot:scene-creator`,
     packId: `${input.operationId}:pack:scene-creator`,
     role: "scene_creator",
-    contractVersion: LORE_GUIDED_PLACE_CANDIDATE_CONTRACT_V1,
+    contractVersion,
     modelRouteId: input.config.route.routeId,
     contextFingerprint: await computeJsonFingerprint({ roleContextPack, task }) as `sha256:${string}`,
     idempotencyKey: `${input.operationId}:scene-creator`,
-    input: { instructionsRef: "scene-creator/lore-guided-place/v1", roleContextPack, task },
+    input: { instructionsRef: contractVersion === LORE_GUIDED_PLACE_CANDIDATE_CONTRACT_V2 ? "scene-creator/lore-guided-place/v2" : "scene-creator/lore-guided-place/v1", roleContextPack, task },
     limits: { inputTokenBudget: Math.min(2_000, input.config.route.inputTokenLimit), outputTokenBudget: Math.min(2_000, input.config.route.outputTokenLimit), timeoutMs: input.config.route.timeoutMs }
   };
 }
