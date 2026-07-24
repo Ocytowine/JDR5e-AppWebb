@@ -233,3 +233,12 @@ Ce fichier est le tableau de bord court du depot. Les details techniques restent
 ## Regle de mise a jour
 
 Au debut d'une session, choisir une tache de `En cours` ou ajouter la demande du moment. A la fin, mettre a jour son statut, la date, les blocages et la prochaine action verifiable. Git reste la source de verite pour le detail exact des modifications.
+
+## A ne pas oublier
+
+Dans le fichier "A CORRIGER.md", Il y'a des sujets qui sont ajouter de temps en temps par le dev. Se sont des sujets plus ou moins urgents, mais qui sont a corriger. Il faut les traiter en priorité apres les taches en cours. Il est important de le consulter regulierement pour ne pas laisser passer des problemes qui pourraient s'accumuler et devenir plus difficiles a corriger par la suite.
+
+Les modules sont developpés non simultanément, et seront à terme, en commun, un module peut déclencher un autre, fonctionner avec les mêmes données, mais chacun a sa propre logique et son propre fonctionnement. Il est important de respecter les dépendances et les interactions entre les modules pour éviter les conflits et les erreurs.
+  Le module narration utilise la fiche personnage pour savoir si le personnage est blessé, si le module de combat est déclenché, il récupère les statut du personnage, pour attribuer les PV et les blessures lors du début du combat. Ce qui génère à la base la fiche personnage est le module de création, qui récupère les stats blocs dans des fichiers data. Donc tous les modules sont liés entre eux, et il est important de respecter les dépendances et les interactions entre eux pour éviter les conflits et les erreurs. Il est important de bien comprendre le fonctionnement de chaque module et de leur interaction pour pouvoir les utiliser efficacement.
+
+Le but de la narration, est de donner aux joueur l'impression de libre arbitre, de donner la possibilité de faire des choix, de vivre une histoire interactive, cohérente et immersive. c'est pourquoi le systeme doit etre invisible au yeux du joueur, même si un choix et mal compris par l'ia, que le systeme rencontre un probleme, l'ia doit malgré tout prendre le relais, expliquer ce qui bloque, sans pour autant sortir de l'histoire. Elle peut demander une reformulation, expliquer ce qui échoue (si c'est une impossibilité du systeme ou une impossibilité du personnage), elle ne doit jamais sortir de son role de maitre du jeu.
