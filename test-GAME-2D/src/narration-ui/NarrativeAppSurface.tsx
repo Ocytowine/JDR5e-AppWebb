@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   buildReferenceSceneLocalNarrationV1,
+  buildVisiblePopulationNarrationV1,
   applyNarrativePresentationVariationV1,
   createBrowserPersistentNarrativeTurnControllerV1,
   createPrototypeNarrativeTurnControllerV1,
@@ -13,16 +14,20 @@ import {
   createCampaignLoreGuidedDynamicPlaceRuntimeV1,
   createCatalogSceneTransitionRuntimeV1,
   resolveSceneV1,
+  narrativeDesignationOfV1,
+  narrativeFirstMentionV1,
   REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1,
   type AiNarrativeEnhancementResultV1,
   type AiIntentInterpreterConfigV1,
   type NpcPerformerConfigV1,
   type NarrativeTurnControllerV1,
+  type PendingNarrativeSkillCheckV1,
   type PlayableSceneStateV1
 } from "../../narration-module/src/application";
 import { FakeContractAiProviderV1 } from "../../narration-module/src/ai/FakeContractAiProvider";
 import type { CampaignId, CampaignRepository, CoreError, JsonObject } from "../../narration-module/src/core";
 import type { AiModelRouteV1, AiRetryPolicyV1 } from "../../narration-module/src/ai/types";
+import type { AiCallTelemetryV1 } from "../../narration-module/src/ai/types";
 import type { NarrativeTurnControllerOutputV1 } from "../../narration-module/src/application";
 import type { DisplayPacketV1 } from "../../narration-module/src/scene";
 import { SCENE_SOCIAL_UI_CONTRACT_VERSION_V1 } from "../../narration-module/src/scene";
@@ -38,11 +43,21 @@ import {
 import { ServerOpenAiEnhancementProviderV1 } from "./serverOpenAiEnhancementClient";
 
 type NarrativeEnhancementMode = "local" | "openai";
+let systemErrorSequence = 0;
 
-export function NarrativeAppSurface() {
+export interface NarrativeAppSurfaceBootstrapV1 {
+  controller: NarrativeTurnControllerV1;
+  openingScene: PlayableSceneStateV1;
+}
+
+export function NarrativeAppSurface(props: {
+  bootstrapController?: () => Promise<NarrativeAppSurfaceBootstrapV1>;
+} = {}) {
   const [controller, setController] = useState<NarrativeTurnControllerV1 | null>(null);
   const [packetsFromController, setPacketsFromController] = useState<DisplayPacketV1[]>([]);
   const [pending, setPending] = useState(false);
+  const [pendingSkillCheck, setPendingSkillCheck] = useState<PendingNarrativeSkillCheckV1 | null>(null);
+  const [rollingSkillCheck, setRollingSkillCheck] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [enhancementMode, setEnhancementMode] = useState<NarrativeEnhancementMode>("local");
   const [openingScene, setOpeningScene] = useState<PlayableSceneStateV1 | null>(null);
@@ -57,6 +72,38 @@ export function NarrativeAppSurface() {
   useEffect(() => {
     let cancelled = false;
     setController(null);
+    setPendingSkillCheck(null);
+    const activateController = async (nextController: NarrativeTurnControllerV1) => {
+      const [restored, restoredPending, restoredSkillResults] = await Promise.all([
+        nextController.restoreRenderedThread(),
+        nextController.restorePendingSkillCheck(),
+        nextController.restoreSkillCheckResultPackets()
+      ]);
+      if (cancelled) return;
+      if (restored.ok) {
+        setPacketsFromController([
+          ...restored.value.displayPackets,
+          ...(restoredSkillResults.ok ? restoredSkillResults.value : [])
+        ]);
+      } else {
+        reportCoreError(restored.error, "Restauration du fil");
+      }
+      if (restoredPending.ok) setPendingSkillCheck(restoredPending.value);
+      else reportCoreError(restoredPending.error, "Restauration du jet en attente");
+      if (!restoredSkillResults.ok) reportCoreError(restoredSkillResults.error, "Restauration des résultats de dés");
+      setController(nextController);
+    };
+    if (props.bootstrapController !== undefined) {
+      void props.bootstrapController().then(result => {
+        if (!cancelled) setOpeningScene(result.openingScene);
+        return activateController(result.controller);
+      }).catch(error => {
+        if (!cancelled) reportUnexpectedError(error, "Initialisation du contrôleur");
+      });
+      return () => {
+        cancelled = true;
+      };
+    }
     const intentInterpreterConfig = buildIntentInterpreterConfig(enhancementMode);
     const npcPerformerConfig = buildNpcPerformerConfig(enhancementMode);
     void import("./archiveLorePilot").then(module => module.buildArchiveLorePilotV1()).then(async archivePilot => {
@@ -98,38 +145,26 @@ export function NarrativeAppSurface() {
         }
       });
       return createBrowserPersistentNarrativeTurnControllerV1({ databaseName: "jdr5e-narration-archives-pilot-v4", intentInterpreterConfig, npcPerformerConfig, sceneTransitionRuntime, dynamicPlaceRuntime, initialScene: { scene: archivePilot.scene, locationRef: archivePilot.locationRef }, activeSceneResolver, initializeRepository: (repository, campaignId, clock) => ensureDynamicPlaceCreationStateV1({ repository, campaignId, clock, topology: archivePilot.topology }) });
-    }).then(async nextController => {
-      const restored = await nextController.restoreRenderedThread();
-      if (!cancelled) {
-        if (restored.ok) {
-          setPacketsFromController(restored.value.displayPackets);
-        } else {
-          setErrorMessage(restored.error.messageKey);
-        }
-        setController(nextController);
-      }
-    }).catch(error => {
+    }).then(activateController).catch(error => {
       void import("./archiveLorePilot").then(module => module.buildArchiveLorePilotV1()).then(archivePilot => {
         setOpeningScene(archivePilot.scene);
         return createPrototypeNarrativeTurnControllerV1({ intentInterpreterConfig, npcPerformerConfig, initialScene: { scene: archivePilot.scene, locationRef: archivePilot.locationRef }, initializeRepository: (repository, campaignId, clock) => ensureDynamicPlaceCreationStateV1({ repository, campaignId, clock, topology: archivePilot.topology }), activeSceneResolver: { async resolve() { return { ok: true as const, value: archivePilot.scene }; } } });
-      }).then(nextController => {
-        if (!cancelled) setController(nextController);
-      }).catch(fallbackError => {
+      }).then(activateController).catch(fallbackError => {
         if (!cancelled) {
           const primary = error instanceof Error ? error.message : String(error);
           const fallback = fallbackError instanceof Error ? fallbackError.message : String(fallbackError);
-          setErrorMessage(`${primary}; fallback mémoire indisponible: ${fallback}`);
+          reportUnexpectedError(new Error(`${primary}; fallback mémoire indisponible: ${fallback}`), "Initialisation de la narration");
         }
       });
     });
     return () => {
       cancelled = true;
     };
-  }, [enhancementMode]);
+  }, [enhancementMode, props.bootstrapController]);
 
   function handleSubmit(payload: NarrativeSubmitPayloadV1) {
     if (!controller) {
-      setErrorMessage("Contrôleur narratif indisponible.");
+      reportUnexpectedError(new Error("controller unavailable"), "Envoi de l'action");
       return;
     }
     const submittedAt = performance.now();
@@ -137,16 +172,17 @@ export function NarrativeAppSurface() {
     setErrorMessage(null);
     void controller.submit(payload).then(async result => {
       if (!result.ok) {
-        setErrorMessage(result.error.messageKey);
+        setErrorMessage(narrativeErrorGuidance(result.error).summary);
         setPacketsFromController(previous => [...previous, createRuntimeFailurePacket({
           error: result.error,
           operationId: payload.clientRequestId,
           sceneId: openingScene?.sceneId ?? "unknown-scene",
-          rawInput: payload.rawInput
+          context: "Résolution de l'action"
         })]);
         return;
       }
       const controllerFinishedAt = performance.now();
+      setPendingSkillCheck(result.value.output.pendingSkillCheck);
       const enhancement = await enhancePrototypePacket(result.value.output, enhancementMode, packetsFromController);
       const enhancementFinishedAt = performance.now();
       const orchestrationStatus = [
@@ -171,6 +207,7 @@ export function NarrativeAppSurface() {
         output: result.value.output,
         priorPackets: packetsFromController,
         turnDiagnostics,
+        enhancementTelemetry: enhancement.finalEnhancement.telemetry ?? [],
         timings: {
           controllerMs: controllerFinishedAt - submittedAt,
           enhancementMs: enhancementFinishedAt - controllerFinishedAt,
@@ -188,7 +225,7 @@ export function NarrativeAppSurface() {
         statusMessage
       });
       if (!recorded.ok) {
-        setErrorMessage(recorded.error.messageKey);
+        reportCoreError(recorded.error, "Enregistrement de la narration", result.value.output.operationId);
         return;
       }
       const projectionFinishedAt = performance.now();
@@ -197,6 +234,7 @@ export function NarrativeAppSurface() {
         output: result.value.output,
         priorPackets: packetsFromController,
         turnDiagnostics,
+        enhancementTelemetry: enhancement.finalEnhancement.telemetry ?? [],
         timings: {
           controllerMs: controllerFinishedAt - submittedAt,
           enhancementMs: enhancementFinishedAt - controllerFinishedAt,
@@ -206,10 +244,60 @@ export function NarrativeAppSurface() {
       });
       setPacketsFromController(prev => [...prev, enhanced]);
     }).catch(error => {
-      setErrorMessage(error instanceof Error ? error.message : String(error));
+      reportUnexpectedError(error, "Traitement de l'action", payload.clientRequestId);
     }).finally(() => {
       setPending(false);
     });
+  }
+
+  function handleRollSkillCheck(skillCheck: PendingNarrativeSkillCheckV1) {
+    if (!controller || rollingSkillCheck) return;
+    setRollingSkillCheck(true);
+    setPending(true);
+    setErrorMessage(null);
+    void controller.rollPendingSkillCheck({
+      schemaVersion: 1,
+      clientRequestId: `nar-ui-roll-${skillCheck.pendingCheckId}`,
+      sourceOperationId: skillCheck.sourceOperationId,
+      pendingCheckId: skillCheck.pendingCheckId
+    }).then(result => {
+      if (!result.ok) {
+        reportCoreError(result.error, "Lancer du test de compétence", skillCheck.pendingCheckId);
+        return;
+      }
+      setPacketsFromController(previous => previous.some(packet =>
+        packet.operationId === result.value.displayPacket.operationId
+      ) ? previous : [...previous, result.value.displayPacket]);
+      setPendingSkillCheck(null);
+    }).catch(error => {
+      reportUnexpectedError(error, "Lancer du test de compétence", skillCheck.pendingCheckId);
+    }).finally(() => {
+      setRollingSkillCheck(false);
+      setPending(false);
+    });
+  }
+
+  function reportCoreError(error: CoreError, context: string, operationId = nextSystemErrorOperationId()): void {
+    const guidance = narrativeErrorGuidance(error);
+    setErrorMessage(guidance.summary);
+    setPacketsFromController(previous => [...previous, createRuntimeFailurePacket({
+      error,
+      operationId,
+      sceneId: openingScene?.sceneId ?? "unknown-scene",
+      context
+    })]);
+  }
+
+  function reportUnexpectedError(error: unknown, context: string, operationId = nextSystemErrorOperationId()): void {
+    console.error(`[Narration] ${context}`, error);
+    reportCoreError({
+      code: "CAMPAIGN_INTEGRITY_FAILURE",
+      category: "INTEGRITY",
+      retry: "AFTER_REFRESH",
+      messageKey: "narrative.ui.unexpected-error",
+      details: {},
+      incidentId: null
+    }, context, operationId);
   }
 
   return (
@@ -298,6 +386,9 @@ export function NarrativeAppSurface() {
             pending={pending || controller === null}
             title="Fil narratif"
             onSubmit={handleSubmit}
+            pendingSkillCheck={pendingSkillCheck}
+            rollingSkillCheck={rollingSkillCheck}
+            onRollSkillCheck={handleRollSkillCheck}
           />
         </div>
       </div>
@@ -305,8 +396,9 @@ export function NarrativeAppSurface() {
   );
 }
 
-function createRuntimeFailurePacket(input: { error: CoreError; operationId: string; sceneId: string; rawInput: string }): DisplayPacketV1 {
-  const diagnostic = JSON.stringify(input.error.details, null, 2);
+export function createRuntimeFailurePacket(input: { error: CoreError; operationId: string; sceneId: string; context: string }): DisplayPacketV1 {
+  const guidance = narrativeErrorGuidance(input.error);
+  const incident = input.error.incidentId === null ? "aucun" : input.error.incidentId;
   return {
     schemaVersion: 1,
     contractVersion: SCENE_SOCIAL_UI_CONTRACT_VERSION_V1,
@@ -316,7 +408,7 @@ function createRuntimeFailurePacket(input: { error: CoreError; operationId: stri
       blockId: `${input.operationId}:runtime-failure`,
       kind: "SYSTEM_NOTICE",
       speaker: { speakerId: "speaker-system", kind: "SYSTEM", displayName: "Système", roleLabel: "Notification système", ariaLabel: "Notification système", visualToken: "speaker-system" },
-      text: `Action non exécutée — diagnostic runtime\nErreur: ${input.error.messageKey}\nCode: ${input.error.code}; catégorie=${input.error.category}; reprise=${input.error.retry}.\nEntrée: ${input.rawInput}\nDétails:\n${diagnostic === "{}" ? "aucun détail fourni" : diagnostic}`,
+      text: `Action non exécutée — ${input.context}\n${guidance.summary}\nAide : ${guidance.action}\nDiagnostic sûr : ${input.error.messageKey}; code=${input.error.code}; catégorie=${input.error.category}; reprise=${input.error.retry}; incident=${incident}.`,
       ariaLabel: "Notification système: échec runtime diagnostiqué",
       roleLabel: "Notification système",
       visualStyleToken: "speaker-system",
@@ -330,11 +422,60 @@ function createRuntimeFailurePacket(input: { error: CoreError; operationId: stri
   };
 }
 
+export function narrativeErrorGuidance(error: CoreError): { summary: string; action: string } {
+  if (error.code === "IDEMPOTENCY_CONFLICT") {
+    return {
+      summary: "Cette requête a déjà été utilisée avec un contenu différent.",
+      action: "Relancez l'action avec une nouvelle requête, sans réutiliser l'ancien identifiant."
+    };
+  }
+  if (error.code === "STALE_VERSION" || error.code === "STALE_FENCING_TOKEN" || /revision|stale|concurrent/iu.test(error.messageKey)) {
+    return {
+      summary: "L'état de la campagne a changé pendant l'action ; aucune modification partielle n'a été conservée.",
+      action: "Rechargez la scène puis réessayez à partir de l'état actuel."
+    };
+  }
+  if (error.code === "NOT_FOUND" || /not-found|missing/iu.test(error.messageKey)) {
+    return {
+      summary: "Un élément nécessaire à cette action n'a pas été retrouvé.",
+      action: "Vérifiez la cible et l'étape précédente, puis reformulez ou recommencez l'action."
+    };
+  }
+  if (error.category === "PERSISTENCE") {
+    return {
+      summary: "La sauvegarde de l'action n'a pas pu être confirmée.",
+      action: "Évitez de fermer la page, rechargez l'état, puis réessayez une seule fois."
+    };
+  }
+  if (/openai|provider|timeout|fetch/iu.test(error.messageKey)) {
+    return {
+      summary: "Un service narratif externe n'a pas répondu correctement.",
+      action: "Réessayez ou passez en mode local ; aucun fait de campagne n'a été inventé."
+    };
+  }
+  if (error.category === "VALIDATION") {
+    return {
+      summary: "L'action a été refusée car les informations requises sont absentes ou incohérentes.",
+      action: "Vérifiez la cible, les préconditions affichées et reformulez l'intention."
+    };
+  }
+  return {
+    summary: "Une erreur technique inattendue a interrompu cette étape.",
+    action: "Réessayez une fois. Si le problème persiste, conservez le code diagnostic affiché."
+  };
+}
+
+function nextSystemErrorOperationId(): string {
+  systemErrorSequence += 1;
+  return `system-error-${Date.now()}-${systemErrorSequence}`;
+}
+
 function appendNarrativeSystemTrace(input: {
   packet: DisplayPacketV1;
   output: NarrativeTurnControllerOutputV1;
   priorPackets: DisplayPacketV1[];
   turnDiagnostics?: string[];
+  enhancementTelemetry?: AiCallTelemetryV1[];
   timings: { controllerMs: number; enhancementMs: number; projectionMs: number; totalMs: number };
 }): DisplayPacketV1 & JsonObject {
   const resolvedRef = input.output.npcPerformance?.actorId
@@ -345,8 +486,11 @@ function appendNarrativeSystemTrace(input: {
   const actorId = actorRef?.replace(/^npc:/u, "") ?? null;
   const actorDisplayName = actorId === null
     ? null
-    : input.output.activeScene.presentNpc.find(npc => npc.actorId === actorId)?.displayName
-      ?? input.output.activeScene.ambientPopulation?.find(presence => presence.actorId === actorId)?.displayName
+    : (() => {
+      const actor = input.output.activeScene.presentNpc.find(npc => npc.actorId === actorId)
+        ?? input.output.activeScene.ambientPopulation?.find(presence => presence.actorId === actorId);
+      return actor ? narrativeDesignationOfV1(actor)?.playerFacingLabel ?? actor.displayName : undefined;
+    })()
       ?? null;
   const rememberedPlayerIntents = actorId === null
     ? []
@@ -378,6 +522,9 @@ function appendNarrativeSystemTrace(input: {
   const aiTelemetryLines = input.output.aiTelemetry.map(metric =>
     `IA ${metric.role}: modèle=${metric.modelId}; raisonnement=${metric.reasoningEffort ?? "standard"}; latence=${formatDuration(metric.latencyMs)}; tokens=${metric.inputTokens ?? "?"}+${metric.outputTokens ?? "?"}/${metric.totalTokens ?? "?"}; fin=${metric.finishReason ?? "?"}; budgets=${metric.inputTokenBudget}/${metric.outputTokenBudget}; contexte=${metric.contextChars} caractères; schéma=${metric.schemaChars ?? "?"} caractères.`
   );
+  const enhancementTelemetryLines = (input.enhancementTelemetry ?? []).map(metric =>
+    `IA enrichissement ${metric.role}: modèle=${metric.modelId}; raisonnement=${metric.reasoningEffort ?? "standard"}; latence=${formatDuration(metric.latencyMs)}; tokens=${metric.inputTokens ?? "?"}+${metric.outputTokens ?? "?"}/${metric.totalTokens ?? "?"}; fin=${metric.finishReason ?? "?"}.`
+  );
   const traceLines = [
     ...(input.turnDiagnostics ?? []).map(message => `Diagnostic du tour: ${message}`),
     "Trace système et mémoire",
@@ -387,6 +534,9 @@ function appendNarrativeSystemTrace(input: {
     `Couples intention → réponse (${pairedHistory.length}): ${pairedHistory.join(" | ") || "aucun"}.`,
     `Sources déclarées par le performer: ${input.output.npcPerformance?.knowledgeUsed.join(", ") || "aucune"}.`,
     ...(aiTelemetryLines.length > 0 ? aiTelemetryLines : ["Métriques IA fournisseur: indisponibles pour cette opération."]),
+    ...(enhancementTelemetryLines.length > 0
+      ? enhancementTelemetryLines
+      : ["Métriques IA d'enrichissement: aucun appel ou métriques indisponibles."]),
     stages === null
       ? "Détail contrôleur: indisponible pour cette ancienne opération."
       : `Détail contrôleur: interprétation=${formatDuration(stages.interpretationMs)}, planification=${formatDuration(stages.planningMs)}, résolution=${formatDuration(stages.resolutionMs)}, performer PNJ=${formatDuration(stages.npcPerformanceMs)}, orchestration/persistance=${formatDuration(controllerOverheadMs)}.`,
@@ -412,16 +562,14 @@ function createWelcomePacket(scene: PlayableSceneStateV1): DisplayPacketV1 {
 }
 
 function createPlayableSceneOpeningPacket(scene: PlayableSceneStateV1 = REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1): DisplayPacketV1 {
-  const visibleNpc = scene.presentNpc
-    .map(npc => `${npc.displayName}, ${npc.visibleState}`)
-    .join(" ; ");
+  const visiblePopulation = buildVisiblePopulationNarrationV1(scene);
   const visiblePoints = scene.pointsOfInterest
     .map(point => `${point.label} : ${point.visibleDescription}`)
     .join(" ");
   const openingText = [
-    `Tu te trouves à ${scene.locationName}.`,
+    `Tu te trouves à ${narrativeFirstMentionV1(narrativeDesignationOfV1(scene, "locationDesignation"), scene.locationName)}.`,
     scene.perceptibleSituation.join(" "),
-    visibleNpc ? `Présences visibles : ${visibleNpc}.` : "",
+    visiblePopulation,
     visiblePoints,
     `Tension actuelle : ${scene.currentTension}`,
     "Aucune action n'est encore engagée : la scène est ouverte et attend ta première intention."
@@ -746,6 +894,10 @@ function buildPrototypeExpression(output: NarrativeTurnControllerOutputV1): stri
 }
 
 function buildPrototypeNarration(output: NarrativeTurnControllerOutputV1): string {
+  if (output.sceneArrival !== null) {
+    return output.displayPacket.displayBlocks.find(block => block.kind === "GM_NARRATION")?.text
+      ?? output.activeScene.perceptibleSituation.join(" ");
+  }
   if (output.activeScene.sceneId !== REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1.sceneId) {
     return output.displayPacket.displayBlocks.find(block => block.kind === "GM_NARRATION")?.text
       ?? output.activeScene.perceptibleSituation.join(" ");
@@ -801,7 +953,7 @@ const prototypeCoherenceCriticRoute: AiModelRouteV1 = {
   allowedContractVersions: ["narrative-ai-resolution/1"],
   inputTokenLimit: 2_000,
   outputTokenLimit: 1_600,
-  timeoutMs: 10_000,
+  timeoutMs: 30_000,
   fallbackRouteIds: []
 };
 

@@ -821,7 +821,8 @@ function createNarrativeOpenAiEnhancementApi(options) {
         });
       }
 
-      const validation = validateEnvelope(parsed, request.value);
+      const normalizedOutput = normalizeProviderEnvelope(parsed, request.value);
+      const validation = validateEnvelope(normalizedOutput, request.value);
       if (!validation.ok) {
         return sendJson(res, 200, {
           ok: false,
@@ -833,7 +834,7 @@ function createNarrativeOpenAiEnhancementApi(options) {
 
       return sendJson(res, 200, {
         ok: true,
-        output: parsed,
+        output: normalizedOutput,
         metrics: {
           providerId: "openai",
           modelId: route.modelId,
@@ -888,6 +889,36 @@ function createNarrativeOpenAiEnhancementApi(options) {
   }
 
   return { tryHandle };
+}
+
+function normalizeProviderEnvelope(output, request) {
+  if (
+    request?.role !== "player_intent_interpreter" ||
+    request?.contractVersion !== SEMANTIC_INTENT_CONTRACT_VERSION ||
+    !output || typeof output !== "object" || Array.isArray(output) ||
+    !output.payload || typeof output.payload !== "object" || Array.isArray(output.payload) ||
+    !output.payload.intent || typeof output.payload.intent !== "object" || Array.isArray(output.payload.intent)
+  ) return output;
+  const intent = output.payload.intent;
+  const dialogueAct = intent.dialogueAct;
+  const isContactAct = dialogueAct &&
+    typeof dialogueAct === "object" &&
+    !Array.isArray(dialogueAct) &&
+    dialogueAct.act === "INITIATE_CONVERSATION";
+  if (!isContactAct || !["move_near_visible_actor", "nonverbal_signal"].includes(intent.kind)) return output;
+  return {
+    ...output,
+    payload: {
+      ...output.payload,
+      intent: {
+        ...intent,
+        kind: "address_visible_actor",
+        domainHint: "social",
+        scope: "SOCIAL_EXCHANGE",
+        perception: null
+      }
+    }
+  };
 }
 
 function normalizeAiCallRequest(value) {
@@ -1092,6 +1123,8 @@ function buildRoleInstructions(request) {
         "domainHint suggère seulement le domaine propriétaire; le logiciel garde l'autorité de routage.",
         "scope=SCENE_TRANSITION si le but est de franchir une limite, entrer, sortir ou changer de lieu; LOCAL_INTERACTION si le but reste une manipulation dans la scène courante.",
         "kind=move_near_visible_actor pour se placer, s'approcher ou se déplacer vers un acteur visible sans lui parler ni lui adresser de signal. Ce n'est ni address_visible_actor, ni nonverbal_signal, ni manipulate_visible_object.",
+        "Si la même entrée combine une approche et une parole ou salutation immédiate, la communication est l'intention principale: utilise address_visible_actor et conserve l'approche dans playerGoal/evidenceFromInput. N'utilise move_near_visible_actor que lorsque aucune parole ni salutation n'est engagée.",
+        "Une salutation formulée sans geste explicite ouvre une conversation: utilise address_visible_actor avec dialogueAct=INITIATE_CONVERSATION. Réserve nonverbal_signal aux gestes effectivement décrits, par exemple signe de tête, geste de la main ou regard, sans parole ni salutation verbale.",
         "kind=nonverbal_signal seulement si le joueur cherche à communiquer par un geste, un regard, une posture ou un autre signal sans parole.",
         "kind=traverse_visible_boundary lorsque le but est de franchir une porte, une ouverture ou une limite vers un autre espace. targetMention désigne alors la limite visible franchie, même si le joueur nomme surtout la destination.",
         "kind=manipulate_visible_object lorsque le but porte sur l'objet dans la scène courante sans franchissement: ouvrir, fermer, déplacer, examiner par manipulation ou actionner.",
@@ -1235,6 +1268,9 @@ function buildRoleInstructions(request) {
     "Role scene_writer: ajoute seulement une narration MJ atmospherique ancree dans les resolutions deja confirmees.",
     "Pour une arrivée après transition, raconte la scène destination fournie dans le bloc SCENE. N'importe jamais une présence, un décor ou une tension de la scène précédente.",
     "ambientPopulation décrit une foule visible, pas une liste de PNJ individualisés. Mets-la en mouvement en une ou deux phrases, regroupe les rôles et ne récite jamais 'Présences visibles' suivi d'un inventaire.",
+    "Quand une présence fournit designation, emploie firstMention à sa première apparition puis subsequentMention. N'utilise jamais son publicRole ou son ancien displayName comme s'il s'agissait d'un nom propre.",
+    "Pour une observation générale de la population, réponds par un paragraphe narratif continu: choisis deux ou trois figures représentatives, relie leurs activités visibles et termine par l'impression d'ensemble. Ne produis ni trois phrases clonées, ni une fiche par personne, ni une liste séparée par répétition de 'À proximité'.",
+    "La narration doit apporter une mise en scène sensible et lisible, pas seulement recopier les champs du contexte. Fusionne activité, apparence et tension dans des phrases naturelles sans afficher leurs clés.",
     "presentNpc contient seulement les figures déjà individualisées; tu peux les distinguer de la foule sans leur inventer de biographie, d'action nouvelle ou de connaissance.",
     "task.renderAuthority.allowedClaims est la liste positive des affirmations que tu peux formuler. Ne complète pas un objet ou un acteur par des propriétés plausibles mais absentes.",
     "Si texturePolicy.allowed=true, la texture reste TURN_ONLY: elle peut seulement reformuler une sensation déjà sourcée, accentuer une tension confirmée ou relier stylistiquement des faits autorisés.",
@@ -1941,6 +1977,7 @@ module.exports = {
   createNarrativeOpenAiEnhancementApi,
   errorEnvelope,
   normalizeAiCallRequest,
+  normalizeProviderEnvelope,
   sanitizeProviderErrorText,
   validateEnvelope,
   validateRolePayload

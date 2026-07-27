@@ -155,10 +155,14 @@ Une reconstruction impossible après commit est traitée comme une erreur d'int�
 
 ## Preuve
 
-Commandes : `npm run narration-module:test:scene-transition` et `npm run narration-module:test:lore-playable-scene`.
+Commandes : `npm run narration-module:test:scene-transition`, `npm run narration-module:test:lore-playable-scene`, `npm run narration-module:test:transition-ui` et, avec la configuration serveur opt-in, `npm run narration-module:test:transition-ui:openai-live`.
 
 La matrice couvre transition locale, passage bloqué, voyage, destination contradictoire, version périmée, connexion absente et connexion ambiguë avec des identifiants génériques sans dépendance à la scène de l'auberge. Elle vérifie aussi la composition atomique avec le temps, la validation du `CommitRequest`, le rejeu identique, le rejet sans mutation d'une révision de position périmée et la reconstruction post-commit sans restauration de l'ancienne mise en scène.
 
 ## Prochaine étape
 
-Exécuter la recette UI OpenAI complète : arrivée, observation, approche de la lampe, examen des traces puis retour vers la salle commune. Le vertical automatisé prouve déjà les deux transitions, la seconde arrivée à la seconde 16, le changement de registre actif et la révélation perceptive bornée sans origine inventée. `activeSceneNarrative.ts` exclut l'historique d'autres `sceneId` et rejette toute sortie qui déclare des faits, événements ou présences non fournis.
+Les recettes navigateur locale et OpenAI live montent la vraie `NarrativeAppSurface` avec un contrôleur injecté. Elles vérifient l'arrivée, l'observation, l'approche de la lampe, l'examen des traces puis le retour dans la salle commune. La recette live contrôle directement les appels `scene_writer` et `coherence_critic`, leurs réponses HTTP 200 et l'absence de fallback local. Le passage validé le 2026-07-27 dure environ 2,9 minutes.
+
+La frontière de présentation impose qu'une arrivée post-commit conserve sa narration d'arrivée et ne soit pas réécrite avec le contexte générique de la scène précédente. Le vertical prouve les deux transitions, la seconde arrivée à la seconde 16, le changement de registre actif et la révélation perceptive bornée sans origine inventée. `activeSceneNarrative.ts` exclut l'historique d'autres `sceneId` et rejette toute sortie qui déclare des faits, événements ou présences non fournis.
+
+Prochaine étape : intégrer cette gate live dans une campagne de stabilité répétée et mesurer séparément la latence de `scene_writer` et de `coherence_critic`, sans l'ajouter aux tests ordinaires qui doivent rester sans coût fournisseur.

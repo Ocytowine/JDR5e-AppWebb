@@ -6,6 +6,11 @@ import type { NarrativeIntentInterpretationV1 } from "./intentClarification";
 import type { NarrativeResolutionResultV1 } from "./narrativeResolution";
 import type { PlayableSceneStateV1 } from "./playableScene";
 import { buildShortVisibleHistoryV1, type ReferenceSceneWriterContextTaskV1 } from "./referenceScene";
+import {
+  narrativeFirstMentionV1,
+  narrativeDesignationOfV1,
+  narrativeSubsequentMentionV1
+} from "./narrativeDesignation";
 
 export const ACTIVE_SCENE_NARRATIVE_CONTEXT_VERSION_V1 = "active-scene-narrative-context/1" as const;
 
@@ -87,15 +92,40 @@ export async function buildActiveSceneContextPackV1(input: {
     blocks: [{
       blockId: `${input.operationId}:active-scene`, blockKind: "SCENE", sourceRefs: [sceneMemoryRef], visibility: "PLAYER_CHARACTER", actorScope: [],
       text: [
-        `Lieu: ${input.activeScene.locationName}.`,
+        `Désignation du lieu accessible au personnage: ${narrativeFirstMentionV1(narrativeDesignationOfV1(input.activeScene, "locationDesignation"), input.activeScene.locationName)}.`,
         ...input.activeScene.perceptibleSituation,
         `Éléments visibles: ${input.activeScene.visibleElements.map(element => `${element.label}: ${element.description}`).join(" | ") || "aucun"}.`,
-        `Figures individualisées: ${input.activeScene.presentNpc.map(npc => `${npc.displayName}: ${npc.visibleState}`).join(" | ") || "aucune"}.`,
-        `Population ambiante: ${input.activeScene.ambientPopulation.map(presence => `${presence.displayName}: ${presence.visibleActivity}; apparence ${presence.visibleAppearance}; allure ${presence.demeanor}`).join(" | ") || "aucune"}.`,
+        `Figures individualisées: ${input.activeScene.presentNpc.map(npc =>
+          `${narrativeSubsequentMentionV1(narrativeDesignationOfV1(npc), npc.narrativeLabel || npc.displayName)}: ${npc.visibleState}`
+        ).join(" | ") || "aucune"}.`,
+        `Population ambiante représentative, non exhaustive: ${input.activeScene.ambientPopulation.map(presence =>
+          `${narrativeSubsequentMentionV1(narrativeDesignationOfV1(presence), presence.displayName)}: ${presence.visibleActivity}; apparence ${presence.visibleAppearance}; allure ${presence.demeanor}`
+        ).join(" | ") || "aucune"}.`,
         `Passages et points d'intérêt: ${input.activeScene.pointsOfInterest.map(point => `${point.label}: ${point.visibleDescription}`).join(" | ") || "aucun"}.`,
         `Tension: ${input.activeScene.currentTension}`
       ].join(" "),
-      payload: input.activeScene as unknown as JsonObject, tokenEstimate: 260
+      payload: {
+        sceneId: input.activeScene.sceneId,
+        locationDesignation: narrativeDesignationOfV1(input.activeScene, "locationDesignation") ?? null,
+        visibleElements: input.activeScene.visibleElements,
+        presentNpc: input.activeScene.presentNpc.map(npc => ({
+          actorId: npc.actorId,
+          designation: narrativeDesignationOfV1(npc) ?? null,
+          publicRole: npc.publicRole,
+          visibleState: npc.visibleState
+        })),
+        ambientPopulation: input.activeScene.ambientPopulation.map(presence => ({
+          actorId: presence.actorId,
+          designation: narrativeDesignationOfV1(presence) ?? null,
+          publicRole: presence.publicRole,
+          visibleActivity: presence.visibleActivity,
+          visibleAppearance: presence.visibleAppearance,
+          demeanor: presence.demeanor
+        })),
+        pointsOfInterest: input.activeScene.pointsOfInterest,
+        currentTension: input.activeScene.currentTension
+      } as unknown as JsonObject,
+      tokenEstimate: 260
     }, ...(visibleHistory.entries.length === 0 ? [] : [{
       blockId: `${input.operationId}:active-scene-history`, blockKind: "MEMORY_CAPSULE" as const, sourceRefs: [sceneMemoryRef], visibility: "PLAYER_CHARACTER" as const, actorScope: [], text: visibleHistory.text, payload: visibleHistory as unknown as JsonObject, tokenEstimate: visibleHistory.tokenEstimate
     }]), {

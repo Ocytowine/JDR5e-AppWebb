@@ -5,6 +5,7 @@ import { buildUnresolvedSkillCheckProposalV1, type SkillCheckProposalV1 } from "
 import { attachMechanicalCharacterContextV1, type RelevantMechanicalCharacterContextV1 } from "./skillCheckProposal";
 import { assessPerceptionSearchDifficultyV1 } from "./difficultyAssessment";
 import { selectSkillCheckDifficultyBandV1 } from "./skillCheckProposal";
+import { narrativeDesignationOfV1, narrativeFirstMentionV1 } from "./narrativeDesignation";
 
 export const PERCEPTION_RESOLUTION_CONTRACT_VERSION_V1 = "perception-resolution/1" as const;
 
@@ -33,7 +34,10 @@ export function resolvePerceptionV1(input: {
   if (request === null) {
     return result("NEEDS_CLARIFICATION", "GLANCE", input.targetRef, input.semanticIntent.playerGoal, [], [], null);
   }
-  const candidates = (input.scene.perceptionClues ?? []).filter(clue => clue.targetRef === input.targetRef);
+  const candidates = [
+    ...(input.scene.perceptionClues ?? []).filter(clue => clue.targetRef === input.targetRef),
+    ...(input.targetRef === null ? buildSceneWideVisibleClues(input.scene) : [])
+  ];
   const automaticVisibility = request.depth === "GLANCE" ? "IMMEDIATE" : "FOCUSED";
   const revealed = candidates.filter(clue => clue.visibility === automaticVisibility && clue.factKind === "VISIBLE_SIGN");
   const withheld = candidates.filter(clue => !revealed.includes(clue));
@@ -67,6 +71,38 @@ export function resolvePerceptionV1(input: {
     return result("NOT_PERCEPTIBLE", request.depth, input.targetRef, request.focus, [], withheld, null);
   }
   return result("AUTOMATIC_RESULT", request.depth, input.targetRef, request.focus, revealed, withheld, null);
+}
+
+function buildSceneWideVisibleClues(scene: PlayableSceneStateV1): PlayableScenePerceptionClueV1[] {
+  const facts: Array<{ id: string; text: string; sourceRef: string }> = [
+    ...scene.presentNpc.map(actor => ({
+      id: `present-npc:${actor.actorId}`,
+      text: `À proximité, ${narrativeFirstMentionV1(narrativeDesignationOfV1(actor), actor.narrativeLabel || actor.displayName)} se détache : ${actor.visibleState}.`,
+      sourceRef: `npc:${actor.actorId}`
+    })),
+    ...scene.ambientPopulation.map(actor => ({
+      id: `ambient-presence:${actor.actorId}`,
+      text: `À proximité, ${narrativeFirstMentionV1(narrativeDesignationOfV1(actor), actor.displayName)} se détache, absorbée par son activité. ${actor.visibleAppearance}`.trim(),
+      sourceRef: `ambient-presence:${actor.actorId}`
+    }))
+  ];
+  if (facts.length === 0) {
+    facts.push({
+      id: "scene-situation",
+      text: scene.perceptibleSituation.join(" "),
+      sourceRef: `scene:${scene.sceneId}`
+    });
+  }
+  return facts.map(fact => ({
+    schemaVersion: 1,
+    clueId: `scene-visible:${fact.id}`,
+    targetRef: `scene:${scene.sceneId}`,
+    visibility: "IMMEDIATE",
+    factKind: "VISIBLE_SIGN",
+    playerText: fact.text,
+    sourceRefs: [`scene:${scene.sceneId}`, fact.sourceRef],
+    version: 1
+  }));
 }
 
 function result(

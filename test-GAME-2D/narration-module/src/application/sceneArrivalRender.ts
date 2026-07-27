@@ -1,6 +1,8 @@
 import type { DisplayPacketV1, RenderPlanV1, SpeakerRefV1 } from "../scene";
 import { buildDisplayPacketFromRenderPlanV1, SCENE_SOCIAL_UI_CONTRACT_VERSION_V1, validateRenderPlanV1 } from "../scene";
 import type { SceneArrivalStateV1 } from "./sceneArrival";
+import { buildVisiblePopulationNarrationV1 } from "./ambientScenePresence";
+import { narrativeDesignationOfV1, narrativeFirstMentionV1 } from "./narrativeDesignation";
 
 const PLAYER: SpeakerRefV1 = { schemaVersion: 1, speakerId: "speaker-player", kind: "PLAYER_CHARACTER", actorRef: null, displayName: "Personnage", knownNameStatus: "KNOWN", roleLabel: "Expression joueur", accessibilityLabel: "Expression du personnage joueur", visualToken: "speaker-player" };
 const RAW_PLAYER: SpeakerRefV1 = { schemaVersion: 1, speakerId: "speaker-player-raw", kind: "PLAYER_CHARACTER", actorRef: null, displayName: "Joueur", knownNameStatus: "KNOWN", roleLabel: "Entrée originale", accessibilityLabel: "Entrée brute du joueur", visualToken: "speaker-player" };
@@ -58,24 +60,8 @@ export function buildSceneArrivalDisplayPacketV1(input: Parameters<typeof buildS
 
 function buildDeterministicArrivalNarration(arrival: SceneArrivalStateV1): string {
   const situation = arrival.scene.perceptibleSituation.join(" ");
-  const actors = buildVisiblePopulationNarration(arrival);
+  const actors = buildVisiblePopulationNarrationV1(arrival.scene);
   const points = arrival.scene.pointsOfInterest.map(point => `${point.label} : ${point.visibleDescription}`).join(" ");
-  return `Tu arrives à ${arrival.scene.locationName}. ${situation} ${actors} ${points} Tension actuelle : ${arrival.scene.currentTension}`.replace(/\s+/gu, " ").trim();
-}
-
-function buildVisiblePopulationNarration(arrival: SceneArrivalStateV1): string {
-  const foreground = arrival.scene.presentNpc.map(npc => `${npc.displayName}, ${npc.visibleState}`);
-  const ambient = arrival.scene.ambientPopulation ?? [];
-  if (foreground.length > 0) return `Quelques figures se détachent : ${foreground.join(" ; ")}.`;
-  if (ambient.length === 0) return "Aucune présence particulière ne se détache pour le moment.";
-  const activities = ambient.slice(0, 3).map(presence =>
-    `${presence.displayName.toLocaleLowerCase("fr-FR")} ${presence.visibleActivity}`
-  );
-  const continuation = ambient.length > 3 ? " D'autres silhouettes entretiennent le mouvement du lieu." : "";
-  return `Le lieu est habité : ${joinFrenchList(activities)}.${continuation}`;
-}
-
-function joinFrenchList(values: string[]): string {
-  if (values.length < 2) return values[0] ?? "";
-  return `${values.slice(0, -1).join(", ")} et ${values.at(-1)}`;
+  const place = narrativeFirstMentionV1(narrativeDesignationOfV1(arrival.scene, "locationDesignation"), arrival.scene.locationName);
+  return `Tu arrives à ${place}. ${situation} ${actors} ${points} Tension actuelle : ${arrival.scene.currentTension}`.replace(/\s+/gu, " ").trim();
 }

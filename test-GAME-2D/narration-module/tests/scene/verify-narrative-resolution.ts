@@ -101,6 +101,18 @@ async function main(): Promise<void> {
   assert.match(observation.value.output.displayPacket.displayBlocks.at(-1)?.text ?? "", /Observation exécutée - sans mutation durable/u);
   assert.doesNotMatch(observation.value.output.displayPacket.displayBlocks.at(-1)?.text ?? "", /aucune action exécutée/iu);
 
+  const sceneWideObservation = await controller.submit({
+    schemaVersion: 1,
+    clientRequestId: "req-resolution-observe-scene",
+    rawInput: "J'observe autour de moi."
+  });
+  if (!sceneWideObservation.ok) throw new Error(sceneWideObservation.error.messageKey);
+  assert.equal(sceneWideObservation.value.output.resolution.perception?.targetRef, null);
+  assert.equal(sceneWideObservation.value.output.resolution.perception?.revealedTexts.some(text => /proximité.*serveuse nerveuse/iu.test(text)), true);
+  assert.equal(sceneWideObservation.value.output.displayPacket.displayBlocks.some(block =>
+    block.kind === "GM_NARRATION" && /proximité.*serveuse nerveuse/iu.test(block.text)
+  ), true, "le rendu local doit employer les faits perceptifs résolus avant le résumé générique du lieu");
+
   const speech = await controller.submit({
     schemaVersion: 1,
     clientRequestId: "req-resolution-speech",

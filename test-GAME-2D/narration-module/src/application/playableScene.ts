@@ -1,4 +1,5 @@
 import type { JsonObject } from "../core";
+import { narrativeDesignationOfV1, validateNarrativeDesignationV1 } from "./narrativeDesignation";
 
 export const PLAYABLE_SCENE_CONTRACT_VERSION_V1 = "playable-scene-state/1" as const;
 
@@ -358,10 +359,30 @@ export function validatePlayableSceneV1(scene: PlayableSceneStateV1): { ok: true
   if (scene.contractVersion !== PLAYABLE_SCENE_CONTRACT_VERSION_V1) issues.push("contractVersion must be playable-scene-state/1.");
   if (!scene.sceneId.trim()) issues.push("sceneId is required.");
   if (!scene.locationName.trim()) issues.push("locationName is required.");
+  const locationDesignation = narrativeDesignationOfV1(scene, "locationDesignation");
+  if (locationDesignation) {
+    const validation = validateNarrativeDesignationV1(locationDesignation);
+    if (!validation.ok) issues.push(...validation.issues.map(issue => `locationDesignation: ${issue}`));
+    if (locationDesignation.subjectKind !== "PLACE") issues.push("locationDesignation must target a PLACE.");
+  }
   if (scene.perceptibleSituation.length === 0) issues.push("perceptibleSituation must not be empty.");
   if (scene.visibleElements.some(element => !element.playerVisible)) issues.push("visibleElements must be player-visible only.");
   if (scene.ambientPopulation?.some(presence => !presence.actorId.trim() || !presence.displayName.trim() || !presence.publicRole.trim())) {
     issues.push("ambientPopulation entries require actorId, displayName and publicRole.");
+  }
+  for (const npc of scene.presentNpc) {
+    const designation = narrativeDesignationOfV1(npc);
+    if (!designation) continue;
+    const validation = validateNarrativeDesignationV1(designation);
+    if (!validation.ok) issues.push(...validation.issues.map(issue => `presentNpc ${npc.actorId}: ${issue}`));
+    if (designation.subjectKind !== "ACTOR") issues.push(`presentNpc ${npc.actorId}: designation must target an ACTOR.`);
+  }
+  for (const presence of scene.ambientPopulation) {
+    const designation = narrativeDesignationOfV1(presence);
+    if (!designation) continue;
+    const validation = validateNarrativeDesignationV1(designation);
+    if (!validation.ok) issues.push(...validation.issues.map(issue => `ambientPopulation ${presence.actorId}: ${issue}`));
+    if (designation.subjectKind !== "ACTOR") issues.push(`ambientPopulation ${presence.actorId}: designation must target an ACTOR.`);
   }
   if (scene.ambientPopulation.some(presence =>
     !presence.visibleActivity.trim() ||

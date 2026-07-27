@@ -426,7 +426,8 @@ async function run(): Promise<void> {
         `npc:${sceneResult.scene.ambientPopulation[0]!.actorId}`,
         sceneResult.scene
       );
-      assert.equal(ambientSpeaker.displayName, "Clerc");
+      assert.equal(ambientSpeaker.displayName.startsWith("Clerc "), true);
+      assert.equal(ambientSpeaker.knownNameStatus, "DESIGNATION");
       assert.equal(ambientSpeaker.displayName === "Garde blessé", false);
       const ambientCopiste = sceneResult.scene.ambientPopulation[1]!;
       const promotion = buildSceneActorPromotionV1({

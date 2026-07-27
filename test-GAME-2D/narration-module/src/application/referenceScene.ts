@@ -630,13 +630,13 @@ function actionNarration(
 ): string {
   const target = interpretation.referentResolution?.resolvedTarget ?? interpretation.semanticIntent.target ?? null;
   if (interpretation.semanticIntent.kind === "observe_environment" && resolution.perception !== null) {
+    if (resolution.perception?.status === "AUTOMATIC_RESULT" && resolution.perception.revealedTexts.length > 0) {
+      return resolution.perception.revealedTexts.join(" ");
+    }
     if (target === null || target.kind === "self" || target.kind === "unknown") {
       return playableScene.perceptibleSituation.join(" ");
     }
     const narrativeTarget = referenceNarrativeTargetLabel(target?.ref, target?.label);
-    if (resolution.perception?.status === "AUTOMATIC_RESULT" && resolution.perception.revealedTexts.length > 0) {
-      return resolution.perception.revealedTexts.join(" ");
-    }
     if (resolution.perception?.status === "CHECK_REQUIRED") {
       return `Tu prolonges ton observation de ${narrativeTarget}, mais ce que tu cherches ne peut pas être établi par les seuls signes visibles. Une vérification perceptive est nécessaire.`;
     }

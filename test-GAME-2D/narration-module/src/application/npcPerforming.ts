@@ -20,6 +20,7 @@ import { reconstructRenderedNpcUtterancesV1 } from "./narrativeRenderProjection"
 import { responseModeForDialogueActV1, validateNpcDialogueReactionV1 } from "./npcDialogueReactionValidation";
 import { buildNpcDialogueFallbackV1, type NpcDialogueActKindV1 } from "./npcDialogueFallback";
 import type { PlayableSceneStateV1 } from "./playableScene";
+import { narrativeDesignationOfV1 } from "./narrativeDesignation";
 
 export const NPC_PERFORMER_CONTRACT_VERSION_V1 = "npc-performer/1" as const;
 
@@ -407,6 +408,7 @@ export function applyNpcPerformanceToDisplayPacketV1(input: {
           ...block.speaker,
           speakerId: speaker.speakerId,
           displayName: speaker.displayName,
+          knownNameStatus: speaker.knownNameStatus,
           ariaLabel: `Réplique PNJ - ${speaker.displayName}`,
           visualToken: speaker.speakerId
         },
@@ -423,19 +425,29 @@ export function applyNpcPerformanceToDisplayPacketV1(input: {
   } as DisplayPacketV1 & JsonObject;
 }
 
-export function resolveNpcSpeakerV1(actorId: string, activeScene: PlayableSceneStateV1): { speakerId: string; displayName: string } {
+export function resolveNpcSpeakerV1(actorId: string, activeScene: PlayableSceneStateV1): {
+  speakerId: string;
+  displayName: string;
+  knownNameStatus: "KNOWN" | "DESIGNATION" | "UNKNOWN";
+} {
   if (actorId === "npc:npc-serveuse-nerveuse" || actorId === "npc-serveuse-nerveuse") {
-    return { speakerId: "speaker-serveuse-nerveuse", displayName: "Serveuse nerveuse" };
+    return { speakerId: "speaker-serveuse-nerveuse", displayName: "Serveuse nerveuse", knownNameStatus: "DESIGNATION" };
   }
   if (actorId === "npc:npc-garde-blesse" || actorId === "npc-garde-blesse") {
-    return { speakerId: "speaker-garde-blesse", displayName: "Garde blessé" };
+    return { speakerId: "speaker-garde-blesse", displayName: "Garde blessé", knownNameStatus: "DESIGNATION" };
   }
   const normalizedActorId = actorId.replace(/^npc:/u, "");
   const actor = activeScene.presentNpc.find(npc => npc.actorId === normalizedActorId);
   const ambientActor = activeScene.ambientPopulation?.find(presence => presence.actorId === normalizedActorId);
+  const designation = actor
+    ? narrativeDesignationOfV1(actor)
+    : ambientActor
+      ? narrativeDesignationOfV1(ambientActor)
+      : undefined;
   return {
     speakerId: `speaker-${normalizedActorId.replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-|-$/gu, "") || "npc"}`,
-    displayName: actor?.displayName ?? ambientActor?.displayName ?? "Interlocuteur"
+    displayName: designation?.playerFacingLabel ?? actor?.displayName ?? ambientActor?.displayName ?? "Interlocuteur",
+    knownNameStatus: designation?.knowledgeStatus ?? "UNKNOWN"
   };
 }
 

@@ -53,6 +53,13 @@ import {
   resolveNarrativeTurnV1,
   type NarrativeResolutionResultV1
 } from "./narrativeResolution";
+import type { SkillCheckProposalV1 } from "./skillCheckProposal";
+import type { D20SourceV1 } from "./diceRollRecord";
+import {
+  resumePendingPerceptionSkillCheckV1,
+  type ResumePendingSkillCheckCommandV1,
+  type ResumePendingSkillCheckResultV1
+} from "./pendingSkillCheckResume";
 import { adjudicateContextualActionV1 } from "./contextualActionAdjudication";
 import {
   recordNarrativeRenderedProjectionV1,
@@ -70,6 +77,11 @@ import {
   ensurePrototypeInnSceneTransitionStateV1,
   resolvePrototypeInnActiveSceneV1
 } from "./prototypeSceneTransitionRuntime";
+import {
+  promoteSceneActorToCampaignNpcV1,
+  type PromoteSceneActorCommandV1,
+  type PromoteSceneActorResultV1
+} from "./campaignNpcPromotionRuntime";
 
 export interface NarrativeActiveSceneResolverV1 {
   resolve(input: { repository: CampaignRepository; campaignId: CampaignId }): Promise<Result<PlayableSceneStateV1>>;
@@ -132,6 +144,7 @@ export interface NarrativeTurnControllerOutputV1 extends JsonObject {
   npcPerformance: (NpcPerformerPayloadV1 & JsonObject) | null;
   npcPerformanceFailure: (NpcPerformanceFailureV1 & JsonObject) | null;
   suspendedIntent: (SuspendedIntentRecordV1 & JsonObject) | null;
+  pendingSkillCheck: PendingNarrativeSkillCheckV1 | null;
   resolution: NarrativeResolutionResultV1;
   sceneState: ReferenceSceneStateV1;
   sceneArrival: SceneArrivalStateV1 | null;
@@ -139,6 +152,18 @@ export interface NarrativeTurnControllerOutputV1 extends JsonObject {
   displayPacket: DisplayPacketV1 & JsonObject;
   stageTimings: NarrativeControllerStageTimingsV1 | null;
   aiTelemetry: AiCallTelemetryV1[];
+}
+
+export interface PendingNarrativeSkillCheckV1 extends JsonObject {
+  schemaVersion: 1;
+  contractVersion: "pending-narrative-skill-check/1";
+  pendingCheckId: string;
+  sourceOperationId: string;
+  sceneId: string;
+  status: "AWAITING_SKILL_ROLL";
+  proposal: SkillCheckProposalV1;
+  createdAt: string;
+  commitAuthority: false;
 }
 
 export interface NarrativeControllerStageTimingsV1 extends JsonObject {
@@ -165,6 +190,7 @@ export interface NarrativeTurnControllerOptions {
   sceneTransitionRuntime?: NarrativeSceneTransitionRuntimeV1 | null;
   dynamicPlaceRuntime?: NarrativeDynamicPlaceRuntimeV1 | null;
   activeSceneResolver?: NarrativeActiveSceneResolverV1 | null;
+  d20Source?: D20SourceV1;
 }
 
 const DEFAULT_CAMPAIGN_ID = opaqueId<CampaignId>("cmp-narrative-prototype");
@@ -182,6 +208,7 @@ export class NarrativeTurnControllerV1 {
   private readonly sceneTransitionRuntime: NarrativeSceneTransitionRuntimeV1 | null;
   private readonly dynamicPlaceRuntime: NarrativeDynamicPlaceRuntimeV1 | null;
   private readonly activeSceneResolver: NarrativeActiveSceneResolverV1 | null;
+  private readonly d20Source: D20SourceV1 | undefined;
   private recentLocalReferents: LocalReferentHintV1[] = [];
   private recentSemanticTurns: RecentSemanticTurnV1[] = [];
 
@@ -202,6 +229,7 @@ export class NarrativeTurnControllerV1 {
     this.sceneTransitionRuntime = options.sceneTransitionRuntime ?? null;
     this.dynamicPlaceRuntime = options.dynamicPlaceRuntime ?? null;
     this.activeSceneResolver = options.activeSceneResolver ?? null;
+    this.d20Source = options.d20Source;
   }
 
   async submit(input: NarrativeTurnInputV1): Promise<Result<NarrativeTurnControllerResultV1>> {
@@ -316,12 +344,84 @@ export class NarrativeTurnControllerV1 {
     });
   }
 
+  async rollPendingSkillCheck(
+    command: ResumePendingSkillCheckCommandV1
+  ): Promise<Result<ResumePendingSkillCheckResultV1>> {
+    const source = await this.repository.getOperation(opaqueId<OperationId>(command.sourceOperationId));
+    if (!source.ok) return source;
+    const pending = (source.value.resultPayload as {
+      pendingSkillCheck?: PendingNarrativeSkillCheckV1 | null;
+    } | null)?.pendingSkillCheck ?? null;
+    if (pending === null) {
+      return { ok: false, error: coreError("VALIDATION_FAILED", "narrative.skill-check.pending-state-missing") };
+    }
+    const activeScene = this.activeSceneResolver === null
+      ? { ok: true as const, value: REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1 }
+      : await this.activeSceneResolver.resolve({ repository: this.repository, campaignId: this.campaignId });
+    if (!activeScene.ok) return activeScene;
+    return resumePendingPerceptionSkillCheckV1({
+      repository: this.repository,
+      campaignId: this.campaignId,
+      command,
+      pending,
+      scene: activeScene.value,
+      d20Source: this.d20Source
+    });
+  }
+
+  async promoteSceneActor(
+    command: PromoteSceneActorCommandV1
+  ): Promise<Result<PromoteSceneActorResultV1>> {
+    return promoteSceneActorToCampaignNpcV1({
+      repository: this.repository,
+      campaignId: this.campaignId,
+      command
+    });
+  }
+
   async restoreRenderedThread(limit = 100): Promise<Result<RestoredNarrativeThreadV1>> {
     return restoreNarrativeRenderedThreadV1({
       repository: this.repository,
       campaignId: this.campaignId,
       limit
     });
+  }
+
+  async restorePendingSkillCheck(): Promise<Result<PendingNarrativeSkillCheckV1 | null>> {
+    const operations = await this.repository.listOperations(this.campaignId, "narrative.turn.input", 100);
+    if (!operations.ok) return operations;
+    const candidates = [...operations.value]
+      .filter(operation => operation.phase === "COMPLETED" && operation.resultPayload !== null)
+      .sort((left, right) => right.receivedAt.localeCompare(left.receivedAt));
+    for (const operation of candidates) {
+      const pending = (operation.resultPayload as {
+        pendingSkillCheck?: PendingNarrativeSkillCheckV1 | null;
+      }).pendingSkillCheck ?? null;
+      if (pending === null) continue;
+      const outcome = await this.repository.getAggregate(
+        this.campaignId,
+        "perception.check-outcome",
+        opaqueId<AggregateId>(`perception-outcome:${pending.proposal.checkId}`)
+      );
+      if (!outcome.ok && outcome.error.code === "NOT_FOUND") return { ok: true, value: pending };
+      if (!outcome.ok) return outcome;
+    }
+    return { ok: true, value: null };
+  }
+
+  async restoreSkillCheckResultPackets(limit = 100): Promise<Result<DisplayPacketV1[]>> {
+    const operations = await this.repository.listOperations(
+      this.campaignId,
+      "rules.skill-check.commit-outcome",
+      limit
+    );
+    if (!operations.ok) return operations;
+    const packets = operations.value
+      .filter(operation => operation.phase === "COMPLETED" && operation.resultPayload !== null)
+      .sort((left, right) => left.receivedAt.localeCompare(right.receivedAt))
+      .map(operation => (operation.resultPayload as { displayPacket?: DisplayPacketV1 }).displayPacket)
+      .filter((packet): packet is DisplayPacketV1 => packet !== undefined);
+    return { ok: true, value: packets };
   }
 
   private rememberLocalReferent(output: NarrativeTurnControllerOutputV1, activeScene: PlayableSceneStateV1): void {
@@ -392,7 +492,8 @@ function upgradeLegacyControllerOutput(output: NarrativeTurnControllerOutputV1):
       : {
         ...output.suspendedIntent,
         knownInterpretation: knownInterpretation as NarrativeIntentInterpretationV1 & JsonObject
-      }
+      },
+    pendingSkillCheck: output.pendingSkillCheck ?? null
   };
 }
 
@@ -600,6 +701,7 @@ export function buildNoCommitOutput(
     npcPerformance: null,
     npcPerformanceFailure: null,
     suspendedIntent,
+    pendingSkillCheck: null,
     resolution: {
       schemaVersion: 1,
       contractVersion: "narrative-resolution/1",
@@ -772,6 +874,7 @@ async function buildResolvedOutput(input: {
           npcPerformance: null,
           npcPerformanceFailure: null,
           suspendedIntent: null,
+          pendingSkillCheck: null,
           resolution: transitionResolution,
           sceneState: createInitialReferenceSceneStateV1(),
           sceneArrival: transition.value.arrival,
@@ -842,6 +945,12 @@ async function buildResolvedOutput(input: {
         npcPerformance: npcPerformance?.performance ?? null,
         npcPerformanceFailure: npcPerformance?.performanceFailure as (NpcPerformanceFailureV1 & JsonObject) | null ?? null,
         suspendedIntent,
+        pendingSkillCheck: buildPendingNarrativeSkillCheckV1({
+          operationId: input.operation.operationId,
+          sceneId: resolution.value.playableScene.sceneId,
+          createdAt: input.createdAt,
+          perception: resolution.value.result.perception
+        }),
         resolution: resolution.value.result,
         sceneState: resolution.value.sceneState,
         sceneArrival: null,
@@ -923,6 +1032,7 @@ function buildSceneChangeControllerResult(input: {
         npcPerformance: null,
         npcPerformanceFailure: null,
         suspendedIntent: null,
+        pendingSkillCheck: null,
         resolution,
         sceneState: createInitialReferenceSceneStateV1(),
         sceneArrival: input.change.arrival,
@@ -948,6 +1058,27 @@ function buildRequestPayload(input: NarrativeTurnInputV1): JsonObject {
     clientRequestId: input.clientRequestId,
     noGameTime: true,
     prototypeOnly: true
+  };
+}
+
+export function buildPendingNarrativeSkillCheckV1(input: {
+  operationId: string;
+  sceneId: string;
+  createdAt: string;
+  perception: NarrativeResolutionResultV1["perception"];
+}): PendingNarrativeSkillCheckV1 | null {
+  const perception = input.perception;
+  if (perception?.status !== "CHECK_REQUIRED" || perception.checkProposal === null) return null;
+  return {
+    schemaVersion: 1,
+    contractVersion: "pending-narrative-skill-check/1",
+    pendingCheckId: `${perception.checkProposal.checkId}:pending`,
+    sourceOperationId: input.operationId,
+    sceneId: input.sceneId,
+    status: "AWAITING_SKILL_ROLL",
+    proposal: perception.checkProposal,
+    createdAt: input.createdAt,
+    commitAuthority: false
   };
 }
 

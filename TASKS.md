@@ -1,19 +1,18 @@
 # Suivi du travail
 
-Derniere mise a jour: 2026-07-23
+Derniere mise a jour: 2026-07-27
 
 Ce fichier est le tableau de bord court du depot. Les details techniques restent dans les documents lies; une tache ne doit pas etre dupliquee ici avec toute sa specification.
 
 ## En cours
 
+- [ ] Représenter proprement les intentions sociales composées, par exemple « je m'approche et je le salue » : l'intention V2 à branche unique peut encore choisir `nonverbal_signal` et perdre l'ouverture de conversation. La normalisation serveur récupère le cas contradictoire où `INITIATE_CONVERSATION` est déjà fourni, mais un vrai contrat de séquence approche → salutation reste à définir sans analyse lexicale locale.
+
 - [ ] Donner du caractère aux PNJ locaux sans promouvoir toute la foule en personnages durables.
-  Référence: `test-GAME-2D/narration-module/docs/Contrat-population-ambiante-et-arrivee-narrative.md`. Les rôles dynamiques vivent dans `ambientPopulation`; la première parole ciblée promeut atomiquement la présence dans un registre `scene.actor-registry`, puis toute reconstruction la replace dans `presentNpc` avec la même identité et la même amorce de personnalité. La mémoire courte reste liée à cet identifiant stable. Prochaine étape concrète: recette UI sortie-retour avec dialogue long, puis définir la promotion volontaire `SCENE_ACTOR` vers `CAMPAIGN_NPC`.
+  Référence: `test-GAME-2D/narration-module/docs/Contrat-population-ambiante-et-arrivee-narrative.md`. La recette Playwright retrouve le même copiste et sa mémoire après une sortie-retour, puis appelle `promoteSceneActor` avec une confirmation de mission propriétaire. Le contrôleur relit l'acteur de scène, committe atomiquement le PNJ de campagne et rejoue sans doublon. La narration ne peut pas fabriquer cette confirmation. Prochaine étape concrète: futur domaine mission/relation capable d'émettre `durable-npc-cause-confirmation/1` après un engagement réellement accepté.
 
 - [ ] Faire évoluer `wiki/lore` vers un guide prioritairement narratif pour les créations dynamiques.
   Références: `test-GAME-2D/narration-module/docs/Handoff-scene-creator-archives-live.md`, `Benchmark-scene-creator-V2.md`, `Cadrage-lore-narratif-dynamique.md`, `Contrat-selection-influences-lore.md`, `Contrat-creation-scene-guidee-lore.md` et `Revue-branchement-archives-dynamique.md`. La surface démarre aux Archives de Lysenthe depuis le wiki, suit les connexions connues par un runtime de catalogue et confie une sortie externe inconnue à `scene_creator`. Le contrat actif `lore-guided-place-candidate/2` ne demande plus de topologie à l'IA; V1 reste accepté en compatibilité et le runtime construit toujours l'entrée et le retour. La télémétrie de succès suit la création jusqu'à la notification, avec trace locale explicite si les métriques fournisseur manquent. `gpt-5.6-luna/none` est certifié sur trois triplets à 9/9 sans retry, p50 globale 5,514 s, contre 20,855 s pour `gpt-5.5/low`. Prochaine étape concrète: appliquer la configuration retenue, puis générer un catalogue lore de build.
-
-- [ ] Ouvrir la transition locale de scène sans créer de seconde topologie narrative.
-  Référence: `test-GAME-2D/narration-module/docs/Contrat-transition-locale-scene.md`. Les passages salle commune ↔ arrière-salle sont commités avec 8 secondes chacun et les tours relisent `scene.lifecycle`. Le `scene_writer` reçoit un contexte et un brief génériques depuis la scène active, avec historique filtré et gate factuelle. Le vertical automatisé couvre arrivée, observation, approche de lampe, examen borné des traces et retour à la seconde 16. Prochaine étape concrète: recette UI OpenAI de cette séquence.
 
 - [ ] Traiter l'audit technique post-I-06ZB avant d'ouvrir une nouvelle capacité narrative.
   References: `test-GAME-2D/narration-module/docs/Audit-technique-I06ZB.md`, `test-GAME-2D/narration-module/docs/Revue-technique-post-I06ZB.md`, `test-GAME-2D/narration-module/docs/Suivi-prochains-lots-narration.md`.
@@ -23,8 +22,6 @@ Ce fichier est le tableau de bord court du depot. Les details techniques restent
 
 ## Prochaines etapes
 
-- [ ] Préparer l'arbitrage contextuel des actions avant d'ouvrir le moteur de dés.
-  Références: `test-GAME-2D/narration-module/docs/Plan-arbitrage-actions-et-tests-competences.md` et `Contrat-resolution-tests-competence.md`. `dice-roll-record/1` committe un unique d20 Web Crypto par `checkId`, rejoue sans nouveau tirage et refuse une proposition conflictuelle. Prochaine étape concrète: préparer les conséquences et le temps depuis le résultat persisté, puis seulement ouvrir le déclenchement UI.
 - [ ] Réaliser la revue de gate post-I-06ZR et décider de la prochaine capacité narrative sans rouvrir les autorités IA fermées.
 - [ ] Migrer `wiki/lore/gouvernances/primauté` vers un futur type de gouvernance et retirer alors son exclusion explicite.
 - [ ] Préparer après I-06A le branchement UI narratif progressif, sans appel fournisseur direct depuis React tant que les projections ne sont pas validées.
@@ -43,6 +40,20 @@ Ce fichier est le tableau de bord court du depot. Les details techniques restent
 - La parite directe import/plateau reste la reserve documentee d'I-02; elle ne doit pas etre contournee dans I-03.
 
 ## Termine recemment
+
+- [x] Parcours court d'enrichissement réaligné sur les contrats : observation générale et approche réversible d'un acteur visible n'appellent plus systématiquement `coherence_critic`; activités ambiantes et consignes du `scene_writer` renforcées contre les listes clonées, télémétrie writer/critic ajoutée aux bulles système. La recette Archives OpenAI exacte produit un paragraphe continu en 10,30 à 13,45 s d'enrichissement sur ses passes concluantes, contre 30,50 s dans la trace signalée, le 2026-07-27.
+
+- [x] Désignation narrative unifiée des acteurs et lieux : séparation entre inconnu, métier/signes reconnus, désignation stable et nom propre révélé; propagation vers perception, référents, locuteurs, `scene_writer`, retours de scène et promotions sans révélation automatique, avec matrice dédiée et build global le 2026-07-27.
+
+- [x] Reprise de la migration wiki → scène contre les contrats actifs : 23 gates narration remises au vert, handoff runtime replacé avant l'arbitrage détaillé de cible, et profils de présence wiki projetés en population ambiante représentative plutôt qu'en unique PNJ artificiellement individualisé; recette navigateur sortie-retour et build global validés le 2026-07-27.
+
+- [x] Correctif de l'observation perceptive générique : « est-ce que je perçois des gens non loin de moi ? » atteint directement la résolution et reçoit les présences visibles sous forme narrative, sans fuite de clés wiki (`fonction_principale`, `rumeurs`) ni inventaire exhaustif; aucune cible ni présence n'est codée en dur, le 2026-07-27.
+
+- [x] Passe de contrôle de bout en bout du vertical narration : conflit d'idempotence de promotion désormais refusé, registre `CAMPAIGN_NPC` protégé contre l'altération d'entrées existantes et erreurs UI rendues dans des bulles système explicatives et expurgées, sans entrée brute ni `CoreError.details`, le 2026-07-27.
+
+- [x] Transition locale validée dans la vraie surface React, en local puis avec OpenAI live : entrée dans l'arrière-salle, observation, approche de la lampe, examen borné des traces et retour. La gate live confirme `scene_writer`, `coherence_critic`, les réponses HTTP 200 et l'absence de fallback; le parcours complet passe en environ 2,9 minutes le 2026-07-27.
+
+- [x] Cycle narratif des tests de compétence raccordé jusqu'à l'UI : proposition durable, blocage de la saisie, lancer explicite, conséquence propriétaire et commit temporel idempotent, paquet résultat restaurable. Le contrat attend une projection mécanique et un DD résolu; le créateur de personnage devra fournir cette projection sans devenir une dépendance du noyau narration le 2026-07-27.
 
 - [x] Déplacement libre vers une destination locale décrite: `traverse_visible_boundary` conserve le lieu demandé même sans référent existant et ouvre une frontière synthétique validée par le `scene_creator`, au lieu d'un faux `move_near_visible_actor`; plafond `scene_writer` aligné à 1 500 tokens pour les arrivées structurées le 2026-07-23.
 

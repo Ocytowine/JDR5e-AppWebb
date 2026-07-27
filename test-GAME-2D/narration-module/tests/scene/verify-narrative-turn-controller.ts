@@ -97,7 +97,7 @@ async function main(): Promise<void> {
   assert.equal(first.value.output.displayPacket.displayBlocks[0]?.kind, "RAW_INPUT");
   assert.equal(first.value.output.displayPacket.displayBlocks.some(block =>
     block.kind === "GM_NARRATION" &&
-    /garde blessé|porte du fond|pluie/u.test(block.text)
+    /garde blessé|porte du fond|pluie/iu.test(block.text)
   ), true, "observation doit produire une narration MJ concrète de la scène de référence");
   assert.match(first.value.output.displayPacket.displayBlocks.at(-1)?.text ?? "", /sans commit/);
 

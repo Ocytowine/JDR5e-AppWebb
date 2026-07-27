@@ -829,7 +829,7 @@ function mapSemanticIntentV2ToNarrativeInterpretation(input: {
     action: legacyAction,
     semanticIntent,
     runtimeHandling: semanticRuntimeSuggestionV2(proposed, requiresClarification, legacyAction),
-    referentResolution: buildSemanticReferentResolutionV2(proposed.targetMention, target, input.rawInput),
+    referentResolution: buildSemanticReferentResolutionV2(proposed.targetMention, target, proposed.kind, input.rawInput),
     topic: null,
     coreMeaning: proposed.playerGoal,
     playerImposedDetails: [input.rawInput.trim()].filter(Boolean),
@@ -931,15 +931,22 @@ function semanticRuntimeSuggestionV2(
 function buildSemanticReferentResolutionV2(
   mention: AiSemanticIntentPayloadV2["intent"]["targetMention"],
   target: AiStructuredPlayerIntentV1["target"],
+  semanticKind: AiSemanticIntentPayloadV2["intent"]["kind"],
   rawInput: string
 ): NonNullable<AiStructuredPlayerIntentV1["referentResolution"]> {
+  const unresolvedMentionRequiresTarget = [
+    "address_visible_actor",
+    "move_near_visible_actor",
+    "manipulate_visible_object",
+    "nonverbal_signal"
+  ].includes(semanticKind);
   return {
     schemaVersion: 1,
     usedPreviousContext: mention?.contextLink === "RECENT_FOCUS",
     source: mention?.contextLink === "RECENT_FOCUS" ? "recent_visible_focus" : target === null ? "none" : "current_input",
     resolvedTarget: target,
     evidence: [mention?.surface ?? rawInput].filter(Boolean),
-    ambiguity: target === null && mention !== null ? "insufficient_context" : "none",
+    ambiguity: target === null && mention !== null && unresolvedMentionRequiresTarget ? "insufficient_context" : "none",
     confidence: target === null ? "medium" : "high"
   };
 }

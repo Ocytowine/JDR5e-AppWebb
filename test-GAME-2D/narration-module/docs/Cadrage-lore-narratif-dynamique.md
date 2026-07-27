@@ -66,7 +66,7 @@ La matière existante suffit pour une première expérimentation centrée sur Ly
 3. Les templates `quartier` et `batiment` invitent à décrire une ambiance ou un aspect observable, mais ne structurent pas encore les axes narratifs récurrents comme sons, odeurs, matériaux, lumière, rythme, usages et contrastes.
 4. Les profils décrivent ce qui est probable, mais aucune politique commune ne précise encore comment fusionner, pondérer et expliquer les influences de plusieurs niveaux géographiques.
 5. La création éphémère de scène et la création dynamique durable existent comme contrats séparés, mais le paquet de lore qui doit guider leur proposition n'est pas encore défini.
-6. Le PNJ générique actuellement dérivé par l'adaptateur est une projection de démonstration. Il n'est ni une création dynamique validée ni une entité du `NarrativeActorDomain`.
+6. Le PNJ générique autrefois dérivé par l'adaptateur était une projection de démonstration. Depuis la reprise du 2026-07-27, les rôles probables alimentent `ambientPopulation` sans créer de figure individualisée dans `presentNpc`; ils restent des présences représentatives et non un recensement exhaustif.
 7. Le diagnostic visible ne montre pas encore quelles sources ont contraint ou inspiré une création.
 
 ## Frontières d'autorité à conserver

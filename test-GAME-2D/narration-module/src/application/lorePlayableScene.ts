@@ -2,12 +2,13 @@ import type { LoreEntityV1, LoreFragmentV1, LoreKnowledgeLevelV1 } from "../boot
 import {
   PLAYABLE_SCENE_CONTRACT_VERSION_V1,
   validatePlayableSceneV1,
-  type PlayableSceneNpcV1,
   type PlayableScenePointOfInterestV1,
   type PlayableSceneStateV1,
   type PlayableSceneVisibleElementV1
 } from "./playableScene";
 import type { SceneTransitionTopologyV1 } from "./sceneTransition";
+import { buildAmbientScenePresenceV1 } from "./ambientScenePresence";
+import { buildKnownNarrativeDesignationV1 } from "./narrativeDesignation";
 
 export const LORE_PLAYABLE_SCENE_ADAPTER_VERSION_V1 = "lore-playable-scene-adapter/1" as const;
 
@@ -80,18 +81,25 @@ export function buildPlayableSceneFromLoreLocationV1(input: {
   // The opening is a scene-setting sentence, not a dump of every public lore fragment.
   // Detailed public facts remain available through visible elements, points of interest and observations.
   const perceptibleSituation = [summary];
+  const currentTension = buildTension(input.entity);
   const scene: PlayableSceneStateV1 = {
     schemaVersion: 1,
     contractVersion: PLAYABLE_SCENE_CONTRACT_VERSION_V1,
     sceneId,
     locationName: input.entity.displayName,
+    locationDesignation: buildKnownNarrativeDesignationV1({
+      subjectRef: `place:${sceneId}`,
+      subjectKind: "PLACE",
+      canonicalName: input.entity.displayName,
+      sourceRefs: [`lore-entity:${input.entity.entityId}`]
+    }),
     perceptibleSituation: perceptibleSituation.length > 0 ? perceptibleSituation : [summary],
     visibleElements: buildVisibleElements(input.entity, visibleFragments),
-    presentNpc: buildNpcFromPresence(input.entity),
-    ambientPopulation: [],
+    presentNpc: [],
+    ambientPopulation: buildAmbientPopulation(input.entity, visibleFragments, sceneId, currentTension),
     pointsOfInterest: buildPointsOfInterest(input.entity),
     perceptionClues: [],
-    currentTension: buildTension(input.entity),
+    currentTension,
     playerKnownFacts: uniqueNonEmpty([
       `Le personnage peut identifier le lieu: ${input.entity.displayName}.`,
       typeof attributes.acces === "string" ? `Accès visible ou annoncé: ${attributes.acces}.` : "",
@@ -148,24 +156,35 @@ function buildVisibleElements(entity: LoreEntityV1, fragments: LoreFragmentV1[])
   }];
 }
 
-function buildNpcFromPresence(entity: LoreEntityV1): PlayableSceneNpcV1[] {
-  const profile = entity.attributes.profil_presence as { roles_probables?: Array<{ role?: unknown }> } | undefined;
-  const role = profile?.roles_probables?.map(entry => entry.role).find((value): value is string =>
-    typeof value === "string" && value !== "pnj_lambda"
-  ) ?? "responsable local";
-  const displayRole = titleCase(role.replaceAll("_", " "));
-  return [{
-    schemaVersion: 1,
-    actorId: `npc-${entity.entityId}-${slug(role)}`,
-    displayName: displayRole,
-    narrativeLabel: `le ${displayRole.toLowerCase()} en fonction`,
-    publicRole: displayRole,
-    visibleState: "en fonction dans ce lieu",
-    keywords: uniqueNonEmpty([role, displayRole, entity.displayName]),
-    defaultReply: `« ${entity.displayName} suit ses procédures. Si vous avez une demande, formulez-la clairement. »`,
-    repeatedReply: `« Je vous ai entendu. Pour ${entity.displayName}, seules les demandes claires et autorisées avancent. »`,
-    version: 1
-  }];
+function buildAmbientPopulation(
+  entity: LoreEntityV1,
+  visibleFragments: LoreFragmentV1[],
+  sceneId: string,
+  currentPressure: string
+): PlayableSceneStateV1["ambientPopulation"] {
+  const profile = entity.attributes.profil_presence as {
+    roles_probables?: Array<{ role?: unknown; poids?: unknown }>;
+  } | undefined;
+  const roles = (profile?.roles_probables ?? [])
+    .filter((entry): entry is { role: string; poids?: unknown } =>
+      typeof entry.role === "string" && entry.role.trim() !== "" && entry.role !== "pnj_lambda"
+    )
+    .sort((left, right) => {
+      const leftWeight = typeof left.poids === "number" ? left.poids : 0;
+      const rightWeight = typeof right.poids === "number" ? right.poids : 0;
+      return rightWeight - leftWeight || left.role.localeCompare(right.role);
+    })
+    .slice(0, 3);
+  const selectedRoles = roles.length > 0 ? roles.map(entry => entry.role) : ["responsable local"];
+  const knowledgeRefs = visibleFragments.map(fragment => `lore-fragment:${fragment.fragmentId}`);
+  return selectedRoles.map((role, index) => buildAmbientScenePresenceV1({
+    sceneId,
+    role: role.replaceAll("_", " "),
+    index,
+    currentPressure,
+    contextLabel: entity.displayName,
+    knowledgeRefs
+  }));
 }
 
 function buildPointsOfInterest(entity: LoreEntityV1): PlayableScenePointOfInterestV1[] {
@@ -224,15 +243,7 @@ function uniqueNonEmpty(values: string[]): string[] {
   return [...new Set(values.map(value => value.trim()).filter(Boolean))];
 }
 
-function titleCase(value: string): string {
-  return value.replace(/\b\p{L}/gu, match => match.toLocaleUpperCase("fr-FR"));
-}
-
 function sentenceCase(value: string): string {
   const normalized = value.trim().toLocaleLowerCase("fr-FR");
   return normalized.charAt(0).toLocaleUpperCase("fr-FR") + normalized.slice(1);
-}
-
-function slug(value: string): string {
-  return value.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase().replace(/[^a-z0-9]+/gu, "-").replace(/^-|-$/gu, "");
 }

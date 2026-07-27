@@ -76,3 +76,28 @@ La fermeture d'I-06C exige :
 ## Décision
 
 `narrative-app-surface/1` autorise uniquement la séparation applicative et un prototype UI local non autoritaire. L'orchestrateur narratif réel reste un futur sous-lot.
+
+## Addendum — erreurs visibles dans le fil
+
+La surface active est désormais raccordée au contrôleur narratif. Toute erreur
+qui empêche une action, une restauration, un lancer ou une projection doit
+produire une bulle `SYSTEM_NOTICE` dans le fil, en plus du résumé accessible
+`role="alert"`.
+
+La bulle contient :
+
+- le contexte de l'étape interrompue ;
+- une explication en français orientée joueur/testeur ;
+- une action de reprise recommandée ;
+- `messageKey`, code, catégorie, politique de reprise et identifiant d'incident.
+
+Elle ne contient jamais l'entrée brute, `CoreError.details`, une référence
+privée, une clé fournisseur ou une trace de pile.
+
+Exemple : `campaign-npc.scene-actor-not-found` devient « Un élément nécessaire
+à cette action n'a pas été retrouvé » avec le conseil de vérifier la cible et la
+conversation précédente. La référence interne éventuellement cachée reste hors
+du paquet visible.
+
+Les familles distinguées sont : conflit d'idempotence, état périmé, élément
+absent, persistance, fournisseur externe, validation et incident inattendu.

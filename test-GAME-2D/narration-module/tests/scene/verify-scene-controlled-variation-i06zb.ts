@@ -130,6 +130,7 @@ function controllerOutput(operationId: string, rawInput: string, interp: Narrati
     npcPerformance: null,
     npcPerformanceFailure: null,
     suspendedIntent: null,
+    pendingSkillCheck: null,
     resolution: res,
     sceneState: createInitialReferenceSceneStateV1(),
   sceneArrival: null,

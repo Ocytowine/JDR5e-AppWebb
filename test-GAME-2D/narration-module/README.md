@@ -35,6 +35,15 @@ npm run narration-module:test:playable-scene
 npm run narration-module:test:lore-playable-scene
 npm run narration-module:test:scene-ephemeral-creation
 npm run narration-module:test:plot-preparation
+npm run narration-module:test:skill-check-outcome-preparation
+npm run narration-module:test:skill-check-outcome-commit
+npm run narration-module:test:perception-skill-check-outcome
+npm run narration-module:test:pending-skill-check-resume
+npm run narration-module:test:transition-ui
+npm run narration-module:test:transition-ui:openai-live
+npm run narration-module:test:npc-return-ui
+npm run narration-module:test:campaign-npc-promotion
+npm run narration-module:test:campaign-npc-promotion-commit
 npm run narration-module:test:ai-intent-interpretation
 npm run narration-module:test:tactical-rest-handoff
 npm run narration-module:test:narrative-openai-route

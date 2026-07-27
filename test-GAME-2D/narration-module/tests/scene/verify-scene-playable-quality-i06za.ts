@@ -101,6 +101,27 @@ assert.match(speech, /parole|pluie|garde blessé/u);
 assertNoGenericFog(speech, "parole");
 
 const mixedIntent = interpretation("mixed", "approcher le garde et lui parler");
+mixedIntent.semanticIntent = {
+  ...mixedIntent.semanticIntent,
+  kind: "address_visible_actor",
+  target: { kind: "npc", ref: "npc:npc-garde-blesse", label: "Garde blessé" },
+  dialogueAct: {
+    schemaVersion: 1,
+    act: "ASK_QUESTION",
+    contentGoal: "demander au garde ce qu'il a vu",
+    addresseeRef: "npc:npc-garde-blesse"
+  }
+};
+mixedIntent.target = mixedIntent.semanticIntent.target;
+mixedIntent.referentResolution = {
+  schemaVersion: 1,
+  usedPreviousContext: false,
+  source: "current_input",
+  resolvedTarget: mixedIntent.semanticIntent.target,
+  evidence: ["au garde"],
+  ambiguity: "none",
+  confidence: "high"
+};
 const mixedBlocks = buildReferenceSceneBlocksV1({
   operationId: "operation:mixed-quality",
   rawInput: "je m'approche du garde et je lui demande s'il a vu quelque chose d'étrange",

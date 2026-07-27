@@ -3,7 +3,12 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { NarrativeAppSurface } from "../../../src/narration-ui/NarrativeAppSurface";
+import {
+  NarrativeAppSurface,
+  createRuntimeFailurePacket,
+  narrativeErrorGuidance
+} from "../../../src/narration-ui/NarrativeAppSurface";
+import type { CoreError } from "../../src/core";
 
 const surfaceHtml = renderToStaticMarkup(React.createElement(NarrativeAppSurface));
 
@@ -18,6 +23,28 @@ assert.match(surfaceHtml, /IA narrative/, "sélecteur IA rendu");
 assert.match(surfaceHtml, /Locale/, "mode local rendu");
 assert.match(surfaceHtml, /OpenAI/, "mode OpenAI rendu");
 
+const safeError: CoreError = {
+  code: "NOT_FOUND",
+  category: "INTEGRITY",
+  retry: "AFTER_REFRESH",
+  messageKey: "campaign-npc.scene-actor-not-found",
+  details: { rawInput: "secret player input", privateSourceRef: "secret:hidden-actor" },
+  incidentId: null
+};
+const failurePacket = createRuntimeFailurePacket({
+  error: safeError,
+  operationId: "operation:error-display",
+  sceneId: "scene:test",
+  context: "Promotion du PNJ"
+});
+const failureText = failurePacket.displayBlocks[0]?.text ?? "";
+assert.match(failureText, /Un élément nécessaire/, "bulle système explique l'erreur");
+assert.match(failureText, /Vérifiez la cible/, "bulle système propose une action");
+assert.match(failureText, /campaign-npc\.scene-actor-not-found/, "code diagnostic sûr conservé");
+assert.equal(failureText.includes("secret player input"), false, "entrée brute privée non exposée");
+assert.equal(failureText.includes("secret:hidden-actor"), false, "détail privé non exposé");
+assert.match(narrativeErrorGuidance({ ...safeError, code: "IDEMPOTENCY_CONFLICT" }).summary, /contenu différent/);
+
 const narrativeSurfaceSource = readFileSync(resolve("src/narration-ui/NarrativeAppSurface.tsx"), "utf8");
 const turnControllerSource = readFileSync(resolve("narration-module/src/application/NarrativeTurnController.ts"), "utf8");
 const openAiRuntimeConfigSource = readFileSync(resolve("src/narration-ui/openAiNarrativeRuntimeConfig.ts"), "utf8");
@@ -29,6 +56,9 @@ const mainSource = readFileSync(resolve("src/main.tsx"), "utf8");
 assert.equal(narrativeSurfaceSource.includes("GameBoard"), false, "NarrativeAppSurface ne doit pas importer GameBoard");
 assert.equal(narrativeSurfaceSource.includes("createBrowserPersistentNarrativeTurnControllerV1"), true, "surface restaure le fil via le contrôleur persistant");
 assert.equal(narrativeSurfaceSource.includes("restoreRenderedThread"), true, "surface recharge les projections de rendu persistées");
+assert.equal(narrativeSurfaceSource.includes("restorePendingSkillCheck"), true, "surface restaure le jet en attente");
+assert.equal(narrativeSurfaceSource.includes("restoreSkillCheckResultPackets"), true, "surface restaure les résultats de jets visibles");
+assert.equal(narrativeSurfaceSource.includes("rollPendingSkillCheck"), true, "surface utilise la commande explicite de lancer");
 assert.equal(openAiRuntimeConfigSource.includes("player_intent_interpreter"), true, "mode OpenAI configure aussi l'interpreteur d'intention via fournisseur route serveur");
 assert.equal(openAiRuntimeConfigSource.includes("AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V2"), true, "contrat sémantique V2 explicite dans la config UI partagée");
 assert.equal(narrativeSurfaceSource.includes("REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1"), true, "amorce UI issue du PlayableSceneStateV1 de reference");
@@ -41,6 +71,8 @@ assert.equal(narrativeSurfaceSource.includes("Texte IA candidat rejeté par la f
 assert.equal(narrativeSurfaceSource.includes("Réaction PNJ IA indisponible ou rejetée : réaction locale bornée conservée"), true, "surface rend visible le repli du performer PNJ");
 assert.equal(narrativeSurfaceSource.includes("setEnhancementStatus"), false, "le ruban de mode ne conserve plus le diagnostic du dernier tour");
 assert.equal(narrativeSurfaceSource.includes("Diagnostic du tour:"), true, "les incidents d'enrichissement pertinents rejoignent la notification système du tour");
+assert.equal(narrativeSurfaceSource.includes("IA enrichissement ${metric.role}"), true, "la latence de chaque rôle d'enrichissement rejoint la trace système");
+assert.equal(narrativeSurfaceSource.includes("Diagnostic sûr :"), true, "les erreurs runtime rejoignent une bulle système expurgée");
 assert.equal(narrativeSurfaceSource.includes("Trace système et mémoire"), true, "trace mémoire intégrée à la notification système existante");
 assert.equal(narrativeSurfaceSource.includes("total avant affichage"), true, "latence de bout en bout visible dans la notification système");
 assert.equal(narrativeSurfaceSource.includes("Détail contrôleur"), true, "latence interne détaillée dans la notification système existante");

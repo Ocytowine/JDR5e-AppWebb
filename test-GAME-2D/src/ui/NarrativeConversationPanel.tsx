@@ -4,6 +4,7 @@ import type {
   DisplayPacketV1,
   RenderBlockKindV1
 } from "../../narration-module/src/scene";
+import type { PendingNarrativeSkillCheckV1 } from "../../narration-module/src/application";
 
 export interface NarrativeSubmitPayloadV1 {
   schemaVersion: 1;
@@ -16,6 +17,9 @@ export interface NarrativeConversationPanelProps {
   pending?: boolean;
   title?: string;
   onSubmit?: (payload: NarrativeSubmitPayloadV1) => void;
+  pendingSkillCheck?: PendingNarrativeSkillCheckV1 | null;
+  rollingSkillCheck?: boolean;
+  onRollSkillCheck?: (pending: PendingNarrativeSkillCheckV1) => void;
 }
 
 const KIND_LABELS: Record<RenderBlockKindV1, string> = {
@@ -198,15 +202,26 @@ function blockUxNotice(block: DisplayBlockV1): BlockUxNoticeV1 | null {
 }
 
 export function NarrativeConversationPanel(props: NarrativeConversationPanelProps) {
-  const { packets, pending = false, title = "Narration", onSubmit } = props;
+  const {
+    packets,
+    pending = false,
+    title = "Narration",
+    onSubmit,
+    pendingSkillCheck = null,
+    rollingSkillCheck = false,
+    onRollSkillCheck
+  } = props;
   const [draft, setDraft] = useState("");
   const blocks = useMemo(() => flattenBlocks(packets), [packets]);
-  const canSubmit = draft.trim().length > 0 && !pending && typeof onSubmit === "function";
+  const canSubmit = draft.trim().length > 0 && !pending && pendingSkillCheck === null && typeof onSubmit === "function";
+  const skillCheckRollReady = pendingSkillCheck !== null &&
+    pendingSkillCheck.proposal.difficulty.status === "RULE_RESOLVED" &&
+    pendingSkillCheck.proposal.characterContext !== null;
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const rawInput = draft.trim();
-    if (!rawInput || pending || !onSubmit) return;
+    if (!rawInput || pending || pendingSkillCheck !== null || !onSubmit) return;
     onSubmit({
       schemaVersion: 1,
       clientRequestId: createNarrativeClientRequestId(),
@@ -263,6 +278,59 @@ export function NarrativeConversationPanel(props: NarrativeConversationPanelProp
         )}
       </div>
 
+      {pendingSkillCheck !== null && (
+        <section
+          aria-label="Test de compétence en attente"
+          data-pending-skill-check={pendingSkillCheck.pendingCheckId}
+          style={{
+            borderRadius: 12,
+            border: "1px solid rgba(255,197,92,0.42)",
+            background: "rgba(255,197,92,0.10)",
+            padding: "10px 12px"
+          }}
+        >
+          <div style={{ fontSize: 12, fontWeight: 900, color: "#ffd58a" }}>Jet requis</div>
+          <p style={{ margin: "4px 0 0", fontSize: 13, lineHeight: 1.4 }}>
+            {pendingSkillCheck.proposal.goal}
+          </p>
+          <p style={{ margin: "5px 0 0", fontSize: 11, color: "rgba(255,255,255,0.68)" }}>
+            {pendingSkillCheck.proposal.ability}
+            {pendingSkillCheck.proposal.skillId === null ? "" : ` · ${pendingSkillCheck.proposal.skillId}`}
+            {pendingSkillCheck.proposal.characterContext === null
+              ? ""
+              : ` · modificateur ${formatSigned(pendingSkillCheck.proposal.characterContext.totalModifier)}`}
+            {pendingSkillCheck.proposal.difficulty.dc === null
+              ? " · difficulté en attente"
+              : ` · DD ${pendingSkillCheck.proposal.difficulty.dc}`}
+          </p>
+          <p style={{ margin: "5px 0 8px", fontSize: 11, color: "rgba(255,255,255,0.68)" }}>
+            Réussite : {pendingSkillCheck.proposal.stakes.success} Échec : {pendingSkillCheck.proposal.stakes.failure}
+          </p>
+          <button
+            type="button"
+            disabled={pending || rollingSkillCheck || !skillCheckRollReady || typeof onRollSkillCheck !== "function"}
+            onClick={() => onRollSkillCheck?.(pendingSkillCheck)}
+            aria-label="Lancer le dé pour résoudre le test"
+            style={{
+              minHeight: 38,
+              borderRadius: 9,
+              border: "1px solid rgba(255,197,92,0.55)",
+              background: pending || rollingSkillCheck || !skillCheckRollReady ? "rgba(255,255,255,0.07)" : "rgba(255,197,92,0.22)",
+              color: pending || rollingSkillCheck || !skillCheckRollReady ? "rgba(255,255,255,0.48)" : "#fff",
+              padding: "7px 12px",
+              fontWeight: 900,
+              cursor: pending || rollingSkillCheck || !skillCheckRollReady ? "not-allowed" : "pointer"
+            }}
+          >
+            {rollingSkillCheck
+              ? "Lancer en cours…"
+              : skillCheckRollReady
+                ? "Lancer le dé"
+                : "Fiche ou difficulté requise"}
+          </button>
+        </section>
+      )}
+
       <form onSubmit={handleSubmit} aria-label="Saisie narrative libre" style={{ display: "flex", gap: 8 }}>
         <label htmlFor="narrative-free-input" style={{ position: "absolute", width: 1, height: 1, overflow: "hidden" }}>
           Entrée libre du joueur
@@ -271,7 +339,7 @@ export function NarrativeConversationPanel(props: NarrativeConversationPanelProp
           id="narrative-free-input"
           value={draft}
           onChange={event => setDraft(event.target.value)}
-          disabled={pending}
+          disabled={pending || pendingSkillCheck !== null}
           rows={2}
           placeholder="Décris librement ce que tu fais, dis ou demandes au MJ..."
           style={{
@@ -304,6 +372,10 @@ export function NarrativeConversationPanel(props: NarrativeConversationPanelProp
       </form>
     </section>
   );
+}
+
+function formatSigned(value: number): string {
+  return value >= 0 ? `+${value}` : String(value);
 }
 
 function NarrativeDisplayBlock({ block }: { block: DisplayBlockV1 }) {

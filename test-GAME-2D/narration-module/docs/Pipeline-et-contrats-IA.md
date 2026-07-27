@@ -113,6 +113,13 @@ Appel conditionnel obligatoire lorsque le risque sémantique est élevé, notamm
 
 Il produit une critique structurée et ne corrige ni ne committe directement.
 
+Le parcours court ne lance pas automatiquement ce second appel pour une
+observation générale limitée aux présences déjà visibles, ni pour un
+positionnement réversible près d'un acteur visible. La frontière positive, le
+schéma et la discipline factuelle du `scene_writer` restent obligatoires. Une
+observation focalisée, une manipulation d'objet, une révélation, une
+conséquence ou tout autre risque sémantique élevé conserve le critique.
+
 ### `rules_adjudicator`
 
 Appel conditionnel lorsqu'une situation fictionnelle ne peut pas être entièrement transformée en paramètres par des règles calculables. Il reçoit les règles pertinentes, leur version, les faits du cas et les précédents comparables.

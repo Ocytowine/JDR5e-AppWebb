@@ -11,6 +11,7 @@ import {
   NarrativeTurnControllerV1,
   buildNarrativeRenderAuthorityV1,
   enhanceNarrativeDisplayWithAiV1,
+  requiresNarrativeCoherenceCriticV1,
   type NarrativeRenderAuthorityV1
 } from "../../src/application";
 import {
@@ -290,6 +291,16 @@ async function main(): Promise<void> {
   assert.equal(door.value.output.resolution.preparedEffects.some(effect => effect.effectType === "LOCAL_SCENE_ACTION_RECORDED"), true);
   const doorAuthority = buildNarrativeRenderAuthorityV1(door.value.output.resolution, door.value.output.displayPacket);
   assert.equal(doorAuthority.mode, "ACTION_STAGING_ONLY");
+  assert.equal(requiresNarrativeCoherenceCriticV1(doorAuthority), true, "une manipulation d'objet conserve le critique sémantique");
+  assert.equal(requiresNarrativeCoherenceCriticV1({
+    ...doorAuthority,
+    targetRef: "npc:archiviste-visible"
+  }), false, "un simple positionnement réversible près d'un acteur visible suit le parcours court");
+  assert.equal(requiresNarrativeCoherenceCriticV1({
+    ...doorAuthority,
+    mode: "OBSERVATION_RESULT",
+    targetRef: null
+  }), false, "une perception générale bornée suit le parcours court");
   assert.equal(doorAuthority.unconfirmedClaims.some(claim => /modification/u.test(claim)), true);
   assert.equal(doorAuthority.renderPlanVersion, "narrative-render-plan/1");
   assert.equal(doorAuthority.perspective, "SECOND_PERSON_PLAYER");

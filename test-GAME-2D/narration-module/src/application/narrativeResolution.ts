@@ -345,26 +345,6 @@ export function buildDeterministicResolution(
     };
   }
 
-  if (actionAdjudication.disposition === "NEEDS_CLARIFICATION") {
-    return {
-      ...base,
-      resultKind: "CLARIFICATION_REQUIRED",
-      safetyNotes: [...base.safetyNotes, `Arbitrage contextuel: ${actionAdjudication.reason}`]
-    };
-  }
-
-  if (actionAdjudication.disposition === "IMPOSSIBLE") {
-    return {
-      ...base,
-      resultKind: "RESOLUTION_PROPOSED",
-      characterExpression: buildCharacterExpression(rawInput, interpretation),
-      safetyNotes: [
-        ...base.safetyNotes,
-        `Action refusée avant jet selon ${actionAdjudication.ruleRefs.join(", ") || "les faits de scène"}: ${actionAdjudication.reason}`
-      ]
-    };
-  }
-
   const runtimeHandoff = classifyRuntimeHandlingHandoff(interpretation);
   if (runtimeHandoff !== null) {
     return {
@@ -400,11 +380,34 @@ export function buildDeterministicResolution(
     };
   }
 
+  if (actionAdjudication.disposition === "NEEDS_CLARIFICATION") {
+    return {
+      ...base,
+      resultKind: "CLARIFICATION_REQUIRED",
+      safetyNotes: [...base.safetyNotes, `Arbitrage contextuel: ${actionAdjudication.reason}`]
+    };
+  }
+
+  if (actionAdjudication.disposition === "IMPOSSIBLE") {
+    return {
+      ...base,
+      resultKind: "RESOLUTION_PROPOSED",
+      characterExpression: buildCharacterExpression(rawInput, interpretation),
+      safetyNotes: [
+        ...base.safetyNotes,
+        `Action refusée avant jet selon ${actionAdjudication.ruleRefs.join(", ") || "les faits de scène"}: ${actionAdjudication.reason}`
+      ]
+    };
+  }
+
   if (interpretation.semanticIntent.kind === "observe_environment") {
     const target = interpretation.referentResolution?.resolvedTarget ?? interpretation.semanticIntent.target ?? null;
+    const perceptionTargetRef = target === null || target.kind === "self" || target.kind === "unknown"
+      ? null
+      : target.ref;
     const perceptionBase = resolvePerceptionV1({
       semanticIntent: interpretation.semanticIntent,
-      targetRef: target?.ref ?? null,
+      targetRef: perceptionTargetRef,
       scene: playableScene,
       mechanicalCharacterContext
     });

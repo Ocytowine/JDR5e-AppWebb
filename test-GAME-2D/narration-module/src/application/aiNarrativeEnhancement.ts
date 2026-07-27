@@ -3,6 +3,7 @@ import type { ContractAiProviderV1 } from "../ai/FakeContractAiProvider";
 import { runAiPipelineCallV1 } from "../ai/pipeline";
 import type {
   AiIncidentRecordV1,
+  AiCallTelemetryV1,
   AiModelRouteV1,
   AiRetryPolicyV1,
   CoherenceCriticPayloadV1,
@@ -37,6 +38,7 @@ export interface AiNarrativeEnhancementResultV1 {
   fallbackKind: "NONE" | "TECHNICAL_INCIDENT" | "RENDER_AUTHORITY_REJECTION";
   displayPacket: DisplayPacketV1 & JsonObject;
   incidents: AiIncidentRecordV1[];
+  telemetry?: AiCallTelemetryV1[];
   safetyNotes: string[];
 }
 
@@ -53,6 +55,7 @@ export async function enhanceNarrativeDisplayWithAiV1(input: {
   const original = cloneJson(input.displayPacket) as DisplayPacketV1 & JsonObject;
   const enhanced = cloneJson(input.displayPacket) as DisplayPacketV1 & JsonObject;
   const incidents: AiIncidentRecordV1[] = [];
+  const telemetry: AiCallTelemetryV1[] = [];
   const safetyNotes: string[] = [];
   let changed = false;
   let sceneWriterAttempted = false;
@@ -99,6 +102,7 @@ export async function enhanceNarrativeDisplayWithAiV1(input: {
       }
     });
     incidents.push(...expressionRun.incidents);
+    telemetry.push(...expressionRun.telemetry);
     const payload = expressionRun.acceptedOutput?.payload as PlayerExpressionPayloadV1 | undefined;
     if (payload && payload.safeToUse === true && payload.addedMeaning.length === 0 && payload.renderedExpression.trim().length > 0) {
       let expressionAuthorized = true;
@@ -138,6 +142,7 @@ export async function enhanceNarrativeDisplayWithAiV1(input: {
           }
         });
         incidents.push(...criticRun.incidents);
+        telemetry.push(...criticRun.telemetry);
         const critic = criticRun.acceptedOutput?.payload as CoherenceCriticPayloadV1 | undefined;
         expressionAuthorized = Boolean(critic && critic.verdict === "PASS" && !critic.findings.some(finding => finding.severity === "BLOCKING"));
         if (!expressionAuthorized) {
@@ -211,6 +216,7 @@ export async function enhanceNarrativeDisplayWithAiV1(input: {
       }
     });
     incidents.push(...sceneRun.incidents);
+    telemetry.push(...sceneRun.telemetry);
     const scenePayload = sceneRun.acceptedOutput?.payload as SceneWriterPayloadV1 | undefined;
     const assessedBlocks = scenePayload?.narrationBlocks.map(block => {
       const assessed = assessSceneWriterBlock(block, sceneTask.allowedGrounding);
@@ -224,7 +230,11 @@ export async function enhanceNarrativeDisplayWithAiV1(input: {
     let narrativeBlocks = assessedBlocks
       .filter(result => result.usable)
       .map(result => result.block);
-    if (narrativeBlocks.length > 0 && input.config.coherenceCriticRoute) {
+    if (
+      narrativeBlocks.length > 0 &&
+      input.config.coherenceCriticRoute &&
+      requiresNarrativeCoherenceCriticV1(renderAuthority)
+    ) {
       const criticRun = await runAiPipelineCallV1({
         provider: input.config.provider,
         route: input.config.coherenceCriticRoute,
@@ -258,6 +268,7 @@ export async function enhanceNarrativeDisplayWithAiV1(input: {
         }
       });
       incidents.push(...criticRun.incidents);
+      telemetry.push(...criticRun.telemetry);
       const critic = criticRun.acceptedOutput?.payload as CoherenceCriticPayloadV1 | undefined;
       if (!critic || critic.verdict !== "PASS" || critic.findings.some(finding => finding.severity === "BLOCKING")) {
         narrativeBlocks = [];
@@ -308,6 +319,7 @@ export async function enhanceNarrativeDisplayWithAiV1(input: {
           : "NONE",
       displayPacket: original,
       incidents,
+      telemetry,
       safetyNotes: incidents.length > 0
         ? [
           "Fallback déterministe conservé.",
@@ -329,8 +341,22 @@ export async function enhanceNarrativeDisplayWithAiV1(input: {
         : "NONE",
     displayPacket: enhanced,
     incidents,
+    telemetry,
     safetyNotes
   };
+}
+
+/**
+ * The critic is a targeted semantic defense, not a mandatory second writer.
+ * Broad visible perception and reversible positioning beside a visible actor
+ * already have a closed positive authority and no durable consequence.
+ */
+export function requiresNarrativeCoherenceCriticV1(authority: NarrativeRenderAuthorityV1): boolean {
+  if (authority.mode === "OBSERVATION_RESULT") return authority.targetRef !== null;
+  if (authority.mode === "ACTION_STAGING_ONLY") {
+    return authority.targetRef === null || !authority.targetRef.startsWith("npc:");
+  }
+  return true;
 }
 
 function aiNarrationBlock(operationId: string, text: string, outputId: string, index: number): DisplayBlockV1 {

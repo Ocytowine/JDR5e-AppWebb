@@ -285,3 +285,73 @@ Septième incrément livré le 2026-07-23 :
 - récupération d'un commit concurrent par relecture de l'agrégat.
 
 Restent fermés : avantage/désavantage, tests secrets, temps, conséquences, répétition métier et UI.
+
+Huitième incrément livré le 2026-07-27 :
+
+- contrat `skill-check-outcome-preparation/1` ;
+- vérification de l'empreinte entre proposition et lancer persisté ;
+- sélection exclusive de la branche succès ou échec préparée par le domaine ;
+- conséquence typée `PREPARED_NOT_COMMITTED` sans autorité de mutation ;
+- proposition temporelle exacte validable par `temporal-kernel/1` ;
+- paquet de reprise narrative limité au verdict, au résumé public et au temps ;
+- références privées exclues du paquet narratif.
+
+Restent fermés : commit atomique de la conséquence et du temps, intégration au
+contrôleur de tour, avantage/désavantage, tests secrets et interface de lancer.
+
+Neuvième incrément livré le 2026-07-27 :
+
+- contrat `skill-check-outcome-commit/1` ;
+- résultat de mutation explicitement fourni par le domaine propriétaire ;
+- liaison obligatoire de la commande propriétaire au batch temporel ;
+- contrôle du verdict, de l'effet, de la cible, de la révision et de la durée ;
+- composition de `world.clock` et de l'agrégat propriétaire dans un unique commit ;
+- événement public sans référence privée ;
+- rejeu idempotent sans seconde avance temporelle ni seconde conséquence.
+
+Restent fermés : raccord au contrôleur de tour, construction des résultats
+propriétaires pour les domaines jouables, avantage/désavantage, tests secrets et
+interface de lancer.
+
+Dixième incrément livré le 2026-07-27 :
+
+- politique propriétaire `perception-skill-check-outcome/1` ;
+- succès limité aux indices `CHECKED` et `VISIBLE_SIGN` de la cible ;
+- échec sans révélation et répétition conditionnée à un changement de contexte ;
+- rejet des faits cachés même s'ils sont présents dans la scène ;
+- état contrôleur `pending-narrative-skill-check/1` en
+  `AWAITING_SKILL_ROLL` ;
+- proposition exacte conservée dans la sortie durable et restaurable du tour.
+
+Restent fermés : commande de reprise du lancer, chaînage automatique avec le
+commit atomique, bouton UI, avantage/désavantage et tests secrets.
+
+Onzième incrément livré le 2026-07-27 :
+
+- commande explicite `ResumePendingSkillCheckCommandV1` ;
+- méthode contrôleur `rollPendingSkillCheck` séparée de la saisie joueur ;
+- relecture obligatoire du `pendingCheckId` durable et de la scène active ;
+- chaînage d20 persistant → branche Perception → temps → commit propriétaire ;
+- succès et échec couverts ;
+- double clic et reconstruction du contrôleur sans second dé ni second commit ;
+- préparation initiale restituée à l'identique lors du rejeu.
+
+Restent fermés : paquet d'affichage du résultat, bouton UI, avantage/désavantage
+et tests secrets.
+
+Douzième incrément livré le 2026-07-27 :
+
+- encart UI accessible du test en attente ;
+- objectif, compétence, modificateur, DD et enjeux visibles ;
+- nouvelle intention bloquée pendant l'attente ;
+- bouton explicite `Lancer le dé`, désactivé pendant l'exécution ;
+- refus UI honnête si la fiche mécanique ou le DD manque ;
+- paquet résultat avec narration, détail du d20, verdict et temps ;
+- restauration des jets en attente et des résultats déjà commités.
+
+La frontière narration est désormais considérée comme livrée : elle consomme
+une projection mécanique compatible V2 et un DD déjà résolu, mais ne dépend pas
+du créateur de personnage actuel. Le créateur devra produire cette projection
+ou passer par un adaptateur dédié.
+
+Restent fermés : avantage/désavantage et tests secrets.

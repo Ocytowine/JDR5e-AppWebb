@@ -49,7 +49,11 @@ Le contrat V1 reste accepté par la route et les fournisseurs contractuels exist
 
 ## Preuves
 
-- `npm run narration-module:test:semantic-intent-v2` : six formulations ouvertes, dont mouvement local, franchissement, signal silencieux, cible descriptive, tentative conditionnelle et observation composée avec ellipse ;
+- `npm run narration-module:test:semantic-intent-v2` : sept formulations ouvertes, dont mouvement local, franchissement, signal silencieux, cible descriptive, tentative conditionnelle, observation composée avec ellipse et question de perception sur une population générique non résolue.
+
+Une mention perceptive générique, par exemple « est-ce que je perçois des gens non loin de moi ? », ne constitue pas une cible obligatoire. Le runtime conserve le sujet dans `perception.focus` mais n'exige pas de référent de scène précis avant de résoudre l'observation. Les intentions qui agissent sur un acteur ou un objet précis continuent, elles, à demander une cible résolue.
+
+Une observation sans cible précise projette les présences immédiatement perceptibles déjà déclarées par la scène (`presentNpc` et `ambientPopulation`) dans une formulation destinée au joueur. Elle ne transmet ni clés de catalogue, ni rubriques wiki, ni inventaire exhaustif des `visibleElements` et `pointsOfInterest`. En l'absence de présence, la situation perceptible sert de repli. Les `perceptionClues` restent nécessaires pour les signes focalisés, vérifiés ou cachés.
 - `npm run narration-module:test:ai-intent-interpretation` : compatibilité V1 ;
 - `npm run narration-module:test:narrative-openai-route` : schémas stricts V1 et V2 ;
 - `npm run narration-module:test:complete-conversations` : parcours déterministe de dix tours.

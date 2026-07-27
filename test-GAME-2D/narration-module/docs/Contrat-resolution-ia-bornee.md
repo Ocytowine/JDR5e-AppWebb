@@ -89,7 +89,13 @@ La texture peut reformuler une sensation déjà sourcée, accentuer une tension 
 - lumière, terrain ou environnement pouvant affecter une règle ;
 - indice, preuve, précondition ou fait réutilisable.
 
-Le `scene_writer` et le `coherence_critic` reçoivent ce même plan. Le critique reste une défense supplémentaire : l'autorité vient du plan positif construit depuis la résolution et ses sources.
+Le `scene_writer` et, lorsque le risque le requiert, le `coherence_critic`
+reçoivent ce même plan. Le critique reste une défense supplémentaire :
+l'autorité vient du plan positif construit depuis la résolution et ses
+sources. Une perception générale sans cible et un positionnement réversible
+près d'un acteur visible suivent le parcours court sans second appel; les
+observations focalisées, objets, révélations et conséquences sensibles
+conservent le contrôle critique.
 
 ## Ordre obligatoire
 

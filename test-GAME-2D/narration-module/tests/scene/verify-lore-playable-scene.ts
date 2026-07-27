@@ -6,6 +6,8 @@ import {
   buildSceneTransitionTopologyFromLoreLocationV1,
   buildPlayableSceneLocationAnswerV1,
   buildPlayableSceneObservationV1,
+  buildVisiblePopulationNarrationV1,
+  resolvePerceptionV1,
   toPlayableScenePublicContextV1,
   validatePlayableSceneV1
 } from "../../src/application";
@@ -59,9 +61,44 @@ async function main(): Promise<void> {
   assert.equal(joinedSceneText.includes("Salle interdite sous le troisième dépôt"), false);
   assert.match(joinedSceneText, /Archives de Lysenthe|conservation des actes/u);
 
-  const npc = result.scene.presentNpc[0];
-  assert.ok(npc, "un rôle probable du wiki doit produire un PNJ local minimal");
-  assert.match(npc.displayName, /Archiviste|Clerc|Garde/u);
+  assert.equal(result.scene.presentNpc.length, 0, "un profil de présence probable ne crée pas artificiellement un PNJ individualisé");
+  assert.deepEqual(
+    result.scene.ambientPopulation.map(presence => presence.publicRole),
+    ["archiviste", "clerc", "garde"],
+    "les rôles probables les plus pondérés deviennent des présences éphémères distinctes"
+  );
+  assert.equal(new Set(result.scene.ambientPopulation.map(presence => presence.actorId)).size, 3);
+  assert.equal(result.scene.ambientPopulation.every(presence =>
+    presence.knowledgeRefs.every(ref => ref.startsWith("lore-fragment:"))
+  ), true, "les amorces locales restent bornées aux fragments publics sélectionnés");
+  const populationNarration = buildVisiblePopulationNarrationV1(result.scene);
+  assert.match(populationNarration, /lieu est habité.*archiviste.*clerc.*garde/iu);
+  assert.match(populationNarration, /D'autres silhouettes entretiennent le mouvement du lieu/u, "les présences matérialisées ne prétendent pas recenser toute la population");
+  assert.doesNotMatch(populationNarration, /Présences visibles|roles_probables|profil_presence/u);
+  const nearbyPeople = resolvePerceptionV1({
+    semanticIntent: {
+      schemaVersion: 1,
+      kind: "observe_environment",
+      playerGoal: "voir les gens présents à proximité",
+      target: null,
+      commitment: "committed",
+      evidenceFromInput: ["est ce que je vois des gens pas loin de moi ?"],
+      uncertainties: [],
+      forbiddenInterpretations: ["révéler un fait caché"],
+      confidence: "high",
+      perception: {
+        schemaVersion: 1,
+        depth: "GLANCE",
+        focus: "personnes présentes à proximité",
+        soughtInformation: "présences humaines perceptibles alentour"
+      }
+    },
+    targetRef: null,
+    scene: result.scene
+  });
+  assert.equal(nearbyPeople?.status, "AUTOMATIC_RESULT");
+  assert.match(nearbyPeople?.revealedTexts.join(" ") ?? "", /proximité.*silhouette.*archiviste/iu);
+  assert.doesNotMatch(nearbyPeople?.revealedTexts.join(" ") ?? "", /fonction_principale|rumeurs/iu);
 
   const topology = buildSceneTransitionTopologyFromLoreLocationV1({
     entity: compiled.value.entity,

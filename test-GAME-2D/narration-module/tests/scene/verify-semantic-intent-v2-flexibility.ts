@@ -2,8 +2,10 @@ import assert from "node:assert/strict";
 import type { AiCallRequestV1, AiRoleOutputEnvelopeV1, AiSemanticIntentPayloadV2, ContractAiProviderV1 } from "../../src/ai";
 import {
   AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V2,
+  adjudicateContextualActionV1,
   createDefaultAiIntentInterpreterConfigV1,
-  interpretNarrativeInputWithAiV1
+  interpretNarrativeInputWithAiV1,
+  REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1
 } from "../../src/application";
 
 const cases: Array<{ input: string; payload: AiSemanticIntentPayloadV2 }> = [
@@ -33,6 +35,12 @@ const cases: Array<{ input: string; payload: AiSemanticIntentPayloadV2 }> = [
     kind: "observe_environment", commitment: "committed", playerGoal: "Feindre un départ tout en surveillant discrètement la réaction de la personne récemment ciblée.", actionHint: "observer_reaction", domainHint: "perception", scope: "PERCEPTION",
     targetMention: { surface: "sa réaction", candidateKind: "npc", proposedRef: null, contextLink: "RECENT_FOCUS" },
     perception: { schemaVersion: 1, depth: "FOCUSED", focus: "réaction de la personne récemment ciblée", soughtInformation: "réaction au faux départ" }, dialogueAct: null,
+    uncertainties: [], clarificationPrompt: null, confidence: "high"
+  }),
+  semanticCase("est ce que je percois des gens non loin de moi ?", {
+    kind: "observe_environment", commitment: "committed", playerGoal: "Percevoir les personnes présentes à proximité.", actionHint: "observer", domainHint: "perception", scope: "PERCEPTION",
+    targetMention: { surface: "des gens non loin de moi", candidateKind: "npc", proposedRef: null, contextLink: "EXPLICIT" },
+    perception: { schemaVersion: 1, depth: "GLANCE", focus: "personnes présentes à proximité", soughtInformation: "présences humaines perceptibles alentour" }, dialogueAct: null,
     uncertainties: [], clarificationPrompt: null, confidence: "high"
   })
 ];
@@ -75,6 +83,14 @@ async function main(): Promise<void> {
   assert.deepEqual(results[4]?.interpretation.semanticIntent.preconditions, ["La porte paraît sûre."], "la précondition survit à la stabilisation locale de l'engagement");
   assert.equal(results[4]?.interpretation.action, "entrouvrir", "un concept d'action inédit traverse le V2 sans liste fermée");
   assert.equal(results[5]?.interpretation.target?.ref, "npc:npc-serveuse-nerveuse", "une ellipse peut utiliser le focus récent validé");
+  assert.equal(results[6]?.interpretation.semanticIntent.kind, "observe_environment");
+  assert.equal(results[6]?.interpretation.referentResolution?.resolvedTarget, null, "une population générique n'est pas inventée comme référent");
+  assert.equal(results[6]?.interpretation.referentResolution?.ambiguity, "none", "une cible perceptive facultative non résolue ne bloque pas l'observation");
+  assert.equal(results[6]?.interpretation.requiresClarification, false);
+  assert.equal(adjudicateContextualActionV1({
+    interpretation: results[6]!.interpretation,
+    scene: REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1
+  }).disposition, "AUTOMATIC_SUCCESS", "la question perceptive présente atteint effectivement la résolution");
   assert.equal(results.every(result => result.interpretation.runtimeHandling?.noGameTime === true), true);
   let retryCalls = 0;
   const retryFixture = cases[0]!;
@@ -97,7 +113,7 @@ async function main(): Promise<void> {
   const retried = await interpretNarrativeInputWithAiV1({ campaignId: "cmp-v2", operationId: "op-v2-retry", intentId: "intent-v2-retry", rawInput: retryFixture.input, config: retryConfig });
   assert.equal(retryCalls, 2, "un incident technique autorise exactement un retry");
   assert.equal(retried.usedAiInterpretation, true, "le retry technique peut récupérer sans fallback narratif");
-  console.log("semantic-intent-v2/flexibility: OK (6 formulations ouvertes, mouvement et franchissement distincts)");
+  console.log("semantic-intent-v2/flexibility: OK (7 formulations ouvertes, perception générique non bloquante)");
 }
 
 function semanticCase(

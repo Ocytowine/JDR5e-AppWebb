@@ -7,6 +7,7 @@ const {
   buildStrictAiOutputSchema,
   createNarrativeOpenAiEnhancementApi,
   normalizeAiCallRequest,
+  normalizeProviderEnvelope,
   validateEnvelope
 } = require("../../server/narrativeOpenAiEnhancementRoute");
 
@@ -550,6 +551,33 @@ function assertOpenAiStrictObjectShape(schema, path = "schema") {
 }
 
 async function main() {
+  const semanticRequest = semanticIntentRequest();
+  const normalizedContact = normalizeProviderEnvelope({
+    ...outputFor(semanticRequest),
+    payload: {
+      rawInputEcho: "je m'avance vers l'archiviste, je le salue",
+      intent: {
+        kind: "nonverbal_signal",
+        commitment: "committed",
+        preconditions: [],
+        playerGoal: "S'approcher de l'archiviste et le saluer.",
+        actionHint: "saluer",
+        domainHint: "social",
+        scope: "LOCAL_INTERACTION",
+        targetMention: { surface: "l'archiviste", candidateKind: "npc", proposedRef: "npc:archiviste", contextLink: "EXPLICIT" },
+        perception: null,
+        dialogueAct: { schemaVersion: 1, act: "INITIATE_CONVERSATION", contentGoal: "Saluer l'archiviste.", explicitQuestion: null },
+        uncertainties: [],
+        clarificationPrompt: null,
+        confidence: "high"
+      }
+    }
+  }, semanticRequest);
+  assert.equal(normalizedContact.payload.intent.kind, "address_visible_actor");
+  assert.equal(normalizedContact.payload.intent.scope, "SOCIAL_EXCHANGE");
+  assert.equal(normalizedContact.payload.intent.dialogueAct.act, "INITIATE_CONVERSATION");
+  assert.equal(validateEnvelope(normalizedContact, semanticRequest).ok, true);
+
   [request(), intentRequest(), mjPlannerRequest(), npcPerformerRequest(), sceneCreatorRequest(), sceneCreatorRequestV2()].forEach(roleRequest => {
     const schema = buildStrictAiOutputSchema(roleRequest).schema;
     assertEveryArraySchemaHasItems(schema);

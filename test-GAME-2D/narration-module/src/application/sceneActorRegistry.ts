@@ -13,6 +13,7 @@ import type {
   PlayableSceneNpcV1,
   PlayableSceneStateV1
 } from "./playableScene";
+import { narrativeDesignationOfV1 } from "./narrativeDesignation";
 
 export const SCENE_ACTOR_REGISTRY_AGGREGATE_TYPE_V1 = "scene.actor-registry" as const;
 export const SCENE_ACTOR_REGISTRY_CONTRACT_VERSION_V1 = "scene-actor-registry/1" as const;
@@ -171,16 +172,18 @@ function actorFromAmbient(
 }
 
 function toPlayableNpc(actor: SceneActorRecordV1): PlayableSceneNpcV1 {
+  const designation = narrativeDesignationOfV1(actor);
   return {
     schemaVersion: 1,
     actorId: actor.actorId,
     displayName: actor.displayName,
-    narrativeLabel: actor.displayName,
+    narrativeLabel: designation?.subsequentMention ?? actor.displayName,
+    ...(designation ? { designation } : {}),
     publicRole: actor.publicRole,
     visibleState: `${actor.visibleActivity}; ${actor.visibleAppearance}; ${actor.demeanor}`,
     keywords: [...actor.keywords],
-    defaultReply: `${actor.displayName} suspend son geste et prête attention.`,
-    repeatedReply: `${actor.displayName} reste attentif à la suite de l'échange.`,
+    defaultReply: `${designation?.subsequentMention ?? actor.displayName} suspend son geste et prête attention.`,
+    repeatedReply: `${designation?.subsequentMention ?? actor.displayName} reste attentif à la suite de l'échange.`,
     demeanor: actor.demeanor,
     immediateGoal: actor.immediateGoal,
     currentPressure: actor.currentPressure,

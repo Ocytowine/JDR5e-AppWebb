@@ -1,6 +1,7 @@
 import type { JsonObject } from "../core";
 import type { NarrativeIntentTargetV1 } from "./intentClarification";
 import type { PlayableSceneStateV1 } from "./playableScene";
+import { narrativeDesignationLabelV1, narrativeDesignationOfV1 } from "./narrativeDesignation";
 
 export const SCENE_REFERENT_REGISTRY_CONTRACT_VERSION_V1 = "scene-referent-registry/1" as const;
 
@@ -47,12 +48,19 @@ export type SceneReferentResolutionV1 =
 
 export function buildSceneReferentRegistryV1(scene: PlayableSceneStateV1): SceneReferentRegistryV1 {
   const referents: SceneReferentV1[] = [
-    ...scene.presentNpc.map(npc => ({
+    ...scene.presentNpc.map(npc => {
+      const designation = narrativeDesignationOfV1(npc);
+      return {
       schemaVersion: 1 as const,
       canonicalRef: `npc:${npc.actorId}`,
       kind: "npc" as const,
-      displayName: npc.displayName,
-      publicAliases: unique([npc.displayName, npc.publicRole, ...npc.keywords]),
+      displayName: narrativeDesignationLabelV1(designation, npc.displayName),
+      publicAliases: unique([
+        narrativeDesignationLabelV1(designation, npc.displayName),
+        designation?.subsequentMention ?? "",
+        npc.publicRole,
+        ...npc.keywords
+      ]),
       publicProperties: [npc.publicRole, npc.visibleState],
       publicDestinationAliases: [],
       present: true as const,
@@ -60,13 +68,21 @@ export function buildSceneReferentRegistryV1(scene: PlayableSceneStateV1): Scene
       interactionCapabilities: ["speech", "nonverbal_signal", "observe"] as SceneInteractionCapabilityV1[],
       sourceRef: `scene:${scene.sceneId}:npc:${npc.actorId}`,
       version: 1 as const
-    })),
-    ...(scene.ambientPopulation ?? []).map(presence => ({
+    };
+    }),
+    ...(scene.ambientPopulation ?? []).map(presence => {
+      const designation = narrativeDesignationOfV1(presence);
+      return {
       schemaVersion: 1 as const,
       canonicalRef: `npc:${presence.actorId}`,
       kind: "npc" as const,
-      displayName: presence.displayName,
-      publicAliases: unique([presence.displayName, presence.publicRole, ...presence.keywords]),
+      displayName: narrativeDesignationLabelV1(designation, presence.displayName),
+      publicAliases: unique([
+        narrativeDesignationLabelV1(designation, presence.displayName),
+        designation?.subsequentMention ?? "",
+        presence.publicRole,
+        ...presence.keywords
+      ]),
       publicProperties: [presence.publicRole, presence.visibleActivity, "présence ambiante"],
       publicDestinationAliases: [],
       present: true as const,
@@ -74,7 +90,8 @@ export function buildSceneReferentRegistryV1(scene: PlayableSceneStateV1): Scene
       interactionCapabilities: ["speech", "nonverbal_signal", "observe"] as SceneInteractionCapabilityV1[],
       sourceRef: `scene:${scene.sceneId}:ambient:${presence.actorId}`,
       version: 1 as const
-    })),
+    };
+    }),
     ...scene.pointsOfInterest.map(point => ({
       schemaVersion: 1 as const,
       canonicalRef: `poi:${point.pointId}`,

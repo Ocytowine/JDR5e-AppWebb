@@ -41,6 +41,35 @@ assert.match(html, /data-narrative-ux-badge="IA"/, "badge IA rendu depuis source
 assert.match(html, /data-narrative-ux-badge="Fallback"/, "badge fallback rendu hors couleur");
 assert.match(html, /Indicateurs UX:/, "badges décrits par aria-label");
 
+const pendingCheckHtml = renderToStaticMarkup(
+  React.createElement(NarrativeConversationPanel, {
+    packets: [narrativePanelFixture],
+    pending: false,
+    pendingSkillCheck: {
+      pendingCheckId: "check:test:pending",
+      proposal: {
+        goal: "Examiner les traces près de la lampe",
+        ability: "SAG",
+        skillId: "perception",
+        characterContext: { totalModifier: 5 },
+        difficulty: { status: "RULE_RESOLVED", dc: 15 },
+        stakes: {
+          success: "Révéler les indices vérifiés.",
+          failure: "Ne rien révéler de plus."
+        }
+      }
+    } as never,
+    onSubmit: () => undefined,
+    onRollSkillCheck: () => undefined
+  })
+);
+assert.match(pendingCheckHtml, /Test de compétence en attente/, "carte de jet accessible");
+assert.match(pendingCheckHtml, /Examiner les traces/, "objectif du test affiché");
+assert.match(pendingCheckHtml, /modificateur \+5/, "modificateur affiché");
+assert.match(pendingCheckHtml, /DD 15/, "difficulté affichée");
+assert.match(pendingCheckHtml, /Lancer le dé/, "commande explicite de lancer affichée");
+assert.match(pendingCheckHtml, /textarea[^>]*disabled/u, "nouvelle intention bloquée pendant le jet");
+
 assert.match(html, /data-narrative-ux-notice="possibility-no-commit"/, "encart possibilite sans commit rendu");
 assert.match(html, /data-narrative-ux-notice="context-no-commit"/, "encart contexte sans commit rendu");
 assert.match(html, /data-narrative-ux-notice="clarification-no-commit"/, "encart clarification sans commit rendu");
