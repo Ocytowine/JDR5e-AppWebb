@@ -1,123 +1,77 @@
 # Module narration
 
-Le runtime narratif complet de campagne n'est pas encore livré. En revanche, une surface narration prototype existe et peut utiliser OpenAI en opt-in côté serveur pour enrichir le rendu visible sans autorité métier, enregistrer durablement la projection de rendu, reconstruire le fil visible depuis ces projections et afficher une scène de référence concrète.
+Le module narration transforme une entrée libre du joueur en intention
+structurée, la confronte à l'état de campagne et aux capacités disponibles, puis
+produit une réponse visible sans donner à l'IA l'autorité sur les faits, les
+résultats ou les commits.
 
-I-00 fournit le noyau transactionnel `campaign-core/1`; I-01 ajoute la persistance IndexedDB; I-02 fournit le bootstrap contenu/personnage/règles. I-03 livre l'horloge, l'échéancier, les checkpoints de processus, l'adaptateur monde sur copie et le voyage segmenté. I-04 livre mémoire, snapshot et contextes déterministes. I-05 livre le pipeline IA contractuel, les créations dynamiques et l'adaptateur OpenAI serveur. I-06 livre scène, social, UI, contrôleur de tour, interprétation conservatrice, résolution narrative bornée, enrichissement IA, bascule UI Locale/OpenAI, persistance de la projection finale, restauration du fil visible, scène narrative de référence `reference-inn-rain-001`, paquet IA `scene_writer` ancré, état de scène minimal `scene.state`, mémoire courte PNJ, interprétation IA structurée de l'intention joueur, encarts UX explicites pour no-commit/clarification et branchement OpenAI live serveur pour `player_intent_interpreter`. I-07A livre le socle typé et testé des handoffs tactique/repos, avec intégration idempotente d'outcomes simulés. I-07B raccorde ces outcomes au kernel temporel pour écrire `world.clock` atomiquement. I-07C ajoute l'état propriétaire `rest.process` et la progression segmentée déterministe du repos. I-07D ajoute un placeholder tactique contractuel produisant des `TacticalOutcomeV1`.
+## État actuel
 
-Les rôles de MJ complet, PNJ interprétés, arbitrage de règles, création persistante automatique, mémoire sociale générique, lecteur UX d'historique complet et snapshot de scène réel restent fermés tant que leurs contrats/gates dédiés ne sont pas ouverts. Les handoffs tactique/repos ne sont pas encore branchés comme processus jouables; I-07D ne remplace pas `GameBoard.tsx`, l'IA tactique réelle, l'UI de repos ou les règles complètes de classe/sorts/fatigue.
+Le vertical jouable sait notamment :
+
+- démarrer une scène issue du wiki et suivre ses connexions ;
+- charger un catalogue narratif ciblé généré au build, sans compiler le wiki
+  brut dans le navigateur ;
+- interpréter des intentions libres et composées avec le contrat sémantique V5 ;
+- résoudre des observations, approches, dialogues et transitions locales dans
+  leur périmètre actuel ;
+- distinguer foule ambiante, acteur local, identité reconnue et PNJ durable ;
+- maintenir cinq couples de dialogue exacts par acteur à travers un changement
+  d'interlocuteur et un retour de scène ;
+- enregistrer une proposition de mission ou de relation, distinguer
+  acceptation, refus, condition et incertitude, puis vérifier l'acceptation
+  propriétaire avant toute promotion durable d'un acteur local ;
+- faire primer un remplacement ou un masquage validé de campagne sur le lore
+  auteur, avec provenance et sans modifier le catalogue généré ;
+- enrichir une narration avec OpenAI côté serveur, avec validation locale et
+  rendu déterministe sûr ;
+- persister la scène, le fil visible, la mémoire courte et les créations locales
+  autorisées dans IndexedDB.
+
+Le runtime complet de campagne, les relations durables, les intrigues
+dynamiques, le branchement tactique réel et la mémoire sociale longue restent
+incomplets.
+
+## Principes
+
+- Le wiki guide le lore ; il ne constitue pas l'inventaire exhaustif de tout ce
+  qui existe dans une scène.
+- L'IA comprend et rédige ; les domaines locaux valident, résolvent et
+  persistent.
+- Une parole de PNJ reste une parole attribuée, pas une vérité automatique.
+- Une sortie destinée au joueur reste narrative. Les diagnostics appartiennent
+  aux blocs système et ne doivent jamais contaminer la prose du MJ.
+- Aucun mot ou exemple joueur n'est codé en dur pour décider du domaine, de la
+  cible, du résultat ou du commit.
+- Un appel IA n'est exécuté que s'il ajoute une valeur nécessaire au tour.
+
+## Reprendre le travail
+
+Lire dans cet ordre :
+
+1. [`TASKS.md`](../../TASKS.md) ;
+2. [`Consolidation-fondations-narration.md`](docs/Consolidation-fondations-narration.md) ;
+3. [`docs/README.md`](docs/README.md) pour trouver le contrat concerné ;
+4. le code et les tests du lot ;
+5. `git status --short --branch`.
 
 ## Vérifications
 
 Depuis `test-GAME-2D/` :
 
 ```powershell
-npm run narration-module:build
 npm run narration-module:test:contracts
-npm run narration-module:test:lore
-npm run narration-module:test:character
-npm run narration-module:test:rules
 npm run narration-module:test:orchestration
-npm run narration-module:test:time
-npm run narration-module:test:memory
-npm run narration-module:test:context
-npm run narration-module:test:ai-pipeline
-npm run narration-module:test:dynamic-creation
-npm run narration-module:test:openai-provider
-npm run narration-module:test:scene-social-ui
-npm run narration-module:test:narrative-react-ui
-npm run narration-module:test:narrative-app-surface
-npm run narration-module:test:narrative-turn-controller
-npm run narration-module:test:narrative-resolution
-npm run narration-module:test:ai-narrative-enhancement
-npm run narration-module:test:narrative-render-projection
-npm run narration-module:test:vertical-quality
 npm run narration-module:test:playable-scene
+npm run narration-module:test:narrative-lore-build-catalog
+npm run narration-module:test:campaign-lore-projection
 npm run narration-module:test:lore-playable-scene
-npm run narration-module:test:scene-ephemeral-creation
-npm run narration-module:test:plot-preparation
-npm run narration-module:test:skill-check-outcome-preparation
-npm run narration-module:test:skill-check-outcome-commit
-npm run narration-module:test:perception-skill-check-outcome
-npm run narration-module:test:pending-skill-check-resume
-npm run narration-module:test:transition-ui
-npm run narration-module:test:transition-ui:openai-live
+npm run narration-module:test:complete-conversations
+npm run narration-module:test:mission-relation-authority
 npm run narration-module:test:npc-return-ui
-npm run narration-module:test:campaign-npc-promotion
-npm run narration-module:test:campaign-npc-promotion-commit
-npm run narration-module:test:ai-intent-interpretation
-npm run narration-module:test:tactical-rest-handoff
-npm run narration-module:test:narrative-openai-route
-npm run narration-module:test:indexeddb
-```
-
-Le build global exécute également la vérification TypeScript du noyau :
-
-```powershell
+npm run narration-module:test:semantic-v5-realistic-gate
 npm run build
 ```
 
-Configuration OpenAI live optionnelle dans `test-GAME-2D/.env` :
-
-```env
-OPENAI_API_KEY=...
-NARRATION_OPENAI_LIVE=1
-NARRATION_OPENAI_MODEL=gpt-4.1-mini
-NARRATION_OPENAI_INTENT_MODEL=gpt-4.1-mini
-```
-
-`NARRATION_OPENAI_INTENT_MODEL` est optionnel. S'il est absent, le serveur utilise `NARRATION_OPENAI_MODEL`, puis le modèle par défaut.
-
-## Références
-
-- [`docs/Contrat-noyau-campagne.md`](docs/Contrat-noyau-campagne.md) : contrat normatif `FIGE`.
-- [`docs/Contrat-persistance-indexeddb.md`](docs/Contrat-persistance-indexeddb.md) : contrat physique `FIGE` implémenté par I-01.
-- [`docs/Contrat-bootstrap-campagne.md`](docs/Contrat-bootstrap-campagne.md) : contrat `FIGE` du bootstrap I-02 et état de son implémentation.
-- [`docs/Contrat-contenu-lore.md`](docs/Contrat-contenu-lore.md) : contrat `FIGE` des sources, relations, connaissances et fragments lore.
-- [`docs/Contrat-temps-processus.md`](docs/Contrat-temps-processus.md) : contrat I-03, horloge unique, échéances et sous-lots d'intégration monde.
-- [`docs/Contrat-memoire-snapshot.md`](docs/Contrat-memoire-snapshot.md) : contrat I-04, mémoire, snapshot, contextes, budget et obsolescence.
-- [`docs/Contrat-pipeline-ia-creations.md`](docs/Contrat-pipeline-ia-creations.md) : contrat I-05A, faux fournisseur, rôles IA, sorties, retries, incidents et créations dynamiques.
-- [`docs/Contrat-fournisseur-ia-openai.md`](docs/Contrat-fournisseur-ia-openai.md) : contrat I-05B, OpenAI côté serveur, clé et tests simulés.
-- [`docs/Contrat-scene-social-ui.md`](docs/Contrat-scene-social-ui.md) : contrat I-06A, scène, social, transcript et affichage typé.
-- [`docs/Contrat-interface-narrative-react.md`](docs/Contrat-interface-narrative-react.md) : contrat I-06B, interface React pure et saisie libre.
-- [`docs/Contrat-surface-narration-app.md`](docs/Contrat-surface-narration-app.md) : contrat I-06C, surface narration applicative dédiée.
-- [`docs/Contrat-controleur-tour-narratif.md`](docs/Contrat-controleur-tour-narratif.md) : contrat I-06D, contrôleur prototype sans commit métier.
-- [`docs/Contrat-interpretation-clarification.md`](docs/Contrat-interpretation-clarification.md) : contrat I-06E, interprétation conservatrice et clarification.
-- [`docs/Contrat-interpretation-ia-intention.md`](docs/Contrat-interpretation-ia-intention.md) : contrat `ai-intent-interpretation/1`, interprétation IA structurée sans autorité de commit, en révision I-06ZF pour l'intention sémantique unique.
-- [`docs/Cadrage-interpretation-semantique-ouverte.md`](docs/Cadrage-interpretation-semantique-ouverte.md) : cadrage post-I-06ZE pour centrer le contrat unique sur l'intention sémantique et le statut d'exploitation runtime.
-- [`docs/Matrice-cas-I06ZF-interpretation-semantique.md`](docs/Matrice-cas-I06ZF-interpretation-semantique.md) : matrice de cas naturels pour le contrat unique d'interprétation sémantique et les diagnostics d'échec IA.
-- [`docs/Contrat-resolution-narrative.md`](docs/Contrat-resolution-narrative.md) : contrat I-06F, résolution bornée, reformulation PJ, commit validé et handoffs.
-- [`docs/Matrice-preuves-I06F.md`](docs/Matrice-preuves-I06F.md) : preuves I-06F, cas de frontière et commandes de vérification.
-- [`docs/Contrat-resolution-ia-bornee.md`](docs/Contrat-resolution-ia-bornee.md) : contrat I-06G, enrichissement IA de l'expression et de la narration sans autorité métier.
-- [`docs/Contrat-handoffs-tactique-repos.md`](docs/Contrat-handoffs-tactique-repos.md) : contrat I-07, handoffs tactique/repos, processus, outcomes et intégration idempotente.
-- [`docs/Matrice-preuves-I06G.md`](docs/Matrice-preuves-I06G.md) : preuves I-06G, sorties IA acceptées/rejetées et fallback.
-- [`docs/Matrice-preuves-I06H.md`](docs/Matrice-preuves-I06H.md) : preuves I-06H, branchement UI enrichi et fournisseur OpenAI contrôlé.
-- [`docs/Matrice-preuves-I06I.md`](docs/Matrice-preuves-I06I.md) : preuves I-06I, route serveur OpenAI opt-in pour l'enrichissement narratif.
-- [`docs/Matrice-preuves-I06J.md`](docs/Matrice-preuves-I06J.md) : preuves I-06J, bascule UI OpenAI opt-in et fallback local.
-- [`docs/Matrice-preuves-I06K.md`](docs/Matrice-preuves-I06K.md) : preuves I-06K, persistance des projections de rendu et incidents IA expurgés.
-- [`docs/Matrice-preuves-I06L.md`](docs/Matrice-preuves-I06L.md) : preuves I-06L, reconstruction du fil visible depuis les projections persistées.
-- [`docs/Matrice-preuves-I06M.md`](docs/Matrice-preuves-I06M.md) : preuves I-06M, scène narrative de référence et affichage concret sans tactique réel.
-- [`docs/Matrice-preuves-I06N.md`](docs/Matrice-preuves-I06N.md) : preuves I-06N, paquet IA `scene_writer` ancré et fallback local de scène.
-- [`docs/Matrice-preuves-I06O.md`](docs/Matrice-preuves-I06O.md) : preuves I-06O, état de scène minimal persistant et paquet IA dépendant de l'état.
-- [`docs/Matrice-preuves-I06P.md`](docs/Matrice-preuves-I06P.md) : preuves I-06P, mémoire courte PNJ et continuité de scène.
-- [`docs/Matrice-preuves-I06Q.md`](docs/Matrice-preuves-I06Q.md) : preuves I-06Q, scénario vertical qualité Locale/OpenAI-compatible et écarts I-06R.
-- [`docs/Matrice-preuves-I06R.md`](docs/Matrice-preuves-I06R.md) : preuves I-06R, corrections de classification, localisation et PNJ ciblé.
-- [`docs/Matrice-preuves-I06S.md`](docs/Matrice-preuves-I06S.md) : preuves I-06S, contrat de scène jouable minimal et deuxième fixture.
-- [`docs/Matrice-preuves-I06T.md`](docs/Matrice-preuves-I06T.md) : preuves I-06T, transformation d'un lieu wiki en scène jouable sans secret.
-- [`docs/Matrice-preuves-I06U.md`](docs/Matrice-preuves-I06U.md) : preuves I-06U, créations éphémères contrôlées sans promotion durable.
-- [`docs/Matrice-preuves-I06V.md`](docs/Matrice-preuves-I06V.md) : preuves I-06V, gate de préparation intrigue sans création d'intrigue.
-- [`docs/Matrice-preuves-I06W.md`](docs/Matrice-preuves-I06W.md) : preuves I-06W, revue UX narration et badges accessibles de statut.
-- [`docs/Matrice-preuves-I06X.md`](docs/Matrice-preuves-I06X.md) : preuves I-06X, interprétation IA structurée, robustesse linguistique et fallback conservateur.
-- [`docs/Matrice-preuves-I06Y.md`](docs/Matrice-preuves-I06Y.md) : preuves I-06Y, encarts UX no-commit, clarification, possibilité et parole enregistrée.
-- [`docs/Revue-produit-I06X-I06Y.md`](docs/Revue-produit-I06X-I06Y.md) : revue produit I-06X/I-06Y et décision d'ouvrir OpenAI live pour `player_intent_interpreter`.
-- [`docs/Matrice-preuves-I06Z.md`](docs/Matrice-preuves-I06Z.md) : preuves I-06Z, branchement OpenAI live serveur pour `player_intent_interpreter`.
-- [`docs/Sortie-phase-I06.md`](docs/Sortie-phase-I06.md) : cadrage de sortie I-06, défaut d'interprétation déterministe et décision d'ouvrir une interprétation IA structurée.
-- [`docs/Matrice-preuves-I07-audit.md`](docs/Matrice-preuves-I07-audit.md) : audit I-07, résolution AF-R13/AF-R14 et autorisation I-07A.
-- [`docs/Matrice-preuves-I07A.md`](docs/Matrice-preuves-I07A.md) : preuves I-07A, types, validateurs et intégration idempotente simulée tactique/repos.
-- [`docs/Matrice-preuves-I07B.md`](docs/Matrice-preuves-I07B.md) : preuves I-07B, avance de `world.clock` via le kernel temporel pendant l'intégration d'outcomes.
-- [`docs/Matrice-preuves-I07C.md`](docs/Matrice-preuves-I07C.md) : preuves I-07C, état propriétaire et progression segmentée déterministe du repos.
-- [`docs/Matrice-preuves-I07D.md`](docs/Matrice-preuves-I07D.md) : preuves I-07D, placeholder tactique contractuel sans dépendance au plateau réel.
-- [`docs/Matrice-couverture-scenarios.md`](docs/Matrice-couverture-scenarios.md) : revue de pilotage des scénarios NAR-ACC, couverture actuelle et lots responsables.
-- [`docs/Audit-final.md`](docs/Audit-final.md) : autorisations progressives et blocages par capacité.
-- [`docs/Plan-implementation-narration.md`](docs/Plan-implementation-narration.md) : ordre et gates des lots suivants.
-
-IndexedDB reste derrière `CampaignRepository`. Le fournisseur OpenAI reste côté serveur. Les projections I-06A et I-06K ne doivent pas être remplacées par un cache UI autoritaire.
+Les recettes OpenAI sont opt-in et nécessitent la configuration locale du
+serveur. Elles complètent les tests déterministes ; elles ne les remplacent pas.

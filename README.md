@@ -6,7 +6,11 @@ Jeu de role solo sur navigateur. Le projet combine un univers documente dans un 
 
 Le developpement actif se trouve dans `test-GAME-2D/`. La pile actuelle est React 18, TypeScript, Vite 6, PixiJS 8 et un serveur Node.js local.
 
-Le suivi synthetique du travail est dans [`TASKS.md`](TASKS.md). Les plans techniques detailles restent dans `test-GAME-2D/docs/` et `test-GAME-2D/map-module/docs/`.
+Le suivi synthetique du travail est dans [`TASKS.md`](TASKS.md). Pour la
+narration, l'état courant, les principes et la feuille de route sont réunis dans
+[`Consolidation-fondations-narration.md`](test-GAME-2D/narration-module/docs/Consolidation-fondations-narration.md).
+L'[index documentaire du module](test-GAME-2D/narration-module/docs/README.md)
+sépare les contrats actifs des preuves et archives historiques.
 
 ## Prerequis
 
@@ -67,7 +71,11 @@ Les simulations longues sont disponibles avec `npm run verify:world-simulation:l
 
 - `test-GAME-2D/src/` : application React, plateau, regles, donnees et creation de personnage.
 - `test-GAME-2D/map-module/` : carte du monde, editeur et simulation systemique.
-- `test-GAME-2D/narration-module/` : noyau narratif progressif I-00 a I-06Z et socle différé I-07A a I-07D, avec persistance IndexedDB, contexte, pipeline IA contractuel, surface narration prototype, OpenAI opt-in cote serveur, projections de rendu durables, reconstruction du fil visible, scène narrative de référence, paquet IA de scène, état de scène minimal, mémoire courte PNJ, scénario vertical qualité, corrections qualité ciblées, contrat de scène jouable minimal, intégration wiki minimale de lieux, créations éphémères contrôlées de scène, gate de préparation intrigue, badges UX narration, interprétation IA structurée de l'intention joueur, encarts UX no-commit/clarification, branchement OpenAI live serveur pour l'interpréteur d'intention, handoffs tactique/repos typés, avance temporelle atomique, repos segmenté déterministe et placeholder tactique contractuel. Le MJ complet de campagne, les handoffs jouables et le lecteur UX d'historique complet restent en cours de construction.
+- `test-GAME-2D/narration-module/` : noyau narratif actif avec persistance
+  IndexedDB, intention sémantique V5, scènes guidées par le lore, populations
+  locales, dialogue borné, rendu narratif contrôlé et OpenAI opt-in côté serveur.
+  Les relations durables, intrigues dynamiques, intégrations tactiques jouables et
+  la mémoire sociale longue restent à construire.
 - `test-GAME-2D/scripts/` : generation de catalogues et scripts de verification.
 - `test-GAME-2D/docs/` : conception fonctionnelle et technique de l'application.
 - `wiki/` : lore et modeles de contenu de l'univers.

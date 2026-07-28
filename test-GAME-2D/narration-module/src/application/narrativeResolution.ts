@@ -949,6 +949,12 @@ function resolutionDiagnosticLines(resolution: NarrativeResolutionResultV1): str
     `Acte de dialogue: ${interpretation.semanticIntent.dialogueAct === null || interpretation.semanticIntent.dialogueAct === undefined
       ? "aucun"
       : `${interpretation.semanticIntent.dialogueAct.act}, destinataire=${interpretation.semanticIntent.dialogueAct.addresseeRef ?? "aucun"}, objectif=${interpretation.semanticIntent.dialogueAct.contentGoal}`}.`,
+    `Perception: ${interpretation.semanticIntent.perception === null
+      ? "aucune"
+      : `profondeur=${interpretation.semanticIntent.perception.depth}, information=${interpretation.semanticIntent.perception.informationKind ?? "NON_CLASSEE"}, focus=${interpretation.semanticIntent.perception.focus}`}.`,
+    `Composantes ordonnées: ${interpretation.semanticIntent.composition?.orderedComponents
+      .map(component => `${component.order}:${component.kind}`)
+      .join(" → ") || "aucune"}.`,
     `Préconditions: ${interpretation.semanticIntent.preconditions?.join(" | ") || "aucune"}.`,
     `Cible résolue: ${target === null ? "aucune" : `${target.label ?? target.ref ?? target.kind} (${target.ref ?? target.kind})`}.`,
     runtimeHandling === null

@@ -60,7 +60,7 @@ assert.equal(narrativeSurfaceSource.includes("restorePendingSkillCheck"), true, 
 assert.equal(narrativeSurfaceSource.includes("restoreSkillCheckResultPackets"), true, "surface restaure les résultats de jets visibles");
 assert.equal(narrativeSurfaceSource.includes("rollPendingSkillCheck"), true, "surface utilise la commande explicite de lancer");
 assert.equal(openAiRuntimeConfigSource.includes("player_intent_interpreter"), true, "mode OpenAI configure aussi l'interpreteur d'intention via fournisseur route serveur");
-assert.equal(openAiRuntimeConfigSource.includes("AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V2"), true, "contrat sémantique V2 explicite dans la config UI partagée");
+assert.equal(openAiRuntimeConfigSource.includes("AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V5"), true, "contrat de composantes ordonnées V5 explicite dans la config UI partagée");
 assert.equal(narrativeSurfaceSource.includes("REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1"), true, "amorce UI issue du PlayableSceneStateV1 de reference");
 assert.equal(narrativeSurfaceSource.includes("applyNarrativePresentationVariationV1"), true, "surface délègue la variation de présentation au service applicatif");
 assert.equal(narrativeSurfaceSource.includes("function applyLocalPresentationVariation"), false, "surface ne doit pas porter la logique de variation en local");

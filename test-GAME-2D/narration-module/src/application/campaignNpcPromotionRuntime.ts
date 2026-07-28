@@ -21,26 +21,22 @@ import {
   createEmptyCampaignNpcRegistryV1,
   prepareCampaignNpcPromotionCommitV1,
   prepareCampaignNpcPromotionV1,
-  type CampaignNpcPromotionCauseV1,
   type CampaignNpcRecordV1,
   type CampaignNpcRegistryV1
 } from "./campaignNpcPromotion";
 import { loadSceneActorRegistryV1 } from "./sceneActorRegistry";
-
-export const DURABLE_NPC_CAUSE_CONFIRMATION_VERSION_V1 = "durable-npc-cause-confirmation/1" as const;
+import {
+  DURABLE_NPC_CAUSE_CONFIRMATION_VERSION_V1,
+  type DurableNpcCauseConfirmationV1
+} from "./durableNpcCauseConfirmation";
+import { verifyDurableNpcCauseConfirmationV1 } from "./missionRelationAuthority";
 
 export interface PromoteSceneActorCommandV1 extends JsonObject {
   schemaVersion: 1;
   clientRequestId: string;
   sceneId: string;
   sceneActorId: string;
-  ownerConfirmation: {
-    schemaVersion: 1;
-    contractVersion: typeof DURABLE_NPC_CAUSE_CONFIRMATION_VERSION_V1;
-    ownerCommandId: string;
-    ownerAuthority: true;
-    cause: CampaignNpcPromotionCauseV1;
-  };
+  ownerConfirmation: DurableNpcCauseConfirmationV1;
 }
 
 export interface PromoteSceneActorResultV1 extends JsonObject {
@@ -82,6 +78,14 @@ export async function promoteSceneActorToCampaignNpcV1(input: {
     return restoreCompleted(existingOperation.value);
   }
   if (!existingOperation.ok && existingOperation.error.code !== "NOT_FOUND") return existingOperation;
+  const ownerVerification = await verifyDurableNpcCauseConfirmationV1({
+    repository: input.repository,
+    campaignId: input.campaignId,
+    sceneId: input.command.sceneId,
+    sceneActorId: input.command.sceneActorId,
+    confirmation: input.command.ownerConfirmation
+  });
+  if (!ownerVerification.ok) return ownerVerification;
 
   const campaign = await input.repository.getCampaign(input.campaignId);
   if (!campaign.ok) return campaign;

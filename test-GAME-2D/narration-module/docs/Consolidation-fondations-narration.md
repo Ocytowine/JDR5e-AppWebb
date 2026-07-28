@@ -1,112 +1,355 @@
-# Consolidation des fondations narration
+# État actuel et feuille de route du module narration
 
-Date : 2026-07-21
+Date de référence : 2026-07-28
 
-Statut : `ACTIF`
+Statut : `SOURCE_CANONIQUE_ACTIVE`
 
 ## Rôle de ce document
 
-Ce document est la source de reprise canonique du chantier narration. Il fixe le cap actif, les invariants, l'état des contrats et l'ordre des prochains travaux. `TASKS.md` reste synthétique, le journal conserve les raisons historiques et les recettes restent des observations, pas des spécifications.
+Ce document est le point de reprise unique du chantier narration. Il répond à
+quatre questions :
 
-Toute nouvelle session doit lire, dans cet ordre :
+1. quel produit nous construisons ;
+2. ce qui fonctionne réellement aujourd'hui ;
+3. les limites encore ouvertes ;
+4. dans quel ordre nous allons travailler.
 
-1. `README.md` et `TASKS.md` ;
-2. ce document ;
-3. les dernières décisions du `Journal-des-decisions.md` ;
-4. `git status --short --branch` et le diff existant ;
-5. les contrats spécialisés touchés par le lot.
+`TASKS.md` ne conserve que le lot immédiat. Les contrats décrivent le
+comportement exigé. Les matrices et audits prouvent ou expliquent un travail
+passé, mais ne définissent plus la feuille de route.
 
-## Cap produit
+En cas de contradiction, l'ordre d'autorité documentaire est :
 
-L'IA comprend l'intention, propose une mise en scène et joue les acteurs dans un contexte borné. Le logiciel reste seul maître des références valides, faits révélables, résultats, commits, temps, inventaire, tactique, règles, secrets et promotions durables.
+1. code et tests exécutables ;
+2. contrat actif du comportement concerné ;
+3. ce document ;
+4. `TASKS.md` pour l'ordre immédiat ;
+5. décisions historiques, audits, handoffs et matrices de preuve.
 
-Le but n'est ni un jeu à formulations scriptées, ni une prose libre faisant autorité. Le flux cible reste :
+## Objectif produit
+
+Offrir un jeu de rôle narratif dans lequel le joueur peut s'exprimer librement,
+recevoir une réponse immersive et agir sur un monde cohérent, sans transformer
+le modèle IA en base de données, moteur de règles ou autorité de campagne.
+
+Le wiki sert d'appui de cohérence et d'inspiration. Il décrit ce qui est établi,
+mais son silence ne signifie pas que le monde est vide. Une archive centrale
+peut donc contenir des copistes, des lecteurs ou des gardes ambiants compatibles
+avec le lieu, même si seule la fonction d'archiviste est explicitement décrite.
+Ces présences ne deviennent pas pour autant des PNJ durables ou des faits de
+lore.
+
+## Modèle de fonctionnement
 
 ```text
-compréhension sémantique IA
-→ proposition structurée
-→ validation locale d'autorité
-→ résolution par le domaine propriétaire
-→ plan de rendu positif
-→ prose créative bornée
-→ contrôle et fallback sûr
+entrée libre du joueur
+→ interprétation sémantique structurée
+→ résolution locale des référents et capacités
+→ arbitrage par le domaine propriétaire
+→ résultat autorisé
+→ rédaction narrative utile
+→ validation locale de la sortie
+→ projection visible et persistance
 ```
+
+Le nombre d'appels IA dépend du besoin :
+
+- une orientation vers une présence déjà visible peut utiliser uniquement
+  l'interpréteur ;
+- une observation générale peut ajouter le `scene_writer` ;
+- le `coherence_critic` est une défense conditionnelle pour les sorties à risque,
+  pas un passage obligatoire ni une seconde autorité métier ;
+- un dialogue peut appeler le performer PNJ avec la mémoire et les connaissances
+  qui lui sont explicitement accessibles.
+
+Un rejet de prose ne déclenche pas une invention compensatoire. Le runtime garde
+le dernier rendu déterministe autorisé et expose l'incident séparément dans le
+diagnostic système.
 
 ## Invariants non négociables
 
-- `semanticIntent.playerGoal` porte le sens libre ; les champs canoniques servent au routage et ne doivent pas devenir un second langage naturel.
-- Aucune regex ou liste de formulations ne décide du domaine, du commit, de la cible ou du résultat dans le flux actif.
-- Une référence proposée par l'IA doit être visible, compatible et non ambiguë avant exploitation.
-- Un texte visible ne peut augmenter l'engagement du joueur ni annoncer un résultat absent de la résolution.
-- Une parole PNJ est une affirmation attribuée, jamais une vérité objective automatique.
-- Un fait caché ou retenu ne devient visible que par une enveloppe de révélation ou une résolution propriétaire.
-- Une texture créative ne produit ni objet, ni présence, ni réaction, ni état mécanique, ni causalité réutilisable.
-- Une texture reste limitée au rendu courant et n'entre pas dans la mémoire factuelle, les règles ou les préconditions.
-- Le critique IA est une défense sémantique supplémentaire, pas l'unique source de sûreté.
-- Une panne ou un rejet conserve le dernier rendu déterministe autorisé et ne rejoue jamais un commit.
+- Le sens libre vient de l'interprétation sémantique, pas d'une liste locale de
+  formulations joueur.
+- Le logiciel décide seul des références valides, capacités, règles, résultats,
+  temps, commits, secrets, inventaire et promotions durables.
+- Le wiki contraint les faits établis sans devenir une liste exhaustive des
+  détails ordinaires compatibles avec la scène.
+- L'identité révélée au joueur dépend de ce que le personnage connaît ou apprend.
+  Un métier visible, une personne déjà repérée et un nom propre connu ne sont pas
+  la même chose.
+- Une parole PNJ est attribuée à son auteur. Elle n'est pas promue
+  automatiquement en vérité de campagne.
+- La texture créative peut enrichir une sensation ou une ambiance compatible.
+  Elle ne crée pas de présence, objet, secret, résultat mécanique ou causalité
+  réutilisable.
+- La réponse du MJ est une prose narrative. Les clés de données, champs wiki,
+  traces de pipeline et diagnostics restent hors de cette prose.
+- Une panne IA ne rejoue jamais un commit et ne masque pas silencieusement le
+  problème.
+- Les raccourcis de performance sont fondés sur des structures validées, jamais
+  sur le vocabulaire exact saisi par le joueur.
 
-## Autorité des affirmations visibles
+## Exemples de frontière
 
-Le plan de rendu classe positivement ce qui peut apparaître :
+### Présence et identité
 
-| Catégorie | Autorité | Persistance |
-|---|---|---|
-| `SOURCE_FACT` | fait public sourcé par la scène, le lore ou un snapshot | selon sa source |
-| `CONFIRMED_RESULT` | effet confirmé par la résolution propriétaire | selon le commit |
-| `ATTRIBUTED_SPEECH` | parole, croyance ou refus d'un acteur identifié | parole mémorisable, contenu non promu en vérité |
-| `EPHEMERAL_TEXTURE` | reformulation sensorielle ou atmosphérique compatible | tour courant uniquement |
-| `FORBIDDEN_CLAIM` | secret, résultat, état, présence ou réaction sans source | jamais visible |
+Si le registre de scène connaît une employée visible mais que son nom n'a pas été
+révélé, le MJ peut parler d'« une archiviste » ou de « la femme aperçue près des
+rayonnages ». Il ne doit pas afficher son identifiant technique ni son nom caché.
 
-Une `EPHEMERAL_TEXTURE` peut reformuler une sensation déjà disponible, souligner une tension ou relier stylistiquement des faits confirmés. Elle ne peut pas ajouter une matière précise, un éclairage mécaniquement pertinent, l'état interne d'un mécanisme, une histoire causale, une nouvelle source sonore, une personne, une action ou une réaction.
+### Lore et création ambiante
 
-## État consolidé
+Le wiki peut établir que les Archives conservent des chartes et sont surveillées.
+Le rédacteur peut mettre en scène le froissement des registres ou des copistes au
+travail si le plan de rendu l'autorise. Il ne peut pas inventer une charte
+secrète, un crime ou un personnage durable.
 
-- I-06ZL à I-06ZR : fidélité intention-système fermée dans son périmètre.
-- NAR-125 : frontière sémantique de narration.
-- NAR-126 : résolution perceptive minimale.
-- NAR-127 : contrôle indépendant de l'expression joueur.
-- NAR-128 : retrait du veto lexical, perception des points d'intérêt et stabilisation structurée de domaine.
-- NAR-129 : plan positif et texture éphémère représentés dans `NarrativeRenderAuthorityV1`; matrice adversariale initiale couvrant un faux état mécanique déclaré comme texture.
-- NAR-130 : acte de dialogue structuré (`INITIATE_CONVERSATION`, `ASK_QUESTION`, `MAKE_STATEMENT`, `REQUEST_ACTION`, `OTHER`), enveloppe de connaissance explicite, repli performer visible et répliques antérieures reconstruites depuis les projections effectivement affichées.
-- Gate adversariale NAR-129/NAR-130 : fausses présences, événements et faits déclarés comme texture rejetés ; une référence de mémoire PNJ n'est acceptée que si elle correspond aux faits publics ou à une projection de réplique effectivement fournie au performer.
-- NAR-131 : registre déclaratif de capacités runtime, dispositions `HANDLE`/`HANDOFF`/`CLARIFY`, commandes tracées et absence de routage par `canonicalActionHint` — `IMPLEMENTE_DANS_PERIMETRE`.
-- NAR-132 : recette déterministe de dix tours, deux PNJ, répétition, alternance, handoff et reprise; mémoire courte bornée par acteur — `GATE_DETERMINISTE_OK`.
-- Limite ouverte : les échecs `mj_planner` et `npc_performer` ne sont pas tous visibles avec la même clarté que les incidents de rendu.
+### Intention composée
 
-## Ordre des lots de consolidation
+Pour « je m'approche de l'archiviste, je la salue, puis je recule », V5 conserve
+l'ordre : approche réversible, acte de parole, éloignement et libération du focus
+conversationnel. La phrase du joueur ne devient pas un script lexical local.
 
-1. `NAR-129` — plan de rendu positif et texture éphémère non réutilisable — `IMPLEMENTE_DANS_PERIMETRE`.
-2. `NAR-130` — actes de dialogue, connaissances PNJ et mémoire des paroles réellement prononcées — `IMPLEMENTE_DANS_PERIMETRE`.
-3. `NAR-131` — routage de domaine ouvert sans multiplication de catégories lexicales — `IMPLEMENTE_DANS_PERIMETRE`.
-4. Gate adversariale déterministe : modèle déclarant à tort une sortie sûre, faux mécanisme, fausse présence, fausse mémoire et résultat anticipé — `IMPLEMENTE_DANS_PERIMETRE`.
-5. Certification OpenAI live répétée sur perception, action suspendue, dialogue et changement de domaine.
-6. Revue de gate post-I-06ZR et choix explicite de la prochaine capacité métier.
+### Question de lore
 
-## Travaux actuellement interdits
+Une question du joueur n'autorise pas une révélation globale. La réponse est
+construite depuis les faits publics, les connaissances du personnage et les
+paroles attribuables aux interlocuteurs. Ce qui est inconnu reste inconnu ou
+devient l'objet d'une recherche en jeu.
 
-Jusqu'à la gate de consolidation :
+## État réellement livré
 
-- pas d'ouverture réelle de la porte ;
-- pas de révélation de l'arrière-salle ;
-- pas de combat jouable ;
-- pas de mutation d'inventaire ;
-- pas de moteur social mécanique ;
-- pas d'intrigue ou de création durable automatique ;
-- pas de mémoire sociale longue ;
-- pas de correction par dictionnaires de mots ou phrases.
+| Domaine | État au 2026-07-28 |
+|---|---|
+| Noyau et persistance | opérations idempotentes, temps, snapshots, IndexedDB et reconstruction du fil disponibles dans le périmètre actuel |
+| Intention | contrats sémantiques V2 à V5, référents locaux, orientation visible, composantes ordonnées et gate réaliste de huit tours intégrés |
+| Perception | distinction présence, trait visible et indice incertain ; observation bornée par les signes autorisés |
+| Scènes | scène wiki, transitions locales, création guidée lore et retour vers une scène connue disponibles |
+| Population | séparation population ambiante, acteur local, désignation révélée et PNJ de campagne |
+| Dialogue | actes structurés, performer PNJ borné, mémoire courte par acteur et conversations à plusieurs tours dans le vertical |
+| Rédaction | `scene_writer` contrôlé par un plan de rendu, couverture minimale des référents et fallback déterministe |
+| Interface | surface React, mode local/OpenAI, blocs narratifs et diagnostics système séparés |
+| Handoffs | contrats tactique et repos disponibles ; moteurs jouables propriétaires encore incomplets |
+| Validation | régressions déterministes, recettes navigateur et recettes OpenAI ciblées ; build global validé au dernier point de contrôle |
 
-## Gate de sortie
+Le dernier vertical Archives valide notamment :
 
-La consolidation est fermée seulement si :
+- une question simple sur les personnes visibles sans clarification artificielle ;
+- une réponse narrative qui ne fuit pas `fonction_principale`, `rumeurs` ou une
+  autre clé wiki ;
+- l'approche d'une présence, un dialogue et un retour de scène ;
+- une intention sociale composée exécutée dans l'ordre ;
+- une référence pronominale clarifiée après libération du focus, puis une reprise
+  avec cible explicite ;
+- un changement d'interlocuteur et une transition complète vers
+  l'arrière-salle puis retour ;
+- un parcours court d'orientation sans appel inutile au rédacteur ou au critique.
 
-- les tests déterministes de contrats passent ;
-- les sorties adversariales sensibles sont rejetées ;
-- aucune texture n'est reprise comme fait, mémoire ou précondition ;
-- une même intention structurée garde cible, domaine, commit et temps à travers ses formulations ;
-- un échec IA reste visible et ne fabrique pas de fiction compensatoire ;
-- la recette OpenAI ne laisse passer aucun résultat, état mécanique, présence, réaction ou faux historique hors autorité ;
-- le diff est relu et un point de sauvegarde Git est décidé explicitement avec l'utilisateur.
+## Limites connues
 
-## Prochaine étape concrète
+- La gate V5 de référence est certifiée, mais elle ne prétend pas couvrir toutes
+  les combinaisons possibles d'intentions libres.
+- Les conversations longues sont couvertes jusqu'à cinq couples mémorisés par
+  acteur, avec changement d'interlocuteur et sortie-retour de scène. La mémoire
+  sociale durable reste différée.
+- La promotion durable d'un acteur local est raccordée à une acceptation
+  mission/relation persistée ; le cycle complet de quête et les axes sociaux
+  longs restent à construire.
+- Le catalogue lore narratif est désormais généré au build ; l'indexation
+  incrémentale d'un corpus beaucoup plus vaste reste différée.
+- Les projections de campagne `REPLACE` et `WITHHOLD` surchargent le lore pour
+  les scènes et créations dynamiques ; les faits libres sans ancre lore restent
+  hors du contrat V1.
+- Le créateur de personnage doit fournir une projection mécanique stable aux
+  tests de compétence.
+- Les autorités complètes d'intrigue, d'inventaire, de tactique et de mémoire
+  sociale longue ne sont pas ouvertes.
+- Les métriques sont maintenant séparées par rôle dans la gate Archives ; elles
+  doivent être conservées et étendues aux futurs corpus.
 
-Exécuter la recette longue en OpenAI live avec diagnostics de latence et de mémoire, puis réaliser la revue de gate post-I-06ZR avant de choisir une capacité métier.
+## Feuille de route ordonnée
+
+### Lot 0 — base documentaire
+
+Statut : `TERMINE_2026-07-28`
+
+Objectif : rendre l'état, les méthodes et les objectifs retrouvables sans
+reconstruire l'historique.
+
+Terminé lorsque `TASKS.md`, ce document, l'index et le README du module ne se
+contredisent plus et que les anciens suivis concurrents sont retirés.
+
+### Lot 1 — stabilisation V5 et gate réaliste
+
+Statut : `TERMINE_2026-07-28`
+
+Objectif : prouver que la compréhension libre, l'ordre des composantes, la
+résolution et la narration restent cohérents sur un parcours de joueur réaliste.
+
+Travail :
+
+- compléter le corpus simple/composé/perception/dialogue/transition ;
+- tester les erreurs de cible, ambiguïtés réelles et changements
+  d'interlocuteur ;
+- mesurer chaque rôle IA séparément ;
+- vérifier le rendu joueur et les diagnostics système ;
+- comparer les sorties répétées sans exiger une phrase identique.
+
+Terminé lorsque les tests déterministes, la recette OpenAI documentée et le build
+passent sans révélation indue, mutation non autorisée, fallback silencieux ni
+régression narrative majeure.
+
+Résultat :
+
+- gate déterministe de huit tours verte ;
+- confiance faible transformée en clarification exploitable plutôt qu'en panne
+  IA ;
+- `RECENT_FOCUS` validé localement même si l'IA fournit un identifiant ;
+- gate OpenAI composée verte : interpréteur 4 appels, moyenne 3,05 s ; performer
+  3 appels, moyenne 12,8 s ; critique conditionnel 1 appel, 4,3 s ;
+- clarification sans focus validée avec le seul interpréteur ;
+- transition OpenAI complète en 2,5 minutes, sans fallback ;
+- régressions ciblées et build global verts.
+
+### Lot 2 — catalogue lore narratif de build
+
+Statut : `TERMINE_2026-07-28`
+
+Objectif : fournir aux rôles IA seulement les influences utiles au contexte,
+avec provenance, niveau de connaissance et budget maîtrisés.
+
+Travail :
+
+- générer le catalogue depuis `wiki/lore` avec le script propriétaire ;
+- appliquer la configuration de modèles déjà benchmarkée ;
+- vérifier que l'absence d'un détail dans le wiki n'interdit pas les créations
+  ambiantes compatibles ;
+- conserver la topologie et les commits sous autorité locale.
+
+Résultat :
+
+- compilation du wiki retirée du navigateur au profit de
+  `narrative-lore-build-catalog/1` ;
+- 15 paquets de scène générés depuis 23 sources utiles, avec provenance,
+  niveaux `COMMUN`/`LOCAL` et budget de 16 influences ;
+- dimensions absentes conservées comme ouvertures créatives contrôlées ;
+- aucun texte source brut, aucune topologie et aucun commit dans le catalogue ;
+- `scene_creator` configuré par défaut sur `gpt-5.6-luna/none`, avec surcharges
+  explicites conservées ;
+- test de catalogue, test de route serveur et build TypeScript verts.
+
+### Lot 3 — conversations PNJ longues
+
+Statut : `TERMINE_2026-07-28`
+
+Objectif : maintenir voix, identité révélée, connaissances et mémoire courte sur
+des échanges prolongés et des retours de scène.
+
+Ce lot n'ouvre ni vérité automatique des paroles, ni relation mécanique durable.
+
+Résultat :
+
+- identité de locuteur dérivée génériquement, sans liste de PNJ de fixture ;
+- cinq couples joueur → réponse exacte au maximum par acteur ;
+- isolement entre interlocuteurs et éviction déterministe des anciens échanges ;
+- reconstruction des réponses d'un acteur dynamique après sortie-retour ;
+- parole persistée avec autorité `PRESENTATION_ONLY`, sans engagement durable ;
+- gate déterministe de 13 tours, test navigateur et recette OpenAI continue de
+  14 tours verts ;
+- mesure OpenAI séparée : interpréteur 2,717 s, performer 12,280 s et critique
+  4,598 s de moyenne.
+
+### Lot 4 — autorité mission/relation
+
+Statut : `TERMINE_2026-07-28`
+
+Objectif : créer le domaine propriétaire capable d'accepter un engagement et
+d'émettre la confirmation nécessaire à la promotion durable d'un PNJ.
+
+La narration et le performer peuvent proposer ou exprimer ; ils ne confirment
+pas eux-mêmes la cause durable.
+
+Résultat :
+
+- registre persistant séparant proposition et résolution ;
+- quatre décisions conservées : acceptée, refusée, conditionnelle et incertaine ;
+- frontière explicite entre autorité de quête et autorité sociale ;
+- confirmation émise uniquement pour une acceptation propriétaire ;
+- relecture obligatoire du registre avant promotion, ce qui rejette une
+  confirmation fabriquée ou altérée ;
+- commits atomiques, rejeu idempotent et conflit de commande détecté ;
+- raccord contrôleur et recette navigateur de retour puis promotion validés.
+
+### Lot 5 — lore surchargé par l'état de campagne
+
+Statut : `TERMINE_2026-07-28`
+
+Objectif : faire primer les changements validés de la campagne sur le contenu
+auteur lors de la sélection de contexte et de la création de scènes.
+
+Résultat :
+
+- registre `CampaignFactDomain` séparé du catalogue auteur immuable ;
+- projections `REPLACE` et `WITHHOLD` committées atomiquement avec provenance ;
+- fusion déterministe à une révision de campagne donnée ;
+- historique conservé pour relire une ancienne révision ;
+- même lecteur injecté dans le brief du `scene_creator` et l'adaptateur de scène
+  lore ;
+- sources privées refusées, rejeu idempotent et conflit détecté ;
+- tests prouvant priorité, masquage, provenance et absence de mutation du
+  catalogue généré.
+
+### Lot 6 — scénarios 005 à 009 et intégrations
+
+Statut : `EN_COURS_2026-07-28`
+
+Objectif : reprendre orchestrateur, progression, social, bastion et repos selon
+leurs dépendances réelles, puis brancher progressivement créateur de personnage,
+monde, inventaire et tactique.
+
+Audit initial :
+
+- le repos 009 devient le premier vertical, car processus, temps, interruption
+  et commits existent déjà ;
+- le cas 005 est découpé en routeur d'événements sans autorité, puis noyau
+  d'intrigue après l'état social ;
+- le social 007 précède l'intrigue complète pour porter connaissances,
+  croyances et relations des acteurs ;
+- la progression 006 vient après le premier hook repos/orchestrateur ;
+- le bastion 008 ferme la série en raison de ses dépendances nombreuses ;
+- les intrigues et événements cachés ont un sous-lot explicite 6D et ne sont
+  plus reportés dans une suite indéterminée.
+
+Références :
+
+- [`Audit-lot-6-scenarios-005-009.md`](Audit-lot-6-scenarios-005-009.md) ;
+- [`Contrat-repos-narratif-minimal.md`](Contrat-repos-narratif-minimal.md).
+
+## Méthode obligatoire pour chaque lot
+
+1. Relire ce document, `TASKS.md`, le contrat concerné et le diff existant.
+2. Écrire ou ajuster le contrat avant de modifier son architecture.
+3. Construire une fixture et des oracles déterministes à partir d'un comportement
+   joueur, pas d'une phrase unique.
+4. Implémenter au plus près du domaine propriétaire, sans nouveau hardcode
+   lexical.
+5. Exécuter les tests ciblés puis les régressions proportionnées au risque.
+6. Si un rôle IA change, lancer une recette OpenAI exacte et conserver les
+   métriques par rôle.
+7. Exécuter le build global.
+8. Relire le diff et le statut Git, puis mettre à jour ce document seulement si
+   l'état ou l'ordre change.
+9. Garder `TASKS.md` court et ne créer aucun commit sans demande explicite.
+
+## Règles documentaires
+
+- Une seule feuille de route active : ce document.
+- Un seul tableau de bord immédiat : `TASKS.md`.
+- Un contrat actif décrit une règle actuelle, pas le journal de son
+  implémentation.
+- Une matrice de preuve, une recette, un audit ou un handoff est historique dès
+  que son lot est fermé.
+- Les longues listes de tâches terminées restent dans Git et les preuves, pas
+  dans `TASKS.md`.
+- Toute nouvelle documentation doit être ajoutée à l'index avec un rôle clair :
+  `ACTIF`, `PREUVE_HISTORIQUE` ou `ARCHIVE`.

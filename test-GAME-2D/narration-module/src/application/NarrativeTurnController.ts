@@ -30,6 +30,7 @@ import {
 import {
   createDefaultAiIntentInterpreterConfigV1,
   interpretNarrativeInputWithAiV1,
+  semanticIntentReleasesFocusV1,
   type AiIntentInterpreterConfigV1,
   type LocalReferentHintV1,
   type RecentSemanticTurnV1
@@ -82,6 +83,18 @@ import {
   type PromoteSceneActorCommandV1,
   type PromoteSceneActorResultV1
 } from "./campaignNpcPromotionRuntime";
+import {
+  proposeMissionRelationEngagementV1,
+  resolveMissionRelationEngagementV1,
+  type MissionRelationEngagementResultV1,
+  type ProposeMissionRelationEngagementCommandV1,
+  type ResolveMissionRelationEngagementCommandV1
+} from "./missionRelationAuthority";
+import {
+  recordCampaignLoreProjectionV1,
+  type RecordCampaignLoreProjectionCommandV1,
+  type RecordCampaignLoreProjectionResultV1
+} from "./campaignLoreProjectionRuntime";
 
 export interface NarrativeActiveSceneResolverV1 {
   resolve(input: { repository: CampaignRepository; campaignId: CampaignId }): Promise<Result<PlayableSceneStateV1>>;
@@ -232,6 +245,12 @@ export class NarrativeTurnControllerV1 {
     this.d20Source = options.d20Source;
   }
 
+  async resolveActiveScene(): Promise<Result<PlayableSceneStateV1>> {
+    return this.activeSceneResolver === null
+      ? { ok: true, value: REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1 }
+      : this.activeSceneResolver.resolve({ repository: this.repository, campaignId: this.campaignId });
+  }
+
   async submit(input: NarrativeTurnInputV1): Promise<Result<NarrativeTurnControllerResultV1>> {
     const validation = validateInput(input);
     if (!validation.ok) return { ok: false, error: coreError("VALIDATION_FAILED", "narrative.turn.invalid-input", { issues: validation.issues }) };
@@ -379,6 +398,36 @@ export class NarrativeTurnControllerV1 {
     });
   }
 
+  async proposeMissionRelationEngagement(
+    command: ProposeMissionRelationEngagementCommandV1
+  ): Promise<Result<MissionRelationEngagementResultV1>> {
+    return proposeMissionRelationEngagementV1({
+      repository: this.repository,
+      campaignId: this.campaignId,
+      command
+    });
+  }
+
+  async resolveMissionRelationEngagement(
+    command: ResolveMissionRelationEngagementCommandV1
+  ): Promise<Result<MissionRelationEngagementResultV1>> {
+    return resolveMissionRelationEngagementV1({
+      repository: this.repository,
+      campaignId: this.campaignId,
+      command
+    });
+  }
+
+  async recordCampaignLoreProjection(
+    command: RecordCampaignLoreProjectionCommandV1
+  ): Promise<Result<RecordCampaignLoreProjectionResultV1>> {
+    return recordCampaignLoreProjectionV1({
+      repository: this.repository,
+      campaignId: this.campaignId,
+      command
+    });
+  }
+
   async restoreRenderedThread(limit = 100): Promise<Result<RestoredNarrativeThreadV1>> {
     return restoreNarrativeRenderedThreadV1({
       repository: this.repository,
@@ -427,6 +476,11 @@ export class NarrativeTurnControllerV1 {
   private rememberLocalReferent(output: NarrativeTurnControllerOutputV1, activeScene: PlayableSceneStateV1): void {
     const target = output.interpretation.referentResolution?.resolvedTarget ?? output.interpretation.semanticIntent.target ?? null;
     if (target === null || target.ref === null || target.kind === "unknown" || target.kind === "self") return;
+    const releasesFocus = semanticIntentReleasesFocusV1(output.interpretation.semanticIntent);
+    if (releasesFocus) {
+      this.recentLocalReferents = this.recentLocalReferents.filter(entry => entry.target.ref !== target.ref);
+      return;
+    }
     const hint: LocalReferentHintV1 = {
       schemaVersion: 1,
       sceneId: activeScene.sceneId,
@@ -444,6 +498,7 @@ export class NarrativeTurnControllerV1 {
 
   private rememberSemanticTurn(output: NarrativeTurnControllerOutputV1): void {
     if (output.interpretation.runtimeDecision.status === "AI_INTERPRETATION_FAILED") return;
+    const releasesFocus = semanticIntentReleasesFocusV1(output.interpretation.semanticIntent);
     const turn: RecentSemanticTurnV1 = {
       schemaVersion: 1,
       operationId: output.operationId,
@@ -451,7 +506,8 @@ export class NarrativeTurnControllerV1 {
       playerGoal: output.interpretation.semanticIntent.playerGoal,
       primaryTarget: output.interpretation.referentResolution?.resolvedTarget ?? output.interpretation.semanticIntent.target,
       topic: typeof output.interpretation.topic === "string" ? output.interpretation.topic : null,
-      commitment: output.interpretation.semanticIntent.commitment
+      commitment: output.interpretation.semanticIntent.commitment,
+      focusDisposition: releasesFocus ? "RELEASE" : "RETAIN"
     };
     this.recentSemanticTurns = [
       turn,

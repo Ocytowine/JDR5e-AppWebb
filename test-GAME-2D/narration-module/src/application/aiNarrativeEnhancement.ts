@@ -164,7 +164,7 @@ export async function enhanceNarrativeDisplayWithAiV1(input: {
     safetyNotes.push("Expression joueur locale conservée: le rendu déterministe est déjà fidèle et ne nécessite aucun appel distant.");
   }
 
-  if (shouldCallSceneWriter(input.resolution, input.displayPacket)) {
+  if (shouldCallSceneWriterV1(input.resolution, input.displayPacket)) {
     sceneWriterAttempted = true;
     const snapshotId = `${input.operationId}:snapshot:display`;
     const packId = `${input.operationId}:pack:scene-writer`;
@@ -230,6 +230,26 @@ export async function enhanceNarrativeDisplayWithAiV1(input: {
     let narrativeBlocks = assessedBlocks
       .filter(result => result.usable)
       .map(result => result.block);
+    const coverageRejectionReasons: string[] = [];
+    if (
+      sceneTask.requiredNarrativeGroundingAnyOf.length > 0 &&
+      !narrativeBlocks.some(block => block.groundedIn.some(ref => sceneTask.requiredNarrativeGroundingAnyOf.includes(ref)))
+    ) {
+      narrativeBlocks = [];
+      coverageRejectionReasons.push("required_narrative_coverage_missing");
+      renderFallbackUsed = true;
+    }
+    if (
+      narrativeBlocks.length > 0 &&
+      sceneTask.requiredNarrativeMentionAnyOf.length > 0 &&
+      !narrativeBlocks.some(block => sceneTask.requiredNarrativeMentionAnyOf.some(mention =>
+        normalizeNarrativeCoverageText(block.content).includes(normalizeNarrativeCoverageText(mention))
+      ))
+    ) {
+      narrativeBlocks = [];
+      coverageRejectionReasons.push("required_narrative_mention_missing");
+      renderFallbackUsed = true;
+    }
     if (
       narrativeBlocks.length > 0 &&
       input.config.coherenceCriticRoute &&
@@ -295,13 +315,18 @@ export async function enhanceNarrativeDisplayWithAiV1(input: {
       changed = true;
       safetyNotes.push(`Narration MJ ajoutée uniquement comme texture ancrée dans la scène active ${activeScene.sceneId}.`);
     } else {
-      const reasons = [...new Set(assessedBlocks.flatMap(result => result.rejectionReasons))];
+      const reasons = [...new Set([
+        ...assessedBlocks.flatMap(result => result.rejectionReasons),
+        ...coverageRejectionReasons
+      ])];
       safetyNotes.push(
         reasons.length > 0
           ? `Scene writer appelé, mais aucun bloc MJ utilisable n'a passé les garde-fous de rendu: ${reasons.join(", ")}.`
           : "Scene writer appelé, mais aucun bloc MJ utilisable n'a passé les garde-fous de rendu."
       );
     }
+  } else if (isImmediateVisibleOrientationResolutionV1(input.resolution)) {
+    safetyNotes.push("Scene writer non appelé: orientation immédiate vers une présence déjà visible; narration déterministe conservée.");
   } else {
     safetyNotes.push("Scene writer non appelé: aucune matière fictionnelle autorisée pour ce résultat sans commit.");
   }
@@ -407,13 +432,34 @@ function applySceneWriterNarration(input: {
   input.packet.displayBlocks.splice(insertionIndex, 0, ...finalAiBlocks);
 }
 
-function shouldCallSceneWriter(resolution: NarrativeResolutionResultV1, displayPacket: DisplayPacketV1): boolean {
+export function shouldCallSceneWriterV1(
+  resolution: NarrativeResolutionResultV1,
+  displayPacket: DisplayPacketV1
+): boolean {
   if (displayPacket.displayBlocks.some(block => block.kind === "NPC_SPEECH")) return false;
+  if (isImmediateVisibleOrientationResolutionV1(resolution)) return false;
   if (resolution.resultKind === "NO_COMMIT_RESPONSE") return isNoCommitSceneContext(resolution, displayPacket);
   return resolution.commitId !== null
     || resolution.characterExpression !== null
     || resolution.handoff !== null
     || resolution.resultKind === "CLARIFICATION_REQUIRED";
+}
+
+export function isImmediateVisibleOrientationResolutionV1(
+  resolution: NarrativeResolutionResultV1
+): boolean {
+  const semantic = resolution.interpretation.semanticIntent;
+  const target = resolution.interpretation.referentResolution?.resolvedTarget ?? semantic.target ?? null;
+  return semantic.kind === "observe_environment" &&
+    semantic.composition?.orderedComponents.some(component => component.kind === "LOCATE_VISIBLE_TARGET") === true &&
+    semantic.perception?.informationKind === "PRESENCE" &&
+    semantic.perception.depth === "GLANCE" &&
+    target?.ref !== null &&
+    target?.ref !== undefined &&
+    resolution.actionAdjudication?.disposition === "AUTOMATIC_SUCCESS" &&
+    resolution.actionAdjudication.resolutionScope === "OBSERVATION_RESULT" &&
+    resolution.perception?.status === "AUTOMATIC_RESULT" &&
+    resolution.perception.checkProposal === null;
 }
 
 export interface NarrativeRenderAuthorityV1 extends JsonObject {
@@ -643,6 +689,16 @@ function assessSceneWriterBlock(
 
 function hasAnyAllowedGrounding(groundedIn: string[], allowedGrounding: string[]): boolean {
   return groundedIn.length > 0 && groundedIn.some(ref => allowedGrounding.includes(ref));
+}
+
+function normalizeNarrativeCoverageText(value: string): string {
+  return value
+    .toLocaleLowerCase("fr-FR")
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .replace(/[’']/gu, "'")
+    .replace(/\s+/gu, " ")
+    .trim();
 }
 
 function factDisciplineRejectionReasons(

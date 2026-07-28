@@ -1,54 +1,41 @@
-/// <reference types="vite/client" />
-
-import { compileLoreCorpusV1 } from "../../narration-module/src/bootstrap/lore";
 import { buildPlayableSceneFromLoreLocationV1, buildSceneTransitionTopologyFromLoreLocationV1 } from "../../narration-module/src/application";
-import { selectLoreInfluencesV1 } from "../../narration-module/src/context";
+import {
+  assertNarrativeLoreBuildCatalogV1,
+  type NarrativeLoreBuildCatalogV1
+} from "../../narration-module/src/context";
 import type { SceneTransitionTopologyV1 } from "../../narration-module/src/application";
-
-const RAW_LORE = import.meta.glob("../../../wiki/lore/**/*", { query: "?raw", import: "default", eager: true }) as Record<string, string>;
-const CATALOG_MODULES = import.meta.glob(["../data/characters/races/**/*.json", "../data/characters/languages/**/*.json"], { import: "default", eager: true }) as Record<string, { id?: unknown }>;
-
-const SOURCES = Object.entries(RAW_LORE)
-  .filter(([, sourceText]) => sourceText.startsWith("---\n") || sourceText.startsWith("---\r\n"))
-  .map(([modulePath, sourceText]) => ({ sourcePath: modulePath.replace(/^\.\.\/\.\.\/\.\.\//u, ""), sourceText }))
-  .sort((left, right) => left.sourcePath.localeCompare(right.sourcePath));
-
-const CATALOG_ENTRIES = new Set(Object.entries(CATALOG_MODULES).flatMap(([modulePath, value]) => {
-  if (typeof value.id !== "string") return [];
-  return [modulePath.includes("/races/") ? `race:${value.id}` : `language:${value.id}`];
-}));
+import generatedNarrativeLoreCatalog from "./generated/narrativeLoreCatalog.generated.json";
 
 export async function buildArchiveLorePilotV1() {
-  const compiled = await compileLoreCorpusV1(
-    SOURCES.map(source => ({ ...source })),
-    { packageId: "jdr5e.archive-lore-pilot", packageVersion: 1, catalogEntries: CATALOG_ENTRIES }
-  );
-  if (!compiled.ok) throw new Error(`Archive lore compilation failed: ${compiled.diagnostics.map(value => value.messageKey).join(" | ")}`);
-  const archive = compiled.value.entities.find(entity => entity.entityId === "archives_de_lysenthe");
+  assertNarrativeLoreBuildCatalogV1(generatedNarrativeLoreCatalog);
+  const catalog: NarrativeLoreBuildCatalogV1 = generatedNarrativeLoreCatalog;
+  const archive = catalog.entities.find(entity => entity.entityId === "archives_de_lysenthe");
   if (!archive) throw new Error("Archives de Lysenthe are absent from the compiled lore corpus");
-  const playable = buildPlayableSceneFromLoreLocationV1({ entity: archive, fragments: compiled.value.fragments });
-  const playableScenes = compiled.value.entities
+  const playable = buildPlayableSceneFromLoreLocationV1({ entity: archive, fragments: catalog.fragments });
+  const playableScenes = catalog.entities
     .filter(entity => ["batiment", "quartier", "ville"].includes(entity.entityType))
-    .map(entity => ({ entity, scene: buildPlayableSceneFromLoreLocationV1({ entity, fragments: compiled.value.fragments }).scene }));
+    .map(entity => ({ entity, scene: buildPlayableSceneFromLoreLocationV1({ entity, fragments: catalog.fragments }).scene }));
   const sceneByEntityId = new Map(playableScenes.map(entry => [entry.entity.entityId, entry.scene]));
   const locationRefBySceneId = new Map(playableScenes.map(entry => [entry.scene.sceneId, `location:${entry.entity.entityId}`] as const));
   const authoredConnections = playableScenes.flatMap(({ entity, scene }) =>
     buildSceneTransitionTopologyFromLoreLocationV1({ entity, scene, topologyVersion: 1 }).connections
   );
-  const influences = selectLoreInfluencesV1({
-    creationType: "PLACE",
-    anchorEntityId: archive.entityId,
-    entities: compiled.value.entities,
-    fragments: compiled.value.fragments,
-    allowedKnowledgeLevels: ["COMMUN", "LOCAL"],
-    maximumInfluences: 16
-  });
-  if (!influences.ok) throw new Error(`Archive lore influence selection failed: ${influences.issues.join(" | ")}`);
+  const packetByEntityId = new Map(catalog.scenes.map(entry => [entry.entityId, entry.influencePacket] as const));
+  const influencePacket = packetByEntityId.get(archive.entityId);
+  if (!influencePacket) throw new Error("Archive lore influence packet is absent from the build catalog");
   const lorePacketBySceneId = new Map(playableScenes.map(entry => {
-    const selected = selectLoreInfluencesV1({ creationType: "PLACE", anchorEntityId: entry.entity.entityId, entities: compiled.value.entities, fragments: compiled.value.fragments, allowedKnowledgeLevels: ["COMMUN", "LOCAL"], maximumInfluences: 16 });
-    if (!selected.ok) throw new Error(`Lore influence selection failed for ${entry.entity.entityId}: ${selected.issues.join(" | ")}`);
-    return [entry.scene.sceneId, selected.packet] as const;
+    const packet = packetByEntityId.get(entry.entity.entityId);
+    if (!packet) throw new Error(`Lore influence packet is absent for ${entry.entity.entityId}`);
+    return [entry.scene.sceneId, packet] as const;
   }));
+  const authoredSceneSourceBySceneId = new Map(playableScenes.map(entry => [
+    entry.scene.sceneId,
+    {
+      entity: entry.entity,
+      packet: lorePacketBySceneId.get(entry.scene.sceneId)!,
+      fragments: catalog.fragments
+    }
+  ] as const));
   const authoredPlaces = playableScenes.map(entry => {
     const packet = lorePacketBySceneId.get(entry.scene.sceneId)!;
     return {
@@ -63,10 +50,11 @@ export async function buildArchiveLorePilotV1() {
     scene: playable.scene,
     scenes: playableScenes.map(entry => entry.scene),
     locationRef: "location:archives_de_lysenthe",
-    entities: compiled.value.entities,
-    fragments: compiled.value.fragments,
-    influencePacket: influences.packet,
+    entities: catalog.entities,
+    fragments: catalog.fragments,
+    influencePacket,
     lorePacketBySceneId,
+    authoredSceneSourceBySceneId,
     authoredPlaces,
     locationRefBySceneId,
     topology: {

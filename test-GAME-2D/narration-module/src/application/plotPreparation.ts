@@ -73,7 +73,7 @@ export function buildPlotPreparationGateV1(): PlotPreparationGateV1 {
       "docs/Coherence-intrigues.md",
       "docs/Creations-dynamiques.md",
       "docs/Pipeline-et-contrats-IA.md",
-      "docs/Suivi-prochains-lots-narration.md#I-06V"
+      "docs/Audit-lot-6-scenarios-005-009.md#6d--noyau-dintrigue-et-événements-cachés"
     ],
     criteria: [{
       schemaVersion: 1,

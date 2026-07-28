@@ -958,6 +958,122 @@ async function main(): Promise<void> {
     block.sourceRefs.some(ref => ref.startsWith("ai-output:"))
   ).length, 1);
 
+  const broadObservation = await controller.submit({
+    schemaVersion: 1,
+    clientRequestId: "req-ai-broad-observation-coverage",
+    rawInput: "J'observe les gens autour de moi."
+  });
+  if (!broadObservation.ok) throw new Error(broadObservation.error.messageKey);
+  assert.equal(broadObservation.value.output.interpretation.semanticIntent.kind, "observe_environment");
+  const broadOp = broadObservation.value.operation.operationId;
+  const sceneRef = `playable-scene:${broadObservation.value.output.activeScene.sceneId}:${broadObservation.value.output.activeScene.version}`;
+  const poorObservationProvider = new RecordingProvider([
+    [`${broadOp}:ai:expression:attempt:1`, envelope({
+      operationId: broadOp,
+      role: "player_expression_adapter",
+      attemptSuffix: "expression",
+      payload: {
+        intentId: broadObservation.value.output.interpretation.intentId,
+        expressionKind: "observation",
+        renderedExpression: "J'observe les gens autour de moi.",
+        meaningCovered: ["observer les présences proches"],
+        addedMeaning: [],
+        omittedMeaning: [],
+        styleChoices: [],
+        safeToUse: true
+      }
+    })],
+    [`${broadOp}:ai:scene-writer:attempt:1`, envelope({
+      operationId: broadOp,
+      role: "scene_writer",
+      attemptSuffix: "scene-writer",
+      payload: {
+        narrationBlocks: [{
+          slotId: "poor-general-observation",
+          blockKind: "MJ_NARRATION",
+          content: "Une auberge de passage sous la pluie.",
+          groundedIn: [sceneRef, "npc:npc-garde-blesse"],
+          usesCreativeTexture: false,
+          factDiscipline: factDiscipline()
+        }]
+      }
+    })]
+  ]);
+  const poorObservation = await enhanceNarrativeDisplayWithAiV1({
+    campaignId,
+    operationId: broadOp,
+    displayPacket: broadObservation.value.output.displayPacket,
+    resolution: broadObservation.value.output.resolution,
+    sceneState: broadObservation.value.output.sceneState,
+    activeScene: broadObservation.value.output.activeScene,
+    config: { provider: poorObservationProvider, expressionRoute, sceneWriterRoute, retryPolicy }
+  });
+  assert.equal(
+    poorObservation.displayPacket.displayBlocks.some(block =>
+      block.kind === "GM_NARRATION" && block.sourceRefs.some(ref => ref.startsWith("ai-output:"))
+    ),
+    false,
+    "une description du lieu seule ne remplace pas une réponse sur les présences"
+  );
+  assert.equal(poorObservation.usedFallback, true);
+  assert.equal(
+    poorObservation.safetyNotes.some(note => /required_narrative_mention_missing/u.test(note)),
+    true,
+    JSON.stringify({ notes: poorObservation.safetyNotes, incidents: poorObservation.incidents })
+  );
+  const poorTask = poorObservationProvider.requests.find(request => request.role === "scene_writer")?.input.task as {
+    requiredNarrativeGroundingAnyOf?: string[];
+  };
+  assert.equal(poorTask.requiredNarrativeGroundingAnyOf?.some(ref => ref.startsWith("npc:")), true);
+
+  const coveredActorRef = poorTask.requiredNarrativeGroundingAnyOf?.[0];
+  assert.ok(coveredActorRef);
+  const coveredObservationProvider = new RecordingProvider([
+    [`${broadOp}:ai:expression:attempt:1`, envelope({
+      operationId: broadOp,
+      role: "player_expression_adapter",
+      attemptSuffix: "expression",
+      payload: {
+        intentId: broadObservation.value.output.interpretation.intentId,
+        expressionKind: "observation",
+        renderedExpression: "J'observe les gens autour de moi.",
+        meaningCovered: ["observer les présences proches"],
+        addedMeaning: [],
+        omittedMeaning: [],
+        styleChoices: [],
+        safeToUse: true
+      }
+    })],
+    [`${broadOp}:ai:scene-writer:attempt:1`, envelope({
+      operationId: broadOp,
+      role: "scene_writer",
+      attemptSuffix: "scene-writer",
+      payload: {
+        narrationBlocks: [{
+          slotId: "covered-general-observation",
+          blockKind: "MJ_NARRATION",
+          content: "Près de toi, le garde blessé demeure visible malgré la pluie qui couvre les voix.",
+          groundedIn: [sceneRef, coveredActorRef],
+          usesCreativeTexture: false,
+          factDiscipline: factDiscipline()
+        }]
+      }
+    })]
+  ]);
+  const coveredObservation = await enhanceNarrativeDisplayWithAiV1({
+    campaignId,
+    operationId: broadOp,
+    displayPacket: broadObservation.value.output.displayPacket,
+    resolution: broadObservation.value.output.resolution,
+    sceneState: broadObservation.value.output.sceneState,
+    activeScene: broadObservation.value.output.activeScene,
+    config: { provider: coveredObservationProvider, expressionRoute, sceneWriterRoute, retryPolicy }
+  });
+  assert.equal(coveredObservation.enhanced, true, "la couverture d'une présence visible autorise le rendu");
+  assert.equal(coveredObservation.displayPacket.displayBlocks.some(block =>
+    block.kind === "GM_NARRATION" && block.sourceRefs.some(ref => ref.startsWith("ai-output:"))
+  ), true);
+
   const possibility = await controller.submit({
     schemaVersion: 1,
     clientRequestId: "req-ai-possibility-no-commit",

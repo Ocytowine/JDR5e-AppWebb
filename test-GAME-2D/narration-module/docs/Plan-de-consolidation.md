@@ -4,7 +4,11 @@ Dernière mise à jour : `2026-06-30`
 
 Statut global : `BOUCLE`
 
-Ce document pilote la conception du module narration jusqu'à son autorisation d'implémentation. Il sert de checklist anti-oubli et de journal d'avancement. Les règles actives restent décrites dans `Dossier-de-conception.md`; les raisons des choix structurants restent dans `Journal-des-decisions.md`.
+Archive historique : ce document a piloté la conception du module narration
+jusqu'à son autorisation d'implémentation. Il ne sert plus de checklist active.
+Voir
+[`Consolidation-fondations-narration.md`](Consolidation-fondations-narration.md)
+pour l'état et la feuille de route actuels.
 
 ## États de suivi
 

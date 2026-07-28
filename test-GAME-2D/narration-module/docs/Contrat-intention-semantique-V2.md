@@ -45,7 +45,7 @@ Ces champs sont reconstruits par l'adaptateur local, le registre de référents,
 
 ## Compatibilité
 
-Le contrat V1 reste accepté par la route et les fournisseurs contractuels existants. La surface OpenAI utilise V2 avec un budget de 900 tokens. Le V1 ne sera retiré qu'après une gate live stable.
+Le contrat V1 reste accepté par la route et les fournisseurs contractuels existants. Depuis le 2026-07-28, la surface OpenAI utilise V4 avec le même budget : V3 représente séparément une approche et une communication, puis V4 distingue l'orientation vers une cible visible d'une recherche incertaine. Voir `Contrat-intention-composee-V3.md` et `Contrat-orientation-visible-et-recherche-V4.md`. V2 reste accepté pour compatibilité.
 
 ## Preuves
 

@@ -1,6 +1,7 @@
 # Contrat interprétation et clarification
 
-Statut : `FIGE` pour le sous-lot I-06E.
+Statut : `FIGE` pour le sous-lot I-06E, avec addendum sémantique V5 du
+2026-07-28.
 
 Version : `intent-clarification/1`.
 
@@ -133,3 +134,22 @@ La fermeture exige :
 ## Décision
 
 `intent-clarification/1` autorise uniquement l'interprétation conservatrice et la clarification. Le prochain sous-lot devra auditer la résolution réelle et l'usage éventuel du rôle IA `intent_interpreter`.
+
+## Addendum V5 — incertitude structurée et focus récent
+
+Une sortie IA structurellement valide n'est pas transformée en panne globale
+uniquement parce que sa confiance est faible. Le mapper conserve le sens proposé,
+force `requiresClarification`, interdit commit et temps, puis affiche la question
+de clarification disponible.
+
+Pour une cible dont `contextLink` vaut `RECENT_FOCUS` :
+
+- le focus appartient au contrôleur local ;
+- `proposedRef` doit correspondre à un focus local encore valide ;
+- un éloignement `REPOSITION_AWAY` libère ce focus ;
+- l'IA ne peut pas le recréer en renvoyant directement l'identifiant de l'ancien
+  acteur ;
+- une cible explicitement nommée reste résoluble depuis le registre visible.
+
+Cette règle ne lit aucun mot de l'entrée joueur. Elle repose sur la confiance
+structurée, le type de lien contextuel, les composantes V5 et le registre local.

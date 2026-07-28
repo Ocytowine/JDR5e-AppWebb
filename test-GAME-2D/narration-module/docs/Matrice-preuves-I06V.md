@@ -17,7 +17,8 @@ Le lot matérialise une gate de préparation issue de [`Coherence-intrigues.md`]
   - `Coherence-intrigues.md`;
   - `Creations-dynamiques.md`;
   - `Pipeline-et-contrats-IA.md`;
-  - `Suivi-prochains-lots-narration.md`;
+  - feuille de route narration alors active, désormais conservée dans
+    l'historique Git;
 - liste des validations futures requises :
   - `coherence_critic`;
   - `secret_projection_filter`;

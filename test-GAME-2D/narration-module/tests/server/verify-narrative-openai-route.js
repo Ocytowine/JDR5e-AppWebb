@@ -527,6 +527,45 @@ function semanticIntentRequest(overrides = {}) {
   });
 }
 
+function semanticIntentRequestV3(overrides = {}) {
+  return intentRequest({
+    contractVersion: "ai-intent-semantic/3",
+    input: {
+      instructionsRef: "ai-intent-interpretation/player-intent-semantic/v3",
+      roleContextPack: {},
+      task: { rawInput: "Je m'avance vers l'archiviste, puis je le salue.", outputContract: "ai-intent-semantic/3" }
+    },
+    limits: { inputTokenBudget: 1_000, outputTokenBudget: 900, timeoutMs: 30_000 },
+    ...overrides
+  });
+}
+
+function semanticIntentRequestV4(overrides = {}) {
+  return intentRequest({
+    contractVersion: "ai-intent-semantic/4",
+    input: {
+      instructionsRef: "ai-intent-interpretation/player-intent-semantic/v4",
+      roleContextPack: {},
+      task: { rawInput: "Je cherche un archiviste pour poursuivre mes recherches.", outputContract: "ai-intent-semantic/4" }
+    },
+    limits: { inputTokenBudget: 1_000, outputTokenBudget: 900, timeoutMs: 30_000 },
+    ...overrides
+  });
+}
+
+function semanticIntentRequestV5(overrides = {}) {
+  return intentRequest({
+    contractVersion: "ai-intent-semantic/5",
+    input: {
+      instructionsRef: "ai-intent-interpretation/player-intent-semantic/v5",
+      roleContextPack: {},
+      task: { rawInput: "Je remercie l'archiviste puis je m'écarte.", outputContract: "ai-intent-semantic/5" }
+    },
+    limits: { inputTokenBudget: 1_000, outputTokenBudget: 900, timeoutMs: 30_000 },
+    ...overrides
+  });
+}
+
 function assertEveryArraySchemaHasItems(schema, path = "schema") {
   if (!schema || typeof schema !== "object" || Array.isArray(schema)) return;
   if (schema.type === "array") {
@@ -578,7 +617,7 @@ async function main() {
   assert.equal(normalizedContact.payload.intent.dialogueAct.act, "INITIATE_CONVERSATION");
   assert.equal(validateEnvelope(normalizedContact, semanticRequest).ok, true);
 
-  [request(), intentRequest(), mjPlannerRequest(), npcPerformerRequest(), sceneCreatorRequest(), sceneCreatorRequestV2()].forEach(roleRequest => {
+  [request(), intentRequest(), semanticIntentRequestV3(), semanticIntentRequestV4(), semanticIntentRequestV5(), mjPlannerRequest(), npcPerformerRequest(), sceneCreatorRequest(), sceneCreatorRequestV2()].forEach(roleRequest => {
     const schema = buildStrictAiOutputSchema(roleRequest).schema;
     assertEveryArraySchemaHasItems(schema);
     assertOpenAiStrictObjectShape(schema);
@@ -591,6 +630,32 @@ async function main() {
   assert.equal(normalizedNpcPerformer.ok, true);
   const normalizedIntent = normalizeAiCallRequest(intentRequest());
   assert.equal(normalizedIntent.ok, true);
+  const normalizedComposedIntent = normalizeAiCallRequest(semanticIntentRequestV3());
+  assert.equal(normalizedComposedIntent.ok, true);
+  const composedIntentSchema = buildStrictAiOutputSchema(semanticIntentRequestV3()).schema;
+  assert.equal(composedIntentSchema.properties.payload.properties.intent.required.includes("composition"), true);
+  assert.deepEqual(
+    composedIntentSchema.properties.payload.properties.intent.properties.composition.properties.communication.anyOf[0].properties.mode.enum,
+    ["SPEECH", "NONVERBAL"]
+  );
+  const normalizedVisibleOrientation = normalizeAiCallRequest(semanticIntentRequestV4());
+  assert.equal(normalizedVisibleOrientation.ok, true);
+  const visibleOrientationSchema = buildStrictAiOutputSchema(semanticIntentRequestV4()).schema;
+  const visibleOrientationIntent = visibleOrientationSchema.properties.payload.properties.intent;
+  assert.equal(visibleOrientationIntent.properties.composition.required.includes("orientation"), true);
+  assert.deepEqual(
+    visibleOrientationIntent.properties.perception.anyOf[0].properties.informationKind.enum,
+    ["PRESENCE", "VISIBLE_TRAIT", "UNCERTAIN_CLUE"]
+  );
+  const normalizedOrderedComponents = normalizeAiCallRequest(semanticIntentRequestV5());
+  assert.equal(normalizedOrderedComponents.ok, true);
+  const orderedComponentsSchema = buildStrictAiOutputSchema(semanticIntentRequestV5()).schema;
+  const orderedComposition = orderedComponentsSchema.properties.payload.properties.intent.properties.composition;
+  assert.equal(orderedComposition.required.includes("spatialFollowUp"), true);
+  assert.deepEqual(
+    orderedComposition.properties.spatialFollowUp.anyOf[0].properties.kind.enum,
+    ["REPOSITION_AWAY"]
+  );
   const normalizedSceneCreator = normalizeAiCallRequest(sceneCreatorRequest());
   assert.equal(normalizedSceneCreator.ok, true);
   const sceneCreatorSchema = buildStrictAiOutputSchema(sceneCreatorRequest()).schema;
@@ -636,6 +701,15 @@ async function main() {
   assert.equal(intentRoute.reasoningEffort, "none");
   assert.equal(buildServerRoute(intentRequest(), { NARRATION_OPENAI_INTENT_REASONING_EFFORT: "invalid" }).reasoningEffort, null);
   assert.equal(buildServerRoute(request(), { NARRATION_OPENAI_INTENT_REASONING_EFFORT: "low" }).reasoningEffort, null, "le réglage reste propre au rôle intention");
+  const defaultSceneCreatorRoute = buildServerRoute(sceneCreatorRequestV2(), {});
+  assert.equal(defaultSceneCreatorRoute.modelId, "gpt-5.6-luna");
+  assert.equal(defaultSceneCreatorRoute.reasoningEffort, "none");
+  const overriddenSceneCreatorRoute = buildServerRoute(sceneCreatorRequestV2(), {
+    NARRATION_OPENAI_SCENE_CREATOR_MODEL: "gpt-5.5",
+    NARRATION_OPENAI_SCENE_CREATOR_REASONING_EFFORT: "low"
+  });
+  assert.equal(overriddenSceneCreatorRoute.modelId, "gpt-5.5");
+  assert.equal(overriddenSceneCreatorRoute.reasoningEffort, "low");
   assert.deepEqual(body.text.format.schema.properties.callId.enum, [request().callId]);
   assert.deepEqual(body.text.format.schema.properties.role.enum, ["player_expression_adapter"]);
   assert.deepEqual(body.text.format.schema.properties.supersedesOutputId.type, ["string", "null"]);

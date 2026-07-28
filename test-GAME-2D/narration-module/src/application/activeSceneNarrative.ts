@@ -18,6 +18,8 @@ export interface ActiveSceneNarrativeBriefV1 extends ReferenceSceneWriterContext
   activeSceneId: string;
   activeSceneVersion: number;
   visibleReferentRefs: string[];
+  requiredNarrativeGroundingAnyOf: string[];
+  requiredNarrativeMentionAnyOf: string[];
   priorSceneIdsForbidden: string[];
 }
 
@@ -30,6 +32,42 @@ export function buildActiveSceneNarrativeBriefV1(input: {
 }): ActiveSceneNarrativeBriefV1 {
   const sceneRef = `playable-scene:${input.activeScene.sceneId}:${input.activeScene.version}`;
   const resolutionRef = `resolution:${input.resolution.resolutionId}`;
+  const actorRefs = [
+    ...input.activeScene.presentNpc.map(npc => `npc:${npc.actorId}`),
+    ...input.activeScene.ambientPopulation.map(presence => `npc:${presence.actorId}`)
+  ];
+  const otherVisibleRefs = [
+    ...input.activeScene.visibleElements.map(element => `element:${element.elementId}`),
+    ...input.activeScene.pointsOfInterest.map(point => `poi:${point.pointId}`)
+  ];
+  const visibleReferentRefs = [...actorRefs, ...otherVisibleRefs];
+  const actorMentions = [...input.activeScene.presentNpc, ...input.activeScene.ambientPopulation]
+    .flatMap(actor => {
+      const designation = narrativeDesignationOfV1(actor);
+      return [
+        narrativeFirstMentionV1(designation, actor.displayName),
+        narrativeSubsequentMentionV1(designation, actor.displayName),
+        designation?.playerFacingLabel ?? actor.displayName
+      ];
+    })
+    .map(mention => mention.trim())
+    .filter((mention, index, mentions) => mention.length > 0 && mentions.indexOf(mention) === index);
+  const target = input.interpretation.referentResolution?.resolvedTarget
+    ?? input.interpretation.semanticIntent.target
+    ?? null;
+  const targetRef = target === null || target.kind === "self" || target.kind === "unknown"
+    ? null
+    : target.ref;
+  const requiredNarrativeGroundingAnyOf = input.interpretation.semanticIntent.kind === "observe_environment" && targetRef === null
+    ? actorRefs.length > 0
+        ? actorRefs
+        : otherVisibleRefs.length > 0
+          ? otherVisibleRefs
+          : [sceneRef]
+    : [];
+  const requiredNarrativeMentionAnyOf = requiredNarrativeGroundingAnyOf.some(ref => ref.startsWith("npc:"))
+    ? actorMentions
+    : [];
   return {
     schemaVersion: 1,
     contractVersion: "reference-scene-writer-context/1",
@@ -39,16 +77,13 @@ export function buildActiveSceneNarrativeBriefV1(input: {
     coreMeaning: input.interpretation.coreMeaning,
     committed: input.resolution.commitId !== null,
     handoffTarget: input.resolution.handoff?.target ?? null,
-    allowedGrounding: [resolutionRef, sceneRef],
+    allowedGrounding: [resolutionRef, sceneRef, ...visibleReferentRefs],
     forbidden: ["success_without_commit", "combat_resolution", "inventory_mutation", "secret_reveal", "new_durable_creation", "player_agency_override", "entity_from_inactive_scene"],
     activeSceneId: input.activeScene.sceneId,
     activeSceneVersion: input.activeScene.version,
-    visibleReferentRefs: [
-      ...input.activeScene.visibleElements.map(element => `element:${element.elementId}`),
-      ...input.activeScene.presentNpc.map(npc => `npc:${npc.actorId}`),
-      ...input.activeScene.ambientPopulation.map(presence => `npc:${presence.actorId}`),
-      ...input.activeScene.pointsOfInterest.map(point => `poi:${point.pointId}`)
-    ],
+    visibleReferentRefs,
+    requiredNarrativeGroundingAnyOf,
+    requiredNarrativeMentionAnyOf,
     priorSceneIdsForbidden: [...new Set((input.priorDisplayPackets ?? []).map(packet => packet.sceneId).filter(sceneId => sceneId !== input.activeScene.sceneId))],
     version: 1
   };
@@ -80,7 +115,7 @@ export async function buildActiveSceneContextPackV1(input: {
     dependencyVersions: [{ sourceRef: sceneMemoryRef, properties: ["locationName", "perceptibleSituation", "visibleElements", "presentNpc", "ambientPopulation", "pointsOfInterest", "currentTension", "playerKnownFacts", "aiSceneWriterPolicy"] }],
     creativeScope: {
       mayCreate: [...input.activeScene.aiSceneWriterPolicy.mayCreate],
-      mayReference: [sceneRef, ...input.activeScene.aiSceneWriterPolicy.mayReference],
+      mayReference: [sceneRef, ...input.brief.visibleReferentRefs, ...input.activeScene.aiSceneWriterPolicy.mayReference],
       mayProposeCommands: [],
       mayReveal: { reveal: [], hint: ["faits déjà visibles dans la scène active"], withhold: ["faits cachés", "conséquences non confirmées"] },
       mustPreserve: [input.activeScene.sceneId, input.brief.coreMeaning, input.brief.resultKind],

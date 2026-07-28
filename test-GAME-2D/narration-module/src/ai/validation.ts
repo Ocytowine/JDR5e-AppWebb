@@ -5,6 +5,9 @@ import type {
   AiIncidentRecordV1,
   AiIntentInterpretationPayloadV1,
   AiSemanticIntentPayloadV2,
+  AiSemanticIntentPayloadV3,
+  AiSemanticIntentPayloadV4,
+  AiSemanticIntentPayloadV5,
   AiModelRouteV1,
   AiOutputValidationResultV1,
   AiRoleOutputEnvelopeV1,
@@ -592,7 +595,7 @@ function validateNpcPerformerPayload(payload: unknown, request: AiCallRequestV1)
   return issues;
 }
 
-function validateSemanticIntentPayloadV2(payload: unknown): string[] {
+function validateSemanticIntentPayloadV2(payload: unknown, composed = false): string[] {
   if (!isObject(payload)) return ["payload: expected object"];
   const issues = exactKeys(payload, ["intent", "rawInputEcho"], "payload");
   const typed = payload as Partial<AiSemanticIntentPayloadV2>;
@@ -600,7 +603,9 @@ function validateSemanticIntentPayloadV2(payload: unknown): string[] {
   if (!isObject(typed.intent)) return [...issues, "payload.intent: expected object"];
   const intent = typed.intent;
   const path = "payload.intent";
-  issues.push(...exactKeys(intent, ["actionHint", "clarificationPrompt", "commitment", "confidence", "dialogueAct", "domainHint", "kind", "perception", "playerGoal", "preconditions", "scope", "targetMention", "uncertainties"], path));
+  const intentKeys = ["actionHint", "clarificationPrompt", "commitment", "confidence", "dialogueAct", "domainHint", "kind", "perception", "playerGoal", "preconditions", "scope", "targetMention", "uncertainties"];
+  if (composed) intentKeys.push("composition");
+  issues.push(...exactKeys(intent, intentKeys, path));
   const kinds = new Set(["address_visible_actor", "move_near_visible_actor", "manipulate_visible_object", "traverse_visible_boundary", "observe_environment", "nonverbal_signal", "hypothetical_action", "context_question", "meta_request", "unclear_intent"]);
   const commitments = new Set(["none", "hypothetical", "conditional", "committed", "unclear"]);
   const domains = new Set(["scene_resolution", "social", "perception", "inventory", "tactical", "rest", "world"]);
@@ -631,6 +636,110 @@ function validateSemanticIntentPayloadV2(payload: unknown): string[] {
   if (intent.kind === "address_visible_actor" && !isObject(intent.dialogueAct)) issues.push(issue(`${path}.dialogueAct`, "required for speech"));
   if (intent.kind !== "address_visible_actor" && intent.dialogueAct !== null) issues.push(issue(`${path}.dialogueAct`, "must be null outside speech"));
   if ((intent.kind === "unclear_intent" || intent.commitment === "unclear") && (typeof intent.clarificationPrompt !== "string" || intent.clarificationPrompt.trim().length === 0)) issues.push(issue(`${path}.clarificationPrompt`, "required for unclear intention"));
+  return issues;
+}
+
+function validateSemanticIntentPayloadV3(
+  payload: unknown,
+  oriented = false,
+  maxComponentOrder = oriented ? 3 : 2,
+  withSpatialFollowUp = false
+): string[] {
+  const issues = validateSemanticIntentPayloadV2(payload, true);
+  if (!isObject(payload) || !isObject(payload.intent)) return issues;
+  const typed = payload as unknown as AiSemanticIntentPayloadV3;
+  const composition = typed.intent.composition;
+  if (!isObject(composition)) return [...issues, "payload.intent.composition: expected object"];
+  const compositionKeys = ["communication", "spatialLeadIn"];
+  if (oriented) compositionKeys.push("orientation");
+  if (withSpatialFollowUp) compositionKeys.push("spatialFollowUp");
+  issues.push(...exactKeys(composition, compositionKeys, "payload.intent.composition"));
+  if (composition.spatialLeadIn !== null) {
+    const spatial = composition.spatialLeadIn;
+    if (!isObject(spatial)) issues.push("payload.intent.composition.spatialLeadIn: expected object or null");
+    else {
+      issues.push(...exactKeys(spatial, ["kind", "order", "playerGoal"], "payload.intent.composition.spatialLeadIn"));
+      if (spatial.kind !== "APPROACH_TARGET") issues.push("payload.intent.composition.spatialLeadIn.kind: invalid kind");
+      issues.push(...validateNonEmptyString(spatial.playerGoal, "payload.intent.composition.spatialLeadIn.playerGoal"));
+      if (!Number.isInteger(spatial.order) || spatial.order < 1 || spatial.order > maxComponentOrder) issues.push(`payload.intent.composition.spatialLeadIn.order: expected between 1 and ${maxComponentOrder}`);
+    }
+  }
+  if (composition.communication !== null) {
+    const communication = composition.communication;
+    if (!isObject(communication)) issues.push("payload.intent.composition.communication: expected object or null");
+    else {
+      issues.push(...exactKeys(communication, ["act", "contentGoal", "mode", "order"], "payload.intent.composition.communication"));
+      if (!["SPEECH", "NONVERBAL"].includes(communication.mode)) issues.push("payload.intent.composition.communication.mode: invalid mode");
+      issues.push(...validateNonEmptyString(communication.contentGoal, "payload.intent.composition.communication.contentGoal"));
+      if (!Number.isInteger(communication.order) || communication.order < 1 || communication.order > maxComponentOrder) issues.push(`payload.intent.composition.communication.order: expected between 1 and ${maxComponentOrder}`);
+      if (communication.mode === "SPEECH" && !["INITIATE_CONVERSATION", "ASK_QUESTION", "MAKE_STATEMENT", "REQUEST_ACTION", "OTHER"].includes(String(communication.act))) issues.push("payload.intent.composition.communication.act: required for speech");
+      if (communication.mode === "NONVERBAL" && communication.act !== null) issues.push("payload.intent.composition.communication.act: must be null for nonverbal");
+    }
+  }
+  if (composition.spatialLeadIn !== null && composition.communication !== null &&
+      composition.spatialLeadIn.order === composition.communication.order) {
+    issues.push("payload.intent.composition: component orders must be distinct");
+  }
+  return issues;
+}
+
+function validateSemanticIntentPayloadV4(payload: unknown, extended = false): string[] {
+  const issues = validateSemanticIntentPayloadV3(payload, true, extended ? 4 : 3, extended);
+  if (!isObject(payload) || !isObject(payload.intent)) return issues;
+  const typed = payload as unknown as AiSemanticIntentPayloadV4;
+  const composition = typed.intent.composition;
+  if (!isObject(composition)) return issues;
+  const orientation = composition.orientation;
+  if (orientation !== null) {
+    if (!isObject(orientation)) issues.push("payload.intent.composition.orientation: expected object or null");
+    else {
+      issues.push(...exactKeys(orientation, ["kind", "order", "playerGoal"], "payload.intent.composition.orientation"));
+      if (orientation.kind !== "LOCATE_VISIBLE_TARGET") issues.push("payload.intent.composition.orientation.kind: invalid kind");
+      issues.push(...validateNonEmptyString(orientation.playerGoal, "payload.intent.composition.orientation.playerGoal"));
+      if (!Number.isInteger(orientation.order) || orientation.order < 1 || orientation.order > (extended ? 4 : 3)) issues.push(`payload.intent.composition.orientation.order: expected between 1 and ${extended ? 4 : 3}`);
+    }
+  }
+  const perception = typed.intent.perception;
+  if (typed.intent.kind === "observe_environment") {
+    if (!isObject(perception) || !["PRESENCE", "VISIBLE_TRAIT", "UNCERTAIN_CLUE"].includes(String(perception.informationKind))) {
+      issues.push("payload.intent.perception.informationKind: required for V4 observation");
+    }
+  }
+  const orders = [
+    orientation?.order,
+    composition.spatialLeadIn?.order,
+    composition.communication?.order
+  ].filter((order): order is number => Number.isInteger(order));
+  if (new Set(orders).size !== orders.length) issues.push("payload.intent.composition: component orders must be distinct");
+  return issues;
+}
+
+function validateSemanticIntentPayloadV5(payload: unknown): string[] {
+  const issues = validateSemanticIntentPayloadV4(payload, true);
+  if (!isObject(payload) || !isObject(payload.intent)) return issues;
+  const typed = payload as unknown as AiSemanticIntentPayloadV5;
+  const composition = typed.intent.composition;
+  if (!isObject(composition)) return issues;
+  const followUp = composition.spatialFollowUp;
+  if (followUp !== null) {
+    if (!isObject(followUp)) issues.push("payload.intent.composition.spatialFollowUp: expected object or null");
+    else {
+      issues.push(...exactKeys(followUp, ["kind", "order", "playerGoal"], "payload.intent.composition.spatialFollowUp"));
+      if (followUp.kind !== "REPOSITION_AWAY") issues.push("payload.intent.composition.spatialFollowUp.kind: invalid kind");
+      issues.push(...validateNonEmptyString(followUp.playerGoal, "payload.intent.composition.spatialFollowUp.playerGoal"));
+      if (!Number.isInteger(followUp.order) || followUp.order < 1 || followUp.order > 4) issues.push("payload.intent.composition.spatialFollowUp.order: expected between 1 and 4");
+    }
+  }
+  if (followUp !== null && composition.communication === null) {
+    issues.push("payload.intent.composition.spatialFollowUp: requires communication in V5");
+  }
+  const orders = [
+    composition.orientation?.order,
+    composition.spatialLeadIn?.order,
+    composition.communication?.order,
+    followUp?.order
+  ].filter((order): order is number => Number.isInteger(order));
+  if (new Set(orders).size !== orders.length) issues.push("payload.intent.composition: component orders must be distinct");
   return issues;
 }
 
@@ -696,8 +805,14 @@ export function validateAiRoleOutputEnvelopeV1(output: unknown, request: AiCallR
   if (issues.length === 0) {
     if (request.role === "intent_interpreter") issues.push(...validateIntentPayload(envelope.payload));
     if (request.role === "player_intent_interpreter") issues.push(...(
-      request.contractVersion === "ai-intent-semantic/2"
-        ? validateSemanticIntentPayloadV2(envelope.payload)
+      request.contractVersion === "ai-intent-semantic/5"
+        ? validateSemanticIntentPayloadV5(envelope.payload)
+        : request.contractVersion === "ai-intent-semantic/4"
+          ? validateSemanticIntentPayloadV4(envelope.payload)
+        : request.contractVersion === "ai-intent-semantic/3"
+          ? validateSemanticIntentPayloadV3(envelope.payload)
+        : request.contractVersion === "ai-intent-semantic/2"
+          ? validateSemanticIntentPayloadV2(envelope.payload)
         : validateAiIntentInterpretationPayload(envelope.payload)
     ));
     if (request.role === "mj_planner") issues.push(...validatePlannerPayload(envelope.payload));

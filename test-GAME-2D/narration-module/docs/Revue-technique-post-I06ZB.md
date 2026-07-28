@@ -2,7 +2,11 @@
 
 Date : 2026-07-09
 
-Statut : `POINT_DE_REPRISE`
+Statut : `ARCHIVE_HISTORIQUE`
+
+Cette revue conserve l'état observé le 2026-07-09. Elle n'est plus un point de
+reprise ; voir
+[`Consolidation-fondations-narration.md`](Consolidation-fondations-narration.md).
 
 ## Objet
 

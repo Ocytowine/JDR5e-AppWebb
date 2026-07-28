@@ -40,15 +40,27 @@ async function main(): Promise<void> {
   await turn("long-01", "Je dis bonjour à la serveuse.", "Serveuse nerveuse");
   await turn("long-02", "Je lui demande pourquoi elle regarde la porte.", "Serveuse nerveuse");
   await turn("long-03", "Je demande à la serveuse si tout va bien.", "Serveuse nerveuse");
-  await turn("long-04", "Je m'approche du garde.", null);
-  await turn("long-05", "Je dis bonjour au garde.", "Garde blessé");
-  await turn("long-06", "Je lui demande s'il a mal.", "Garde blessé");
-  await turn("long-07", "Je lui demande encore s'il a mal.", "Garde blessé");
-  await turn("long-08", "Je demande à la serveuse ce qu'elle attend.", "Serveuse nerveuse");
-  const transition = await turn("long-09", "J'essaie d'entrer dans l'arrière-salle discrètement.", null);
-  const resumed = await turn("long-10", "Je demande au garde s'il peut m'aider.", "Garde blessé");
+  await turn("long-04", "Je demande à la serveuse ce qu'elle attend.", "Serveuse nerveuse");
+  await turn("long-05", "Je lui demande si elle travaille souvent ici.", "Serveuse nerveuse");
+  await turn("long-06", "Je lui demande si la pluie l'inquiète.", "Serveuse nerveuse");
+  await turn("long-07", "Je m'approche du garde.", null);
+  await turn("long-08", "Je dis bonjour au garde.", "Garde blessé");
+  await turn("long-09", "Je lui demande s'il a mal.", "Garde blessé");
+  await turn("long-10", "Je lui demande encore s'il a mal.", "Garde blessé");
+  await turn("long-11", "Je demande à la serveuse si elle a besoin d'aide.", "Serveuse nerveuse");
+  const transition = await turn("long-12", "J'essaie d'entrer dans l'arrière-salle discrètement.", null);
+  const resumed = await turn("long-13", "Je demande au garde s'il peut m'aider.", "Garde blessé");
 
   assert.equal(outputs.every(output => output.noGameTime), true, "aucun tour de recette ne fait avancer le temps");
+  assert.equal(outputs.every(output =>
+    output.npcPerformance === null ||
+    (
+      output.npcPerformance.durableCommitments.length === 0 &&
+      output.npcPerformance.utterances.every(utterance =>
+        utterance.speechActs.every(act => act.sourceRefs.some(ref => ref.startsWith("intent:")))
+      )
+    )
+  ), true, "une parole PNJ reste attribuée à l'intention et ne crée aucun engagement durable");
   assert.equal(capturedTasks[0]?.dialogueAct?.act, "INITIATE_CONVERSATION", "la salutation ouvre le contact sans devenir une question");
   assert.equal(capturedTasks.every(task => task.mjPlan === undefined && task.resolution === undefined && task.sceneState === undefined), true, "le paquet performer ne duplique plus les agrégats et plans complets");
   assert.equal(transition.resolution.resultKind, "HANDOFF_REQUIRED", "la transition de scène fermée produit un handoff");
@@ -59,8 +71,9 @@ async function main(): Promise<void> {
 
   const waitressReturnTask = capturedTasks.findLast(task => task.actorId === "npc:npc-serveuse-nerveuse");
   assert.ok(waitressReturnTask, "paquet performer du retour à la serveuse attendu");
-  assert.equal(waitressReturnTask.knowledgeEnvelope?.priorNpcUtterances?.length, 3, "les trois répliques réellement affichées de la serveuse sont isolées");
-  assert.equal(waitressReturnTask.knowledgeEnvelope?.dialogueHistory?.length, 3, `les intentions et réponses antérieures de la serveuse restent couplées; paquet=${JSON.stringify(waitressReturnTask.knowledgeEnvelope)}`);
+  assert.equal(waitressReturnTask.knowledgeEnvelope?.priorNpcUtterances?.length, 5, "seules les cinq dernières répliques réellement affichées de la serveuse sont rappelées");
+  assert.equal(waitressReturnTask.knowledgeEnvelope?.dialogueHistory?.length, 5, `les cinq derniers couples intention-réponse de la serveuse restent couplés; paquet=${JSON.stringify(waitressReturnTask.knowledgeEnvelope)}`);
+  assert.equal(waitressReturnTask.knowledgeEnvelope?.dialogueHistory?.some(entry => entry.operationId.includes("long-01")), false, "le plus ancien échange est évincé à la limite de mémoire");
   assert.equal(waitressReturnTask.knowledgeEnvelope?.priorNpcUtterances?.some(entry => /garde/iu.test(entry.text)), false, "aucune réplique du garde dans la mémoire de la serveuse");
 
   const guardTasks = capturedTasks.filter(task => task.actorId === "npc:npc-garde-blesse");
@@ -70,10 +83,11 @@ async function main(): Promise<void> {
   assert.equal(repeatedGuardTask.knowledgeEnvelope?.dialogueHistory?.length, 2, "la répétition reçoit deux couples intention-réponse");
 
   const finalMemory = resumed.sceneState.shortTermNpcMemory;
-  assert.equal(finalMemory.filter(entry => entry.actorId === "npc-serveuse-nerveuse").length, 4, "mémoire courte conservée par PNJ pour la serveuse");
+  assert.equal(finalMemory.filter(entry => entry.actorId === "npc-serveuse-nerveuse").length, 5, "mémoire courte de la serveuse bornée à cinq échanges");
   assert.equal(finalMemory.filter(entry => entry.actorId === "npc-garde-blesse").length, 4, "mémoire courte conservée par PNJ pour le garde");
+  assert.equal(finalMemory.length, 9, "la limite est appliquée par acteur, sans effacer prématurément l'autre conversation");
 
-  console.log("complete-npc-conversations/nar132: OK (10 tours, 2 PNJ, 1 handoff, reprise validée)");
+  console.log("complete-npc-conversations/nar132: OK (13 tours, 2 PNJ, mémoire 5/acteur, 1 handoff, reprise validée)");
 
   async function turn(clientRequestId: string, rawInput: string, expectedNpc: string | null): Promise<NarrativeTurnControllerOutputV1> {
     const submitted = await controller.submit({ schemaVersion: 1, clientRequestId, rawInput });

@@ -1,7 +1,11 @@
 # Sortie de phase I-06 — scène, social et interface conversationnelle
 
 Date : 2026-07-08
-Statut : `CADRAGE_SORTIE`
+Statut : `ARCHIVE_HISTORIQUE`
+
+Ce document décrit la sortie de phase telle qu'elle était décidée le
+2026-07-08. Ses « prochaines étapes » ne sont plus actives ; voir
+[`Consolidation-fondations-narration.md`](Consolidation-fondations-narration.md).
 
 ## Décision
 

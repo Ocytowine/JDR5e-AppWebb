@@ -53,7 +53,12 @@ export function adjudicateContextualActionV1(input: {
     return result("AUTOMATIC_SUCCESS", "NONE", "La demande n'engage aucune action mécanique.", targetRef, [sceneSource]);
   }
 
-  if (semantic.kind === "observe_environment" && semantic.perception?.depth === "SEARCH") {
+  if (
+    semantic.kind === "observe_environment" &&
+    semantic.perception?.depth === "SEARCH" &&
+    semantic.perception.informationKind !== "PRESENCE" &&
+    semantic.perception.informationKind !== "VISIBLE_TRAIT"
+  ) {
     const proposal = selectSkillCheckDifficultyBandV1(buildUnresolvedSkillCheckProposalV1({
       checkId: `${input.interpretation.intentId}:skill-check:1`,
       domain: "perception",

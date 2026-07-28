@@ -14,13 +14,17 @@ const turns = [
   ["live-01", "Je dis bonjour à la serveuse."],
   ["live-02", "Je lui demande pourquoi elle regarde la porte."],
   ["live-03", "Je demande à la serveuse si tout va bien."],
-  ["live-04", "Je m'approche du garde."],
-  ["live-05", "Je dis bonjour au garde."],
-  ["live-06", "Je lui demande s'il a mal."],
-  ["live-07", "Je lui demande encore s'il a mal."],
-  ["live-08", "Je demande à la serveuse ce qu'elle attend."],
-  ["live-09", "J'essaie d'entrer dans l'arrière-salle discrètement."],
-  ["live-10", "Je demande au garde s'il peut m'aider."]
+  ["live-04", "Je demande à la serveuse ce qu'elle attend."],
+  ["live-05", "Je lui demande si elle travaille souvent ici."],
+  ["live-06", "Je lui demande si la pluie l'inquiète."],
+  ["live-07", "Je m'approche du garde."],
+  ["live-08", "Je dis bonjour au garde."],
+  ["live-09", "Je lui demande s'il a mal."],
+  ["live-10", "Je lui demande encore s'il a mal."],
+  ["live-11", "Je demande à la serveuse si elle a besoin d'aide."],
+  ["live-12", "Je franchis la porte du fond qui mène à l'arrière-salle."],
+  ["live-13", "Je retourne dans la salle commune par la porte."],
+  ["live-14", "Je demande au garde s'il peut m'aider."]
 ] as const;
 const turnLimit = Math.max(1, Math.min(turns.length, Number(process.env.NARRATIVE_LIVE_TURN_LIMIT ?? turns.length)));
 const turnStart = Math.max(0, Math.min(turns.length - 1, Number(process.env.NARRATIVE_LIVE_TURN_START ?? 0)));
@@ -31,6 +35,7 @@ async function main(): Promise<void> {
   const results: unknown[] = [];
   const gateIssues: string[] = [];
   const interpretationLatencies: number[] = [];
+  const telemetryByRole = new Map<string, { calls: number; latencies: number[]; inputTokens: number; outputTokens: number }>();
 
   const selectedTurns = turns.slice(turnStart, turnStart + turnLimit);
   for (let repetition = 1; repetition <= repetitions; repetition += 1) {
@@ -47,9 +52,27 @@ async function main(): Promise<void> {
     const npcBlocks = output.displayPacket.displayBlocks.filter(block => block.kind === "NPC_SPEECH");
     if (output.interpretation.runtimeDecision.status === "AI_INTERPRETATION_FAILED") gateIssues.push(`${clientRequestId}: interprétation IA refusée`);
     if (output.interpretation.semanticIntent.kind === "address_visible_actor" && output.npcPerformance === null) gateIssues.push(`${clientRequestId}: performer PNJ non accepté`);
-    if (clientRequestId === "live-04" && npcBlocks.length > 0) gateIssues.push(`${clientRequestId}: parole PNJ inattendue pendant une approche`);
-    if (clientRequestId === "live-09" && output.resolution.resultKind !== "HANDOFF_REQUIRED") gateIssues.push(`${clientRequestId}: handoff attendu, reçu ${output.resolution.resultKind}`);
+    if ((output.npcPerformance?.durableCommitments.length ?? 0) > 0) gateIssues.push(`${clientRequestId}: une parole PNJ a produit un engagement durable`);
+    if (Object.values(countMemory(output)).some(count => count > 5)) gateIssues.push(`${clientRequestId}: mémoire courte supérieure à cinq entrées pour un acteur`);
+    if (clientRequestId === "live-07" && npcBlocks.length > 0) gateIssues.push(`${clientRequestId}: parole PNJ inattendue pendant une approche`);
+    if (["live-12", "live-13"].includes(clientRequestId) && output.resolution.resultKind !== "COMMIT_APPLIED") {
+      gateIssues.push(`${clientRequestId}: transition committée attendue, reçu ${output.resolution.resultKind}`);
+    }
+    if (clientRequestId === "live-14") {
+      const memory = countMemory(output);
+      if (memory["npc-serveuse-nerveuse"] !== 5 || memory["npc-garde-blesse"] !== 4) {
+        gateIssues.push(`${clientRequestId}: mémoire finale attendue serveuse=5/garde=4, reçue ${JSON.stringify(memory)}`);
+      }
+    }
     if (output.stageTimings !== null) interpretationLatencies.push(output.stageTimings.interpretationMs);
+    for (const telemetry of output.aiTelemetry) {
+      const summary = telemetryByRole.get(telemetry.role) ?? { calls: 0, latencies: [], inputTokens: 0, outputTokens: 0 };
+      summary.calls += 1;
+      summary.latencies.push(telemetry.latencyMs);
+      summary.inputTokens += telemetry.inputTokens ?? 0;
+      summary.outputTokens += telemetry.outputTokens ?? 0;
+      telemetryByRole.set(telemetry.role, summary);
+    }
     results.push({
       repetition,
       turn: clientRequestId,
@@ -81,6 +104,16 @@ async function main(): Promise<void> {
     if (maximum > 25_000) gateIssues.push(`latence interprétation max=${maximum}ms > 25000ms`);
   }
   process.stdout.write(`LIVE_RESULTS ${JSON.stringify(results, null, 2)}\n`);
+  process.stdout.write(`LIVE_ROLE_METRICS ${JSON.stringify(Object.fromEntries([...telemetryByRole.entries()].map(([role, summary]) => [
+    role,
+    {
+      calls: summary.calls,
+      averageLatencyMs: Math.round(summary.latencies.reduce((sum, value) => sum + value, 0) / Math.max(1, summary.latencies.length)),
+      maximumLatencyMs: Math.max(...summary.latencies),
+      inputTokens: summary.inputTokens,
+      outputTokens: summary.outputTokens
+    }
+  ])), null, 2)}\n`);
   if (gateIssues.length > 0) throw new Error(`LIVE_GATE_FAILED: ${gateIssues.join(" | ")}`);
 }
 

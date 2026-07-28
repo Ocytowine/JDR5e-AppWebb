@@ -196,9 +196,13 @@ que si le domaine mission fournit `quest:copy-lost-journal` et l'événement
 public d'acceptation. Une prose du MJ disant qu'il semble intéressé ne suffit
 pas.
 
-## Suite
+## Raccord mission/relation livré
 
-Le prochain raccord appartient au futur domaine mission/relation : transformer
-une proposition du joueur et la réponse du PNJ en engagement accepté, puis
-émettre la confirmation propriétaire. Le module narration est prêt à la
-consommer, mais ne doit pas inventer cette autorité.
+Le domaine mission/relation transforme maintenant une proposition en décision
+persistée. Seule une décision `ACCEPTED`, retrouvée dans son registre
+propriétaire, émet la confirmation nécessaire à la promotion.
+
+Les décisions `REFUSED`, `CONDITIONAL` et `UNCERTAIN` restent enregistrées sans
+promouvoir l'acteur. Une confirmation fabriquée par l'appelant est rejetée.
+Voir
+[`Contrat-autorite-mission-relation.md`](Contrat-autorite-mission-relation.md).

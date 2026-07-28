@@ -2,15 +2,22 @@
 
 Date : 2026-07-17
 
-Statut : `RETENU_A_IMPLEMENTER`
+Statut : `ARCHIVE_TERMINEE`
+
+Ce plan documente le chantier I-06ZL à I-06ZR désormais terminé. Il ne constitue
+plus une todo list ni une feuille de route active. Voir
+[`Consolidation-fondations-narration.md`](Consolidation-fondations-narration.md).
 
 ## Objet
 
-Ce document est la source de vérité du chantier qui doit garantir qu'une intention correctement comprise par l'IA reste fidèle lorsqu'elle traverse le contrôleur, le `mj_planner`, le routeur de domaines, la résolution et le rendu.
+Ce document était la source de travail du chantier destiné à garantir qu'une
+intention correctement comprise par l'IA reste fidèle lorsqu'elle traverse le
+contrôleur, le `mj_planner`, le routeur de domaines, la résolution et le rendu.
 
 Le problème n'est pas seulement la qualité de compréhension du modèle. Le flux actuel produit une structure riche `semanticIntent`, puis la réduit vers l'ancien contrat `NarrativeIntentInterpretationV1`. Les étapes suivantes repartent surtout de `intentType`, `action`, `coreMeaning`, `runtimeHandling` et, dans certains cas, du texte brut ou de règles lexicales. Une compréhension correcte peut donc être perdue, corrigée de manière spécifique à une scène ou transformée en une commande système différente.
 
-Ce plan détaille les sept chantiers nécessaires. Il sert de todo list technique; chaque chantier ne passe à `TERMINE` qu'après satisfaction de ses critères de sortie et mise à jour des preuves associées.
+Ce plan conserve le découpage historique des sept chantiers et leurs critères de
+sortie.
 
 ## État observé au 2026-07-17
 
@@ -303,7 +310,8 @@ Le chantier est nommé provisoirement `I-06ZL` à `I-06ZR` afin de poursuivre la
 | I-06ZQ | matrices d'invariance multi-scènes | formulations équivalentes, empreinte identique |
 | I-06ZR | tests d'autorité et nettoyage legacy | source unique prouvée, legacy retiré |
 
-Chaque lot doit commencer par une courte révision contractuelle et se terminer par une matrice de preuves, les tests ciblés, `narration-module:build`, les régressions antérieures et la mise à jour de ce plan, du suivi narration, du journal des décisions et de `TASKS.md`.
+La méthode active est désormais définie dans
+[`Consolidation-fondations-narration.md`](Consolidation-fondations-narration.md).
 
 ## Vérifications minimales du chantier
 

@@ -1,146 +1,113 @@
-# Documentation du module narration
+# Index documentaire du module narration
 
-Ce dossier est la source de vérité de conception et de suivi du module narration.
-Il distingue la cible complète du runtime de campagne et les capacités déjà livrées progressivement. La surface narration prototype, la bascule OpenAI opt-in, l'enregistrement durable des projections de rendu, la reconstruction du fil visible, la scène narrative de référence I-06M, le paquet IA de scène I-06N, l'état de scène minimal I-06O, la mémoire courte PNJ I-06P, le scénario vertical I-06Q, les corrections qualité I-06R, le contrat de scène jouable I-06S, l'intégration wiki minimale de lieux I-06T, les créations éphémères contrôlées I-06U, la gate de préparation intrigue I-06V, les badges UX narration I-06W, l'interprétation IA structurée I-06X, les encarts UX no-commit/clarification I-06Y, le branchement OpenAI live serveur I-06Z pour `player_intent_interpreter`, la résolution IA des référents locaux récents I-06ZE, l'interprétation sémantique unique I-06ZF, le verrou runtime `runtimeHandling` I-06ZG, le `mj_planner` minimal non committable I-06ZH, le branchement IA serveur du `mj_planner` I-06ZI, le `npc_performer` minimal local I-06ZJ, le branchement IA serveur du `npc_performer` I-06ZK, le socle contractuel I-07A des handoffs tactique/repos, leur raccord temporel I-07B, le repos segmenté propriétaire I-07C et le placeholder tactique contractuel I-07D existent; le MJ complet, la mémoire sociale générique, les handoffs jouables branchés aux moteurs propriétaires et le lecteur UX d'historique complet restent à ouvrir par contrats dédiés.
+Cet index permet de trouver le bon document sans confondre un contrat actuel
+avec un ancien plan de travail.
 
-## Documents de référence
+## Commencer ici
 
-- [`Dossier-de-conception.md`](Dossier-de-conception.md) : état courant de la conception produit et technique.
-- [`Matrice-autorite.md`](Matrice-autorite.md) : propriétaires, lecteurs, propositions, validations, mutations et événements du MVP.
-- [`Modele-persistant.md`](Modele-persistant.md) : chronologie, sauvegarde, commits, snapshots et futurs agrégats de campagne.
-- [`Exemple-sauvegarde-mvp.json`](Exemple-sauvegarde-mvp.json) : exemple parseable et non contractuel du modèle persistant.
-- [`Coherence-intrigues.md`](Coherence-intrigues.md) : engagements narratifs, vérité cachée, indices et contrôles des intrigues dynamiques.
-- [`Creations-dynamiques.md`](Creations-dynamiques.md) : cycles, promotions et règles de création des PNJ, événements, objets, fils et lieux.
-- [`Memoire-et-rappel.md`](Memoire-et-rappel.md) : conservation, cycles de rappel, oubli subjectif et futures projections contextuelles.
-- [`Snapshot-et-contextes.md`](Snapshot-et-contextes.md) : photographie immuable d'un tour et paquets spécialisés par rôle IA.
-- [`Contrat-memoire-snapshot.md`](Contrat-memoire-snapshot.md) : contrat `FIGE` I-04 `memory-context/1`, mémoire, snapshot, contexte, budget et obsolescence.
-- [`Contrat-pipeline-ia-creations.md`](Contrat-pipeline-ia-creations.md) : contrat `FIGE` I-05A `ai-pipeline/1`, faux fournisseur, rôles IA, sorties, retries, incidents et créations.
-- [`Contrat-fournisseur-ia-openai.md`](Contrat-fournisseur-ia-openai.md) : contrat `FIGE` I-05B `ai-provider-openai/1`, OpenAI côté serveur, clé, schémas stricts, retries et test live optionnel.
-- [`Contrat-scene-social-ui.md`](Contrat-scene-social-ui.md) : contrat `FIGE` I-06A `scene-social-ui/1`, scène, social, transcript, blocs visibles et attribution accessible.
-- [`Contrat-interface-narrative-react.md`](Contrat-interface-narrative-react.md) : contrat `FIGE` I-06B `narrative-react-ui/1`, composants React purs, saisie libre et absence d'appel fournisseur navigateur.
-- [`Contrat-surface-narration-app.md`](Contrat-surface-narration-app.md) : contrat `FIGE` I-06C `narrative-app-surface/1`, surface narration dédiée distincte du tactique.
-- [`Contrat-controleur-tour-narratif.md`](Contrat-controleur-tour-narratif.md) : contrat `FIGE` I-06D `narrative-turn-controller/1`, saisie libre vers opération durable sans commit métier.
-- [`Contrat-interpretation-clarification.md`](Contrat-interpretation-clarification.md) : contrat `FIGE` I-06E `intent-clarification/1`, interprétation conservatrice et clarification sans mutation.
-- [`Contrat-interpretation-ia-intention.md`](Contrat-interpretation-ia-intention.md) : contrat `ai-intent-interpretation/1`, interprétation IA structurée sans autorité de commit, en révision I-06ZF pour l'intention sémantique unique.
-- [`Contrat-resolution-narrative.md`](Contrat-resolution-narrative.md) : contrat `FIGE` I-06F `narrative-resolution/1`, résolution bornée, reformulation PJ, commit validé et handoffs.
-- [`Contrat-resolution-ia-bornee.md`](Contrat-resolution-ia-bornee.md) : contrat `FIGE` I-06G `narrative-ai-resolution/1`, embellissement IA sans autorité métier.
-- [`Contrat-handoffs-tactique-repos.md`](Contrat-handoffs-tactique-repos.md) : contrat `FIGE` I-07 `tactical-rest-handoff/1`, seeds, processus, outcomes, intégration et signaux de repos.
-- [`Contrat-transition-locale-scene.md`](Contrat-transition-locale-scene.md) : socle `scene-transition/1`, connexion canonique, validation locale ou handoff voyage sans autorité de commit.
-- [`Exemple-role-context-pack.json`](Exemple-role-context-pack.json) : exemple parseable d'un paquet spécialisé et de sa trace de sélection.
-- [`Pipeline-et-contrats-IA.md`](Pipeline-et-contrats-IA.md) : enchaînement des rôles IA, validations, commits et rédaction visible.
-- [`Exemple-pipeline-tour.json`](Exemple-pipeline-tour.json) : trace parseable d'un tour avec arbitrage temporel, commit et contrôle d'affichage.
-- [`Integration-domaines.md`](Integration-domaines.md) : transactions et transferts de contrôle entre narration, règles et moteurs propriétaires.
-- [`Regles-et-arbitrages.md`](Regles-et-arbitrages.md) : gouvernance des règles maison, versions, conflits et arbitrages IA.
-- [`Exemple-integration-domaines.json`](Exemple-integration-domaines.json) : transaction multidomaine parseable avec commit, projections et reprise.
-- [`Temps-et-monde-vivant.md`](Temps-et-monde-vivant.md) : horloge précise, avances segmentées et articulation avec la simulation mondiale.
-- [`Contrat-temps-processus.md`](Contrat-temps-processus.md) : contrat exécutable `temporal-kernel/1`, sous-lots I-03 et frontière avec `map-module`.
-- [`Handoff-I03D.md`](Handoff-I03D.md) : point de reprise opérationnel, fichiers clés, invariants et plan du dernier sous-lot I-03.
-- [`Matrice-preuves-I03.md`](Matrice-preuves-I03.md) : revue exécutable de la gate I-03 et limites avant mémoire/snapshot.
-- [`Matrice-preuves-I04.md`](Matrice-preuves-I04.md) : preuves du socle mémoire, snapshot, contexte, budget et obsolescence.
-- [`Matrice-preuves-I05.md`](Matrice-preuves-I05.md) : preuves du socle pipeline IA contractuel et créations dynamiques I-05A.
-- [`Matrice-preuves-I05B.md`](Matrice-preuves-I05B.md) : preuves de l'adaptateur fournisseur OpenAI I-05B.
-- [`Matrice-preuves-I06A.md`](Matrice-preuves-I06A.md) : preuves du socle scène, social, transcript et affichage typé.
-- [`Matrice-preuves-I06B.md`](Matrice-preuves-I06B.md) : preuves de l'interface narrative React pure.
-- [`Matrice-preuves-I06C.md`](Matrice-preuves-I06C.md) : preuves de la surface narration applicative dédiée.
-- [`Matrice-preuves-I06D.md`](Matrice-preuves-I06D.md) : preuves du contrôleur de tour narratif prototype.
-- [`Matrice-preuves-I06E.md`](Matrice-preuves-I06E.md) : preuves de l'interprétation conservatrice et de la clarification.
-- [`Matrice-preuves-I06F.md`](Matrice-preuves-I06F.md) : preuves de la résolution narrative bornée, du commit speech et des handoffs.
-- [`Matrice-preuves-I06G.md`](Matrice-preuves-I06G.md) : preuves de l'enrichissement IA borné et du fallback déterministe.
-- [`Matrice-preuves-I06H.md`](Matrice-preuves-I06H.md) : preuves du branchement UI enrichi et du fournisseur OpenAI contrôlé.
-- [`Matrice-preuves-I06I.md`](Matrice-preuves-I06I.md) : preuves de la route serveur OpenAI narrative opt-in.
-- [`Matrice-preuves-I06J.md`](Matrice-preuves-I06J.md) : preuves de la bascule UI OpenAI opt-in avec fallback local.
-- [`Matrice-preuves-I06K.md`](Matrice-preuves-I06K.md) : preuves de la persistance des projections de rendu et incidents IA expurgés.
-- [`Matrice-preuves-I06L.md`](Matrice-preuves-I06L.md) : preuves de la reconstruction du fil visible depuis les projections persistées.
-- [`Matrice-preuves-I06M.md`](Matrice-preuves-I06M.md) : preuves de la scène narrative de référence et des blocs visibles concrets.
-- [`Matrice-preuves-I06N.md`](Matrice-preuves-I06N.md) : preuves du paquet IA `scene_writer` ancré dans la scène de référence.
-- [`Matrice-preuves-I06O.md`](Matrice-preuves-I06O.md) : preuves de l'état de scène minimal persistant.
-- [`Matrice-preuves-I06P.md`](Matrice-preuves-I06P.md) : preuves de la mémoire courte PNJ et de la continuité de scène.
-- [`Matrice-preuves-I06Q.md`](Matrice-preuves-I06Q.md) : preuves du scénario vertical qualité Locale/OpenAI-compatible sur la scène de référence.
-- [`Matrice-preuves-I06R.md`](Matrice-preuves-I06R.md) : preuves des corrections qualité issues du scénario vertical I-06Q.
-- [`Matrice-preuves-I06S.md`](Matrice-preuves-I06S.md) : preuves de la généralisation légère `playable-scene-state/1`.
-- [`Matrice-preuves-I06T.md`](Matrice-preuves-I06T.md) : preuves de l'intégration wiki minimale d'un lieu en scène jouable.
-- [`Matrice-preuves-I06U.md`](Matrice-preuves-I06U.md) : preuves des créations éphémères contrôlées de scène.
-- [`Matrice-preuves-I06V.md`](Matrice-preuves-I06V.md) : preuves de la gate de préparation intrigue sans création d'intrigue.
-- [`Matrice-preuves-I06W.md`](Matrice-preuves-I06W.md) : preuves de la revue UX narration et des badges de statut accessibles.
-- [`Matrice-preuves-I06X.md`](Matrice-preuves-I06X.md) : preuves de l'interprétation IA structurée, de la robustesse linguistique et du fallback conservateur.
-- [`Matrice-preuves-I06Y.md`](Matrice-preuves-I06Y.md) : preuves des encarts UX no-commit, clarification, possibilité et parole enregistrée.
-- [`Revue-produit-I06X-I06Y.md`](Revue-produit-I06X-I06Y.md) : validation produit des traces I-06X/I-06Y et décision d'ouvrir OpenAI live pour `player_intent_interpreter`.
-- [`Matrice-preuves-I06Z.md`](Matrice-preuves-I06Z.md) : preuves du branchement OpenAI live serveur pour `player_intent_interpreter`.
-- [`Matrice-certification-live-scene-writer.md`](Matrice-certification-live-scene-writer.md) : matrice I-06ZC de certification live courte du `scene_writer`.
-- [`Matrice-preuves-I06ZD-amorce-scene-ui.md`](Matrice-preuves-I06ZD-amorce-scene-ui.md) : preuves I-06ZD de l'amorce de scÃ¨ne jouable dans l'UI.
-- [`Cadrage-I06ZE-referents-locaux.md`](Cadrage-I06ZE-referents-locaux.md) : cadrage et livraison I-06ZE de la résolution IA des référents locaux récents, sans hard code métier.
-- [`Cadrage-interpretation-semantique-ouverte.md`](Cadrage-interpretation-semantique-ouverte.md) : décision de conception post-I-06ZE centrant le contrat unique sur l'intention sémantique et le statut d'exploitation runtime.
-- [`Plan-fidelite-intention-systeme.md`](Plan-fidelite-intention-systeme.md) : plan normatif post-I-06ZK en sept chantiers pour conserver l'intention sémantique jusqu'aux commandes de domaine, généraliser les référents et retirer le legacy lexical.
-- [`Matrice-preuves-I06ZL.md`](Matrice-preuves-I06ZL.md) : preuves de la propagation obligatoire et sans perte de `semanticIntent`, avec relecture explicite des opérations legacy.
-- [`Matrice-preuves-I06ZM.md`](Matrice-preuves-I06ZM.md) : preuves de la consommation sémantique par le planner et de l'autorité du registre runtime local sur la suggestion IA.
-- [`Matrice-preuves-I06ZN.md`](Matrice-preuves-I06ZN.md) : preuves du contrat local de commandes typées, de leur corrélation sémantique et de leur absence d'autorité de commit.
-- [`Inventaire-lectures-lexicales-I06ZO.md`](Inventaire-lectures-lexicales-I06ZO.md) : classement normatif des lectures textuelles restantes, limites d'autorité et conditions de retrait.
-- [`Matrice-preuves-I06ZO.md`](Matrice-preuves-I06ZO.md) : preuves du retrait des décisions lexicales de domaine, commit et mutation dans le flux actif.
-- [`Contrat-registre-referents-scene.md`](Contrat-registre-referents-scene.md) : contrat `scene-referent-registry/1`, vues par rôle, ambiguïté et mémoire récente versionnée.
-- [`Matrice-preuves-I06ZP.md`](Matrice-preuves-I06ZP.md) : preuves du registre générique sur trois scènes sans identifiants de fixture dans les consommateurs génériques.
-- [`Contrat-invariance-semantique.md`](Contrat-invariance-semantique.md) : format des familles, empreinte système et procédure de certification OpenAI live.
-- [`Matrice-preuves-I06ZQ.md`](Matrice-preuves-I06ZQ.md) : preuves de convergence de sept familles, cinq formulations et trois scènes.
-- [`Matrice-autorite-intention-I06ZR.md`](Matrice-autorite-intention-I06ZR.md) : source canonique champ par champ, politique de contradiction et inventaire legacy borné.
-- [`Matrice-preuves-I06ZR.md`](Matrice-preuves-I06ZR.md) : preuves de rejet des contradictions et de l'absence de commande ou commit associé.
-- [`Matrice-cas-I06ZF-interpretation-semantique.md`](Matrice-cas-I06ZF-interpretation-semantique.md) : cas naturels I-06ZF pour contractualiser l'interprétation sémantique unique et les diagnostics d'échec IA.
-- [`Cadrage-I06ZH-mj-planner-minimal.md`](Cadrage-I06ZH-mj-planner-minimal.md) : cadrage et livraison du `mj_planner` minimal non committable, sans MJ complet ni intrigue dynamique.
-- [`Cadrage-I06ZI-branchement-ia-mj-planner.md`](Cadrage-I06ZI-branchement-ia-mj-planner.md) : branchement OpenAI serveur du `mj_planner`, schéma strict et absence de fallback narratif.
-- [`Cadrage-I06ZJ-npc-performer-minimal.md`](Cadrage-I06ZJ-npc-performer-minimal.md) : premier `npc_performer` borné depuis une assignation du `mj_planner`, sans secret, succès social ni commit.
-- [`Cadrage-I06ZK-branchement-ia-npc-performer.md`](Cadrage-I06ZK-branchement-ia-npc-performer.md) : branchement OpenAI serveur du `npc_performer`, schéma strict et absence de conséquence sociale.
-- [`Sortie-phase-I06.md`](Sortie-phase-I06.md) : cadrage de sortie I-06, limites du prototype et décision d'ouvrir une interprétation IA structurée avant généralisation.
-- [`Suivi-prochains-lots-narration.md`](Suivi-prochains-lots-narration.md) : feuille de suivi des lots I-06Q et suivants avant généralisation.
-- [`Revue-technique-post-I06ZB.md`](Revue-technique-post-I06ZB.md) : point de reprise après stabilisation live du `scene_writer`, écarts restants et lots recommandés I-06ZC à I-06ZE.
-- [`Matrice-preuves-I07-audit.md`](Matrice-preuves-I07-audit.md) : audit tactique/repos, résolution AF-R13/AF-R14 et autorisation limitée I-07A.
-- [`Matrice-preuves-I07A.md`](Matrice-preuves-I07A.md) : preuves I-07A, types, validateurs, fixtures et intégration idempotente simulée.
-- [`Matrice-preuves-I07B.md`](Matrice-preuves-I07B.md) : preuves I-07B, intégration temporelle des outcomes tactique/repos par `world.clock`.
-- [`Matrice-preuves-I07C.md`](Matrice-preuves-I07C.md) : preuves I-07C, repos segmenté, checkpoints et interruptions déterministes.
-- [`Matrice-preuves-I07D.md`](Matrice-preuves-I07D.md) : preuves I-07D, placeholder tactique et outcomes typés.
-- [`Handoff-I06J-retour-live.md`](Handoff-I06J-retour-live.md) : retour des premiers tests OpenAI live, cap produit et prochain micro-lot recommandé.
-- [`Exemple-chronologie-causale.json`](Exemple-chronologie-causale.json) : interruption temporelle, tick mondial, visibilité et reprise idempotente.
-- [`Resilience-securite-diagnostic.md`](Resilience-securite-diagnostic.md) : confinement des erreurs, sécurité des données et traces exploitables.
-- [`Exigences-non-fonctionnelles.md`](Exigences-non-fonctionnelles.md) : objectifs mesurables de latence, coût, qualité et capacité.
-- [`Scenarios-acceptation.md`](Scenarios-acceptation.md) : corpus observable, granularité et oracles du scénario vertical et des cas limites.
-- [`Matrice-tracabilite-acceptation.md`](Matrice-tracabilite-acceptation.md) : liens entre exigences P0, décisions, contrats, scénarios et résultats observables.
-- [`Matrice-couverture-scenarios.md`](Matrice-couverture-scenarios.md) : couverture actuelle des scénarios NAR-ACC, manques et lots responsables sans modifier la roadmap.
-- [`Audit-final.md`](Audit-final.md) : contradictions, reports, contrats à figer et décision progressive d'autorisation de coder.
-- [`Contrat-noyau-campagne.md`](Contrat-noyau-campagne.md) : contrat `FIGE` du premier lot, opérations, commits, événements, horloge, outbox et repository.
-- [`Contrat-persistance-indexeddb.md`](Contrat-persistance-indexeddb.md) : contrat `FIGE` d'I-01, stores, index, transactions, générations, migrations et tests navigateur.
-- [`Contrat-bootstrap-campagne.md`](Contrat-bootstrap-campagne.md) : contrat `FIGE` d'I-02, paquets immuables, ingestion wiki, import personnage et `RuleRegistry` MVP.
-- [`Matrice-preuves-I02.md`](Matrice-preuves-I02.md) : revue exécutable de la gate I-02 et réserve de parité tactique différée.
-- [`Contrat-contenu-lore.md`](Contrat-contenu-lore.md) : contrat `FIGE` `lore-authoring/1`, types auteur, niveaux de connaissance, relations et fragmentation déterministe.
-- [`Cadrage-lore-narratif-dynamique.md`](Cadrage-lore-narratif-dynamique.md) : audit du corpus `wiki/lore`, principes d'influence créative et feuille de route scènes/PNJ dynamiques.
-- [`Matrice-corpus-pilote-lore-narratif.md`](Matrice-corpus-pilote-lore-narratif.md) : couverture narrative et lacunes du vertical Ylsséa → Lysenthe → Archives.
-- [`Contrat-selection-influences-lore.md`](Contrat-selection-influences-lore.md) : contrat `lore-influence-packet/1`, héritage géographique et sélection sourcée des guides créatifs.
-- [`Contrat-creation-scene-guidee-lore.md`](Contrat-creation-scene-guidee-lore.md) : superposition de campagne et adaptation non committable vers une proposition dynamique `PLACE`.
-- [`Plan-implementation-narration.md`](Plan-implementation-narration.md) : lots I-00 à I-08, prérequis, scénarios et gates de livraison.
-- [`Plan-de-consolidation.md`](Plan-de-consolidation.md) : ateliers, checklist anti-oubli, critères de sortie et journal d'avancement.
-- [`Journal-des-decisions.md`](Journal-des-decisions.md) : décisions structurantes, raisons et conséquences.
-- [`../Idée de base.md`](../Idée%20de%20base.md) : texte d'intention initial; il reste une source d'idées, pas un contrat actif.
+1. [`TASKS.md`](../../../TASKS.md) — lot immédiat et blocages.
+2. [`Consolidation-fondations-narration.md`](Consolidation-fondations-narration.md)
+   — état actuel, principes, limites, feuille de route et méthode.
+3. Le contrat actif du comportement à modifier.
+4. Les tests et le code correspondants.
 
-Les anciens documents supprimés ne redeviennent pas des références par défaut. Une idée historique ne peut être reprise qu'après comparaison avec le code actuel et inscription dans le journal des décisions.
+## Contrats actifs
 
-## Statuts utilisés
+### Autorité, campagne et persistance
 
-- `PROPOSITION` : piste à discuter, sans valeur contractuelle.
-- `RETENU` : direction validée, détails encore modifiables.
-- `FIGE` : contrat suffisamment précis pour guider une implémentation.
-- `REMPLACE` : décision conservée pour l'historique, mais devenue inactive.
+- [`Matrice-autorite.md`](Matrice-autorite.md)
+- [`Contrat-autorite-mission-relation.md`](Contrat-autorite-mission-relation.md)
+- [`Contrat-projection-campagne-sur-lore.md`](Contrat-projection-campagne-sur-lore.md)
+- [`Contrat-noyau-campagne.md`](Contrat-noyau-campagne.md)
+- [`Contrat-persistance-indexeddb.md`](Contrat-persistance-indexeddb.md)
+- [`Contrat-bootstrap-campagne.md`](Contrat-bootstrap-campagne.md)
+- [`Modele-persistant.md`](Modele-persistant.md)
+- [`Contrat-temps-processus.md`](Contrat-temps-processus.md)
 
-Un principe `FIGE` peut évoluer. La modification doit alors être expliquée dans le journal et les sections dépendantes doivent être relues.
+### Intention, référents et résolution
 
-## Méthode de mise à jour
+- [`Contrat-intention-semantique-V2.md`](Contrat-intention-semantique-V2.md)
+- [`Contrat-intention-composee-V3.md`](Contrat-intention-composee-V3.md)
+- [`Contrat-orientation-visible-et-recherche-V4.md`](Contrat-orientation-visible-et-recherche-V4.md)
+- [`Contrat-execution-composantes-ordonnees-V5.md`](Contrat-execution-composantes-ordonnees-V5.md)
+- [`Contrat-gate-realiste-semantique-V5.md`](Contrat-gate-realiste-semantique-V5.md)
+- [`Contrat-registre-referents-scene.md`](Contrat-registre-referents-scene.md)
+- [`Contrat-routage-capacites-runtime-NAR131.md`](Contrat-routage-capacites-runtime-NAR131.md)
+- [`Contrat-resolution-perceptive.md`](Contrat-resolution-perceptive.md)
+- [`Contrat-resolution-tests-competence.md`](Contrat-resolution-tests-competence.md)
+- [`Contrat-controleur-tour-narratif.md`](Contrat-controleur-tour-narratif.md)
 
-1. Modifier d'abord le dossier de conception pour exprimer le comportement attendu.
-2. Ajouter ou modifier une décision lorsque l'autorité d'un système, un contrat ou une contrainte structurante change.
-3. Vérifier les impacts sur l'IA, la mémoire, le monde, les personnages, la tactique, la sauvegarde et l'interface.
-4. Ajouter un scénario d'acceptation avant de transformer une section en contrat d'implémentation.
-5. Mettre à jour `TASKS.md` avec la prochaine décision concrète, sans y recopier l'analyse détaillée.
-6. Mettre à jour le tableau de bord et le journal du plan de consolidation à la fin de chaque atelier.
+### Lore, scènes et populations
 
-## Règles de cohérence documentaire
+- [`Contrat-contenu-lore.md`](Contrat-contenu-lore.md)
+- [`Contrat-catalogue-lore-narratif-build.md`](Contrat-catalogue-lore-narratif-build.md)
+- [`Contrat-selection-influences-lore.md`](Contrat-selection-influences-lore.md)
+- [`Contrat-creation-scene-guidee-lore.md`](Contrat-creation-scene-guidee-lore.md)
+- [`Contrat-transition-locale-scene.md`](Contrat-transition-locale-scene.md)
+- [`Contrat-population-ambiante-et-arrivee-narrative.md`](Contrat-population-ambiante-et-arrivee-narrative.md)
+- [`Contrat-designation-narrative-acteurs-et-lieux.md`](Contrat-designation-narrative-acteurs-et-lieux.md)
 
-- Une information normative ne doit avoir qu'un seul emplacement principal.
-- Le journal explique pourquoi; le dossier décrit ce qui est vrai actuellement.
-- Les schémas JSON futurs seront versionnés et validables. Les exemples ne feront pas office de schémas.
-- Les incertitudes restent explicitement marquées; elles ne doivent pas être comblées implicitement pendant le codage.
-- Aucun runtime narratif ne doit être développé tant que le scénario vertical MVP et ses contrats essentiels ne sont pas `FIGE`.
+### IA, rendu et interface
+
+- [`Pipeline-et-contrats-IA.md`](Pipeline-et-contrats-IA.md)
+- [`Contrat-conversations-pnj-longues.md`](Contrat-conversations-pnj-longues.md)
+- [`Contrat-fournisseur-ia-openai.md`](Contrat-fournisseur-ia-openai.md)
+- [`Contrat-resolution-ia-bornee.md`](Contrat-resolution-ia-bornee.md)
+- [`Contrat-couverture-rendu-scene-writer.md`](Contrat-couverture-rendu-scene-writer.md)
+- [`Contrat-invariance-semantique.md`](Contrat-invariance-semantique.md)
+- [`Contrat-scene-social-ui.md`](Contrat-scene-social-ui.md)
+- [`Contrat-interface-narrative-react.md`](Contrat-interface-narrative-react.md)
+- [`Contrat-surface-narration-app.md`](Contrat-surface-narration-app.md)
+- [`Resilience-securite-diagnostic.md`](Resilience-securite-diagnostic.md)
+- [`Exigences-non-fonctionnelles.md`](Exigences-non-fonctionnelles.md)
+
+### Intégrations différées mais contractuelles
+
+- [`Audit-lot-6-scenarios-005-009.md`](Audit-lot-6-scenarios-005-009.md)
+- [`Contrat-repos-narratif-minimal.md`](Contrat-repos-narratif-minimal.md)
+- [`Contrat-handoffs-tactique-repos.md`](Contrat-handoffs-tactique-repos.md)
+- [`Integration-domaines.md`](Integration-domaines.md)
+- [`Coherence-intrigues.md`](Coherence-intrigues.md)
+- [`Creations-dynamiques.md`](Creations-dynamiques.md)
+- [`Memoire-et-rappel.md`](Memoire-et-rappel.md)
+
+## Scénarios et preuves
+
+- [`Scenarios-acceptation.md`](Scenarios-acceptation.md) décrit les comportements
+  observables.
+- [`Matrice-couverture-scenarios.md`](Matrice-couverture-scenarios.md) relie les
+  scénarios à leur couverture.
+- Les fichiers `Matrice-preuves-*.md`, `Matrice-certification-*.md` et
+  `Benchmark-*.md` sont des preuves datées. Ils ne changent pas la feuille de
+  route.
+- Les recettes `Recette-*.md` et revues `Revue-*.md` décrivent une observation
+  ou une décision à une date donnée.
+
+## Archives de conception
+
+Les documents suivants restent utiles pour comprendre une décision, mais ne
+doivent pas servir de planning actif :
+
+- [`Journal-des-decisions.md`](Journal-des-decisions.md)
+- [`Dossier-de-conception.md`](Dossier-de-conception.md)
+- [`Plan-implementation-narration.md`](Plan-implementation-narration.md)
+- [`Plan-de-consolidation.md`](Plan-de-consolidation.md)
+- [`Plan-fidelite-intention-systeme.md`](Plan-fidelite-intention-systeme.md)
+- [`Audit-final.md`](Audit-final.md)
+- [`Audit-technique-I06ZB.md`](Audit-technique-I06ZB.md)
+- [`Sortie-phase-I06.md`](Sortie-phase-I06.md)
+- les fichiers `Handoff-*.md`, `Cadrage-I06*.md` et les anciennes matrices de lot.
+
+L'ancien suivi `Suivi-prochains-lots-narration.md` et l'ancien snapshot
+`docs/Evolution/Avancement.md` ont été supprimés le 2026-07-28 : ils
+contredisaient l'état courant. Leur contenu reste accessible dans l'historique
+Git si une enquête historique l'exige.
+
+## Entretien
+
+- Ajouter tout nouveau document à la bonne section.
+- Ne jamais créer une seconde feuille de route.
+- Fermer un lot dans ses tests et sa preuve, puis remplacer l'action immédiate
+  dans `TASKS.md`.
+- Si un contrat devient obsolète, le marquer ou le retirer et mettre à jour ses
+  liens dans le même changement.

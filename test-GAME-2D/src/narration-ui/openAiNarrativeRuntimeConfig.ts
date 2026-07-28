@@ -1,6 +1,9 @@
 import {
   AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V1,
   AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V2,
+  AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V3,
+  AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V4,
+  AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V5,
   NPC_PERFORMER_CONTRACT_VERSION_V1,
   type AiIntentInterpreterConfigV1,
   type NpcPerformerConfigV1
@@ -11,7 +14,7 @@ import { ServerOpenAiEnhancementProviderV1 } from "./serverOpenAiEnhancementClie
 export function buildOpenAiIntentInterpreterConfigV1(endpoint?: string): AiIntentInterpreterConfigV1 {
   return {
     provider: new ServerOpenAiEnhancementProviderV1(endpoint),
-    contractVersion: AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V2,
+    contractVersion: AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V5,
     route: {
       schemaVersion: 1,
       routeId: "prototype-ui-openai-player-intent-interpreter",
@@ -19,9 +22,9 @@ export function buildOpenAiIntentInterpreterConfigV1(endpoint?: string): AiInten
       providerKind: "FAKE_CONTRACT",
       providerId: "server-openai-route",
       modelId: "server-selected-openai-intent-model",
-      modelConfigVersion: "i06z",
+      modelConfigVersion: "ordered-components-v5",
       certified: true,
-      allowedContractVersions: [AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V1, AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V2],
+      allowedContractVersions: [AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V1, AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V2, AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V3, AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V4, AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V5],
       inputTokenLimit: 2_000,
       outputTokenLimit: 900,
       timeoutMs: 30_000,
@@ -87,8 +90,8 @@ export function buildOpenAiSceneCreatorConfigV2(endpoint?: string): LoreGuidedPl
     provider: new ServerOpenAiEnhancementProviderV1(endpoint),
     route: {
       schemaVersion: 1, routeId: "prototype-ui-openai-scene-creator", role: "scene_creator",
-      providerKind: "FAKE_CONTRACT", providerId: "server-openai-route", modelId: "server-selected-openai-model",
-      modelConfigVersion: "lore-guided-place-v2", certified: true,
+      providerKind: "FAKE_CONTRACT", providerId: "server-openai-route", modelId: "server-selected-openai-scene-creator-model",
+      modelConfigVersion: "lore-guided-place-v2-luna-none", certified: true,
       allowedContractVersions: ["lore-guided-place-candidate/2"], inputTokenLimit: 2_000, outputTokenLimit: 1_500,
       timeoutMs: 55_000, fallbackRouteIds: []
     },

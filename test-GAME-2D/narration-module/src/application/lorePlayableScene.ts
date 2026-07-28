@@ -9,6 +9,7 @@ import {
 import type { SceneTransitionTopologyV1 } from "./sceneTransition";
 import { buildAmbientScenePresenceV1 } from "./ambientScenePresence";
 import { buildKnownNarrativeDesignationV1 } from "./narrativeDesignation";
+import type { CampaignLoreProjectionV1 } from "./loreGuidedSceneCreation";
 
 export const LORE_PLAYABLE_SCENE_ADAPTER_VERSION_V1 = "lore-playable-scene-adapter/1" as const;
 
@@ -66,18 +67,41 @@ export function buildPlayableSceneFromLoreLocationV1(input: {
   entity: LoreEntityV1;
   fragments: LoreFragmentV1[];
   sceneId?: string;
+  campaignProjections?: CampaignLoreProjectionV1[];
 }): LorePlayableSceneBuildResultV1 {
   if (!["batiment", "quartier", "ville"].includes(input.entity.entityType)) {
     throw new Error(`Unsupported lore location type for playable scene: ${input.entity.entityType}`);
   }
 
+  const projections = input.campaignProjections ?? [];
+  if (projections.some(projection => projection.entityId !== input.entity.entityId)) {
+    throw new Error("Campaign lore projection targets another entity.");
+  }
+  const projectionByField = new Map(projections.map(projection => [projection.fieldPath, projection]));
   const relevantFragments = input.fragments.filter(fragment => fragment.entityId === input.entity.entityId);
-  const visibleFragments = relevantFragments.filter(fragment => PLAYER_VISIBLE_LEVELS.has(fragment.knowledgeLevel));
+  const campaignWithheldFragments = relevantFragments.filter(fragment =>
+    projectionByField.get(fragment.fieldPath)?.disposition === "WITHHOLD"
+  );
+  const visibleFragments = relevantFragments
+    .filter(fragment => PLAYER_VISIBLE_LEVELS.has(fragment.knowledgeLevel))
+    .filter(fragment => projectionByField.get(fragment.fieldPath)?.disposition !== "WITHHOLD")
+    .map(fragment => {
+      const projection = projectionByField.get(fragment.fieldPath);
+      return projection?.disposition === "REPLACE"
+        ? { ...fragment, text: projection.replacementText! }
+        : fragment;
+    });
   const withheldFragments = relevantFragments.filter(fragment => !PLAYER_VISIBLE_LEVELS.has(fragment.knowledgeLevel));
   const sceneId = input.sceneId ?? `wiki-location:${input.entity.entityId}`;
   const attributes = input.entity.attributes as Record<string, unknown>;
   const authoredSummary = typeof attributes.resume === "string" ? attributes.resume.trim() : "";
-  const summary = authoredSummary || input.entity.body.trim() || input.entity.displayName;
+  const summaryProjection = projectionByField.get("/resume");
+  const summary = summaryProjection?.disposition === "REPLACE"
+    ? summaryProjection.replacementText!
+    : summaryProjection?.disposition === "WITHHOLD"
+      ? input.entity.body.trim() || input.entity.displayName
+      : authoredSummary || input.entity.body.trim() || input.entity.displayName;
+  const campaignSourceRefs = uniqueNonEmpty(projections.flatMap(projection => projection.sourceRefs));
   // The opening is a scene-setting sentence, not a dump of every public lore fragment.
   // Detailed public facts remain available through visible elements, points of interest and observations.
   const perceptibleSituation = [summary];
@@ -91,7 +115,7 @@ export function buildPlayableSceneFromLoreLocationV1(input: {
       subjectRef: `place:${sceneId}`,
       subjectKind: "PLACE",
       canonicalName: input.entity.displayName,
-      sourceRefs: [`lore-entity:${input.entity.entityId}`]
+      sourceRefs: [`lore-entity:${input.entity.entityId}`, ...campaignSourceRefs]
     }),
     perceptibleSituation: perceptibleSituation.length > 0 ? perceptibleSituation : [summary],
     visibleElements: buildVisibleElements(input.entity, visibleFragments),
@@ -113,7 +137,10 @@ export function buildPlayableSceneFromLoreLocationV1(input: {
     aiSceneWriterPolicy: {
       schemaVersion: 1,
       mayCreate: [],
-      mayReference: visibleFragments.map(fragment => `lore-fragment:${fragment.fragmentId}`),
+      mayReference: uniqueNonEmpty([
+        ...visibleFragments.map(fragment => `lore-fragment:${fragment.fragmentId}`),
+        ...campaignSourceRefs
+      ]),
       mustNotCreate: ["PNJ durable", "lieu durable", "objet utile", "indice secret", "issue de combat"],
       noveltyConstraints: ["faits wiki visibles uniquement", "aucune révélation de fragment restreint ou secret"],
       version: 1
@@ -127,7 +154,10 @@ export function buildPlayableSceneFromLoreLocationV1(input: {
     adapterVersion: LORE_PLAYABLE_SCENE_ADAPTER_VERSION_V1,
     scene,
     includedFragmentIds: visibleFragments.map(fragment => fragment.fragmentId).sort(),
-    withheldFragmentIds: withheldFragments.map(fragment => fragment.fragmentId).sort(),
+    withheldFragmentIds: uniqueNonEmpty([
+      ...withheldFragments.map(fragment => fragment.fragmentId),
+      ...campaignWithheldFragments.map(fragment => fragment.fragmentId)
+    ]).sort(),
     withheldKnowledgeLevels: uniqueKnowledgeLevels(withheldFragments.map(fragment => fragment.knowledgeLevel)),
     sourceEntityId: input.entity.entityId,
     version: 1

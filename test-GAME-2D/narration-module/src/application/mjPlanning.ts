@@ -178,7 +178,7 @@ export function buildLocalMjPlanPayload(
   const runtimeStatus = runtimeDecision?.status ?? "SUPPORTED_BY_CURRENT_RUNTIME";
   const targetRef = interpretation?.referentResolution?.resolvedTarget?.ref ?? interpretation?.semanticIntent.target?.ref ?? null;
   const targetRefs = targetRef === null ? [] : [targetRef];
-  const beat = buildSceneBeat(interpretation, runtimeStatus, requiredDomain);
+  const beats = buildSceneBeats(interpretation, runtimeStatus, requiredDomain);
   const commandProposal = buildCommandProposal(interpretation, requiredDomain, targetRefs);
   return {
     schemaVersion: 1,
@@ -189,10 +189,10 @@ export function buildLocalMjPlanPayload(
       runtimeStatus,
       requiredDomain
     },
-    sceneBeats: [beat],
+    sceneBeats: beats,
     commandProposals: commandProposal === null ? [] : [commandProposal],
     creationProposals: [],
-    actorAssignments: buildActorAssignments(interpretation, beat),
+    actorAssignments: buildActorAssignments(interpretation, beats),
     revealPlan: {
       reveal: [],
       hint: [],
@@ -220,6 +220,56 @@ export function buildLocalMjPlanPayload(
       "create_persistent_fact"
     ]
   };
+}
+
+function buildSceneBeats(
+  interpretation: NarrativeIntentInterpretationV1 | null,
+  runtimeStatus: string,
+  requiredDomain: string | null
+): SceneBeatProposalV1[] {
+  if (
+    runtimeStatus !== "SUPPORTED_BY_CURRENT_RUNTIME" ||
+    interpretation?.requiresClarification ||
+    interpretation?.semanticIntent.kind !== "address_visible_actor"
+  ) {
+    return [buildSceneBeat(interpretation, runtimeStatus, requiredDomain)];
+  }
+  const components = interpretation.semanticIntent.composition?.orderedComponents ?? [];
+  if (components.length === 0) return [buildSceneBeat(interpretation, runtimeStatus, requiredDomain)];
+  const targetRef = interpretation.referentResolution?.resolvedTarget?.ref ?? interpretation.semanticIntent.target?.ref ?? null;
+  const actorIds = targetRef === null ? [] : [targetRef];
+  return components.map((component): SceneBeatProposalV1 => {
+    if (component.kind === "LOCATE_VISIBLE_TARGET") {
+      return {
+        beatId: `beat:component:${component.order}:locate-visible-target`,
+        kind: "LOCAL_ACTION_ATTEMPT",
+        actorIds,
+        stopCondition: "Confirmer seulement la présence déjà visible de la cible."
+      };
+    }
+    if (component.kind === "APPROACH_TARGET") {
+      return {
+        beatId: `beat:component:${component.order}:approach-target`,
+        kind: "LOCAL_ACTION_ATTEMPT",
+        actorIds,
+        stopCondition: "Mettre en scène l'approche sans créer de conséquence spatiale durable."
+      };
+    }
+    if (component.kind === "SPEECH" || component.kind === "NONVERBAL_SIGNAL") {
+      return {
+        beatId: `beat:component:${component.order}:actor-reaction`,
+        kind: "ACTOR_REACTION_EXPECTED",
+        actorIds,
+        stopCondition: "Rendre la main après une réaction bornée, sans résultat social mécanique."
+      };
+    }
+    return {
+      beatId: `beat:component:${component.order}:reposition-away`,
+      kind: "LOCAL_ACTION_ATTEMPT",
+      actorIds,
+      stopCondition: "Mettre en scène l'éloignement et libérer le focus conversationnel."
+    };
+  });
 }
 
 async function buildMjPlannerRequestV1(input: {
@@ -336,7 +386,7 @@ function buildCommandProposal(
 
 function buildActorAssignments(
   interpretation: NarrativeIntentInterpretationV1 | null,
-  beat: SceneBeatProposalV1
+  beats: SceneBeatProposalV1[]
 ): MjPlannerPayloadV1["actorAssignments"] {
   const assignments: MjPlannerPayloadV1["actorAssignments"] = [{
     role: "scene_writer",
@@ -344,7 +394,7 @@ function buildActorAssignments(
     reason: "Rédiger uniquement après validation de résolution ou arrêt runtime."
   }];
   const target = interpretation?.referentResolution?.resolvedTarget ?? interpretation?.semanticIntent.target ?? null;
-  if (beat.kind === "ACTOR_REACTION_EXPECTED" && target?.kind === "npc") {
+  if (beats.some(beat => beat.kind === "ACTOR_REACTION_EXPECTED") && target?.kind === "npc") {
     assignments.unshift({
       role: "npc_performer",
       actorId: target.ref,

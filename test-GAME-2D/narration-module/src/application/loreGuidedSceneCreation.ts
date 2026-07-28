@@ -1,4 +1,5 @@
 import type { DynamicCreationProposalV1, CreationPersistenceDepthV1 } from "../ai/types";
+import type { JsonObject } from "../core";
 import type {
   LoreInfluenceDimensionV1,
   LoreInfluencePacketV1,
@@ -7,7 +8,7 @@ import type {
 
 export const LORE_GUIDED_SCENE_CREATION_BRIEF_VERSION_V1 = "lore-guided-scene-creation-brief/1" as const;
 
-export interface CampaignLoreProjectionV1 {
+export interface CampaignLoreProjectionV1 extends JsonObject {
   schemaVersion: 1;
   projectionId: string;
   entityId: string;

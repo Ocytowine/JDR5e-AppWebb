@@ -98,6 +98,21 @@ export interface AiSemanticIntentPayloadV2 {
   intent: AiSemanticPlayerIntentV2;
 }
 
+export interface AiSemanticIntentPayloadV3 {
+  rawInputEcho: string;
+  intent: AiSemanticPlayerIntentV3;
+}
+
+export interface AiSemanticIntentPayloadV4 {
+  rawInputEcho: string;
+  intent: AiSemanticPlayerIntentV4;
+}
+
+export interface AiSemanticIntentPayloadV5 {
+  rawInputEcho: string;
+  intent: AiSemanticPlayerIntentV5;
+}
+
 export interface AiSemanticPlayerIntentV2 {
   kind: AiStructuredSemanticIntentV1["kind"];
   commitment: AiStructuredSemanticIntentV1["commitment"];
@@ -120,6 +135,55 @@ export interface AiSemanticPlayerIntentV2 {
   uncertainties: string[];
   clarificationPrompt: string | null;
   confidence: "low" | "medium" | "high";
+}
+
+export interface AiSemanticPlayerIntentV3 extends AiSemanticPlayerIntentV2 {
+  composition: AiSemanticIntentCompositionV1;
+}
+
+export interface AiSemanticPlayerIntentV4 extends Omit<AiSemanticPlayerIntentV3, "composition" | "perception"> {
+  composition: AiSemanticIntentCompositionV2;
+  perception: ({
+    schemaVersion: 1;
+    depth: "GLANCE" | "FOCUSED" | "SEARCH";
+    focus: string;
+    soughtInformation: string | null;
+    informationKind: "PRESENCE" | "VISIBLE_TRAIT" | "UNCERTAIN_CLUE";
+  }) | null;
+}
+
+export interface AiSemanticPlayerIntentV5 extends Omit<AiSemanticPlayerIntentV4, "composition"> {
+  composition: AiSemanticIntentCompositionV3;
+}
+
+export interface AiSemanticIntentCompositionV1 {
+  spatialLeadIn: {
+    kind: "APPROACH_TARGET";
+    playerGoal: string;
+    order: number;
+  } | null;
+  communication: {
+    mode: "SPEECH" | "NONVERBAL";
+    act: "INITIATE_CONVERSATION" | "ASK_QUESTION" | "MAKE_STATEMENT" | "REQUEST_ACTION" | "OTHER" | null;
+    contentGoal: string;
+    order: number;
+  } | null;
+}
+
+export interface AiSemanticIntentCompositionV2 extends AiSemanticIntentCompositionV1 {
+  orientation: {
+    kind: "LOCATE_VISIBLE_TARGET";
+    playerGoal: string;
+    order: number;
+  } | null;
+}
+
+export interface AiSemanticIntentCompositionV3 extends AiSemanticIntentCompositionV2 {
+  spatialFollowUp: {
+    kind: "REPOSITION_AWAY";
+    playerGoal: string;
+    order: number;
+  } | null;
 }
 
 export interface AiStructuredPlayerIntentV1 {
@@ -197,6 +261,7 @@ export interface AiStructuredSemanticIntentV1 {
     depth: "GLANCE" | "FOCUSED" | "SEARCH";
     focus: string;
     soughtInformation: string | null;
+    informationKind?: "PRESENCE" | "VISIBLE_TRAIT" | "UNCERTAIN_CLUE";
   } | null;
   dialogueAct?: {
     schemaVersion: 1;
@@ -204,6 +269,14 @@ export interface AiStructuredSemanticIntentV1 {
     contentGoal: string;
     addresseeRef: string | null;
   } | null;
+  composition?: {
+    schemaVersion: 1;
+    orderedComponents: Array<{
+      order: number;
+      kind: "LOCATE_VISIBLE_TARGET" | "APPROACH_TARGET" | "SPEECH" | "NONVERBAL_SIGNAL" | "REPOSITION_AWAY";
+      playerGoal: string;
+    }>;
+  };
 }
 
 export interface AiIntentRuntimeHandlingV1 {

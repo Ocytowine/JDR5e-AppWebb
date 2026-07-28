@@ -13,6 +13,7 @@ import {
 } from "./playableScene";
 import type { ReferenceSceneStateV1 } from "./referenceSceneState";
 import { buildNpcDialogueFallbackV1 } from "./npcDialogueFallback";
+import { narrativeDesignationOfV1, narrativeSubsequentMentionV1 } from "./narrativeDesignation";
 
 export const REFERENCE_PLAYABLE_SCENE_ID_V1 = "reference-inn-rain-001" as const;
 export const REFERENCE_PLAYABLE_SCENE_CONTRACT_VERSION_V1 = "reference-playable-scene/1" as const;
@@ -443,21 +444,49 @@ export function buildReferenceSceneBlocksV1(input: {
   }
   if (input.interpretation.intentType === "speech" || input.interpretation.intentType === "mixed") {
     const target = speechTarget(input.rawInput, input.interpretation, playableScene);
-    return [
-      referenceBlock({
-        operationId: input.operationId,
-        suffix: "reference-npc-reaction",
-        kind: "NPC_SPEECH",
-        speakerKind: "NPC",
-        displayName: target.displayName,
-        text: buildNpcDialogueFallbackV1(
-          target.actorId,
-          input.interpretation.semanticIntent.dialogueAct?.act ?? "OTHER",
-          target.displayName
-        ).text,
-        sourceRefs: [`reference-scene:${REFERENCE_PLAYABLE_SCENE_ID_V1}`, `resolution:${input.resolution.resolutionId}:speech-reaction`]
-      })
-    ];
+    const npcReaction = referenceBlock({
+      operationId: input.operationId,
+      suffix: "reference-npc-reaction",
+      kind: "NPC_SPEECH",
+      speakerKind: "NPC",
+      displayName: target.displayName,
+      text: buildNpcDialogueFallbackV1(
+        target.actorId,
+        input.interpretation.semanticIntent.dialogueAct?.act ?? "OTHER",
+        target.displayName
+      ).text,
+      sourceRefs: [`reference-scene:${playableScene.sceneId}`, `resolution:${input.resolution.resolutionId}:speech-reaction`]
+    });
+    const components = input.interpretation.semanticIntent.composition?.orderedComponents ?? [];
+    if (components.length === 0) return [npcReaction];
+    const targetMention = target.narrativeMention;
+    const rendered = components.flatMap(component => {
+      if (component.kind === "SPEECH" || component.kind === "NONVERBAL_SIGNAL") return [npcReaction];
+      if (component.kind === "APPROACH_TARGET") {
+        return [referenceBlock({
+          operationId: input.operationId,
+          suffix: `component-${component.order}-approach`,
+          kind: "GM_NARRATION",
+          speakerKind: "GM",
+          displayName: "MJ",
+          text: `Tu te rapproches ${dePhrase(targetMention)}.`,
+          sourceRefs: [`playable-scene:${playableScene.sceneId}`, `intent:${input.interpretation.intentId}:component:${component.order}`]
+        })];
+      }
+      if (component.kind === "REPOSITION_AWAY") {
+        return [referenceBlock({
+          operationId: input.operationId,
+          suffix: `component-${component.order}-away`,
+          kind: "GM_NARRATION",
+          speakerKind: "GM",
+          displayName: "MJ",
+          text: `Puis tu t'écartes ${dePhrase(targetMention)}, lui laissant reprendre son activité.`,
+          sourceRefs: [`playable-scene:${playableScene.sceneId}`, `intent:${input.interpretation.intentId}:component:${component.order}`]
+        })];
+      }
+      return [];
+    });
+    return rendered.some(block => block.kind === "NPC_SPEECH") ? rendered : [...rendered, npcReaction];
   }
   if (input.interpretation.intentType === "action") {
     return [referenceBlock({
@@ -584,21 +613,28 @@ function speechTarget(
   _rawInput: string,
   interpretation: NarrativeIntentInterpretationV1 | undefined,
   playableScene: PlayableSceneStateV1
-): { actorId: string; displayName: string } {
+): { actorId: string; displayName: string; narrativeMention: string } {
   const structuredRef = interpretation?.referentResolution?.resolvedTarget?.ref ?? interpretation?.target?.ref ?? null;
-  if (structuredRef === "npc:npc-serveuse-nerveuse" || structuredRef === "npc-serveuse-nerveuse") {
-    return { actorId: "npc-serveuse-nerveuse", displayName: "Serveuse nerveuse" };
-  }
-  if (structuredRef === "npc:npc-garde-blesse" || structuredRef === "npc-garde-blesse") {
-    return { actorId: "npc-garde-blesse", displayName: "Garde blessé" };
-  }
   const actorId = structuredRef?.replace(/^npc:/u, "") ?? "";
   const actor = playableScene.presentNpc.find(candidate => candidate.actorId === actorId)
     ?? playableScene.ambientPopulation.find(candidate => candidate.actorId === actorId);
+  const displayName = actor?.displayName ?? interpretation?.referentResolution?.resolvedTarget?.label ?? "Interlocuteur";
   return {
     actorId: actor?.actorId ?? (actorId || "npc-inconnu"),
-    displayName: actor?.displayName ?? interpretation?.referentResolution?.resolvedTarget?.label ?? "Interlocuteur"
+    displayName,
+    narrativeMention: actor
+      ? narrativeSubsequentMentionV1(narrativeDesignationOfV1(actor), displayName)
+      : displayName.toLocaleLowerCase("fr-FR")
   };
+}
+
+function dePhrase(mention: string): string {
+  const trimmed = mention.trim();
+  if (/^le\s+/iu.test(trimmed)) return `du ${trimmed.replace(/^le\s+/iu, "")}`;
+  if (/^les\s+/iu.test(trimmed)) return `des ${trimmed.replace(/^les\s+/iu, "")}`;
+  if (/^la\s+/iu.test(trimmed)) return `de la ${trimmed.replace(/^la\s+/iu, "")}`;
+  if (/^l['’]/iu.test(trimmed)) return `de ${trimmed}`;
+  return `de ${trimmed}`;
 }
 
 function observationNarration(rawInput: string, sceneState?: ReferenceSceneStateV1): string {

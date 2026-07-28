@@ -4,7 +4,8 @@ import { planNextTemporalBatchV1, prepareTemporalSegmentCommitV1, type TemporalT
 import type { DynamicCreationValidationPolicyV1 } from "../ai/types";
 import { createDynamicPlaceEntryRuntimeV1 } from "./dynamicPlaceEntryRuntime";
 import { createLoreGuidedDynamicPlacePreparationPortV1 } from "./loreGuidedDynamicPlacePreparation";
-import { buildLoreGuidedSceneCreationBriefV1 } from "./loreGuidedSceneCreation";
+import { buildLoreGuidedSceneCreationBriefFromCampaignV1 } from "./loreGuidedSceneCreation";
+import { createCampaignLoreProjectionReaderV1 } from "./campaignLoreProjectionRuntime";
 import type { LoreGuidedPlaceCandidateGeneratorConfigV2 } from "./loreGuidedPlaceCandidateGeneration";
 import { buildSceneReferentRegistryV1 } from "./sceneReferentRegistry";
 import type { PlaceRegistryStateV1, PlaceTopologyStateV1 } from "./placeCreationCommit";
@@ -65,7 +66,16 @@ export function createCampaignLoreGuidedDynamicPlaceRuntimeV1(input: {
         if (sourceLocationRef === null) return failure("narrative.dynamic-place.source-location-ref-missing", { sceneId: request.activeScene.sceneId });
         const target = resolveUnmappedVisibleCreationBoundaryV1({ semanticKind: request.interpretation.semanticIntent.kind, requiresClarification: request.interpretation.requiresClarification, targetRef: resolvedTargetRef(request.interpretation), activeScene: request.activeScene, topology: topologyState.topology });
         if (target === null) return failure("narrative.dynamic-place.target-required");
-        const brief = buildLoreGuidedSceneCreationBriefV1({ briefId: `${request.operation.operationId}:lore-brief`, packet, campaignProjections: [] });
+        const brief = await buildLoreGuidedSceneCreationBriefFromCampaignV1({
+          briefId: `${request.operation.operationId}:lore-brief`,
+          campaignId: request.campaign.campaignId,
+          campaignRevision: request.campaign.campaignRevision,
+          packet,
+          projectionReader: createCampaignLoreProjectionReaderV1({
+            repository: request.repository,
+            campaignId: request.campaign.campaignId
+          })
+        });
         if (!brief.ok) return failure("narrative.dynamic-place.lore-brief-invalid", { issues: brief.issues });
         const parentEntityId = packet.geographicChain[1] ?? packet.anchorEntityId;
         const dynamicPolicy: DynamicCreationValidationPolicyV1 = {

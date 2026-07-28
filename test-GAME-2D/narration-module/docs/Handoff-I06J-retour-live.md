@@ -2,7 +2,8 @@
 
 Date : 2026-07-07
 
-Statut : `RETENU` — note de reprise après premiers tests live, non contractuelle seule.
+Statut : `PREUVE_HISTORIQUE` — retour des premiers tests live, non contractuel
+et non utilisable comme feuille de route.
 
 Documents reliés :
 

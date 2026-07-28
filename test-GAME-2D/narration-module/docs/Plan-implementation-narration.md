@@ -1,6 +1,8 @@
 # Plan d'implémentation du module narration
 
-Statut : `EN_EXECUTION` — I-00 à I-06Z livrés dans leur périmètre; audit I-07 tactique/repos terminé et I-07A à I-07D livrés; I-02 conserve une réserve tactique différée; I-08 reste fermé jusqu'à sa gate.
+Statut : `ARCHIVE_HISTORIQUE` — découpage I-00 à I-07D livré dans son
+périmètre. Ce document n'est plus la feuille de route active ; voir
+[`Consolidation-fondations-narration.md`](Consolidation-fondations-narration.md).
 
 ## Principes d'exécution
 

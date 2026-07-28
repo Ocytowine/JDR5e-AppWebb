@@ -2,9 +2,15 @@
 
 Date: 2026-07-23
 
+Statut : `PREUVE_HISTORIQUE`
+
+Cette relève conserve les mesures et décisions du 2026-07-23. Elle ne constitue
+plus un point de reprise actif ; voir
+[`Consolidation-fondations-narration.md`](Consolidation-fondations-narration.md).
+
 ## Certification live du 2026-07-23
 
-Le parcours Archives → destination absente → rechargement sur la scène dynamique → retour vers les Archives est certifié avec `gpt-5.6-luna/none` pour `player_intent_interpreter` et `gpt-5.5` pour `scene_creator`.
+Le parcours Archives → destination absente → rechargement sur la scène dynamique → retour vers les Archives a d'abord été certifié avec `gpt-5.6-luna/none` pour `player_intent_interpreter` et `gpt-5.5` pour `scene_creator`. Le benchmark V2 suivant a certifié `gpt-5.6-luna/none` pour `scene_creator`, désormais configuration serveur par défaut.
 
 - création observée entre 21,8 et 26,0 secondes selon les essais ;
 - interprétation observée entre 3,0 et 3,8 secondes ;
@@ -45,7 +51,7 @@ Ils sélectionnent la frontière visible réellement franchie. Si l'interpréteu
 
 ### Sélection du lore
 
-Le pilote compile actuellement tout le corpus `wiki/lore` dans le client, puis construit un paquet borné propre à la scène active. Seul un brief compact est envoyé à l'IA. Dernière mesure connue pour les Archives: 28 entités, 97 fragments, 16 influences, brief complet 17 599 caractères, vue `scene_creator` 5 678 caractères. L'architecture d'indexation scalable du wiki est volontairement différée.
+Le build compile désormais `wiki/lore` et produit `narrative-lore-build-catalog/1`; le client ne reçoit plus les sources brutes ni le compilateur YAML. Le catalogue courant retient 23 sources utiles et 15 paquets de scène. Seul un brief compact propre à la scène active est envoyé à l'IA. L'architecture d'indexation incrémentale d'un corpus beaucoup plus vaste reste différée.
 
 ### `scene_creator`
 
@@ -114,15 +120,16 @@ Configuration actuelle du rôle:
 - sortie maximum: 2 000 tokens;
 - délai fournisseur: 55 secondes;
 - délai de transport client: 60 secondes;
-- raisonnement serveur par défaut: `low` pour `scene_creator`;
+- modèle serveur par défaut : `gpt-5.6-luna` pour `scene_creator` ;
+- raisonnement serveur par défaut : `none` pour `scene_creator`;
 - modèle: `NARRATION_OPENAI_SCENE_CREATOR_MODEL`, sinon `NARRATION_OPENAI_MODEL`.
 
 Le contexte compact observé lors du dernier test live faisait 6 541 caractères. Le dernier échec était uniquement `SERVER_ROUTE_FETCH_FAILED: signal timed out` à 30 014 ms, avant le relèvement du délai. Une création proche d'une minute reste trop lente pour la cible produit; le relèvement sert d'abord à valider le parcours fonctionnel.
 
 ## Suite directe
 
-1. Benchmarker un modèle plus rapide pour `scene_creator` avec la télémétrie désormais visible.
-2. Générer un catalogue lore au build afin de ne plus compiler le corpus complet dans le client.
+1. Étendre les conversations PNJ longues et leur mémoire courte.
+2. Garder le catalogue lore de build aligné avec toute évolution du contrat auteur.
 3. Décider si le mode IA choisi doit être restauré après rechargement ou rester volontairement local par défaut.
 
 ## Comment analyser le prochain rejet

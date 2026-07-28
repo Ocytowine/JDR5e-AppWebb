@@ -18,6 +18,7 @@ import type { AiIncidentRecordV1 } from "../ai/types";
 import type { DisplayPacketV1 } from "../scene";
 import type { AiNarrativeEnhancementResultV1 } from "./aiNarrativeEnhancement";
 import type { NarrativeTurnControllerOutputV1 } from "./NarrativeTurnController";
+import { npcSpeakerIdForActorV1 } from "./npcActorIdentity";
 
 export const NARRATIVE_RENDER_PROJECTION_CONTRACT_VERSION_V1 = "narrative-render-projection/1" as const;
 
@@ -98,6 +99,7 @@ export interface ReconstructedNpcUtteranceV1 extends JsonObject {
   actorId: string;
   speakerId: string;
   text: string;
+  playerExpressionText: string | null;
   sourceOperationId: string;
   renderOperationId: string;
   displayPacketFingerprint: string;
@@ -256,12 +258,15 @@ export async function reconstructRenderedNpcUtterancesV1(input: {
     limit: input.limit
   });
   if (!restored.ok) return restored;
-  const speakerId = npcSpeakerIdForActor(input.actorId);
+  const speakerId = npcSpeakerIdForActorV1(input.actorId);
   if (speakerId === null) return { ok: true, value: [] };
   const utterances: ReconstructedNpcUtteranceV1[] = [];
   for (const projection of restored.value.projections) {
     const packet = projection.displayPacket as unknown as Partial<DisplayPacketV1>;
     if (!Array.isArray(packet.displayBlocks)) continue;
+    const playerExpressionText = packet.displayBlocks.find(block =>
+      block.kind === "PLAYER_EXPRESSION" && block.text.trim().length > 0
+    )?.text ?? null;
     for (const block of packet.displayBlocks) {
       if (
         block.kind !== "NPC_SPEECH" ||
@@ -273,6 +278,7 @@ export async function reconstructRenderedNpcUtterancesV1(input: {
         actorId: input.actorId,
         speakerId,
         text: block.text,
+        playerExpressionText,
         sourceOperationId: projection.sourceOperationId,
         renderOperationId: projection.renderOperationId,
         displayPacketFingerprint: projection.displayPacketFingerprint,
@@ -283,11 +289,6 @@ export async function reconstructRenderedNpcUtterancesV1(input: {
   return { ok: true, value: utterances.slice(-5) };
 }
 
-function npcSpeakerIdForActor(actorId: string): string | null {
-  if (actorId === "npc:npc-serveuse-nerveuse" || actorId === "npc-serveuse-nerveuse") return "speaker-serveuse-nerveuse";
-  if (actorId === "npc:npc-garde-blesse" || actorId === "npc-garde-blesse") return "speaker-garde-blesse";
-  return null;
-}
 
 function buildNarrativeRenderedProjectionV1(input: {
   request: NarrativeRenderProjectionInputV1;

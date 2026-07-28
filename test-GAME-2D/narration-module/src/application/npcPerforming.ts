@@ -21,6 +21,7 @@ import { responseModeForDialogueActV1, validateNpcDialogueReactionV1 } from "./n
 import { buildNpcDialogueFallbackV1, type NpcDialogueActKindV1 } from "./npcDialogueFallback";
 import type { PlayableSceneStateV1 } from "./playableScene";
 import { narrativeDesignationOfV1 } from "./narrativeDesignation";
+import { normalizeNpcActorIdV1, npcSpeakerIdForActorV1 } from "./npcActorIdentity";
 
 export const NPC_PERFORMER_CONTRACT_VERSION_V1 = "npc-performer/1" as const;
 
@@ -430,13 +431,7 @@ export function resolveNpcSpeakerV1(actorId: string, activeScene: PlayableSceneS
   displayName: string;
   knownNameStatus: "KNOWN" | "DESIGNATION" | "UNKNOWN";
 } {
-  if (actorId === "npc:npc-serveuse-nerveuse" || actorId === "npc-serveuse-nerveuse") {
-    return { speakerId: "speaker-serveuse-nerveuse", displayName: "Serveuse nerveuse", knownNameStatus: "DESIGNATION" };
-  }
-  if (actorId === "npc:npc-garde-blesse" || actorId === "npc-garde-blesse") {
-    return { speakerId: "speaker-garde-blesse", displayName: "Garde blessé", knownNameStatus: "DESIGNATION" };
-  }
-  const normalizedActorId = actorId.replace(/^npc:/u, "");
+  const normalizedActorId = normalizeNpcActorIdV1(actorId);
   const actor = activeScene.presentNpc.find(npc => npc.actorId === normalizedActorId);
   const ambientActor = activeScene.ambientPopulation?.find(presence => presence.actorId === normalizedActorId);
   const designation = actor
@@ -445,7 +440,7 @@ export function resolveNpcSpeakerV1(actorId: string, activeScene: PlayableSceneS
       ? narrativeDesignationOfV1(ambientActor)
       : undefined;
   return {
-    speakerId: `speaker-${normalizedActorId.replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-|-$/gu, "") || "npc"}`,
+    speakerId: npcSpeakerIdForActorV1(actorId) ?? "speaker-npc",
     displayName: designation?.playerFacingLabel ?? actor?.displayName ?? ambientActor?.displayName ?? "Interlocuteur",
     knownNameStatus: designation?.knowledgeStatus ?? "UNKNOWN"
   };
@@ -540,19 +535,21 @@ async function buildNpcPerformerRequestV1(input: {
     limit: 20
   });
   const renderedNpcUtterances = priorNpcUtterances.ok ? priorNpcUtterances.value : [];
-  const priorPlayerSpeech = input.sceneState.shortTermNpcMemory
+  const rememberedPlayerSpeech = new Map(input.sceneState.shortTermNpcMemory
     .filter(memory => `npc:${memory.actorId}` === input.actorId)
-    .map(memory => ({
-      operationId: memory.operationId,
-      playerIntentSummary: memory.playerIntentSummary
-    }));
-  const dialogueHistory = priorPlayerSpeech.map(playerSpeech => ({
-    operationId: playerSpeech.operationId,
-    playerIntentSummary: playerSpeech.playerIntentSummary,
-    npcUtterances: renderedNpcUtterances
-      .filter(utterance => utterance.sourceOperationId === playerSpeech.operationId)
-      .map(utterance => utterance.text)
-  })).filter(entry => entry.npcUtterances.length > 0);
+    .map(memory => [memory.operationId, memory.playerIntentSummary] as const));
+  const dialogueHistory = renderedNpcUtterances.map(utterance => ({
+    operationId: utterance.sourceOperationId,
+    playerIntentSummary: rememberedPlayerSpeech.get(utterance.sourceOperationId) ??
+      (utterance.playerExpressionText === null
+        ? "Expression antérieure non reconstruite."
+        : `Le joueur a dit : ${utterance.playerExpressionText}`),
+    npcUtterances: [utterance.text]
+  }));
+  const priorPlayerSpeech = dialogueHistory.map(entry => ({
+    operationId: entry.operationId,
+    playerIntentSummary: entry.playerIntentSummary
+  }));
   const allowedSourceRefs = [
     `playable-scene:${input.activeScene.sceneId}`,
     `intent:${input.interpretation.intentId}`,

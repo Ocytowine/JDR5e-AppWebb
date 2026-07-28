@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   buildReferenceSceneLocalNarrationV1,
+  buildCampaignProjectedPlayableLoreSceneV1,
   buildVisiblePopulationNarrationV1,
   applyNarrativePresentationVariationV1,
   createBrowserPersistentNarrativeTurnControllerV1,
   createPrototypeNarrativeTurnControllerV1,
   enhanceNarrativeDisplayWithAiV1,
+  isImmediateVisibleOrientationResolutionV1,
   PROTOTYPE_SCENE_LIFECYCLE_AGGREGATE_ID_V1,
   DYNAMIC_PLACE_FACTS_AGGREGATE_ID_V1,
   DYNAMIC_PLACE_REGISTRY_AGGREGATE_ID_V1,
@@ -73,11 +75,12 @@ export function NarrativeAppSurface(props: {
     let cancelled = false;
     setController(null);
     setPendingSkillCheck(null);
-    const activateController = async (nextController: NarrativeTurnControllerV1) => {
-      const [restored, restoredPending, restoredSkillResults] = await Promise.all([
+    const activateController = async (nextController: NarrativeTurnControllerV1, refreshOpening = false) => {
+      const [restored, restoredPending, restoredSkillResults, activeScene] = await Promise.all([
         nextController.restoreRenderedThread(),
         nextController.restorePendingSkillCheck(),
-        nextController.restoreSkillCheckResultPackets()
+        nextController.restoreSkillCheckResultPackets(),
+        refreshOpening ? nextController.resolveActiveScene() : Promise.resolve(null)
       ]);
       if (cancelled) return;
       if (restored.ok) {
@@ -91,6 +94,8 @@ export function NarrativeAppSurface(props: {
       if (restoredPending.ok) setPendingSkillCheck(restoredPending.value);
       else reportCoreError(restoredPending.error, "Restauration du jet en attente");
       if (!restoredSkillResults.ok) reportCoreError(restoredSkillResults.error, "Restauration des résultats de dés");
+      if (activeScene?.ok) setOpeningScene(activeScene.value);
+      else if (activeScene !== null) reportCoreError(activeScene.error, "Projection de la scène active");
       setController(nextController);
     };
     if (props.bootstrapController !== undefined) {
@@ -107,11 +112,30 @@ export function NarrativeAppSurface(props: {
     const intentInterpreterConfig = buildIntentInterpreterConfig(enhancementMode);
     const npcPerformerConfig = buildNpcPerformerConfig(enhancementMode);
     void import("./archiveLorePilot").then(module => module.buildArchiveLorePilotV1()).then(async archivePilot => {
-      const resolveSceneById = (repository: CampaignRepository, campaignId: CampaignId, sceneId: string) => resolveSceneV1({
-        sceneId,
-        sources: [{ sourceKind: "WIKI" as const, resolve: candidate => archivePilot.scenes.find(scene => scene.sceneId === candidate) ?? null }],
-        dynamicCatalog: { repository, campaignId, placeRegistryAggregateId: DYNAMIC_PLACE_REGISTRY_AGGREGATE_ID_V1, topologyAggregateId: DYNAMIC_PLACE_TOPOLOGY_AGGREGATE_ID_V1, factRegistryAggregateId: DYNAMIC_PLACE_FACTS_AGGREGATE_ID_V1 }
-      });
+      const resolveSceneById = async (repository: CampaignRepository, campaignId: CampaignId, sceneId: string) => {
+        const authoredSource = archivePilot.authoredSceneSourceBySceneId.get(sceneId);
+        let authoredScene = archivePilot.scenes.find(scene => scene.sceneId === sceneId) ?? null;
+        if (authoredSource !== undefined) {
+          const campaign = await repository.getCampaign(campaignId);
+          if (!campaign.ok) return campaign;
+          const projected = await buildCampaignProjectedPlayableLoreSceneV1({
+            repository,
+            campaignId,
+            campaignRevision: campaign.value.campaignRevision,
+            entity: authoredSource.entity,
+            fragments: authoredSource.fragments,
+            packet: authoredSource.packet,
+            sceneId
+          });
+          if (!projected.ok) return projected;
+          authoredScene = projected.value.scene;
+        }
+        return resolveSceneV1({
+          sceneId,
+          sources: [{ sourceKind: "WIKI" as const, resolve: candidate => candidate === sceneId ? authoredScene : null }],
+          dynamicCatalog: { repository, campaignId, placeRegistryAggregateId: DYNAMIC_PLACE_REGISTRY_AGGREGATE_ID_V1, topologyAggregateId: DYNAMIC_PLACE_TOPOLOGY_AGGREGATE_ID_V1, factRegistryAggregateId: DYNAMIC_PLACE_FACTS_AGGREGATE_ID_V1 }
+        });
+      };
       const activeSceneResolver = { async resolve(input: { repository: CampaignRepository; campaignId: CampaignId }) {
         const lifecycle = await input.repository.getAggregate(input.campaignId, "scene.lifecycle", PROTOTYPE_SCENE_LIFECYCLE_AGGREGATE_ID_V1);
         if (!lifecycle.ok) return lifecycle;
@@ -145,11 +169,11 @@ export function NarrativeAppSurface(props: {
         }
       });
       return createBrowserPersistentNarrativeTurnControllerV1({ databaseName: "jdr5e-narration-archives-pilot-v4", intentInterpreterConfig, npcPerformerConfig, sceneTransitionRuntime, dynamicPlaceRuntime, initialScene: { scene: archivePilot.scene, locationRef: archivePilot.locationRef }, activeSceneResolver, initializeRepository: (repository, campaignId, clock) => ensureDynamicPlaceCreationStateV1({ repository, campaignId, clock, topology: archivePilot.topology }) });
-    }).then(activateController).catch(error => {
+    }).then(controller => activateController(controller, true)).catch(error => {
       void import("./archiveLorePilot").then(module => module.buildArchiveLorePilotV1()).then(archivePilot => {
         setOpeningScene(archivePilot.scene);
         return createPrototypeNarrativeTurnControllerV1({ intentInterpreterConfig, npcPerformerConfig, initialScene: { scene: archivePilot.scene, locationRef: archivePilot.locationRef }, initializeRepository: (repository, campaignId, clock) => ensureDynamicPlaceCreationStateV1({ repository, campaignId, clock, topology: archivePilot.topology }), activeSceneResolver: { async resolve() { return { ok: true as const, value: archivePilot.scene }; } } });
-      }).then(activateController).catch(fallbackError => {
+      }).then(controller => activateController(controller, true)).catch(fallbackError => {
         if (!cancelled) {
           const primary = error instanceof Error ? error.message : String(error);
           const fallback = fallbackError instanceof Error ? fallbackError.message : String(fallbackError);
@@ -199,6 +223,9 @@ export function NarrativeAppSurface(props: {
       const turnDiagnostics = [
         ...(enhancement.attemptedEnhancement !== null &&
           (enhancement.attemptedEnhancement.incidents.length > 0 || enhancement.attemptedEnhancement.fallbackKind !== "NONE")
+          ? [enhancement.status]
+          : []),
+        ...(isImmediateVisibleOrientationResolutionV1(result.value.output.resolution)
           ? [enhancement.status]
           : [])
       ];
@@ -842,6 +869,8 @@ async function enhancePrototypePacket(
       displayPacket: varied,
       status: sceneWriterRejectedNote
         ? `OpenAI appelé, mais aucune narration utilisable n'a passé les garde-fous (${summarizeSceneWriterRejectedNote(sceneWriterRejectedNote)}) : narration locale conservée.`
+        : isImmediateVisibleOrientationResolutionV1(output.resolution)
+          ? "Scene writer non appelé: orientation immédiate vers une présence déjà visible; narration déterministe conservée."
         : hasLocalNarration
         ? mode === "openai"
           ? "Narration de scène locale utilisée; OpenAI non appelé car aucun enrichissement supplémentaire n'était nécessaire."

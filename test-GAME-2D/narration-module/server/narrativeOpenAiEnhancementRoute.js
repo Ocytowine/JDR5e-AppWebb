@@ -3,12 +3,16 @@
 const ALLOWED_ROLES = new Set(["player_expression_adapter", "scene_writer", "scene_creator", "coherence_critic", "player_intent_interpreter", "mj_planner", "npc_performer"]);
 const CONTRACT_VERSION = "narrative-ai-resolution/1";
 const INTENT_CONTRACT_VERSION = "ai-intent-interpretation/1";
-const SEMANTIC_INTENT_CONTRACT_VERSION = "ai-intent-semantic/2";
+const SEMANTIC_INTENT_CONTRACT_VERSION_V2 = "ai-intent-semantic/2";
+const SEMANTIC_INTENT_CONTRACT_VERSION_V3 = "ai-intent-semantic/3";
+const SEMANTIC_INTENT_CONTRACT_VERSION_V4 = "ai-intent-semantic/4";
+const SEMANTIC_INTENT_CONTRACT_VERSION_V5 = "ai-intent-semantic/5";
 const MJ_PLANNER_CONTRACT_VERSION = "mj-planner/1";
 const NPC_PERFORMER_CONTRACT_VERSION = "npc-performer/1";
 const SCENE_CREATOR_CONTRACT_VERSION_V1 = "lore-guided-place-candidate/1";
 const SCENE_CREATOR_CONTRACT_VERSION_V2 = "lore-guided-place-candidate/2";
 const DEFAULT_MODEL = "gpt-4.1-mini";
+const DEFAULT_SCENE_CREATOR_MODEL = "gpt-5.6-luna";
 
 // Source active pour la route serveur: le schéma est construit par requête afin
 // de verrouiller le rôle, le contrat et le payload attendus, notamment pour
@@ -151,7 +155,16 @@ function buildRolePayloadSchema(requestOrRole) {
     };
   }
   if (role === "player_intent_interpreter") {
-    if (typeof requestOrRole === "object" && requestOrRole.contractVersion === SEMANTIC_INTENT_CONTRACT_VERSION) {
+    if (typeof requestOrRole === "object" && requestOrRole.contractVersion === SEMANTIC_INTENT_CONTRACT_VERSION_V5) {
+      return buildSemanticIntentPayloadSchemaV5();
+    }
+    if (typeof requestOrRole === "object" && requestOrRole.contractVersion === SEMANTIC_INTENT_CONTRACT_VERSION_V4) {
+      return buildSemanticIntentPayloadSchemaV4();
+    }
+    if (typeof requestOrRole === "object" && requestOrRole.contractVersion === SEMANTIC_INTENT_CONTRACT_VERSION_V3) {
+      return buildSemanticIntentPayloadSchemaV3();
+    }
+    if (typeof requestOrRole === "object" && requestOrRole.contractVersion === SEMANTIC_INTENT_CONTRACT_VERSION_V2) {
       return buildSemanticIntentPayloadSchemaV2();
     }
     return {
@@ -891,10 +904,95 @@ function createNarrativeOpenAiEnhancementApi(options) {
   return { tryHandle };
 }
 
+function buildSemanticIntentPayloadSchemaV3() {
+  const schema = buildSemanticIntentPayloadSchemaV2();
+  schema.properties.intent.required.push("composition");
+  schema.properties.intent.properties.composition = {
+    type: "object",
+    additionalProperties: false,
+    required: ["spatialLeadIn", "communication"],
+    properties: {
+      spatialLeadIn: {
+        anyOf: [{
+          type: "object",
+          additionalProperties: false,
+          required: ["kind", "playerGoal", "order"],
+          properties: {
+            kind: { enum: ["APPROACH_TARGET"] },
+            playerGoal: { type: "string" },
+            order: { type: "integer", minimum: 1, maximum: 2 }
+          }
+        }, { type: "null" }]
+      },
+      communication: {
+        anyOf: [{
+          type: "object",
+          additionalProperties: false,
+          required: ["mode", "act", "contentGoal", "order"],
+          properties: {
+            mode: { enum: ["SPEECH", "NONVERBAL"] },
+            act: { enum: ["INITIATE_CONVERSATION", "ASK_QUESTION", "MAKE_STATEMENT", "REQUEST_ACTION", "OTHER", null] },
+            contentGoal: { type: "string" },
+            order: { type: "integer", minimum: 1, maximum: 2 }
+          }
+        }, { type: "null" }]
+      }
+    }
+  };
+  return schema;
+}
+
+function buildSemanticIntentPayloadSchemaV4() {
+  const schema = buildSemanticIntentPayloadSchemaV3();
+  const intent = schema.properties.intent;
+  const composition = intent.properties.composition;
+  composition.required.push("orientation");
+  composition.properties.spatialLeadIn.anyOf[0].properties.order.maximum = 3;
+  composition.properties.communication.anyOf[0].properties.order.maximum = 3;
+  composition.properties.orientation = {
+    anyOf: [{
+      type: "object",
+      additionalProperties: false,
+      required: ["kind", "playerGoal", "order"],
+      properties: {
+        kind: { enum: ["LOCATE_VISIBLE_TARGET"] },
+        playerGoal: { type: "string" },
+        order: { type: "integer", minimum: 1, maximum: 3 }
+      }
+    }, { type: "null" }]
+  };
+  const perception = intent.properties.perception.anyOf[0];
+  perception.required.push("informationKind");
+  perception.properties.informationKind = { enum: ["PRESENCE", "VISIBLE_TRAIT", "UNCERTAIN_CLUE"] };
+  return schema;
+}
+
+function buildSemanticIntentPayloadSchemaV5() {
+  const schema = buildSemanticIntentPayloadSchemaV4();
+  const composition = schema.properties.intent.properties.composition;
+  for (const key of ["orientation", "spatialLeadIn", "communication"]) {
+    composition.properties[key].anyOf[0].properties.order.maximum = 4;
+  }
+  composition.required.push("spatialFollowUp");
+  composition.properties.spatialFollowUp = {
+    anyOf: [{
+      type: "object",
+      additionalProperties: false,
+      required: ["kind", "playerGoal", "order"],
+      properties: {
+        kind: { enum: ["REPOSITION_AWAY"] },
+        playerGoal: { type: "string" },
+        order: { type: "integer", minimum: 1, maximum: 4 }
+      }
+    }, { type: "null" }]
+  };
+  return schema;
+}
+
 function normalizeProviderEnvelope(output, request) {
   if (
     request?.role !== "player_intent_interpreter" ||
-    request?.contractVersion !== SEMANTIC_INTENT_CONTRACT_VERSION ||
+    request?.contractVersion !== SEMANTIC_INTENT_CONTRACT_VERSION_V2 ||
     !output || typeof output !== "object" || Array.isArray(output) ||
     !output.payload || typeof output.payload !== "object" || Array.isArray(output.payload) ||
     !output.payload.intent || typeof output.payload.intent !== "object" || Array.isArray(output.payload.intent)
@@ -946,7 +1044,7 @@ function normalizeAiCallRequest(value) {
   if (!ALLOWED_ROLES.has(request.role)) issues.push("role is not allowed for narrative enhancement.");
   const expectedContractVersion = contractVersionForRole(request.role);
   const acceptedContractVersions = request.role === "player_intent_interpreter"
-    ? [INTENT_CONTRACT_VERSION, SEMANTIC_INTENT_CONTRACT_VERSION]
+    ? [INTENT_CONTRACT_VERSION, SEMANTIC_INTENT_CONTRACT_VERSION_V2, SEMANTIC_INTENT_CONTRACT_VERSION_V3, SEMANTIC_INTENT_CONTRACT_VERSION_V4, SEMANTIC_INTENT_CONTRACT_VERSION_V5]
     : request.role === "scene_creator"
       ? [SCENE_CREATOR_CONTRACT_VERSION_V1, SCENE_CREATOR_CONTRACT_VERSION_V2]
       : [expectedContractVersion];
@@ -991,7 +1089,7 @@ function buildServerRoute(request, env) {
   const reasoningEffort = request.role === "player_intent_interpreter"
     ? normalizeReasoningEffort(env.NARRATION_OPENAI_INTENT_REASONING_EFFORT)
     : request.role === "scene_creator"
-      ? normalizeReasoningEffort(env.NARRATION_OPENAI_SCENE_CREATOR_REASONING_EFFORT) || "low"
+      ? normalizeReasoningEffort(env.NARRATION_OPENAI_SCENE_CREATOR_REASONING_EFFORT) || "none"
       : null;
   return {
     modelId: request.role === "player_intent_interpreter"
@@ -1001,7 +1099,7 @@ function buildServerRoute(request, env) {
         : request.role === "npc_performer"
           ? env.NARRATION_OPENAI_NPC_PERFORMER_MODEL || env.NARRATION_OPENAI_MODEL || DEFAULT_MODEL
           : request.role === "scene_creator"
-            ? env.NARRATION_OPENAI_SCENE_CREATOR_MODEL || env.NARRATION_OPENAI_MODEL || DEFAULT_MODEL
+            ? env.NARRATION_OPENAI_SCENE_CREATOR_MODEL || env.NARRATION_OPENAI_MODEL || DEFAULT_SCENE_CREATOR_MODEL
             : env.NARRATION_OPENAI_MODEL || DEFAULT_MODEL,
     routeId: request.role === "scene_creator"
       ? "server-openai-narrative-scene-creator"
@@ -1115,7 +1213,12 @@ function buildRoleInstructions(request) {
   }
 
   if (request.role === "player_intent_interpreter") {
-    if (request.contractVersion === SEMANTIC_INTENT_CONTRACT_VERSION) {
+    if (
+      request.contractVersion === SEMANTIC_INTENT_CONTRACT_VERSION_V2 ||
+      request.contractVersion === SEMANTIC_INTENT_CONTRACT_VERSION_V3 ||
+      request.contractVersion === SEMANTIC_INTENT_CONTRACT_VERSION_V4 ||
+      request.contractVersion === SEMANTIC_INTENT_CONTRACT_VERSION_V5
+    ) {
       return [
         "Tu interprètes librement le sens de l'intention du joueur sans produire de conséquence ni de narration.",
         "Retourne uniquement le JSON strict demandé. N'ajoute ni projection legacy, ni décision de commit, ni décision temporelle, ni statut runtime.",
@@ -1125,6 +1228,27 @@ function buildRoleInstructions(request) {
         "kind=move_near_visible_actor pour se placer, s'approcher ou se déplacer vers un acteur visible sans lui parler ni lui adresser de signal. Ce n'est ni address_visible_actor, ni nonverbal_signal, ni manipulate_visible_object.",
         "Si la même entrée combine une approche et une parole ou salutation immédiate, la communication est l'intention principale: utilise address_visible_actor et conserve l'approche dans playerGoal/evidenceFromInput. N'utilise move_near_visible_actor que lorsque aucune parole ni salutation n'est engagée.",
         "Une salutation formulée sans geste explicite ouvre une conversation: utilise address_visible_actor avec dialogueAct=INITIATE_CONVERSATION. Réserve nonverbal_signal aux gestes effectivement décrits, par exemple signe de tête, geste de la main ou regard, sans parole ni salutation verbale.",
+        ...([SEMANTIC_INTENT_CONTRACT_VERSION_V3, SEMANTIC_INTENT_CONTRACT_VERSION_V4, SEMANTIC_INTENT_CONTRACT_VERSION_V5].includes(request.contractVersion) ? [
+          "composition analyse séparément une éventuelle amorce spatiale et une éventuelle communication; ce champ ne décrit jamais une conséquence.",
+          "spatialLeadIn=APPROACH_TARGET seulement si le joueur veut réellement se rapprocher de la cible; sinon null.",
+          "communication.mode=SPEECH pour toute parole, question, déclaration, demande ou salutation verbale. Son act décrit l'acte de dialogue. communication.mode=NONVERBAL seulement pour un signal explicitement non verbal et act doit alors être null.",
+          "Une approche suivie d'une salutation utilise spatialLeadIn puis communication avec les ordres 1 et 2. Une approche sans communication utilise communication=null. Une salutation sans approche utilise spatialLeadIn=null.",
+          "Les champs kind, dialogueAct, scope et domainHint décrivent l'intention principale, mais le logiciel les recalcule depuis composition: ne supprime donc aucune composante exprimée pour forcer une catégorie unique."
+        ] : []),
+        ...([SEMANTIC_INTENT_CONTRACT_VERSION_V4, SEMANTIC_INTENT_CONTRACT_VERSION_V5].includes(request.contractVersion) ? [
+          "composition.orientation=LOCATE_VISIBLE_TARGET lorsque le joueur veut repérer, sélectionner ou rejoindre ensuite un référent publiquement visible, sans chercher un indice caché. Sinon orientation=null.",
+          "Une proposition d'orientation conserve son but ultérieur dans playerGoal, mais ne transforme pas ce but en méthode perceptive: vouloir poursuivre des recherches après avoir trouvé un archiviste ne signifie pas rechercher perceptivement un indice.",
+          "Pour observe_environment, informationKind=PRESENCE si la question porte sur l'existence ou la localisation immédiate d'une présence; VISIBLE_TRAIT pour un signe public perceptible; UNCERTAIN_CLUE seulement pour une information non déjà visible qui peut justifier une vérification.",
+          "Une orientation vers un référent visible utilise perception.informationKind=PRESENCE et ne doit pas demander SEARCH. Une investigation de dissimulation, de trace cachée ou d'information incertaine utilise UNCERTAIN_CLUE.",
+          "Le logiciel recalcule l'observation immédiate depuis orientation et le registre visible; ne force jamais SEARCH à cause du seul objectif futur exprimé par le joueur."
+        ] : []),
+        ...(request.contractVersion === SEMANTIC_INTENT_CONTRACT_VERSION_V5 ? [
+          "composition.spatialFollowUp=REPOSITION_AWAY lorsque le joueur s'écarte de la cible après sa communication; sinon null.",
+          "REPOSITION_AWAY est une étape locale réversible demandée par le joueur, jamais une réaction ni une conséquence inventée.",
+          "spatialFollowUp exige une communication dans ce contrat borné. Place les ordres selon la séquence réellement exprimée, par exemple communication=1 puis spatialFollowUp=2.",
+          "Une approche avant une parole reste spatialLeadIn puis communication. N'utilise pas spatialFollowUp pour une approche.",
+          "Si le tour sémantique le plus récent porte focusDisposition=RELEASE, sa cible n'est plus un RECENT_FOCUS actif. Un nouveau pronom ne peut la reprendre qu'avec un autre ancrage explicite."
+        ] : []),
         "kind=nonverbal_signal seulement si le joueur cherche à communiquer par un geste, un regard, une posture ou un autre signal sans parole.",
         "kind=traverse_visible_boundary lorsque le but est de franchir une porte, une ouverture ou une limite vers un autre espace. targetMention désigne alors la limite visible franchie, même si le joueur nomme surtout la destination.",
         "kind=manipulate_visible_object lorsque le but porte sur l'objet dans la scène courante sans franchissement: ouvrir, fermer, déplacer, examiner par manipulation ou actionner.",
@@ -1283,6 +1407,9 @@ function buildRoleInstructions(request) {
     "Ne decris aucun evenement nouveau non fourni: pas de porte d'entree qui s'ouvre, pas d'arrivee, pas de sortie, pas de nouveau client, pas de silhouette cachee ou d'occupant dissimule.",
     "Pour decrire les gens presents, limite-toi aux PNJ visibles fournis dans le contexte. Si aucun autre occupant visible n'est fourni, ne les invente pas.",
     "Chaque bloc doit citer dans groundedIn au moins une reference exacte fournie dans task.allowedGrounding. Tu peux citer plusieurs references, mais au moins une doit etre recopiee exactement.",
+    "groundedIn certifie ce que le texte couvre effectivement; ne cite jamais une reference uniquement parce qu'elle figurait dans le contexte.",
+    "Si task.requiredNarrativeGroundingAnyOf n'est pas vide, le rendu doit couvrir et citer au moins une de ces references. Une description du lieu seule ne repond pas a une demande portant sur les presences visibles.",
+    "Si task.requiredNarrativeMentionAnyOf n'est pas vide, emploie dans le texte au moins une de ces désignations fournies; cette mention prouve que la présence demandée est effectivement décrite.",
     "Pour chaque bloc, remplis factDiscipline comme un audit factuel: addedUnsupportedFacts liste les faits/personnes/evenements qui ne sont pas explicitement fournis; noNewEvents=false si un evenement nouveau est decrit; noHiddenPresence=false si une presence cachee/dissimulee/non fournie est suggeree; usesOnlyProvidedVisibleEntities=false si une personne ou un groupe visible non fourni est mentionne.",
     "Si tu as besoin d'ajouter un fait non fourni pour rendre la phrase naturelle, signale-le dans factDiscipline.addedUnsupportedFacts au lieu de le masquer.",
     `References groundedIn autorisees pour cette requete: ${allowedGroundingInstruction(request)}.`,
@@ -1381,7 +1508,10 @@ function validateRolePayload(payload, role, request = null) {
     return validateSceneCreatorPayload(payload, request);
   }
   if (role === "player_intent_interpreter") {
-    if (request?.contractVersion === SEMANTIC_INTENT_CONTRACT_VERSION) return validateSemanticIntentPayloadV2(payload);
+    if (request?.contractVersion === SEMANTIC_INTENT_CONTRACT_VERSION_V5) return validateSemanticIntentPayloadV5(payload);
+    if (request?.contractVersion === SEMANTIC_INTENT_CONTRACT_VERSION_V4) return validateSemanticIntentPayloadV4(payload);
+    if (request?.contractVersion === SEMANTIC_INTENT_CONTRACT_VERSION_V3) return validateSemanticIntentPayloadV3(payload);
+    if (request?.contractVersion === SEMANTIC_INTENT_CONTRACT_VERSION_V2) return validateSemanticIntentPayloadV2(payload);
     if (typeof payload.rawInputEcho !== "string") issues.push("payload.rawInputEcho must be a string.");
     const allowedIntentActions = new Set(["ask_possibility", "ask", "open", "force", "observe", "act"]);
     const allowedSemanticKinds = new Set(["address_visible_actor", "move_near_visible_actor", "manipulate_visible_object", "traverse_visible_boundary", "observe_environment", "nonverbal_signal", "hypothetical_action", "context_question", "meta_request", "unclear_intent"]);
@@ -1548,6 +1678,96 @@ function validateSemanticIntentPayloadV2(payload) {
   if (intent.kind === "address_visible_actor" && (!intent.dialogueAct || typeof intent.dialogueAct !== "object")) issues.push("payload.intent.dialogueAct is required for speech.");
   if (intent.kind !== "address_visible_actor" && intent.dialogueAct !== null) issues.push("payload.intent.dialogueAct must be null outside speech.");
   if ((intent.kind === "unclear_intent" || intent.commitment === "unclear") && (typeof intent.clarificationPrompt !== "string" || intent.clarificationPrompt.trim().length === 0)) issues.push("payload.intent.clarificationPrompt is required for an unclear intention.");
+  return issues;
+}
+
+function validateSemanticIntentPayloadV3(
+  payload,
+  oriented = false,
+  maxComponentOrder = oriented ? 3 : 2,
+  withSpatialFollowUp = false
+) {
+  const issues = validateSemanticIntentPayloadV2(payload);
+  const composition = payload?.intent?.composition;
+  if (!composition || typeof composition !== "object" || Array.isArray(composition)) {
+    return [...issues, "payload.intent.composition must be an object."];
+  }
+  const spatial = composition.spatialLeadIn;
+  const communication = composition.communication;
+  if (spatial !== null) {
+    if (!spatial || typeof spatial !== "object" || Array.isArray(spatial)) issues.push("payload.intent.composition.spatialLeadIn must be an object or null.");
+    else {
+      if (spatial.kind !== "APPROACH_TARGET") issues.push("payload.intent.composition.spatialLeadIn.kind is invalid.");
+      if (typeof spatial.playerGoal !== "string" || spatial.playerGoal.trim().length === 0) issues.push("payload.intent.composition.spatialLeadIn.playerGoal must be non-empty.");
+      if (!Number.isInteger(spatial.order) || spatial.order < 1 || spatial.order > maxComponentOrder) issues.push("payload.intent.composition.spatialLeadIn.order is invalid.");
+    }
+  }
+  if (communication !== null) {
+    if (!communication || typeof communication !== "object" || Array.isArray(communication)) issues.push("payload.intent.composition.communication must be an object or null.");
+    else {
+      if (!["SPEECH", "NONVERBAL"].includes(communication.mode)) issues.push("payload.intent.composition.communication.mode is invalid.");
+      if (typeof communication.contentGoal !== "string" || communication.contentGoal.trim().length === 0) issues.push("payload.intent.composition.communication.contentGoal must be non-empty.");
+      if (!Number.isInteger(communication.order) || communication.order < 1 || communication.order > maxComponentOrder) issues.push("payload.intent.composition.communication.order is invalid.");
+      if (communication.mode === "SPEECH" && !["INITIATE_CONVERSATION", "ASK_QUESTION", "MAKE_STATEMENT", "REQUEST_ACTION", "OTHER"].includes(communication.act)) issues.push("payload.intent.composition.communication.act is required for speech.");
+      if (communication.mode === "NONVERBAL" && communication.act !== null) issues.push("payload.intent.composition.communication.act must be null for nonverbal communication.");
+    }
+  }
+  if (spatial !== null && communication !== null && spatial.order === communication.order) {
+    issues.push("payload.intent.composition component orders must be distinct.");
+  }
+  return issues;
+}
+
+function validateSemanticIntentPayloadV4(payload, extended = false) {
+  const issues = validateSemanticIntentPayloadV3(payload, true, extended ? 4 : 3, extended);
+  const intent = payload?.intent;
+  const orientation = intent?.composition?.orientation;
+  if (orientation !== null) {
+    if (!orientation || typeof orientation !== "object" || Array.isArray(orientation)) issues.push("payload.intent.composition.orientation must be an object or null.");
+    else {
+      if (orientation.kind !== "LOCATE_VISIBLE_TARGET") issues.push("payload.intent.composition.orientation.kind is invalid.");
+      if (typeof orientation.playerGoal !== "string" || orientation.playerGoal.trim().length === 0) issues.push("payload.intent.composition.orientation.playerGoal must be non-empty.");
+      if (!Number.isInteger(orientation.order) || orientation.order < 1 || orientation.order > (extended ? 4 : 3)) issues.push("payload.intent.composition.orientation.order is invalid.");
+    }
+  }
+  if (intent?.kind === "observe_environment") {
+    if (!["PRESENCE", "VISIBLE_TRAIT", "UNCERTAIN_CLUE"].includes(intent.perception?.informationKind)) {
+      issues.push("payload.intent.perception.informationKind is required for V4 observation.");
+    }
+  } else if (intent?.perception !== null) {
+    issues.push("payload.intent.perception must be null outside observation.");
+  }
+  const orders = [
+    orientation?.order,
+    intent?.composition?.spatialLeadIn?.order,
+    intent?.composition?.communication?.order
+  ].filter(Number.isInteger);
+  if (new Set(orders).size !== orders.length) issues.push("payload.intent.composition component orders must be distinct.");
+  return issues;
+}
+
+function validateSemanticIntentPayloadV5(payload) {
+  const issues = validateSemanticIntentPayloadV4(payload, true);
+  const composition = payload?.intent?.composition;
+  const followUp = composition?.spatialFollowUp;
+  if (followUp !== null) {
+    if (!followUp || typeof followUp !== "object" || Array.isArray(followUp)) issues.push("payload.intent.composition.spatialFollowUp must be an object or null.");
+    else {
+      if (followUp.kind !== "REPOSITION_AWAY") issues.push("payload.intent.composition.spatialFollowUp.kind is invalid.");
+      if (typeof followUp.playerGoal !== "string" || followUp.playerGoal.trim().length === 0) issues.push("payload.intent.composition.spatialFollowUp.playerGoal must be non-empty.");
+      if (![1, 2, 3, 4].includes(followUp.order)) issues.push("payload.intent.composition.spatialFollowUp.order is invalid.");
+    }
+  }
+  if (followUp !== null && composition?.communication === null) {
+    issues.push("payload.intent.composition.spatialFollowUp requires communication in V5.");
+  }
+  const orders = [
+    composition?.orientation?.order,
+    composition?.spatialLeadIn?.order,
+    composition?.communication?.order,
+    followUp?.order
+  ].filter(Number.isInteger);
+  if (new Set(orders).size !== orders.length) issues.push("payload.intent.composition component orders must be distinct.");
   return issues;
 }
 
