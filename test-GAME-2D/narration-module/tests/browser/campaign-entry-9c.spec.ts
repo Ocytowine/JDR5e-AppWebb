@@ -78,3 +78,24 @@ test("9C refuse une fiche invalide avant création et garde le pilote explicite"
     { timeout: 30_000 }
   );
 });
+
+test("l'accueil sans fiche ouvre directement le créateur puis permet le retour", async ({
+  page
+}) => {
+  await page.addInitScript(() => {
+    localStorage.removeItem("jdr5e_active_sheet");
+    localStorage.removeItem("jdr5e_saved_sheets");
+  });
+  await page.goto("/");
+
+  await page.getByRole("button", {
+    name: "Créer ou sélectionner une fiche"
+  }).click();
+
+  await expect(page.getByRole("button", { name: "Espece" })).toBeVisible();
+  await expect(page.getByText("Fiches sauvegardees")).toBeVisible();
+  await page.getByRole("button", { name: "Retour aux campagnes" }).click();
+  await expect(page.getByRole("heading", {
+    name: "Où souhaites-tu reprendre l’aventure ?"
+  })).toBeVisible();
+});

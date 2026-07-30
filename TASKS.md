@@ -185,6 +185,21 @@ Référence :
 
 ## Autres chantiers
 
+- [ ] Poursuivre la passe de validation manuelle du build principal :
+  - [x] raccorder l’accueil sans fiche au créateur existant et revenir aux
+    campagnes avec relecture automatique de la fiche active ;
+  - [x] normaliser les emplacements d’équipement historiques produits par le
+    créateur vers les identifiants d’exemplaires exigés par la campagne ;
+  - [x] canonicaliser une composante de parole V3–V5 avant le contrôle
+    `kind/dialogueAct`, avec régression sur la demande de registres adressée au
+    clerc déjà focalisé ;
+  - [x] exposer l'interlocuteur actif à l'interpréteur et refuser localement
+    qu'une réponse de contexte importe la prose d'une autre scène ;
+  - [x] doter toute présence ciblable d'un profil conversationnel éphémère
+    révisé dans le même appel PNJ, sans promotion ni nouvelle autorité durable ;
+  - [ ] poursuivre la recette 9F depuis une fiche créée manuellement et
+    rejouer le contact avec le clerc, la demande de registres puis quelques
+    questions personnelles ou opinions.
 - [ ] Consolider la simulation du monde après les objectifs multi-phases, les
   opportunités de faction et les mobiles non-système, puis raccorder ses
   événements autoritaires à la gate 6V.

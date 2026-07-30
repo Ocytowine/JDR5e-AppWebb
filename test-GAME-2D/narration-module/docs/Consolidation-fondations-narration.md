@@ -126,7 +126,7 @@ devient l'objet d'une recherche en jeu.
 | Perception | distinction présence, trait visible et indice incertain ; observation bornée par les signes autorisés |
 | Scènes | scène wiki, transitions locales, création guidée lore et retour vers une scène connue disponibles |
 | Population | séparation population ambiante, acteur local, désignation révélée et PNJ de campagne |
-| Dialogue | actes structurés, performer PNJ borné, mémoire courte par acteur et conversations à plusieurs tours dans le vertical |
+| Dialogue | actes structurés, performer PNJ borné, mémoire courte par acteur, profil conversationnel éphémère révisé et conversations à plusieurs tours |
 | Rédaction | `scene_writer` contrôlé par un plan de rendu, couverture minimale des référents et fallback déterministe |
 | Interface | surface React, mode local/OpenAI, blocs narratifs et diagnostics système séparés |
 | Handoffs | repos narratif minimal jouable, segmenté et restaurable ; résultat terminal transmis par outbox à un routeur non autoritaire ; tactique jouable encore incomplet |
@@ -150,8 +150,9 @@ Le dernier vertical Archives valide notamment :
 - La gate V5 de référence est certifiée, mais elle ne prétend pas couvrir toutes
   les combinaisons possibles d'intentions libres.
 - Les conversations longues sont couvertes jusqu'à cinq couples mémorisés par
-  acteur, avec changement d'interlocuteur et sortie-retour de scène. La mémoire
-  sociale durable reste différée.
+  acteur, avec changement d'interlocuteur, sortie-retour de scène et profil
+  subjectif éphémère restaurable. La promotion de cette matière en mémoire
+  sociale durable reste soumise à une autorité propriétaire.
 - La promotion durable d'un acteur local est raccordée à une acceptation
   mission/relation persistée ; le cycle complet de quête et les axes sociaux
   longs restent à construire.
@@ -258,6 +259,10 @@ Résultat :
 - isolement entre interlocuteurs et éviction déterministe des anciens échanges ;
 - reconstruction des réponses d'un acteur dynamique après sortie-retour ;
 - parole persistée avec autorité `PRESENTATION_ONLY`, sans engagement durable ;
+- profil conversationnel produit dans le même appel, révisé seulement après une
+  performance acceptée et isolé par `actorId` ;
+- perspective, préoccupations, opinions, sujets d'ouverture, limites et style
+  disponibles sans promotion automatique ni mutation du registre social ;
 - gate déterministe de 13 tours, test navigateur et recette OpenAI continue de
   14 tours verts ;
 - mesure OpenAI séparée : interpréteur 2,717 s, performer 12,280 s et critique

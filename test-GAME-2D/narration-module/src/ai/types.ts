@@ -395,6 +395,7 @@ export interface NpcPerformerPayloadV1 {
   performanceId: string;
   actorId: string;
   reactionFrame: NpcDialogueReactionFrameV1;
+  conversationProfile: NpcEphemeralConversationProfileV1;
   utterances: NpcUtteranceV1[];
   nonVerbalReactions: string[];
   durableCommitments: string[];
@@ -406,6 +407,28 @@ export interface NpcPerformerPayloadV1 {
     noDurableCommitment: true;
     noStateMutation: true;
   };
+}
+
+export interface NpcEphemeralConversationProfileV1 {
+  schemaVersion: 1;
+  profileId: string;
+  actorId: string;
+  lifecycle: "EPHEMERAL_DIALOGUE";
+  continuityRevision: number;
+  continuitySource: "INITIALIZED" | "CONTINUED";
+  perspectiveSummary: string;
+  currentConcerns: string[];
+  subjectiveOpinions: NpcSubjectiveOpinionV1[];
+  conversationHooks: string[];
+  boundaries: string[];
+  speechStyle: string[];
+  relationshipTone: "NEUTRAL" | "WARM" | "GUARDED" | "CURIOUS" | "COMPASSIONATE" | "IRRITATED";
+  durable: false;
+}
+
+export interface NpcSubjectiveOpinionV1 {
+  topic: string;
+  stance: string;
 }
 
 export interface NpcDialogueReactionFrameV1 {

@@ -74,7 +74,8 @@ Les simulations longues sont disponibles avec `npm run verify:world-simulation:l
 - `test-GAME-2D/map-module/` : carte du monde, editeur et simulation systemique.
 - `test-GAME-2D/narration-module/` : noyau narratif actif avec persistance
   IndexedDB, intention sémantique V5, scènes guidées par le lore, populations
-  locales, dialogue borné, rendu narratif contrôlé et OpenAI opt-in côté serveur.
+  locales, dialogue borné avec profils conversationnels éphémères par acteur,
+  rendu narratif contrôlé et OpenAI opt-in côté serveur.
   Le premier état social durable et le premier vertical d'intrigue privée
   évoluant hors écran sont actifs. Les signaux perceptibles committés par la
   simulation mondiale peuvent rejoindre le même flux causal sans exposer ses

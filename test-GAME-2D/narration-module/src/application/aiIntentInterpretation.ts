@@ -103,6 +103,17 @@ export interface RecentSemanticTurnV1 {
   focusDisposition?: "RETAIN" | "RELEASE";
 }
 
+interface ActiveDialogueTargetV1 extends JsonObject {
+  schemaVersion: 1;
+  target: JsonObject & {
+    kind: "npc";
+    ref: string;
+    label: string | null;
+  };
+  sourceOperationId: string;
+  sourcePlayerGoal: string;
+}
+
 export function semanticIntentReleasesFocusV1(
   semanticIntent: NarrativeIntentInterpretationV1["semanticIntent"]
 ): boolean {
@@ -630,6 +641,9 @@ async function buildIntentInterpreterRequestV1(input: {
     ? (input.localReferentHints ?? []).slice(0, 3).map(hint => ({ target: hint.target, confidence: hint.confidence }))
     : input.localReferentHints ?? [];
   const recentSemanticTurns = (input.recentSemanticTurns ?? []).slice(0, usesSemanticContract ? 3 : 5);
+  const activeDialogueTarget = usesSemanticContract
+    ? findActiveDialogueTargetV1(recentSemanticTurns)
+    : null;
   return {
     schemaVersion: 1,
     callId: `${input.operationId}:ai:intent:call`,
@@ -658,6 +672,7 @@ async function buildIntentInterpreterRequestV1(input: {
         rawInput: input.rawInput,
         localReferentHints,
         recentSemanticTurns,
+        activeDialogueTarget,
         outputContract: input.config.contractVersion ?? AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V1,
         forbiddenAuthority: ["commit", "time", "inventory", "tactical", "durable_lore", "social_success"]
       }
@@ -668,6 +683,40 @@ async function buildIntentInterpreterRequestV1(input: {
       timeoutMs: input.config.route.timeoutMs
     }
   };
+}
+
+function findActiveDialogueTargetV1(
+  recentSemanticTurns: RecentSemanticTurnV1[]
+): ActiveDialogueTargetV1 | null {
+  const releasedTargetRefs = new Set<string>();
+  for (const turn of recentSemanticTurns) {
+    if (
+      turn.focusDisposition === "RELEASE" &&
+      turn.primaryTarget?.ref !== null &&
+      turn.primaryTarget?.ref !== undefined
+    ) {
+      releasedTargetRefs.add(turn.primaryTarget.ref);
+      continue;
+    }
+    if (
+      turn.semanticKind === "address_visible_actor" &&
+      turn.primaryTarget?.kind === "npc" &&
+      turn.primaryTarget.ref !== null &&
+      !releasedTargetRefs.has(turn.primaryTarget.ref)
+    ) {
+      return {
+        schemaVersion: 1,
+        target: {
+          kind: "npc",
+          ref: turn.primaryTarget.ref,
+          label: turn.primaryTarget.label
+        },
+        sourceOperationId: turn.operationId,
+        sourcePlayerGoal: turn.playerGoal
+      };
+    }
+  }
+  return null;
 }
 
 function mapAiIntentToNarrativeInterpretationV1(input: {

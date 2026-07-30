@@ -42,6 +42,32 @@ async function run(): Promise<void> {
   assert.deepEqual(repeated, valid, "Import and projections must be deterministic.");
   console.log("PASS [character-import] valid creator fixture and deterministic projections");
 
+  const currentCreatorSlots = clone(base);
+  currentCreatorSlots.materielSlots = {
+    corps: "cotte_mailles",
+    main_droite: "epee-longue",
+    ceinture_bourse_1: "obj_bourse"
+  };
+  const currentCreatorImport = await importLegacyCharacterV1(
+    await envelope(currentCreatorSlots),
+    options
+  );
+  assert.equal(
+    currentCreatorImport.ok,
+    true,
+    currentCreatorImport.ok
+      ? undefined
+      : currentCreatorImport.diagnostics.map(value => value.code).join(", ")
+  );
+  if (currentCreatorImport.ok) {
+    assert.deepEqual(currentCreatorImport.value.character.equipmentSlots, {
+      corps: "item-armure",
+      main_droite: "item-epee",
+      ceinture_bourse_1: "item-bourse"
+    });
+  }
+  console.log("PASS [character-import] current creator slot values are normalized to instance ids");
+
   const cases: Array<{ name: string; mutate: (value: Record<string, any>) => unknown; code: string; version?: number }> = [
     { name: "future version", mutate: value => value, code: "CHARACTER_VERSION_UNSUPPORTED", version: 2 },
     { name: "non-object", mutate: () => [], code: "CHARACTER_JSON_NOT_OBJECT" },

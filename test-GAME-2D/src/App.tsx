@@ -39,6 +39,7 @@ type AppSurface = "narration" | "world" | "tactical";
 type NarrativeEntry =
   | { kind: "PILOT" }
   | { kind: "PLAYER"; sheet: ActiveCharacterSheetV1 }
+  | { kind: "CHARACTER_CREATOR" }
   | { kind: "INJECTED" };
 
 export function App(props: {
@@ -164,8 +165,37 @@ export function App(props: {
       <CampaignGateway
         onOpenPlayerCampaign={sheet =>
           setNarrativeEntry({ kind: "PLAYER", sheet })}
+        onOpenCharacterCreator={() =>
+          setNarrativeEntry({ kind: "CHARACTER_CREATOR" })}
         onOpenArchivesPilot={() => setNarrativeEntry({ kind: "PILOT" })}
       />
+    );
+  }
+
+  if (narrativeEntry.kind === "CHARACTER_CREATOR") {
+    return (
+      <div style={{ minHeight: "100vh", background: "#070911", color: "#fff" }}>
+        <button
+          type="button"
+          onClick={() => setNarrativeEntry(null)}
+          style={{
+            position: "fixed",
+            top: 12,
+            left: 12,
+            zIndex: 200,
+            border: "1px solid rgba(255,255,255,0.22)",
+            borderRadius: 10,
+            padding: "9px 14px",
+            background: "rgba(6,8,14,0.9)",
+            color: "#f4f4f4",
+            cursor: "pointer",
+            fontWeight: 800
+          }}
+        >
+          Retour aux campagnes
+        </button>
+        <GameBoard initialSetupTab="player" />
+      </div>
     );
   }
 

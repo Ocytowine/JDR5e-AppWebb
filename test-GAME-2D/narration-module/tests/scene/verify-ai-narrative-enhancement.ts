@@ -206,7 +206,7 @@ async function main(): Promise<void> {
           content: "Le murmure de la salle retombe un instant autour de cette demande, assez pour que le garde mesure le sérieux de votre démarche.",
           groundedIn: [
             `resolution:${speech.value.output.resolution.resolutionId}`,
-            "reference-scene:reference-inn-rain-001"
+            "playable-scene:reference-inn-rain-001:1"
           ],
           usesCreativeTexture: true
         }]
@@ -594,7 +594,7 @@ async function main(): Promise<void> {
           content: "La pluie bat toujours les volets de l'Auberge du Seuil; elle brouille les voix dehors sans changer l'attente tendue dans la salle.",
           groundedIn: [
             `resolution:${weather.value.output.resolution.resolutionId}`,
-            "reference-scene:reference-inn-rain-001",
+            "playable-scene:reference-inn-rain-001:1",
             "scene-weather-visible"
           ],
           usesCreativeTexture: true
@@ -621,12 +621,67 @@ async function main(): Promise<void> {
   assert.equal(weather.value.output.resolution.noGameTime, true);
   assert.equal(weather.value.operation.commitId, null);
   assert.equal(weatherProvider.requests.some(request => request.role === "scene_writer"), true, "scene_writer doit enrichir les questions de contexte no-commit");
+  const weatherWriterRequest = weatherProvider.requests.find(request => request.role === "scene_writer");
+  const weatherTask = weatherWriterRequest?.input.task as {
+    renderAuthority?: {
+      allowedClaims?: Array<{ text?: string }>;
+      texturePolicy?: { allowed?: boolean };
+    };
+  } | undefined;
+  const weatherAuthority = weatherTask?.renderAuthority;
+  assert.equal(
+    weatherAuthority?.allowedClaims?.some(claim => /pluie|Auberge du Seuil/iu.test(claim.text ?? "")),
+    true,
+    "l'autorité du scene_writer doit transporter la réponse déterministe de la scène"
+  );
+  assert.equal(weatherAuthority?.texturePolicy?.allowed, false);
   const weatherAiNarrations = weatherEnhanced.displayPacket.displayBlocks.filter(block =>
     block.kind === "GM_NARRATION" &&
     block.sourceRefs.some(ref => ref.startsWith("ai-output:"))
   );
   assert.equal(weatherAiNarrations.length, 1, "la narration IA remplace le bloc MJ local au lieu de dupliquer la réponse");
   assert.match(weatherAiNarrations[0]?.text ?? "", /pluie bat toujours les volets/u);
+
+  const leakedSceneProvider = new RecordingProvider([
+    [`${weatherOp}:ai:scene-writer:attempt:1`, envelope({
+      operationId: weatherOp,
+      role: "scene_writer",
+      attemptSuffix: "scene-writer",
+      payload: {
+        narrationBlocks: [{
+          slotId: "wrong-scene-context",
+          blockKind: "MJ_NARRATION",
+          content: "La salle commune reste tendue près d'un garde blessé et d'une serveuse nerveuse.",
+          groundedIn: [
+            `resolution:${weather.value.output.resolution.resolutionId}`,
+            "playable-scene:reference-inn-rain-001:1"
+          ],
+          usesCreativeTexture: false,
+          factDiscipline: factDiscipline()
+        }]
+      }
+    })]
+  ]);
+  const leakedScene = await enhanceNarrativeDisplayWithAiV1({
+    campaignId,
+    operationId: weatherOp,
+    displayPacket: weather.value.output.displayPacket,
+    resolution: weather.value.output.resolution,
+    sceneState: weather.value.output.sceneState,
+    config: {
+      provider: leakedSceneProvider,
+      expressionRoute,
+      sceneWriterRoute,
+      retryPolicy
+    }
+  });
+  assert.equal(leakedScene.enhanced, false);
+  assert.equal(leakedScene.fallbackKind, "RENDER_AUTHORITY_REJECTION");
+  assert.equal(
+    leakedScene.safetyNotes.some(note => /required_narrative_mention_missing/u.test(note)),
+    true,
+    "un contexte qui ne nomme pas le lieu actif doit être refusé localement"
+  );
 
   const invalidGroundingWeatherProvider = new RecordingProvider([
     [`${weatherOp}:ai:scene-writer:attempt:1`, envelope({
@@ -672,7 +727,7 @@ async function main(): Promise<void> {
           content: "La pluie bat les volets; chaque fois que la porte d'entrée s'ouvre, un souffle froid traverse la salle.",
           groundedIn: [
             `resolution:${weather.value.output.resolution.resolutionId}`,
-            "reference-scene:reference-inn-rain-001"
+            "playable-scene:reference-inn-rain-001:1"
           ],
           usesCreativeTexture: true,
           factDiscipline: factDiscipline({
@@ -712,7 +767,7 @@ async function main(): Promise<void> {
           content: "À travers les volets, le tambourinement régulier de la pluie s'intensifie, martelant le toit et les fenêtres avec une insistance presque oppressante. L'air froid envahit légèrement la pièce chaque fois que la porte d'entrée s'ouvre dans un grincement, offrant une brève exposition humide au vent chargé d'eau.",
           groundedIn: [
             `resolution:${weather.value.output.resolution.resolutionId}`,
-            "reference-scene:reference-inn-rain-001"
+            "playable-scene:reference-inn-rain-001:1"
           ],
           usesCreativeTexture: true,
           factDiscipline: factDiscipline({
@@ -752,7 +807,7 @@ async function main(): Promise<void> {
           content: "Le garde blessé et la serveuse sont visibles, tandis que d'autres occupants restent discrètement dissimulés dans la pièce.",
           groundedIn: [
             `resolution:${weather.value.output.resolution.resolutionId}`,
-            "reference-scene:reference-inn-rain-001"
+            "playable-scene:reference-inn-rain-001:1"
           ],
           usesCreativeTexture: true,
           factDiscipline: factDiscipline({
@@ -793,7 +848,7 @@ async function main(): Promise<void> {
           content: "Le bruit régulier de la pluie qui martèle les volets crée une toile de fond constante, masquant presque les murmures étouffés et les soupirs contenus des autres occupants, absents de la pièce ou discrètement dissimulés.",
           groundedIn: [
             `resolution:${weather.value.output.resolution.resolutionId}`,
-            "reference-scene:reference-inn-rain-001"
+            "playable-scene:reference-inn-rain-001:1"
           ],
           usesCreativeTexture: true,
           factDiscipline: factDiscipline({
@@ -834,7 +889,7 @@ async function main(): Promise<void> {
           content: "La pluie assombrit les vitres tandis que le murmure discret des convives accompagne l'attente.",
           groundedIn: [
             `resolution:${weather.value.output.resolution.resolutionId}`,
-            "reference-scene:reference-inn-rain-001"
+            "playable-scene:reference-inn-rain-001:1"
           ],
           usesCreativeTexture: true,
           factDiscipline: factDiscipline({
@@ -874,7 +929,7 @@ async function main(): Promise<void> {
           content: "Cette réponse ne fait pas avancer le temps.",
           groundedIn: [
             `resolution:${weather.value.output.resolution.resolutionId}`,
-            "reference-scene:reference-inn-rain-001"
+            "playable-scene:reference-inn-rain-001:1"
           ],
           usesCreativeTexture: false
         }]
@@ -896,7 +951,8 @@ async function main(): Promise<void> {
   });
   assert.equal(unusableWeatherProvider.requests.some(request => request.role === "scene_writer"), true);
   assert.equal(unusableWeather.enhanced, false);
-  assert.equal(unusableWeather.usedFallback, false);
+  assert.equal(unusableWeather.usedFallback, true);
+  assert.equal(unusableWeather.fallbackKind, "RENDER_AUTHORITY_REJECTION");
   assert.equal(unusableWeather.safetyNotes.some(note => /aucun bloc MJ utilisable/u.test(note)), true);
   assert.deepEqual(unusableWeather.displayPacket, weather.value.output.displayPacket);
 
@@ -920,7 +976,7 @@ async function main(): Promise<void> {
           content: "Tu te trouves dans la salle commune de l'Auberge du Seuil, près du garde blessé et de la porte du fond qui attire les silences.",
           groundedIn: [
             `resolution:${location.value.output.resolution.resolutionId}`,
-            "reference-scene:reference-inn-rain-001"
+            "playable-scene:reference-inn-rain-001:1"
           ],
           usesCreativeTexture: true
         }]

@@ -602,6 +602,37 @@ export function buildNarrativeRenderAuthorityV1(
       sourceRefs
     };
   }
+  if (resolution.resultKind === "NO_COMMIT_RESPONSE") {
+    const contextBlocks = displayPacket.displayBlocks.filter(block =>
+      block.kind === "GM_NARRATION" &&
+      block.text.trim().length > 0 &&
+      block.sourceRefs.some(ref => ref.includes(":meta-answer"))
+    );
+    if (contextBlocks.length > 0) {
+      const contextSourceRefs = [...new Set(contextBlocks.flatMap(block => block.sourceRefs))];
+      return {
+        schemaVersion: 1,
+        renderPlanVersion: "narrative-render-plan/1",
+        mode: "CONFIRMED_OUTCOME",
+        semanticGoal: semantic.playerGoal,
+        targetRef: target?.ref ?? null,
+        perspective: "SECOND_PERSON_PLAYER",
+        allowedClaims: contextBlocks.map((block, index) => ({
+          schemaVersion: 1,
+          claimId: `scene-context-${index + 1}`,
+          category: "SOURCE_FACT" as const,
+          text: block.text,
+          sourceRefs: block.sourceRefs
+        })),
+        allowedActorReactionRefs: [],
+        texturePolicy: texturePolicy(false),
+        confirmedClaims: contextBlocks.map(block => block.text),
+        unconfirmedClaims: ["Toute présence, propriété, ambiance ou circonstance absente de la réponse déterministe et de la scène active."],
+        forbiddenClaims: ["Importer un lieu, un acteur, un événement ou une ambiance provenant d'une autre scène."],
+        sourceRefs: [...sourceRefs, ...contextSourceRefs]
+      };
+    }
+  }
   return {
     schemaVersion: 1,
     renderPlanVersion: "narrative-render-plan/1",

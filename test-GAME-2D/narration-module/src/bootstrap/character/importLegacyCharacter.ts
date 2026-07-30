@@ -246,9 +246,25 @@ export async function importLegacyCharacterV1(
         diagnostic(diagnostics, "CHARACTER_CONTAINER_MISSING", "ERROR", `/character/inventoryItems/${index}/storedIn`, { storedIn: item.storedInInstanceId });
       }
     }
-    if (item.equippedSlot && Object.prototype.hasOwnProperty.call(slots, item.equippedSlot) && slots[item.equippedSlot] !== item.instanceId) {
+    const declaredSlotValue =
+      item.equippedSlot === null ? undefined : slots[item.equippedSlot];
+    const slotMatchesInstance =
+      declaredSlotValue === item.instanceId;
+    const slotMatchesLegacyItemType =
+      envelope.sourceKind === "CHARACTER_CREATOR_LEGACY"
+      && declaredSlotValue === item.itemId;
+    if (
+      item.equippedSlot
+      && Object.prototype.hasOwnProperty.call(slots, item.equippedSlot)
+      && !slotMatchesInstance
+      && !slotMatchesLegacyItemType
+    ) {
       diagnostic(diagnostics, "CHARACTER_EQUIPMENT_SLOT_MISMATCH", "ERROR", `/character/inventoryItems/${index}/equippedSlot`, {
-        slot: item.equippedSlot, expectedInstanceId: slots[item.equippedSlot] as string
+        slot: item.equippedSlot,
+        declaredSlotValue:
+          typeof declaredSlotValue === "string" ? declaredSlotValue : null,
+        itemId: item.itemId,
+        instanceId: item.instanceId
       });
     }
   });
@@ -345,12 +361,19 @@ export async function importLegacyCharacterV1(
   const progressionHistory = Array.isArray(source.progressionHistory)
     ? source.progressionHistory.map(jsonRecord)
     : [];
+  const canonicalEquipmentSlots = Object.fromEntries(
+    Object.keys(slots).map(slot => {
+      const equipped = inventory.find(item => item.equippedSlot === slot);
+      return [slot, equipped?.instanceId ?? null];
+    })
+  );
   const aggregate: CharacterAggregatePayloadV1 = {
     schemaVersion: 1, characterId, sourceFingerprint: envelope.sourceFingerprint,
     rulesetId: options.rulesetId, rulesetVersion: options.rulesetVersion, name, raceId, backgroundId,
     classes, globalLevel, abilityScores, currentHitPoints, temporaryHitPoints: number(source.pvTmp),
     exhaustion: number(source.nivFatigueActuel), languages, skills, expertise,
-    proficiencies: jsonRecord(source.proficiencies), inventory, equipmentSlots: jsonRecord(source.materielSlots),
+    proficiencies: jsonRecord(source.proficiencies), inventory,
+    equipmentSlots: canonicalEquipmentSlots,
     actionIds, reactionIds, spellIds, featureIds, choices: jsonRecord(source.choiceSelections), progressionHistory,
     description: jsonRecord(source.descriptionPersonnage), profile: jsonRecord(source.profileDetails),
     appearance: jsonRecord(source.appearance), movementModes: jsonRecord(source.movementModes),

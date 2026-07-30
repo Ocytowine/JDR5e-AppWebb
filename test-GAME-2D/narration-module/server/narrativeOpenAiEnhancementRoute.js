@@ -548,6 +548,16 @@ function buildRolePayloadSchema(requestOrRole) {
     const sourceRefItems = allowedSourceRefs.length > 0
       ? { type: "string", enum: allowedSourceRefs }
       : { type: "string" };
+    const profileContract = requestOrRole?.input?.task?.conversationProfileContract ?? {};
+    const expectedProfileId = typeof profileContract.expectedProfileId === "string"
+      ? profileContract.expectedProfileId
+      : null;
+    const expectedRevision = Number.isInteger(profileContract.expectedRevision)
+      ? profileContract.expectedRevision
+      : null;
+    const expectedContinuitySource = ["INITIALIZED", "CONTINUED"].includes(profileContract.expectedContinuitySource)
+      ? profileContract.expectedContinuitySource
+      : null;
     return {
       type: "object",
       additionalProperties: false,
@@ -556,6 +566,7 @@ function buildRolePayloadSchema(requestOrRole) {
         "performanceId",
         "actorId",
         "reactionFrame",
+        "conversationProfile",
         "utterances",
         "nonVerbalReactions",
         "durableCommitments",
@@ -567,6 +578,56 @@ function buildRolePayloadSchema(requestOrRole) {
         schemaVersion: { enum: [1] },
         performanceId: { type: "string" },
         actorId: { type: "string" },
+        conversationProfile: {
+          type: "object",
+          additionalProperties: false,
+          required: [
+            "schemaVersion",
+            "profileId",
+            "actorId",
+            "lifecycle",
+            "continuityRevision",
+            "continuitySource",
+            "perspectiveSummary",
+            "currentConcerns",
+            "subjectiveOpinions",
+            "conversationHooks",
+            "boundaries",
+            "speechStyle",
+            "relationshipTone",
+            "durable"
+          ],
+          properties: {
+            schemaVersion: { enum: [1] },
+            profileId: expectedProfileId === null ? { type: "string" } : { enum: [expectedProfileId] },
+            actorId: { type: "string" },
+            lifecycle: { enum: ["EPHEMERAL_DIALOGUE"] },
+            continuityRevision: expectedRevision === null ? { type: "integer", minimum: 1 } : { enum: [expectedRevision] },
+            continuitySource: expectedContinuitySource === null
+              ? { enum: ["INITIALIZED", "CONTINUED"] }
+              : { enum: [expectedContinuitySource] },
+            perspectiveSummary: { type: "string" },
+            currentConcerns: { type: "array", maxItems: 3, items: { type: "string" } },
+            subjectiveOpinions: {
+              type: "array",
+              maxItems: 4,
+              items: {
+                type: "object",
+                additionalProperties: false,
+                required: ["topic", "stance"],
+                properties: {
+                  topic: { type: "string" },
+                  stance: { type: "string" }
+                }
+              }
+            },
+            conversationHooks: { type: "array", maxItems: 4, items: { type: "string" } },
+            boundaries: { type: "array", maxItems: 4, items: { type: "string" } },
+            speechStyle: { type: "array", maxItems: 4, items: { type: "string" } },
+            relationshipTone: { enum: ["NEUTRAL", "WARM", "GUARDED", "CURIOUS", "COMPASSIONATE", "IRRITATED"] },
+            durable: { enum: [false] }
+          }
+        },
         reactionFrame: {
           type: "object",
           additionalProperties: false,
@@ -1003,12 +1064,90 @@ function buildSemanticIntentPayloadSchemaV5() {
 function normalizeProviderEnvelope(output, request) {
   if (
     request?.role !== "player_intent_interpreter" ||
-    request?.contractVersion !== SEMANTIC_INTENT_CONTRACT_VERSION_V2 ||
     !output || typeof output !== "object" || Array.isArray(output) ||
     !output.payload || typeof output.payload !== "object" || Array.isArray(output.payload) ||
     !output.payload.intent || typeof output.payload.intent !== "object" || Array.isArray(output.payload.intent)
   ) return output;
   const intent = output.payload.intent;
+  if ([
+    SEMANTIC_INTENT_CONTRACT_VERSION_V3,
+    SEMANTIC_INTENT_CONTRACT_VERSION_V4,
+    SEMANTIC_INTENT_CONTRACT_VERSION_V5
+  ].includes(request?.contractVersion)) {
+    const composition = intent.composition;
+    if (!composition || typeof composition !== "object" || Array.isArray(composition)) return output;
+    const communication = composition.communication;
+    const spatialLeadIn = composition.spatialLeadIn;
+    const orientation = composition.orientation;
+    let canonical = null;
+    if (
+      communication &&
+      typeof communication === "object" &&
+      !Array.isArray(communication) &&
+      communication.mode === "SPEECH"
+    ) {
+      canonical = {
+        kind: "address_visible_actor",
+        dialogueAct: {
+          act: communication.act,
+          contentGoal: communication.contentGoal
+        },
+        domainHint: "social",
+        scope: "SOCIAL_EXCHANGE",
+        perception: null
+      };
+    } else if (
+      communication &&
+      typeof communication === "object" &&
+      !Array.isArray(communication) &&
+      communication.mode === "NONVERBAL"
+    ) {
+      canonical = {
+        kind: "nonverbal_signal",
+        dialogueAct: null,
+        domainHint: "scene_resolution",
+        scope: "LOCAL_INTERACTION",
+        perception: null
+      };
+    } else if (
+      spatialLeadIn &&
+      typeof spatialLeadIn === "object" &&
+      !Array.isArray(spatialLeadIn)
+    ) {
+      canonical = {
+        kind: "move_near_visible_actor",
+        dialogueAct: null,
+        domainHint: "scene_resolution",
+        scope: "LOCAL_INTERACTION",
+        perception: null
+      };
+    } else if (
+      orientation &&
+      typeof orientation === "object" &&
+      !Array.isArray(orientation)
+    ) {
+      canonical = {
+        kind: "observe_environment",
+        dialogueAct: null,
+        domainHint: "perception",
+        scope: "PERCEPTION"
+      };
+    }
+    if (canonical === null) return output;
+    return {
+      ...output,
+      payload: {
+        ...output.payload,
+        intent: {
+          ...intent,
+          ...canonical
+        }
+      }
+    };
+  }
+  if (request?.contractVersion !== SEMANTIC_INTENT_CONTRACT_VERSION_V2) {
+    return output;
+  }
   const dialogueAct = intent.dialogueAct;
   const isContactAct = dialogueAct &&
     typeof dialogueAct === "object" &&
@@ -1260,6 +1399,7 @@ function buildRoleInstructions(request) {
           "Une approche avant une parole reste spatialLeadIn puis communication. N'utilise pas spatialFollowUp pour une approche.",
           "Si le tour sémantique le plus récent porte focusDisposition=RELEASE, sa cible n'est plus un RECENT_FOCUS actif. Un nouveau pronom ne peut la reprendre qu'avec un autre ancrage explicite."
         ] : []),
+        "Si task.activeDialogueTarget est renseigné, une demande, question ou déclaration qui poursuit naturellement cet échange reste une communication SPEECH adressée à cette cible avec contextLink=RECENT_FOCUS, même si la nouvelle phrase ne répète ni le nom du PNJ ni un verbe comme parler. Ne conserve pas ce dialogue si le joueur change explicitement d'interlocuteur, met fin à l'échange ou engage une action physique distincte.",
         "kind=nonverbal_signal seulement si le joueur cherche à communiquer par un geste, un regard, une posture ou un autre signal sans parole.",
         "kind=traverse_visible_boundary lorsque le but est de franchir une porte, une ouverture ou une limite vers un autre espace. targetMention désigne alors la limite visible franchie, même si le joueur nomme surtout la destination.",
         "kind=manipulate_visible_object lorsque le but porte sur l'objet dans la scène courante sans franchissement: ouvrir, fermer, déplacer, examiner par manipulation ou actionner.",
@@ -1330,6 +1470,8 @@ function buildRoleInstructions(request) {
         "REQUEST_ACTION peut accepter, refuser ou hésiter sur l'action demandée sans annoncer son succès.",
         "OTHER doit rester prudent et ne pas inventer un acte de dialogue plus précis.",
         "dialogueHistory associe chaque ancienne intention joueur aux répliques PNJ qu'elle a produites. Si l'intention courante est sémantiquement équivalente à une intention antérieure, une réponse cohérente et similaire est légitime même sans mot explicite comme répéter; rejette seulement les contradictions ou les répétitions mécaniques sans rapport avec la demande courante.",
+        "Compare priorConversationProfile et candidateConversationProfile lorsqu'ils sont fournis. Une évolution subjective motivée par l'échange est permise; rejette une rupture arbitraire d'identité, une promotion durable, une biographie factuelle, une connaissance sans source ou la récitation visible du profil.",
+        "Une opinion issue du profil est autorisée comme parole attribuée avec epistemicBasis=believed; elle ne doit pas être présentée comme vérité objective, règle, secret ou fait biographique.",
         "Rejette les rappels spatiaux ou nominaux mécaniques déjà évidents, par exemple répéter 'près du garde' à chaque phrase alors que l'interlocuteur et l'action sont établis.",
         "REJECT avec un finding BLOCKING de catégorie PLOT_COHERENCE si la réplique répond à un autre acte, invente une question, ou contredit le contentGoal.",
         "PASS exige findings=[] et correctionConstraints=[].",
@@ -1378,7 +1520,13 @@ function buildRoleInstructions(request) {
       "Tu retournes uniquement l'objet JSON strict demande par le schema. Aucun Markdown. Aucun commentaire hors JSON.",
       "Recopie exactement schemaVersion, contractVersion, callId, attemptId, packId, snapshotId et role depuis l'entree utilisateur.",
       "Utilise diagnostics=[] si tout va bien, supersedesOutputId=null et status=OK pour une sortie utilisable.",
-      "Role npc_performer: produire une reaction courte du PNJ assigne, a partir de task.interpretation, task.mjPlan, task.resolution et task.sceneState.",
+      "Role npc_performer: produire une réaction incarnée du PNJ assigné et son profil conversationnel éphémère dans le même appel.",
+      "Remplis conversationProfile avant la réplique. Recopie exactement profileId, actorId, continuityRevision et continuitySource depuis task.conversationProfileContract; lifecycle=EPHEMERAL_DIALOGUE et durable=false.",
+      "Si priorProfile=null, amorce une perspective subjective, des préoccupations immédiates, des opinions, des sujets d'ouverture, des limites et un style compatibles avec le rôle visible et la scène. Si priorProfile existe, conserve sa continuité et ne fais évoluer que ce que l'échange courant justifie.",
+      "Le profil est une intériorité de conversation non autoritaire: il peut contenir préférences, humeur, curiosité ou avis subjectifs, mais jamais biographie factuelle, secret, événement passé, compétence, relation mécanique ou connaissance absente des sources fournies.",
+      "Tu peux exprimer un avis personnel avec epistemicBasis=believed et la référence task.conversationProfileContract.outputProfileRef. Cet avis reste une parole attribuée, jamais une vérité du monde.",
+      "Réponds naturellement aux sujets ordinaires ou personnels compatibles avec le profil. Tu peux rebondir sur un détail, ouvrir un sujet adjacent ou poser occasionnellement une question en retour; ne transforme pas chaque réponse en interrogatoire.",
+      "La réplique peut compter une à quatre phrases lorsque l'échange le mérite. N'énumère jamais les champs du profil et évite les formules administratives génériques lorsqu'une réaction subjective bornée est possible.",
       "Lis task.dialogueAct comme contrat du tour: INITIATE_CONVERSATION ouvre seulement le contact et ne doit inventer aucune question; ASK_QUESTION répond à contentGoal; MAKE_STATEMENT accuse réception sans la transformer en question; REQUEST_ACTION accepte, refuse ou hésite sans décider un succès; OTHER reste prudent.",
       "Avant d'écrire la prose, remplis reactionFrame: sourceDialogueAct recopie exactement task.dialogueAct.act, addressedContentGoal recopie exactement task.dialogueAct.contentGoal, et responseMode vaut respectivement ACKNOWLEDGE_CONTACT, ANSWER_QUESTION, ACKNOWLEDGE_STATEMENT, RESPOND_TO_REQUEST ou CAUTIOUS_RESPONSE.",
       "La réaction doit répondre au but sémantique du tour courant, ou exprimer clairement un refus, une ignorance ou une esquive portant sur ce but.",
@@ -1394,7 +1542,7 @@ function buildRoleInstructions(request) {
       "safetyConstraints doit etre integralement true: noMechanicalSuccess, noSecretReveal, noDurableCommitment, noStateMutation.",
       "speechActs.type est limite a assertion, question ou refusal. N'utilise jamais promise, threat, order, reveal ou intentional_lie.",
       "epistemicBasis est limite a known, believed ou uncertain. N'utilise pas fabricated_for_lie.",
-      "La replique doit etre concise, ancree dans les faits visibles et la memoire courte fournie, sans exposer de fait cache.",
+      "La réplique reste proportionnée, ancrée dans les faits visibles, le profil éphémère et la mémoire courte fournie, sans exposer de fait caché.",
       "Si task.interpretation n'est pas une parole engagee ou si l'acteur assigne n'est pas clair, status=PARTIAL_UNUSABLE ou CANNOT_COMPLY avec diagnostic."
     ].join("\n");
   }
@@ -1972,6 +2120,40 @@ function validateNpcPerformerPayload(payload, request) {
     issues.push("payload.actorId must be a non-empty string.");
   } else if (typeof sourceActorId === "string" && sourceActorId.trim().length > 0 && payload.actorId !== sourceActorId) {
     issues.push("payload.actorId must match task.actorId.");
+  }
+  const profileContract = request?.input?.task?.conversationProfileContract ?? {};
+  const profile = payload.conversationProfile;
+  if (!profile || typeof profile !== "object" || Array.isArray(profile)) {
+    issues.push("payload.conversationProfile must be an object.");
+  } else {
+    if (profile.schemaVersion !== 1) issues.push("payload.conversationProfile.schemaVersion must be 1.");
+    if (typeof profile.profileId !== "string" || profile.profileId.trim().length === 0) issues.push("payload.conversationProfile.profileId must be non-empty.");
+    if (profile.actorId !== payload.actorId) issues.push("payload.conversationProfile.actorId must match payload.actorId.");
+    if (profile.lifecycle !== "EPHEMERAL_DIALOGUE") issues.push("payload.conversationProfile.lifecycle must be EPHEMERAL_DIALOGUE.");
+    if (!Number.isInteger(profile.continuityRevision) || profile.continuityRevision < 1) issues.push("payload.conversationProfile.continuityRevision must be a positive integer.");
+    if (!["INITIALIZED", "CONTINUED"].includes(profile.continuitySource)) issues.push("payload.conversationProfile.continuitySource is invalid.");
+    if (typeof profile.perspectiveSummary !== "string" || profile.perspectiveSummary.trim().length === 0) issues.push("payload.conversationProfile.perspectiveSummary must be non-empty.");
+    for (const [field, maximum] of [["currentConcerns", 3], ["conversationHooks", 4], ["boundaries", 4], ["speechStyle", 4]]) {
+      if (!Array.isArray(profile[field]) || profile[field].length > maximum || profile[field].some(item => typeof item !== "string" || item.trim().length === 0)) {
+        issues.push(`payload.conversationProfile.${field} must contain at most ${maximum} non-empty strings.`);
+      }
+    }
+    if (!Array.isArray(profile.subjectiveOpinions) || profile.subjectiveOpinions.length > 4) {
+      issues.push("payload.conversationProfile.subjectiveOpinions must contain at most four opinions.");
+    } else {
+      for (const [index, opinion] of profile.subjectiveOpinions.entries()) {
+        if (!opinion || typeof opinion !== "object" || Array.isArray(opinion) ||
+          typeof opinion.topic !== "string" || opinion.topic.trim().length === 0 ||
+          typeof opinion.stance !== "string" || opinion.stance.trim().length === 0) {
+          issues.push(`payload.conversationProfile.subjectiveOpinions[${index}] is invalid.`);
+        }
+      }
+    }
+    if (!["NEUTRAL", "WARM", "GUARDED", "CURIOUS", "COMPASSIONATE", "IRRITATED"].includes(profile.relationshipTone)) issues.push("payload.conversationProfile.relationshipTone is invalid.");
+    if (profile.durable !== false) issues.push("payload.conversationProfile.durable must be false.");
+    if (typeof profileContract.expectedProfileId === "string" && profile.profileId !== profileContract.expectedProfileId) issues.push("payload.conversationProfile.profileId must match task contract.");
+    if (Number.isInteger(profileContract.expectedRevision) && profile.continuityRevision !== profileContract.expectedRevision) issues.push("payload.conversationProfile.continuityRevision must match task contract.");
+    if (typeof profileContract.expectedContinuitySource === "string" && profile.continuitySource !== profileContract.expectedContinuitySource) issues.push("payload.conversationProfile.continuitySource must match task contract.");
   }
   const reactionFrame = payload.reactionFrame;
   if (!reactionFrame || typeof reactionFrame !== "object" || Array.isArray(reactionFrame)) {

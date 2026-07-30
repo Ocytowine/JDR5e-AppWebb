@@ -10,6 +10,7 @@ import type {
   AiRoleOutputEnvelopeV1,
   CoherenceCriticPayloadV1,
   MjPlannerPayloadV1,
+  NpcEphemeralConversationProfileV1,
   NpcPerformerPayloadV1
 } from "../ai/types";
 import type { DisplayPacketV1 } from "../scene";
@@ -55,6 +56,17 @@ export interface NpcPerformanceResultV1 {
   safetyNotes: string[];
 }
 
+interface NpcConversationProfileContractV1 extends JsonObject {
+  schemaVersion: 1;
+  expectedProfileId: string;
+  expectedRevision: number;
+  expectedContinuitySource: "INITIALIZED" | "CONTINUED";
+  outputProfileRef: string;
+  priorProfile: (NpcEphemeralConversationProfileV1 & JsonObject) | null;
+  authority: "EPHEMERAL_PRESENTATION_ONLY";
+  durablePromotionAllowed: false;
+}
+
 export class LocalNpcPerformerProviderV1 implements ContractAiProviderV1 {
   async generate(request: AiCallRequestV1): Promise<unknown> {
     const task = request.input.task as {
@@ -63,6 +75,7 @@ export class LocalNpcPerformerProviderV1 implements ContractAiProviderV1 {
       dialogueAct?: { act?: unknown; contentGoal?: unknown } | null;
       intentId?: unknown;
       knowledgeEnvelope?: { visibleSituation?: { visibleActor?: { displayName?: unknown } | null } };
+      conversationProfileContract?: NpcConversationProfileContractV1;
     };
     const actorId = typeof task.actorId === "string" ? task.actorId : "npc:npc-garde-blesse";
     const interpretation = isNarrativeIntentInterpretation(task.interpretation)
@@ -87,7 +100,8 @@ export class LocalNpcPerformerProviderV1 implements ContractAiProviderV1 {
           : null,
         typeof task.dialogueAct?.act === "string" ? task.dialogueAct.act as NpcDialogueActKindV1 : null,
         typeof task.dialogueAct?.contentGoal === "string" ? task.dialogueAct.contentGoal : null,
-        typeof task.intentId === "string" ? task.intentId : null
+        typeof task.intentId === "string" ? task.intentId : null,
+        task.conversationProfileContract
       ),
       diagnostics: [],
       supersedesOutputId: null
@@ -298,6 +312,7 @@ async function validateNpcPerformanceSemanticsV1(input: {
       priorNpcUtterances?: Array<{ text?: string }>;
       dialogueHistory?: Array<{ operationId?: string; playerIntentSummary?: string; npcUtterances?: string[] }>;
     };
+    conversationProfileContract?: NpcConversationProfileContractV1;
   };
   const priorNpcUtterances = performerTask.knowledgeEnvelope?.priorNpcUtterances
     ?.map(utterance => utterance.text)
@@ -311,7 +326,9 @@ async function validateNpcPerformanceSemanticsV1(input: {
     candidateNarration,
     rawInput: input.input.rawInput,
     priorNpcUtterances,
-    dialogueHistory
+    dialogueHistory,
+    priorConversationProfile: performerTask.conversationProfileContract?.priorProfile ?? null,
+    candidateConversationProfile: input.performance.conversationProfile
   };
   const criticRun = await runAiPipelineCallV1({
     provider: input.input.config.provider,
@@ -339,7 +356,9 @@ async function validateNpcPerformanceSemanticsV1(input: {
           actorId: input.performance.actorId,
           rawInput: input.input.rawInput,
           priorNpcUtterances,
-          dialogueHistory
+          dialogueHistory,
+          priorConversationProfile: performerTask.conversationProfileContract?.priorProfile ?? null,
+          candidateConversationProfile: input.performance.conversationProfile
         }
       },
       limits: {
@@ -453,7 +472,8 @@ function buildLocalNpcPerformancePayload(
   actorDisplayName: string | null = null,
   dialogueActOverride: NpcDialogueActKindV1 | null = null,
   dialogueContentGoalOverride: string | null = null,
-  intentIdOverride: string | null = null
+  intentIdOverride: string | null = null,
+  profileContract?: NpcConversationProfileContractV1
 ): NpcPerformerPayloadV1 {
   const knownActorId = actorId;
   const dialogueAct = dialogueActOverride ?? interpretation?.semanticIntent.dialogueAct?.act ?? "OTHER";
@@ -461,6 +481,12 @@ function buildLocalNpcPerformancePayload(
   const intentId = intentIdOverride ?? interpretation?.intentId ?? "intent:unknown";
   const fallback = buildNpcDialogueFallbackV1(knownActorId, dialogueAct, actorDisplayName);
   const content = fallback.text;
+  const conversationProfile = buildLocalConversationProfileV1({
+    actorId: knownActorId,
+    actorDisplayName,
+    dialogueContentGoal,
+    contract: profileContract
+  });
   return {
     schemaVersion: 1,
     performanceId: `${intentId}:npc-performance:1`,
@@ -471,6 +497,7 @@ function buildLocalNpcPerformancePayload(
       responseMode: responseModeForDialogueActV1(dialogueAct),
       addressedContentGoal: dialogueContentGoal
     },
+    conversationProfile,
     utterances: [{
       utteranceId: `${intentId}:npc-utterance:1`,
       text: content,
@@ -497,6 +524,114 @@ function buildLocalNpcPerformancePayload(
       noStateMutation: true
     }
   };
+}
+
+function buildLocalConversationProfileV1(input: {
+  actorId: string;
+  actorDisplayName: string | null;
+  dialogueContentGoal: string;
+  contract?: NpcConversationProfileContractV1;
+}): NpcEphemeralConversationProfileV1 {
+  const prior = input.contract?.priorProfile ?? null;
+  const displayName = input.actorDisplayName?.trim() || "Cet interlocuteur";
+  return {
+    schemaVersion: 1,
+    profileId: input.contract?.expectedProfileId ?? `${input.actorId}:conversation`,
+    actorId: input.actorId,
+    lifecycle: "EPHEMERAL_DIALOGUE",
+    continuityRevision: input.contract?.expectedRevision ?? 1,
+    continuitySource: input.contract?.expectedContinuitySource ?? "INITIALIZED",
+    perspectiveSummary: prior?.perspectiveSummary ??
+      `${displayName} aborde l'échange depuis son rôle visible et la situation immédiate.`,
+    currentConcerns: prior?.currentConcerns.length
+      ? [...prior.currentConcerns]
+      : ["Répondre sans dépasser ce que la situation visible permet d'affirmer."],
+    subjectiveOpinions: prior?.subjectiveOpinions.map(opinion => ({ ...opinion })) ?? [],
+    conversationHooks: [
+      input.dialogueContentGoal,
+      ...(prior?.conversationHooks ?? []).filter(hook => hook !== input.dialogueContentGoal)
+    ].slice(0, 4),
+    boundaries: prior?.boundaries.length
+      ? [...prior.boundaries]
+      : ["Ne pas présenter une supposition ou une parole personnelle comme un fait établi."],
+    speechStyle: prior?.speechStyle.length ? [...prior.speechStyle] : ["direct", "prudent"],
+    relationshipTone: prior?.relationshipTone ?? "NEUTRAL",
+    durable: false
+  };
+}
+
+export async function loadLatestNpcConversationProfileV1(input: {
+  repository: CampaignRepository;
+  campaignId: CampaignId;
+  actorId: string;
+}): Promise<(NpcEphemeralConversationProfileV1 & JsonObject) | null> {
+  const operations = await input.repository.listOperations(
+    input.campaignId,
+    "narrative.turn.input",
+    100
+  );
+  if (!operations.ok) return null;
+  const ordered = [...operations.value]
+    .filter(operation => operation.phase === "COMPLETED" && operation.resultPayload !== null)
+    .sort((left, right) => right.receivedAt.localeCompare(left.receivedAt));
+  for (const operation of ordered) {
+    const performance = (operation.resultPayload as {
+      npcPerformance?: {
+        actorId?: unknown;
+        conversationProfile?: unknown;
+      } | null;
+    }).npcPerformance ?? null;
+    if (performance?.actorId !== input.actorId) continue;
+    const profile = normalizeNpcConversationProfileV1(performance.conversationProfile);
+    if (profile !== null && profile.actorId === input.actorId) return profile;
+  }
+  return null;
+}
+
+function normalizeNpcConversationProfileV1(
+  value: unknown
+): (NpcEphemeralConversationProfileV1 & JsonObject) | null {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) return null;
+  const profile = value as Partial<NpcEphemeralConversationProfileV1>;
+  if (
+    profile.schemaVersion !== 1 ||
+    typeof profile.profileId !== "string" ||
+    typeof profile.actorId !== "string" ||
+    profile.lifecycle !== "EPHEMERAL_DIALOGUE" ||
+    !Number.isInteger(profile.continuityRevision) ||
+    (profile.continuityRevision ?? 0) < 1 ||
+    !["INITIALIZED", "CONTINUED"].includes(String(profile.continuitySource)) ||
+    typeof profile.perspectiveSummary !== "string" ||
+    !Array.isArray(profile.currentConcerns) ||
+    !Array.isArray(profile.subjectiveOpinions) ||
+    !Array.isArray(profile.conversationHooks) ||
+    !Array.isArray(profile.boundaries) ||
+    !Array.isArray(profile.speechStyle) ||
+    !["NEUTRAL", "WARM", "GUARDED", "CURIOUS", "COMPASSIONATE", "IRRITATED"].includes(String(profile.relationshipTone)) ||
+    profile.durable !== false
+  ) return null;
+  return {
+    ...profile,
+    schemaVersion: 1,
+    profileId: profile.profileId,
+    actorId: profile.actorId,
+    lifecycle: "EPHEMERAL_DIALOGUE",
+    continuityRevision: profile.continuityRevision as number,
+    continuitySource: profile.continuitySource as "INITIALIZED" | "CONTINUED",
+    perspectiveSummary: profile.perspectiveSummary,
+    currentConcerns: profile.currentConcerns.filter((entry): entry is string => typeof entry === "string").slice(0, 3),
+    subjectiveOpinions: profile.subjectiveOpinions.filter((entry): entry is { topic: string; stance: string } =>
+      entry !== null &&
+      typeof entry === "object" &&
+      typeof (entry as { topic?: unknown }).topic === "string" &&
+      typeof (entry as { stance?: unknown }).stance === "string"
+    ).slice(0, 4),
+    conversationHooks: profile.conversationHooks.filter((entry): entry is string => typeof entry === "string").slice(0, 4),
+    boundaries: profile.boundaries.filter((entry): entry is string => typeof entry === "string").slice(0, 4),
+    speechStyle: profile.speechStyle.filter((entry): entry is string => typeof entry === "string").slice(0, 4),
+    relationshipTone: profile.relationshipTone as NpcEphemeralConversationProfileV1["relationshipTone"],
+    durable: false
+  } as NpcEphemeralConversationProfileV1 & JsonObject;
 }
 
 async function buildNpcPerformerRequestV1(input: {
@@ -550,9 +685,28 @@ async function buildNpcPerformerRequestV1(input: {
     operationId: entry.operationId,
     playerIntentSummary: entry.playerIntentSummary
   }));
+  const priorConversationProfile = await loadLatestNpcConversationProfileV1({
+    repository: input.repository,
+    campaignId: input.campaignId,
+    actorId: input.actorId
+  });
+  const profileId = priorConversationProfile?.profileId ?? `${input.actorId}:conversation`;
+  const expectedRevision = (priorConversationProfile?.continuityRevision ?? 0) + 1;
+  const outputProfileRef = `npc-conversation-profile:${profileId}:revision:${expectedRevision}`;
+  const conversationProfileContract: NpcConversationProfileContractV1 = {
+    schemaVersion: 1,
+    expectedProfileId: profileId,
+    expectedRevision,
+    expectedContinuitySource: priorConversationProfile === null ? "INITIALIZED" : "CONTINUED",
+    outputProfileRef,
+    priorProfile: priorConversationProfile,
+    authority: "EPHEMERAL_PRESENTATION_ONLY",
+    durablePromotionAllowed: false
+  };
   const allowedSourceRefs = [
     `playable-scene:${input.activeScene.sceneId}`,
     `intent:${input.interpretation.intentId}`,
+    outputProfileRef,
     ...renderedNpcUtterances.flatMap(utterance => [
       `operation:${utterance.sourceOperationId}`,
       `render-projection:${utterance.renderOperationId}`
@@ -570,6 +724,7 @@ async function buildNpcPerformerRequestV1(input: {
       referentResolution: input.interpretation.referentResolution ?? null
     },
     dialogueAct: input.interpretation.semanticIntent.dialogueAct ?? null,
+    conversationProfileContract,
     knowledgeEnvelope: {
       allowedSourceRefs: [...new Set(allowedSourceRefs)],
       publicFactRefs: [`playable-scene:${input.activeScene.sceneId}`],
@@ -582,7 +737,7 @@ async function buildNpcPerformerRequestV1(input: {
         forbiddenContradictions: ["Ne pas déplacer le joueur ou le PNJ hors de la scène active.", "Ne pas inventer une présence, une issue ou un événement absent du contexte visible."]
       },
       memoryLimit: priorNpcUtterances.ok
-        ? "Seules les répliques EXACT reconstruites depuis les projections de rendu persistées peuvent être rappelées; leur contenu reste une parole attribuée, jamais une vérité objective."
+        ? "Seules les répliques EXACT et le dernier profil conversationnel éphémère acceptés peuvent être rappelés; leur contenu reste attribué à cet acteur, jamais une vérité objective."
         : "La reconstruction des répliques a échoué; ne jamais inventer ni prétendre répéter une réponse antérieure."
     },
     requiredOutput: "bounded_visible_npc_reaction_without_commit"

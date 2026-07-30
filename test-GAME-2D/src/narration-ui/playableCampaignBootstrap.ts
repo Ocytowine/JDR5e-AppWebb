@@ -576,6 +576,19 @@ function runtimeBindingsForCampaignV1(
 function characterDiagnostic(
   value: CharacterImportDiagnosticV1
 ): PlayableCampaignInspectionV1["diagnostics"][number] {
+  if (value.code === "CHARACTER_EQUIPMENT_SLOT_MISMATCH") {
+    const slot =
+      typeof value.details.slot === "string" ? value.details.slot : "inconnu";
+    const itemId =
+      typeof value.details.itemId === "string" ? value.details.itemId : "inconnu";
+    return {
+      severity: value.severity,
+      code: value.code,
+      message:
+        `L’objet « ${itemId} » indique l’emplacement « ${slot} », `
+        + "mais cet emplacement référence un autre objet dans la fiche."
+    };
+  }
   return {
     severity: value.severity,
     code: value.code,

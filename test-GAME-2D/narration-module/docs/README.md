@@ -52,6 +52,7 @@ avec un ancien plan de travail.
 
 - [`Pipeline-et-contrats-IA.md`](Pipeline-et-contrats-IA.md)
 - [`Contrat-conversations-pnj-longues.md`](Contrat-conversations-pnj-longues.md)
+- [`Contrat-profil-conversationnel-ephemere-pnj.md`](Contrat-profil-conversationnel-ephemere-pnj.md)
 - [`Contrat-fournisseur-ia-openai.md`](Contrat-fournisseur-ia-openai.md)
 - [`Contrat-resolution-ia-bornee.md`](Contrat-resolution-ia-bornee.md)
 - [`Contrat-couverture-rendu-scene-writer.md`](Contrat-couverture-rendu-scene-writer.md)

@@ -14,6 +14,18 @@ interface CapturedPerformerTask {
   mjPlan?: unknown;
   resolution?: unknown;
   sceneState?: unknown;
+  conversationProfileContract?: {
+    expectedProfileId: string;
+    expectedRevision: number;
+    expectedContinuitySource: "INITIALIZED" | "CONTINUED";
+    outputProfileRef: string;
+    priorProfile: {
+      actorId: string;
+      continuityRevision: number;
+      durable: false;
+    } | null;
+    durablePromotionAllowed: false;
+  };
   knowledgeEnvelope?: {
     priorPlayerSpeech?: Array<{ operationId: string; playerIntentSummary: string }>;
     priorNpcUtterances?: Array<{ text: string; sourceOperationId: string }>;
@@ -62,6 +74,16 @@ async function main(): Promise<void> {
     )
   ), true, "une parole PNJ reste attribuée à l'intention et ne crée aucun engagement durable");
   assert.equal(capturedTasks[0]?.dialogueAct?.act, "INITIATE_CONVERSATION", "la salutation ouvre le contact sans devenir une question");
+  assert.equal(capturedTasks[0]?.conversationProfileContract?.expectedRevision, 1);
+  assert.equal(capturedTasks[0]?.conversationProfileContract?.expectedContinuitySource, "INITIALIZED");
+  assert.equal(capturedTasks[0]?.conversationProfileContract?.priorProfile, null);
+  assert.equal(capturedTasks[0]?.conversationProfileContract?.durablePromotionAllowed, false);
+  assert.equal(outputs[0]?.npcPerformance?.conversationProfile.durable, false);
+  assert.equal(outputs[0]?.npcPerformance?.conversationProfile.continuityRevision, 1);
+  assert.equal(capturedTasks[1]?.conversationProfileContract?.expectedRevision, 2);
+  assert.equal(capturedTasks[1]?.conversationProfileContract?.expectedContinuitySource, "CONTINUED");
+  assert.equal(capturedTasks[1]?.conversationProfileContract?.priorProfile?.actorId, "npc:npc-serveuse-nerveuse");
+  assert.equal(capturedTasks[1]?.conversationProfileContract?.priorProfile?.continuityRevision, 1);
   assert.equal(capturedTasks.every(task => task.mjPlan === undefined && task.resolution === undefined && task.sceneState === undefined), true, "le paquet performer ne duplique plus les agrégats et plans complets");
   assert.equal(transition.resolution.resultKind, "HANDOFF_REQUIRED", "la transition de scène fermée produit un handoff");
   assert.equal(transition.noCommit, true, "la transition fermée ne committe rien");
@@ -77,10 +99,16 @@ async function main(): Promise<void> {
   assert.equal(waitressReturnTask.knowledgeEnvelope?.priorNpcUtterances?.some(entry => /garde/iu.test(entry.text)), false, "aucune réplique du garde dans la mémoire de la serveuse");
 
   const guardTasks = capturedTasks.filter(task => task.actorId === "npc:npc-garde-blesse");
+  assert.equal(guardTasks[0]?.conversationProfileContract?.expectedContinuitySource, "INITIALIZED", "le garde ne doit pas hériter du profil de la serveuse");
+  assert.equal(guardTasks[0]?.conversationProfileContract?.priorProfile, null);
   const repeatedGuardTask = guardTasks[2];
   assert.ok(repeatedGuardTask, "troisième prise de parole au garde attendue");
   assert.equal(repeatedGuardTask.knowledgeEnvelope?.priorNpcUtterances?.length, 2, "la répétition reçoit les deux réponses antérieures du garde");
   assert.equal(repeatedGuardTask.knowledgeEnvelope?.dialogueHistory?.length, 2, "la répétition reçoit deux couples intention-réponse");
+  assert.equal(repeatedGuardTask.conversationProfileContract?.priorProfile?.actorId, "npc:npc-garde-blesse");
+  assert.equal(repeatedGuardTask.conversationProfileContract?.expectedRevision, 3);
+  assert.equal(resumed.npcPerformance?.conversationProfile.continuitySource, "CONTINUED");
+  assert.equal(resumed.npcPerformance?.conversationProfile.continuityRevision, 4);
 
   const finalMemory = resumed.sceneState.shortTermNpcMemory;
   assert.equal(finalMemory.filter(entry => entry.actorId === "npc-serveuse-nerveuse").length, 5, "mémoire courte de la serveuse bornée à cinq échanges");

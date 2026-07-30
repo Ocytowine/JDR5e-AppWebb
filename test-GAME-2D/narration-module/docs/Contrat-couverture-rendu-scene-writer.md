@@ -48,3 +48,24 @@ La bulle système expose la raison de rejet (`required_narrative_coverage_missin
 - le writer a répondu en 13,53 à 14,66 s sur les passes validées ; aucun `coherence_critic` supplémentaire n'a été nécessaire ;
 - les régressions V3 à V5, résolution, contrôleur, transition de scène, route serveur et surface UI passent ;
 - `npm run build` passe.
+
+## Renforcement après recette campagne du 2026-07-30
+
+Une demande adressée au clerc des Archives, mal classée en question de contexte,
+a reçu une prose provenant de la scène historique de l'auberge. Le
+`coherence_critic` l'avait acceptée : sa décision seule ne constitue donc pas
+une preuve locale suffisante.
+
+Deux contraintes déterministes complètent désormais la frontière :
+
+- pour une réponse de contexte sans commit, l'autorité de rendu transporte le
+  texte déjà construit depuis la scène active comme unique fait positif, avec
+  texture créative désactivée ;
+- le candidat doit s'ancrer dans la référence de la scène active et employer sa
+  désignation de lieu issue des données de cette scène.
+
+Ainsi, un texte sur une salle commune, un garde blessé et une serveuse est
+rejeté dans les Archives même s'il déclare à tort une discipline parfaite et
+même avant de tenir compte du verdict du critique. Le contrôle utilise
+`activeScene.sceneId` et `activeScene.locationName`, jamais une liste codée en
+dur de lieux ou d'éléments interdits.

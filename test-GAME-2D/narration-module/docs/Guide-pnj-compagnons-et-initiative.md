@@ -16,6 +16,15 @@ Exemple : « une archiviste classe des liasses près du comptoir ». Le métier
 n'est pas son nom propre et le wiki ne prétend pas qu'elle est seule dans le
 bâtiment.
 
+Dès qu'on lui parle, cette présence peut recevoir un profil conversationnel
+éphémère : point de vue subjectif, préoccupations immédiates, opinions, sujets
+d'ouverture, limites et manière de parler. Cela lui permet d'avoir un avis ou
+de poser une question en retour sans devenir un fait durable du monde.
+
+Exemple : un clerc peut trouver les procédures utiles mais trop rigides. Cette
+opinion appartient à sa conversation; elle ne réécrit pas le wiki et ne prouve
+pas que l'administration entière partage cet avis.
+
 ### Acteur de scène
 
 Lorsqu'une interaction réelle cible cette présence, elle peut devenir un acteur
@@ -57,9 +66,23 @@ La mémoire courte conserve au maximum cinq couples « intention du joueur →
 réplique affichée » par acteur. Les échanges d'un garde ne contaminent pas ceux
 d'une archiviste.
 
+Elle conserve aussi le dernier profil conversationnel accepté du même
+`actorId`. Le premier échange initialise sa révision 1. Chaque performance
+acceptée la fait évoluer d'une révision; une réponse rejetée ne consomme rien.
+Une sortie puis un retour peuvent reprendre ce profil si l'identité canonique
+de l'acteur est retrouvée.
+
+La bulle système indique seulement si le profil a été initialisé ou continué,
+sa révision et `durable=non`. Elle ne révèle pas ses préoccupations privées.
+
 Une parole reste `PRESENTATION_ONLY`. « Je t’accompagnerai » ne crée pas un
 compagnon tant qu'une autorité sociale ou mission ne confirme pas cet
 engagement.
+
+Si l'acteur devient plus tard PNJ de campagne, son `actorId` reste le même :
+les échanges peuvent donc garder leur continuité. La promotion elle-même ne
+copie cependant aucune opinion dans le registre social; une évolution durable
+reste soumise à l'autorité mission, relation, monde ou faction.
 
 ## Initiative sans joueur
 
@@ -92,6 +115,10 @@ npm run narration-module:test:bastion
 Ces tests couvrent les conversations longues, le retour de scène, la promotion
 durable, l'état social privé, l'initiative autonome et l'affectation volontaire
 à un bastion.
+
+`narration-module:test:complete-conversations` vérifie aussi l'amorçage du
+profil, sa continuité, l'isolation entre deux acteurs et le refus d'une
+promotion durable proposée par le modèle.
 
 Ils ne constituent pas encore un test de compagnon jouable. Un futur guide
 compagnon spécialisé remplacera cette section lorsque son contrat et son

@@ -134,6 +134,7 @@ function normalizeWeaponMasteryId(value: unknown): string {
 }
 
 export function CombatSetupScreen(props: {
+  initialMainTab?: "combat" | "player" | "worldMap";
   configEnemyCount: number;
   enemyTypeCount: number;
   gridCols: number;
@@ -155,7 +156,9 @@ export function CombatSetupScreen(props: {
   onStartCombat: () => void;
   onNoEnemyTypes: () => void;
 }): React.JSX.Element {
-  const [activeMainTab, setActiveMainTab] = useState<"combat" | "player" | "worldMap">("combat");
+  const [activeMainTab, setActiveMainTab] = useState<"combat" | "player" | "worldMap">(
+    props.initialMainTab ?? "combat"
+  );
   const [activePlayerTab, setActivePlayerTab] = useState<
     | "species"
     | "backgrounds"

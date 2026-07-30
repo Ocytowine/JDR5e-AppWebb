@@ -342,6 +342,25 @@ async function run(): Promise<void> {
       responseMode: "ANSWER_QUESTION",
       addressedContentGoal: "Demander si le garde peut parler."
     },
+    conversationProfile: {
+      schemaVersion: 1,
+      profileId: "npc:npc-garde-blesse:conversation",
+      actorId: "npc:npc-garde-blesse",
+      lifecycle: "EPHEMERAL_DIALOGUE",
+      continuityRevision: 1,
+      continuitySource: "INITIALIZED",
+      perspectiveSummary: "Le garde répond depuis sa vigilance immédiate et sa fatigue visible.",
+      currentConcerns: ["Préserver le calme dans la salle."],
+      subjectiveOpinions: [{
+        topic: "la porte du fond",
+        stance: "Il préfère éviter qu'elle attire davantage l'attention."
+      }],
+      conversationHooks: ["La porte du fond.", "La tension dans la salle."],
+      boundaries: ["Ne pas révéler ce qui n'est pas publiquement établi."],
+      speechStyle: ["bref", "méfiant"],
+      relationshipTone: "GUARDED",
+      durable: false
+    },
     utterances: [{
       utteranceId: "utterance-npc-001",
       text: "Le garde souffle: « La porte du fond, mais sans esclandre. »",

@@ -20,6 +20,11 @@ La mémoire courte est isolée par `actorId`. Chaque entrée utile couple :
 Le paquet du `npc_performer` reçoit au maximum les cinq derniers couples de
 l'acteur ciblé. Une réplique d'un autre acteur ne peut pas entrer dans ce paquet.
 
+Depuis le 2026-07-30, il reçoit également le dernier profil conversationnel
+éphémère accepté du même acteur. Ce profil est produit dans le même appel que la
+réplique, porte une révision stricte et reste `durable=false`. Une performance
+rejetée ne devient jamais la source du tour suivant.
+
 Exemple : après six questions à la serveuse puis trois au garde, reparler à la
 serveuse fournit ses cinq derniers échanges, aucun échange du garde et aucune
 réponse reconstruite par approximation.
@@ -64,6 +69,10 @@ Après un départ et un retour :
 4. le performer répond depuis cette perspective bornée.
 
 Le retour ne promeut pas l'acteur en PNJ durable.
+
+Le même `actorId` retrouve aussi sa perspective, ses opinions subjectives, ses
+préoccupations immédiates et sa manière de parler. Ces éléments restent une
+continuité de présentation privée : ils ne mutent pas l'agrégat social 6C.
 
 ## Critique et coût
 

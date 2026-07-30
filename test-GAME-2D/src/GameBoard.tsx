@@ -879,6 +879,7 @@ function collectSpellActionIds(character: Personnage): string[] {
 // -------------------------------------------------------------
 
 export interface GameBoardProps {
+  initialSetupTab?: "combat" | "player" | "worldMap";
   tacticalSession?: BastionTacticalSessionV1 | null;
   tacticalEncounter?: GameBoardEncounterInputV1 | null;
   tacticalPreparationError?: string | null;
@@ -925,6 +926,7 @@ function TacticalHandoffNotice(props: {
 }
 
 export const GameBoard: React.FC<GameBoardProps> = ({
+  initialSetupTab = "combat",
   tacticalSession = null,
   tacticalEncounter = null,
   tacticalPreparationError = null,
@@ -13461,6 +13463,7 @@ function handleEndPlayerTurn() {
             encounter={tacticalEncounter}
           />
           <CombatSetupScreen
+            initialMainTab={initialSetupTab}
             configEnemyCount={configEnemyCount}
             enemyTypeCount={enemyTypes.length}
             gridCols={mapGrid.cols}

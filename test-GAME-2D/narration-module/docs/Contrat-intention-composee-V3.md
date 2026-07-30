@@ -47,3 +47,38 @@ V1 à V4 restent acceptés. Depuis le 2026-07-28, la surface OpenAI utilise V5, 
 - `npm run narration-module:test:archives-perception:openai-live` : la phrase « je m'avance vers l'archiviste, puis je le salue » appelle le contrat actif V5, met l'approche en scène, atteint `npc_performer` et produit une réplique de l'archiviste.
 
 Résultat live initial V3 puis validation aval V5 le 2026-07-28 : la compatibilité sémantique est conservée et le renderer consomme désormais l'approche.
+
+## Correction de frontière V3–V5
+
+Correction livrée le 2026-07-30 après un test joueur aux Archives : une
+composante `communication.mode=SPEECH` valide pouvait être accompagnée d'un
+`kind` principal incohérent. La route serveur rejetait alors l'enveloppe avant
+que la dérivation locale prévue par ce contrat puisse s'exécuter.
+
+La route OpenAI canonicalise désormais les champs principaux dérivables depuis
+la composition avant sa validation croisée. Le validateur TypeScript applique
+la même lecture. Cette correction ne relit pas les mots du joueur et ne
+transforme pas une composante absente ou invalide en parole.
+
+La gate réaliste couvre maintenant deux tours supplémentaires au niveau de la
+frontière concernée : contact avec le clerc visible, puis demande d'accès aux
+documents de naissance afin de rechercher ses parents. Elle vérifie
+`REQUEST_ACTION`, la conservation du clerc focalisé et l'absence de
+clarification artificielle.
+
+## Continuité explicite de l'interlocuteur
+
+Le test live suivant a montré une seconde limite : après une prise de contact
+correctement résolue, le modèle pouvait classer la demande suivante comme une
+question de contexte lorsque celle-ci ne répétait pas le métier du PNJ.
+
+Le paquet d'interprétation expose maintenant `activeDialogueTarget`, dérivé du
+dernier échange validé et non libéré. Ce champ ne force pas toute saisie à
+devenir une parole : il indique seulement au modèle que les demandes, questions
+et déclarations qui poursuivent naturellement l'échange restent adressées à cet
+interlocuteur. Un changement explicite de cible, une fin d'échange ou une action
+physique distincte ne sont pas absorbés par ce contexte.
+
+Cette continuité est structurelle : aucune liste de formulations comme
+« accéder à des documents » ou de métiers comme « clerc » n'est recherchée dans
+le texte joueur.

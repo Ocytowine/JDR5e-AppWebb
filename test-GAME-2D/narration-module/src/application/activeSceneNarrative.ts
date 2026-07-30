@@ -58,16 +58,23 @@ export function buildActiveSceneNarrativeBriefV1(input: {
   const targetRef = target === null || target.kind === "self" || target.kind === "unknown"
     ? null
     : target.ref;
-  const requiredNarrativeGroundingAnyOf = input.interpretation.semanticIntent.kind === "observe_environment" && targetRef === null
-    ? actorRefs.length > 0
-        ? actorRefs
-        : otherVisibleRefs.length > 0
-          ? otherVisibleRefs
-          : [sceneRef]
-    : [];
-  const requiredNarrativeMentionAnyOf = requiredNarrativeGroundingAnyOf.some(ref => ref.startsWith("npc:"))
-    ? actorMentions
-    : [];
+  const isNoCommitSceneContext = input.resolution.resultKind === "NO_COMMIT_RESPONSE" &&
+    (input.interpretation.semanticIntent.kind === "meta_request" ||
+      input.interpretation.semanticIntent.kind === "context_question");
+  const requiredNarrativeGroundingAnyOf = isNoCommitSceneContext
+    ? [sceneRef]
+    : input.interpretation.semanticIntent.kind === "observe_environment" && targetRef === null
+      ? actorRefs.length > 0
+          ? actorRefs
+          : otherVisibleRefs.length > 0
+            ? otherVisibleRefs
+            : [sceneRef]
+      : [];
+  const requiredNarrativeMentionAnyOf = isNoCommitSceneContext
+    ? [input.activeScene.locationName]
+    : requiredNarrativeGroundingAnyOf.some(ref => ref.startsWith("npc:"))
+      ? actorMentions
+      : [];
   return {
     schemaVersion: 1,
     contractVersion: "reference-scene-writer-context/1",

@@ -529,6 +529,7 @@ function validateNpcPerformerPayload(payload: unknown, request: AiCallRequestV1)
   const issues: string[] = [];
   issues.push(...exactKeys(payload, [
     "actorId",
+    "conversationProfile",
     "durableCommitments",
     "knowledgeUsed",
     "nonVerbalReactions",
@@ -542,6 +543,75 @@ function validateNpcPerformerPayload(payload: unknown, request: AiCallRequestV1)
   if (typed.schemaVersion !== 1) issues.push("payload.schemaVersion: expected 1");
   issues.push(...validateNonEmptyString(typed.performanceId, "payload.performanceId"));
   issues.push(...validateNonEmptyString(typed.actorId, "payload.actorId"));
+  const profileContract = isObject(request.input.task)
+    ? (request.input.task as {
+      conversationProfileContract?: {
+        expectedProfileId?: unknown;
+        expectedRevision?: unknown;
+        expectedContinuitySource?: unknown;
+      };
+    }).conversationProfileContract
+    : undefined;
+  if (!isObject(typed.conversationProfile)) {
+    issues.push("payload.conversationProfile: expected object");
+  } else {
+    const profile = typed.conversationProfile;
+    issues.push(...exactKeys(profile, [
+      "actorId",
+      "boundaries",
+      "continuityRevision",
+      "continuitySource",
+      "conversationHooks",
+      "currentConcerns",
+      "durable",
+      "lifecycle",
+      "perspectiveSummary",
+      "profileId",
+      "relationshipTone",
+      "schemaVersion",
+      "speechStyle",
+      "subjectiveOpinions"
+    ], "payload.conversationProfile"));
+    if (profile.schemaVersion !== 1) issues.push("payload.conversationProfile.schemaVersion: expected 1");
+    issues.push(...validateNonEmptyString(profile.profileId, "payload.conversationProfile.profileId"));
+    issues.push(...validateNonEmptyString(profile.actorId, "payload.conversationProfile.actorId"));
+    if (profile.actorId !== typed.actorId) issues.push("payload.conversationProfile.actorId: must match payload.actorId");
+    if (profile.lifecycle !== "EPHEMERAL_DIALOGUE") issues.push("payload.conversationProfile.lifecycle: expected EPHEMERAL_DIALOGUE");
+    if (!Number.isInteger(profile.continuityRevision) || profile.continuityRevision < 1) issues.push("payload.conversationProfile.continuityRevision: expected positive integer");
+    if (!["INITIALIZED", "CONTINUED"].includes(String(profile.continuitySource))) issues.push("payload.conversationProfile.continuitySource: invalid");
+    issues.push(...validateNonEmptyString(profile.perspectiveSummary, "payload.conversationProfile.perspectiveSummary"));
+    issues.push(...validateBoundedStringArray(profile.currentConcerns, "payload.conversationProfile.currentConcerns", 3));
+    issues.push(...validateBoundedStringArray(profile.conversationHooks, "payload.conversationProfile.conversationHooks", 4));
+    issues.push(...validateBoundedStringArray(profile.boundaries, "payload.conversationProfile.boundaries", 4));
+    issues.push(...validateBoundedStringArray(profile.speechStyle, "payload.conversationProfile.speechStyle", 4));
+    if (!["NEUTRAL", "WARM", "GUARDED", "CURIOUS", "COMPASSIONATE", "IRRITATED"].includes(String(profile.relationshipTone))) {
+      issues.push("payload.conversationProfile.relationshipTone: invalid");
+    }
+    if (profile.durable !== false) issues.push("payload.conversationProfile.durable: expected false");
+    if (!Array.isArray(profile.subjectiveOpinions) || profile.subjectiveOpinions.length > 4) {
+      issues.push("payload.conversationProfile.subjectiveOpinions: expected at most four opinions");
+    } else {
+      profile.subjectiveOpinions.forEach((opinion, index) => {
+        const path = `payload.conversationProfile.subjectiveOpinions[${index}]`;
+        if (!isObject(opinion)) {
+          issues.push(`${path}: expected object`);
+          return;
+        }
+        issues.push(...exactKeys(opinion, ["stance", "topic"], path));
+        issues.push(...validateNonEmptyString(opinion.topic, `${path}.topic`));
+        issues.push(...validateNonEmptyString(opinion.stance, `${path}.stance`));
+      });
+    }
+    if (profileContract?.expectedProfileId !== undefined && profile.profileId !== profileContract.expectedProfileId) {
+      issues.push("payload.conversationProfile.profileId: must match task contract");
+    }
+    if (profileContract?.expectedRevision !== undefined && profile.continuityRevision !== profileContract.expectedRevision) {
+      issues.push("payload.conversationProfile.continuityRevision: must match task contract");
+    }
+    if (profileContract?.expectedContinuitySource !== undefined && profile.continuitySource !== profileContract.expectedContinuitySource) {
+      issues.push("payload.conversationProfile.continuitySource: must match task contract");
+    }
+  }
   if (!isObject(typed.reactionFrame)) {
     issues.push("payload.reactionFrame: expected object");
   } else {
@@ -608,6 +678,13 @@ function validateNpcPerformerPayload(payload: unknown, request: AiCallRequestV1)
   return issues;
 }
 
+function validateBoundedStringArray(value: unknown, path: string, maximum: number): string[] {
+  if (!isStringArray(value) || value.length > maximum || value.some(entry => entry.trim().length === 0)) {
+    return [`${path}: expected at most ${maximum} non-empty strings`];
+  }
+  return [];
+}
+
 function validateSemanticIntentPayloadV2(payload: unknown, composed = false): string[] {
   if (!isObject(payload)) return ["payload: expected object"];
   const issues = exactKeys(payload, ["intent", "rawInputEcho"], "payload");
@@ -646,8 +723,24 @@ function validateSemanticIntentPayloadV2(payload: unknown, composed = false): st
   }
   if (intent.kind === "observe_environment" && !isObject(intent.perception)) issues.push(issue(`${path}.perception`, "required for observation"));
   if (intent.kind !== "observe_environment" && intent.perception !== null) issues.push(issue(`${path}.perception`, "must be null outside observation"));
-  if (intent.kind === "address_visible_actor" && !isObject(intent.dialogueAct)) issues.push(issue(`${path}.dialogueAct`, "required for speech"));
-  if (intent.kind !== "address_visible_actor" && intent.dialogueAct !== null) issues.push(issue(`${path}.dialogueAct`, "must be null outside speech"));
+  const composedCommunication =
+    composed && isObject(intent.composition)
+      ? intent.composition.communication
+      : null;
+  const canonicalKind =
+    isObject(composedCommunication) && composedCommunication.mode === "SPEECH"
+      ? "address_visible_actor"
+      : isObject(composedCommunication) && composedCommunication.mode === "NONVERBAL"
+        ? "nonverbal_signal"
+        : intent.kind;
+  const canonicalDialogueAct =
+    isObject(composedCommunication) && composedCommunication.mode === "SPEECH"
+      ? composedCommunication
+      : isObject(composedCommunication) && composedCommunication.mode === "NONVERBAL"
+        ? null
+        : intent.dialogueAct;
+  if (canonicalKind === "address_visible_actor" && !isObject(canonicalDialogueAct)) issues.push(issue(`${path}.dialogueAct`, "required for speech"));
+  if (canonicalKind !== "address_visible_actor" && canonicalDialogueAct !== null) issues.push(issue(`${path}.dialogueAct`, "must be null outside speech"));
   if ((intent.kind === "unclear_intent" || intent.commitment === "unclear") && (typeof intent.clarificationPrompt !== "string" || intent.clarificationPrompt.trim().length === 0)) issues.push(issue(`${path}.clarificationPrompt`, "required for unclear intention"));
   return issues;
 }

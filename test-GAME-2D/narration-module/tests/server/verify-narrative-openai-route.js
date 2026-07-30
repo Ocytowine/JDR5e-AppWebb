@@ -313,10 +313,21 @@ function npcPerformerRequest(overrides = {}) {
           schemaVersion: 1,
           shortTermNpcMemory: []
         },
+        conversationProfileContract: {
+          schemaVersion: 1,
+          expectedProfileId: "npc:npc-garde-blesse:conversation",
+          expectedRevision: 1,
+          expectedContinuitySource: "INITIALIZED",
+          outputProfileRef: "npc-conversation-profile:npc:npc-garde-blesse:conversation:revision:1",
+          priorProfile: null,
+          authority: "EPHEMERAL_PRESENTATION_ONLY",
+          durablePromotionAllowed: false
+        },
         knowledgeEnvelope: {
           allowedSourceRefs: [
             "reference-scene:reference-inn-rain-001",
-            `intent:${plannerReq.input.task.interpretation.intentId}`
+            `intent:${plannerReq.input.task.interpretation.intentId}`,
+            "npc-conversation-profile:npc:npc-garde-blesse:conversation:revision:1"
           ],
           publicFactRefs: ["reference-scene:reference-inn-rain-001"],
           priorPlayerSpeech: [],
@@ -350,6 +361,25 @@ function npcPerformerOutputFor(req, overrides = {}) {
         sourceDialogueAct: req.input.task.dialogueAct.act,
         responseMode: "ANSWER_QUESTION",
         addressedContentGoal: req.input.task.dialogueAct.contentGoal
+      },
+      conversationProfile: {
+        schemaVersion: 1,
+        profileId: req.input.task.conversationProfileContract.expectedProfileId,
+        actorId: req.input.task.actorId,
+        lifecycle: "EPHEMERAL_DIALOGUE",
+        continuityRevision: req.input.task.conversationProfileContract.expectedRevision,
+        continuitySource: req.input.task.conversationProfileContract.expectedContinuitySource,
+        perspectiveSummary: "Le garde aborde l'échange avec la vigilance d'un homme blessé qui protège le calme de la salle.",
+        currentConcerns: ["Éviter qu'un nouvel esclandre éclate dans la salle."],
+        subjectiveOpinions: [{
+          topic: "la porte du fond",
+          stance: "Elle attire déjà trop l'attention à son goût."
+        }],
+        conversationHooks: ["La porte du fond.", "Le calme de la salle."],
+        boundaries: ["Ne pas présenter une supposition comme un fait."],
+        speechStyle: ["bref", "méfiant"],
+        relationshipTone: "GUARDED",
+        durable: false
       },
       utterances: [{
         utteranceId: "utterance-route-npc-001",
@@ -657,6 +687,61 @@ async function main() {
     orderedComposition.properties.spatialFollowUp.anyOf[0].properties.kind.enum,
     ["REPOSITION_AWAY"]
   );
+  const focusedRequest = semanticIntentRequestV5({
+    input: {
+      instructionsRef: "ai-intent-interpretation/player-intent-semantic/v5",
+      roleContextPack: {},
+      task: {
+        rawInput: "je souhaiterai acceder à des documents relatif aux naissance, je voudrais retrouver mes parents",
+        outputContract: "ai-intent-semantic/5"
+      }
+    }
+  });
+  const normalizedFocusedRequest = normalizeProviderEnvelope({
+    ...outputFor(focusedRequest),
+    payload: {
+      rawInputEcho: focusedRequest.input.task.rawInput,
+      intent: {
+        kind: "context_question",
+        commitment: "committed",
+        preconditions: [],
+        playerGoal: "Demander l'accès aux registres de naissance afin de retrouver ses parents.",
+        actionHint: null,
+        domainHint: null,
+        scope: "META",
+        targetMention: {
+          surface: "au clerc",
+          candidateKind: "npc",
+          proposedRef: "npc:clerc",
+          contextLink: "RECENT_FOCUS"
+        },
+        perception: null,
+        dialogueAct: {
+          act: "REQUEST_ACTION",
+          contentGoal: "Demander l'accès aux registres de naissance."
+        },
+        composition: {
+          orientation: null,
+          spatialLeadIn: null,
+          communication: {
+            mode: "SPEECH",
+            act: "REQUEST_ACTION",
+            contentGoal: "Demander l'accès aux registres de naissance.",
+            order: 1
+          },
+          spatialFollowUp: null
+        },
+        uncertainties: [],
+        clarificationPrompt: null,
+        confidence: "high"
+      }
+    }
+  }, focusedRequest);
+  assert.equal(normalizedFocusedRequest.payload.intent.kind, "address_visible_actor");
+  assert.equal(normalizedFocusedRequest.payload.intent.domainHint, "social");
+  assert.equal(normalizedFocusedRequest.payload.intent.scope, "SOCIAL_EXCHANGE");
+  assert.equal(normalizedFocusedRequest.payload.intent.dialogueAct.act, "REQUEST_ACTION");
+  assert.equal(validateEnvelope(normalizedFocusedRequest, focusedRequest).ok, true);
   const normalizedSceneCreator = normalizeAiCallRequest(sceneCreatorRequest());
   assert.equal(normalizedSceneCreator.ok, true);
   const sceneCreatorSchema = buildStrictAiOutputSchema(sceneCreatorRequest()).schema;
@@ -853,6 +938,11 @@ async function main() {
   assert.equal(semanticIntentBody.input[0].content[0].text.includes("la limite visible franchie"), true);
   assert.equal(semanticIntentBody.input[0].content[0].text.includes("plusieurs candidats restent réellement plausibles"), true);
   assert.equal(semanticIntentBody.input[0].content[0].text.includes("Toute action dépendant d'une précondition explicite utilise commitment=conditional"), true);
+  assert.equal(
+    semanticIntentBody.input[0].content[0].text.includes("task.activeDialogueTarget"),
+    true,
+    "le prompt sémantique doit expliquer la continuité d'un échange avec l'interlocuteur actif"
+  );
   const mjPlannerBody = buildOpenAiResponsesBody(mjPlannerRequest(), { modelId: "gpt-4.1-mini" });
   assert.equal(mjPlannerBody.text.format.schema.properties.contractVersion.enum[0], "mj-planner/1");
   assert.equal(mjPlannerBody.text.format.schema.properties.role.enum[0], "mj_planner");
@@ -874,7 +964,17 @@ async function main() {
     npcPerformerBody.text.format.schema.properties.payload.properties.utterances.items.properties.speechActs.items.properties.type.enum,
     ["assertion", "question", "refusal"]
   );
+  assert.equal(npcPerformerBody.text.format.schema.properties.payload.required.includes("conversationProfile"), true);
+  assert.deepEqual(
+    npcPerformerBody.text.format.schema.properties.payload.properties.conversationProfile.properties.continuityRevision.enum,
+    [1]
+  );
+  assert.deepEqual(
+    npcPerformerBody.text.format.schema.properties.payload.properties.conversationProfile.properties.durable.enum,
+    [false]
+  );
   assert.equal(npcPerformerBody.input[0].content[0].text.includes("Lis task.dialogueAct comme contrat du tour"), true);
+  assert.equal(npcPerformerBody.input[0].content[0].text.includes("profil conversationnel éphémère"), true);
   const npcDialogueCriticRequest = request({
     role: "coherence_critic",
     contractVersion: "narrative-ai-resolution/1",
@@ -1233,6 +1333,33 @@ async function main() {
   );
   assert.equal(committingNpcPerformance.ok, false);
   assert.equal(committingNpcPerformance.issues.includes("payload.durableCommitments must be empty for npc_performer mini."), true);
+  const durableProfileNpcPerformance = validateEnvelope(
+    npcPerformerOutputFor(npcPerformerRequest(), {
+      payload: {
+        conversationProfile: {
+          ...npcPerformerOutputFor(npcPerformerRequest()).payload.conversationProfile,
+          durable: true
+        }
+      }
+    }),
+    npcPerformerRequest()
+  );
+  assert.equal(durableProfileNpcPerformance.ok, false);
+  assert.equal(durableProfileNpcPerformance.issues.includes("payload.conversationProfile.durable must be false."), true);
+  const skippedProfileRevision = validateEnvelope(
+    npcPerformerOutputFor(npcPerformerRequest(), {
+      payload: {
+        conversationProfile: {
+          ...npcPerformerOutputFor(npcPerformerRequest()).payload.conversationProfile,
+          continuityRevision: 2,
+          continuitySource: "CONTINUED"
+        }
+      }
+    }),
+    npcPerformerRequest()
+  );
+  assert.equal(skippedProfileRevision.ok, false);
+  assert.equal(skippedProfileRevision.issues.includes("payload.conversationProfile.continuityRevision must match task contract."), true);
   const forbiddenSpeechActNpcPerformance = validateEnvelope(
     npcPerformerOutputFor(npcPerformerRequest(), {
       payload: {

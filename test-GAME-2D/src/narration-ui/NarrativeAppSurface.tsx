@@ -1039,6 +1039,9 @@ function appendNarrativeSystemTrace(input: {
     ...(input.turnDiagnostics ?? []).map(message => `Diagnostic du tour: ${message}`),
     "Trace système et mémoire",
     `Pipeline PNJ: ${performerOutcome}; acteur=${actorRef ?? "aucun"}; acte=${input.output.interpretation.semanticIntent.dialogueAct?.act ?? "aucun"}.`,
+    input.output.npcPerformance?.conversationProfile
+      ? `Profil conversationnel éphémère: ${input.output.npcPerformance.conversationProfile.continuitySource === "INITIALIZED" ? "initialisé" : "continué"}; révision=${input.output.npcPerformance.conversationProfile.continuityRevision}; durable=non.`
+      : "Profil conversationnel éphémère: aucun profil accepté pour ce tour.",
     `Intentions joueur mémorisées (${rememberedPlayerIntents.length}): ${rememberedPlayerIntents.join(" | ") || "aucune"}.`,
     `Répliques PNJ antérieures visibles (${rememberedNpcUtterances.length}): ${rememberedNpcUtterances.join(" | ") || "aucune"}.`,
     `Couples intention → réponse (${pairedHistory.length}): ${pairedHistory.join(" | ") || "aucun"}.`,

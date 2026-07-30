@@ -6,6 +6,7 @@ import type {
 
 export function CampaignGateway(props: {
   onOpenPlayerCampaign: (sheet: ActiveCharacterSheetV1) => void;
+  onOpenCharacterCreator: () => void;
   onOpenArchivesPilot: () => void;
 }) {
   const [inspection, setInspection] =
@@ -57,6 +58,15 @@ export function CampaignGateway(props: {
                     )}`
                   : "Aucune fiche exploitable n’est actuellement sélectionnée."}
             </p>
+            {!loading && inspection?.sheet === null && (
+              <button
+                type="button"
+                onClick={props.onOpenCharacterCreator}
+                style={styles.inlineButton}
+              >
+                Créer ou sélectionner une fiche
+              </button>
+            )}
           </div>
           <button
             type="button"
@@ -184,6 +194,16 @@ const styles = {
     background: "rgba(255,255,255,0.06)",
     color: "#f4f4f4",
     fontWeight: 750,
+    cursor: "pointer"
+  },
+  inlineButton: {
+    marginTop: 12,
+    border: "1px solid rgba(213,185,121,0.5)",
+    borderRadius: 8,
+    padding: "8px 12px",
+    background: "rgba(213,185,121,0.1)",
+    color: "#f1dca9",
+    fontWeight: 800,
     cursor: "pointer"
   },
   errorBox: {
