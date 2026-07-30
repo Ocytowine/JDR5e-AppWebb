@@ -834,7 +834,10 @@ export function usePixiNaturalTiling(options: {
         const variantUrl = resolvedVariants[variantIndex] ?? null;
         if (!variantUrl) continue;
         const resizedTexture = getFloorTilingTextureFromUrl(variantUrl, 256);
-        const baseTexture = resizedTexture ?? (Assets.get(variantUrl) as Texture) ?? Texture.from(variantUrl);
+        const baseTexture = resizedTexture
+          ?? (Assets.get(variantUrl) as Texture | undefined)
+          ?? Texture.from(variantUrl)
+          ?? Texture.WHITE;
         if (baseTexture.source) {
           baseTexture.source.scaleMode = "linear";
           baseTexture.source.mipmapFilter = "linear";

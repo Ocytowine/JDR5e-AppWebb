@@ -238,6 +238,12 @@ Chaque `displayBlock` contient :
 
 Un paquet d'affichage est invalide si deux locuteurs humains ou PNJ peuvent être confondus par texte et métadonnées hors couleur.
 
+`rawInputAccess.available` reste vrai pour tout tour issu d'une saisie joueur.
+Un paquet autonome, par exemple une initiative PNJ à l'entrée de scène, déclare
+explicitement `false` parce qu'aucune entrée brute n'existe. Il ne peut alors
+contenir aucun bloc `RAW_INPUT`. Cette exception ne permet jamais de masquer une
+entrée joueur réellement fournie.
+
 ## `InteractionLog`
 
 `InteractionLog` est reconstruit depuis :

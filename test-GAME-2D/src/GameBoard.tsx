@@ -1,4 +1,15 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import type { BastionTacticalSessionV1 } from "../narration-module/src/application";
+import type { GameBoardEncounterInputV1 } from "./tactical-integration/gameBoardEncounterAdapter";
+import {
+  buildGameBoardTacticalStateV1,
+  type GameBoardTacticalStateV1
+} from "./tactical-integration/gameBoardTacticalState";
+import {
+  buildGameBoardTerminalReportV1,
+  type GameBoardTerminalReportV1
+} from "./tactical-integration/gameBoardTacticalOutcome";
+import type { JsonObject } from "../narration-module/src/core";
 import type { ConeDirection } from "./boardEffects";
 import { sampleCharacter } from "./data/models/sampleCharacter";
 import type {
@@ -186,10 +197,13 @@ import {
   buildRoundNarrationRequest,
   clearRoundNarrationBuffer,
   getLastSpeechForEnemy,
+  getCombatEventJournal,
   getPriorEnemySpeechesThisRound,
   getRecentCombatEvents,
   recordCombatEvent,
   recordEnemySpeech,
+  resetCombatEventJournal,
+  restoreCombatEventJournal,
   requestEnemySpeech,
   requestRoundNarration
 } from "./narrationClient";
@@ -864,7 +878,60 @@ function collectSpellActionIds(character: Personnage): string[] {
 // Main component
 // -------------------------------------------------------------
 
-export const GameBoard: React.FC = () => {
+export interface GameBoardProps {
+  tacticalSession?: BastionTacticalSessionV1 | null;
+  tacticalEncounter?: GameBoardEncounterInputV1 | null;
+  tacticalPreparationError?: string | null;
+  tacticalCheckpoint?: GameBoardTacticalStateV1 | null;
+  onTacticalCheckpoint?: (
+    state: GameBoardTacticalStateV1
+  ) => Promise<{ checkpointId: string }>;
+  onTacticalOutcome?: (
+    report: GameBoardTerminalReportV1
+  ) => Promise<void>;
+}
+
+function TacticalHandoffNotice(props: {
+  session: BastionTacticalSessionV1 | null;
+  encounter: GameBoardEncounterInputV1 | null;
+}) {
+  if (props.session === null) return null;
+  return (
+    <aside
+      aria-label="Contexte tactique de campagne"
+      style={{
+        position: "fixed",
+        zIndex: 120,
+        top: 72,
+        left: "50%",
+        transform: "translateX(-50%)",
+        width: "min(680px, calc(100% - 32px))",
+        padding: "10px 14px",
+        borderRadius: 12,
+        border: "1px solid rgba(255,190,92,0.5)",
+        background: "rgba(35,24,10,0.94)",
+        boxShadow: "0 14px 40px rgba(0,0,0,0.4)",
+        fontSize: 13
+      }}
+    >
+      <strong>{props.session.summary.incidentDisplayName}</strong>
+      {" — "}
+      {props.session.summary.placeDisplayName}.{" "}
+      {props.encounter === null
+        ? "La graine attend une projection compatible avec le plateau."
+        : "La carte, les participants et leurs positions viennent de la graine committée. Le retour de résultat sera raccordé en 7C."}
+    </aside>
+  );
+}
+
+export const GameBoard: React.FC<GameBoardProps> = ({
+  tacticalSession = null,
+  tacticalEncounter = null,
+  tacticalPreparationError = null,
+  tacticalCheckpoint = null,
+  onTacticalCheckpoint,
+  onTacticalOutcome
+}) => {
   const pixiContainerRef = useRef<HTMLDivElement | null>(null);
   const narrationPendingRef = useRef<boolean>(false);
   const narrationOpenRef = useRef<boolean>(false);
@@ -1475,6 +1542,18 @@ export const GameBoard: React.FC = () => {
   const [aiLastError, setAiLastError] = useState<string | null>(null);
   const [aiUsedFallback, setAiUsedFallback] = useState<boolean>(false);
   const [isGameOver, setIsGameOver] = useState<boolean>(false);
+  const [handoffStartError, setHandoffStartError] = useState<string | null>(null);
+  const startedHandoffProcessRef = useRef<string | null>(null);
+  const savedTurnBoundaryRef = useRef<string | null>(null);
+  const restoredCheckpointIdRef = useRef<string | null>(
+    tacticalCheckpoint?.turnBoundaryId ?? null
+  );
+  const [checkpointSaveError, setCheckpointSaveError] = useState<string | null>(null);
+  const [gameOverEndCondition, setGameOverEndCondition] =
+    useState<string | null>(null);
+  const submittedOutcomeRef = useRef<string | null>(null);
+  const [outcomeSubmissionError, setOutcomeSubmissionError] =
+    useState<string | null>(null);
 
   useEffect(() => {
     return () => {
@@ -4555,7 +4634,18 @@ export const GameBoard: React.FC = () => {
   }
 
   function handleStartCombat() {
-    if (enemyTypes.length === 0) {
+    const encounterEnemyTypes = tacticalEncounter === null
+      ? enemyTypes
+      : tacticalEncounter.enemies.map(enemy =>
+          enemyTypes.find(definition => definition.id === enemy.enemyTypeId) ?? null
+        );
+    if (
+      enemyTypes.length === 0
+      || encounterEnemyTypes.some(value => value === null)
+    ) {
+      if (tacticalEncounter !== null) {
+        setHandoffStartError("game-board.enemy-type-not-found");
+      }
       pushLog(
         "Aucun type d'ennemi charge (enemyTypes). Impossible de generer le combat."
       );
@@ -4576,9 +4666,13 @@ export const GameBoard: React.FC = () => {
         return null;
       }
     };
-    const savedCharacter = loadActiveSavedCharacter();
+    const savedCharacter = tacticalEncounter === null
+      ? loadActiveSavedCharacter()
+      : null;
     const sheetValidated = Boolean((characterConfig.choiceSelections as any)?.sheetValidated);
-    const combatCharacter = savedCharacter ?? (sheetValidated ? characterConfig : sampleCharacter);
+    const combatCharacter = tacticalEncounter?.player.character
+      ?? savedCharacter
+      ?? (sheetValidated ? characterConfig : sampleCharacter);
     setCombatCharacterConfig(JSON.parse(JSON.stringify(combatCharacter)));
     const combatMovementModes = getMovementModesForCharacter(combatCharacter);
     const combatDefaultMovementMode = combatMovementModes[0] ?? getDefaultMovementMode();
@@ -4629,31 +4723,160 @@ export const GameBoard: React.FC = () => {
     });
     const initialPlayerResources = { ...baseResourcesFromStats, ...featureRuntime.resources };
 
-    let grid = { ...mapGrid };
+    if (tacticalEncounter !== null && tacticalCheckpoint !== null) {
+      const restoredMap = tacticalCheckpoint.map as Record<string, any>;
+      const restoredPlayer = tacticalCheckpoint.player as unknown as TokenState;
+      const restoredEnemies = tacticalCheckpoint.enemies as unknown as TokenState[];
+      const restoredTurnOrder = tacticalCheckpoint.turnOrder as unknown as TurnEntry[];
+      setPlayer(JSON.parse(JSON.stringify(restoredPlayer)));
+      setEnemies(JSON.parse(JSON.stringify(restoredEnemies)));
+      setRound(tacticalCheckpoint.round);
+      setPhase(tacticalCheckpoint.phase);
+      setTurnOrder(JSON.parse(JSON.stringify(restoredTurnOrder)));
+      setCurrentTurnIndex(tacticalCheckpoint.currentTurnIndex);
+      setHasRolledInitiative(restoredTurnOrder.length > 0);
+      setPlayerInitiative(
+        typeof restoredPlayer.initiative === "number"
+          ? restoredPlayer.initiative
+          : null
+      );
+      setPlayerInitiativeRoll(null);
+      setPlayerInitiativeMod(null);
+      setPlayerResources(
+        JSON.parse(JSON.stringify(tacticalCheckpoint.playerResources))
+      );
+      setMapGrid({ ...restoredMap.grid });
+      setMapTheme(restoredMap.theme ?? "generic");
+      setMapPaletteId(
+        typeof restoredMap.paletteId === "string"
+          ? restoredMap.paletteId
+          : null
+      );
+      setObstacles(JSON.parse(JSON.stringify(restoredMap.obstacles ?? [])));
+      setWallSegments(JSON.parse(JSON.stringify(restoredMap.wallSegments ?? [])));
+      setPlayableCells(new Set(restoredMap.playableCells ?? []));
+      setMapTerrain(JSON.parse(JSON.stringify(restoredMap.terrain ?? [])));
+      setMapHeight([...(restoredMap.height ?? [])]);
+      setMapLight([...(restoredMap.light ?? [])]);
+      setRoofOpenCells(new Set(restoredMap.roofOpenCells ?? []));
+      setDecorations(JSON.parse(JSON.stringify(restoredMap.decorations ?? [])));
+      setEffects(JSON.parse(JSON.stringify(restoredMap.effects ?? [])));
+      setActiveLevel(Number(restoredMap.activeLevel ?? 0));
+      restoreCombatEventJournal(
+        tacticalCheckpoint.journal as unknown as ReturnType<
+          typeof getCombatEventJournal
+        >
+      );
+      savedTurnBoundaryRef.current = tacticalCheckpoint.turnBoundaryId;
+      setIsCombatConfigured(true);
+      setIsGameOver(false);
+      pushLog(
+        `Checkpoint tactique restauré à ${tacticalCheckpoint.turnBoundaryId}.`
+      );
+      return;
+    }
+
+    if (tacticalEncounter !== null) resetCombatEventJournal();
+
+    let grid = tacticalEncounter === null
+      ? { ...mapGrid }
+      : { ...tacticalEncounter.map.grid };
+    const effectiveMapPrompt = tacticalEncounter?.map.prompt ?? mapPrompt;
+    const effectiveEnemyCount = tacticalEncounter?.enemies.length ?? configEnemyCount;
+    const effectiveEnemyTypes = encounterEnemyTypes.filter(
+      (value): value is EnemyTypeDefinition => value !== null
+    );
     let map = generateBattleMap({
-      prompt: mapPrompt,
+      prompt: effectiveMapPrompt,
       grid,
-      enemyCount: configEnemyCount,
-      enemyTypes,
+      enemyCount: effectiveEnemyCount,
+      enemyTypes: effectiveEnemyTypes,
       obstacleTypes,
       wallTypes
     });
 
+    if (tacticalEncounter !== null) {
+      const reservedCells = new Set([
+        tacticalEncounter.player,
+        ...tacticalEncounter.enemies
+      ].map(actor => `${actor.position.x},${actor.position.y}`));
+      const retainedObstacles = (map.obstacles ?? []).filter(obstacle => {
+        const occupied = buildObstacleBlockingSets(
+          obstacleTypes,
+          [obstacle]
+        ).occupied;
+        return ![...occupied].some(cell => reservedCells.has(cell));
+      });
+      const removedObstacleCount =
+        (map.obstacles ?? []).length - retainedObstacles.length;
+      map = {
+        ...map,
+        playableCells: [
+          ...new Set([...(map.playableCells ?? []), ...reservedCells])
+        ],
+        obstacles: retainedObstacles,
+        generationLog: [
+          ...(map.generationLog ?? []),
+          `Positions tactiques committées réservées: ${reservedCells.size}; obstacles retirés: ${removedObstacleCount}.`
+        ]
+      };
+    }
+
+    if (tacticalEncounter !== null) {
+      const recommendation = map.recommendedGrid;
+      if (
+        recommendation
+        && (
+          recommendation.cols > grid.cols
+          || recommendation.rows > grid.rows
+        )
+      ) {
+        setHandoffStartError("game-board.committed-grid-insufficient");
+        pushLog(
+          "La carte préparée exige une autre grille que celle committée. Le combat n'est pas démarré."
+        );
+        return;
+      }
+    }
+
     let safety = 0;
-    while (safety < 3) {
+    while (tacticalEncounter === null && safety < 3) {
       const rec = map.recommendedGrid;
       if (!rec || (rec.cols <= grid.cols && rec.rows <= grid.rows)) break;
       pushLog(`[map] Redimensionnement automatique: ${grid.cols}x${grid.rows} -> ${rec.cols}x${rec.rows} (${rec.reason}).`);
       grid = { cols: rec.cols, rows: rec.rows };
       map = generateBattleMap({
-        prompt: mapPrompt,
+        prompt: effectiveMapPrompt,
         grid,
-        enemyCount: configEnemyCount,
-        enemyTypes,
+        enemyCount: effectiveEnemyCount,
+        enemyTypes: effectiveEnemyTypes,
         obstacleTypes,
         wallTypes
       });
       safety++;
+    }
+
+    if (tacticalEncounter !== null) {
+      const playableCells = new Set(map.playableCells ?? []);
+      const occupiedCells = buildObstacleBlockingSets(
+        obstacleTypes,
+        map.obstacles ?? []
+      ).occupied;
+      const preparedActors = [
+        tacticalEncounter.player,
+        ...tacticalEncounter.enemies
+      ];
+      const invalidActor = preparedActors.find(actor => {
+        const cellKey = `${actor.position.x},${actor.position.y}`;
+        return !playableCells.has(cellKey) || occupiedCells.has(cellKey);
+      });
+      if (invalidActor !== undefined) {
+        setHandoffStartError("game-board.prepared-position-not-playable");
+        pushLog(
+          `La position committée de ${invalidActor.actorId} n'est pas jouable sur la carte préparée.`
+        );
+        return;
+      }
     }
 
     const generationLines = Array.isArray(map.generationLog)
@@ -4667,6 +4890,7 @@ export const GameBoard: React.FC = () => {
 
     setPlayer(prev => ({
       ...prev,
+      id: tacticalEncounter?.player.actorId ?? prev.id,
       appearance: combatCharacter.appearance,
       actionIds: combatActionIds,
       reactionIds: combatReactionIds,
@@ -4677,8 +4901,8 @@ export const GameBoard: React.FC = () => {
       maxAttacksPerTurn: combatPlayerStats.maxAttacksPerTurn,
       hp: combatCharacter.pvActuels,
       maxHp: combatPlayerStats.maxHp,
-      x: map.playerStart.x,
-      y: map.playerStart.y
+      x: tacticalEncounter?.player.position.x ?? map.playerStart.x,
+      y: tacticalEncounter?.player.position.y ?? map.playerStart.y
     }));
 
     setObstacles(map.obstacles);
@@ -4701,9 +4925,20 @@ export const GameBoard: React.FC = () => {
     setPendingHazardRoll(null);
     setHazardAnchor(null);
 
-    const newEnemies: TokenState[] = map.enemySpawns.map((spawn, i) =>
-      createEnemy(i, spawn.enemyType, spawn.position)
-    );
+    const newEnemies: TokenState[] = tacticalEncounter === null
+      ? map.enemySpawns.map((spawn, i) =>
+          createEnemy(i, spawn.enemyType, spawn.position)
+        )
+      : tacticalEncounter.enemies.map((enemy, index) => {
+          const enemyType = effectiveEnemyTypes[index];
+          if (enemyType === undefined) {
+            throw new Error(`Missing prepared enemy type ${enemy.enemyTypeId}`);
+          }
+          return {
+            ...createEnemy(index, enemyType, enemy.position),
+            id: enemy.actorId
+          };
+        });
     setEnemies(newEnemies);
     setRevealedEnemyIds(new Set());
     setRevealedCells(new Set());
@@ -4746,6 +4981,112 @@ export const GameBoard: React.FC = () => {
       rollSoloInitiative();
     }
   }
+
+  useEffect(() => {
+    if (
+      tacticalEncounter === null
+      || isCombatConfigured
+      || enemyTypes.length === 0
+      || obstacleTypes.length === 0
+      || wallTypes.length === 0
+      || startedHandoffProcessRef.current === tacticalEncounter.processId
+    ) return;
+    startedHandoffProcessRef.current = tacticalEncounter.processId;
+    setHandoffStartError(null);
+    handleStartCombat();
+  }, [
+    tacticalEncounter,
+    isCombatConfigured,
+    enemyTypes,
+    obstacleTypes,
+    wallTypes
+  ]);
+
+  function createCurrentTacticalState(
+    turnBoundaryId: string
+  ): GameBoardTacticalStateV1 | null {
+    if (tacticalEncounter === null) return null;
+    const asJsonObject = (value: unknown): JsonObject =>
+      JSON.parse(JSON.stringify(value)) as JsonObject;
+    return buildGameBoardTacticalStateV1({
+      processId: tacticalEncounter.processId,
+      seedId: tacticalEncounter.seedId,
+      seedFingerprint: tacticalEncounter.seedFingerprint,
+      turnBoundaryId,
+      round,
+      phase,
+      player: asJsonObject(player),
+      enemies: enemies.map(asJsonObject),
+      turnOrder: turnOrder.map(asJsonObject),
+      currentTurnIndex,
+      playerResources: asJsonObject(playerResources),
+      map: asJsonObject({
+        grid: mapGrid,
+        theme: mapTheme,
+        paletteId: mapPaletteId,
+        obstacles,
+        wallSegments,
+        playableCells: Array.from(playableCells ?? []),
+        terrain: mapTerrain,
+        height: mapHeight,
+        light: mapLight,
+        roofOpenCells: Array.from(roofOpenCells ?? []),
+        decorations,
+        effects,
+        activeLevel
+      }),
+      journal: getCombatEventJournal().map(asJsonObject)
+    });
+  }
+
+  useEffect(() => {
+    if (
+      tacticalEncounter === null
+      || onTacticalCheckpoint === undefined
+      || !isCombatConfigured
+      || !hasRolledInitiative
+      || turnOrder.length === 0
+      || isResolvingEnemies
+    ) return;
+    const activeTurnId = turnOrder[currentTurnIndex]?.id ?? `index-${currentTurnIndex}`;
+    const turnBoundaryId = `round-${round}:${activeTurnId}:${phase}`;
+    if (savedTurnBoundaryRef.current === turnBoundaryId) return;
+    savedTurnBoundaryRef.current = turnBoundaryId;
+    const state = createCurrentTacticalState(turnBoundaryId);
+    if (state === null) return;
+    setCheckpointSaveError(null);
+      void onTacticalCheckpoint(state).catch(error => {
+      setCheckpointSaveError(
+        error instanceof Error ? error.message : "tactical.checkpoint-save-failed"
+      );
+    });
+  }, [
+    tacticalEncounter,
+    onTacticalCheckpoint,
+    isCombatConfigured,
+    hasRolledInitiative,
+    isResolvingEnemies,
+    round,
+    phase,
+    turnOrder,
+    currentTurnIndex,
+    player,
+    enemies,
+    playerResources,
+    mapGrid,
+    mapTheme,
+    mapPaletteId,
+    obstacles,
+    wallSegments,
+    playableCells,
+    mapTerrain,
+    mapHeight,
+    mapLight,
+    roofOpenCells,
+    decorations,
+    effects,
+    activeLevel
+  ]);
 
   function getActiveTurnEntry(): TurnEntry | null {
     if (!hasRolledInitiative || turnOrder.length === 0) return null;
@@ -12305,19 +12646,97 @@ function handleEndPlayerTurn() {
 
   // Pixi is initialized via `usePixiBoard`.
 
-    // Game over si le joueur n'a plus de PV et aucun alli?? vivant
+    // Fin mécanique constatée par le plateau. En mode campagne, la traduction
+    // vers une condition autorisée vient de la graine, jamais d'un fallback.
     useEffect(() => {
       if (isGameOver) return;
 
+      if (
+        tacticalEncounter !== null
+        && enemies.length > 0
+        && enemies.every(enemy => isTokenDead(enemy))
+      ) {
+        setGameOverEndCondition(
+          tacticalEncounter.terminalConditions.allEnemiesNeutralized
+        );
+        setIsGameOver(true);
+        return;
+      }
       if (player.hp <= 0) {
         const alliesAlive = [player, ...enemies].some(
           t => t.type === "player" && !isTokenDead(t)
         );
         if (!alliesAlive) {
+          if (tacticalEncounter !== null) {
+            setGameOverEndCondition(
+              tacticalEncounter.terminalConditions.playerDefeated
+            );
+          }
           setIsGameOver(true);
         }
       }
-    }, [player, enemies, isGameOver]);
+    }, [player, enemies, isGameOver, tacticalEncounter]);
+
+    useEffect(() => {
+      if (
+        !isGameOver
+        || gameOverEndCondition === null
+        || tacticalEncounter === null
+        || onTacticalCheckpoint === undefined
+        || onTacticalOutcome === undefined
+      ) return;
+      const terminalBoundaryId =
+        `terminal:round-${round}:${gameOverEndCondition}`;
+      if (submittedOutcomeRef.current === terminalBoundaryId) return;
+      submittedOutcomeRef.current = terminalBoundaryId;
+      const terminalState = createCurrentTacticalState(terminalBoundaryId);
+      if (terminalState === null) return;
+      setOutcomeSubmissionError(null);
+      void onTacticalCheckpoint(terminalState)
+        .then(savedCheckpoint => {
+          const report = buildGameBoardTerminalReportV1({
+            encounter: tacticalEncounter,
+            state: terminalState,
+            endCondition: gameOverEndCondition,
+            checkpointId: savedCheckpoint.checkpointId
+          });
+          if (!report.ok) throw new Error(report.error.messageKey);
+          return onTacticalOutcome(report.value);
+        })
+        .catch(error => {
+          setOutcomeSubmissionError(
+            error instanceof Error
+              ? error.message
+              : "tactical.outcome-submission-failed"
+          );
+        });
+    }, [
+      isGameOver,
+      gameOverEndCondition,
+      tacticalEncounter,
+      onTacticalCheckpoint,
+      onTacticalOutcome,
+      round,
+      player,
+      enemies,
+      turnOrder,
+      currentTurnIndex,
+      phase,
+      playerResources,
+      mapGrid,
+      mapTheme,
+      mapPaletteId,
+      obstacles,
+      wallSegments,
+      playableCells,
+      mapTerrain,
+      mapHeight,
+      mapLight,
+      roofOpenCells,
+      decorations,
+      effects,
+      activeLevel
+    ]);
 
   // Pixi rendering is handled via hooks (tokens, bubbles, overlays).
   // -----------------------------------------------------------
@@ -12996,33 +13415,78 @@ function handleEndPlayerTurn() {
   ]);
 
     if (!isCombatConfigured) {
+      if (tacticalSession !== null) {
+        const blockingError = tacticalPreparationError ?? handoffStartError;
+        return (
+          <main
+            aria-label="Préparation tactique de campagne"
+            data-tactical-process-id={tacticalSession.process.processId}
+            data-tactical-ready="false"
+            style={{
+              minHeight: "100vh",
+              display: "grid",
+              placeItems: "center",
+              padding: 24,
+              boxSizing: "border-box",
+              background: "#0b0b12",
+              color: "#f5f5f5"
+            }}
+          >
+            <TacticalHandoffNotice
+              session={tacticalSession}
+              encounter={tacticalEncounter}
+            />
+            <section
+              role={blockingError === null ? "status" : "alert"}
+              style={{ maxWidth: 620, textAlign: "center" }}
+            >
+              <h1>
+                {blockingError === null
+                  ? "Préparation automatique du combat"
+                  : "Combat de campagne suspendu"}
+              </h1>
+              <p>
+                {blockingError === null
+                  ? "Le plateau vérifie les catalogues et initialise la rencontre committée."
+                  : `La rencontre ne peut pas démarrer : ${blockingError}. Aucun combat manuel ni résultat de campagne n’est créé.`}
+              </p>
+            </section>
+          </main>
+        );
+      }
       return (
-        <CombatSetupScreen
-          configEnemyCount={configEnemyCount}
-          enemyTypeCount={enemyTypes.length}
-          gridCols={mapGrid.cols}
-          gridRows={mapGrid.rows}
-          mapPrompt={mapPrompt}
-          character={characterConfig}
-          weaponTypes={weaponTypes}
-          raceTypes={raceTypes}
-          classTypes={classTypes}
-          subclassTypes={subclassTypes}
-          backgroundTypes={backgroundTypes}
-          languageTypes={languageTypes}
-          toolItems={toolItems}
-          objectItems={objectItems}
-          armorItems={armorItems}
-          onChangeCharacter={setCharacterConfig}
-          onChangeMapPrompt={setMapPrompt}
-          onChangeEnemyCount={setConfigEnemyCount}
-          onNoEnemyTypes={() =>
-            pushLog(
-              "Aucun type d'ennemi charge (enemyTypes). Impossible de generer le combat."
-            )
-          }
-          onStartCombat={handleStartCombat}
-        />
+        <>
+          <TacticalHandoffNotice
+            session={tacticalSession}
+            encounter={tacticalEncounter}
+          />
+          <CombatSetupScreen
+            configEnemyCount={configEnemyCount}
+            enemyTypeCount={enemyTypes.length}
+            gridCols={mapGrid.cols}
+            gridRows={mapGrid.rows}
+            mapPrompt={mapPrompt}
+            character={characterConfig}
+            weaponTypes={weaponTypes}
+            raceTypes={raceTypes}
+            classTypes={classTypes}
+            subclassTypes={subclassTypes}
+            backgroundTypes={backgroundTypes}
+            languageTypes={languageTypes}
+            toolItems={toolItems}
+            objectItems={objectItems}
+            armorItems={armorItems}
+            onChangeCharacter={setCharacterConfig}
+            onChangeMapPrompt={setMapPrompt}
+            onChangeEnemyCount={setConfigEnemyCount}
+            onNoEnemyTypes={() =>
+              pushLog(
+                "Aucun type d'ennemi charge (enemyTypes). Impossible de generer le combat."
+              )
+            }
+            onStartCombat={handleStartCombat}
+          />
+        </>
       );
 /*
       <div
@@ -13944,6 +14408,14 @@ function handleEndPlayerTurn() {
 
   return (
       <div
+        data-tactical-process-id={tacticalEncounter?.processId}
+        data-tactical-ready={tacticalEncounter === null ? undefined : "true"}
+        data-tactical-checkpoint-id={tacticalCheckpoint?.turnBoundaryId}
+        data-tactical-restored-checkpoint-id={
+          restoredCheckpointIdRef.current ?? undefined
+        }
+        data-tactical-end-condition={gameOverEndCondition ?? undefined}
+        data-tactical-outcome-error={outcomeSubmissionError ?? undefined}
         style={{
           display: "flex",
           flexDirection: "column",
@@ -13981,6 +14453,48 @@ function handleEndPlayerTurn() {
             100% { opacity: 0; transform: translate(-50%, -8px) scale(0.98); }
           }
         `}</style>
+        <TacticalHandoffNotice
+          session={tacticalSession}
+          encounter={tacticalEncounter}
+        />
+        {checkpointSaveError !== null && (
+          <div
+            role="alert"
+            style={{
+              position: "fixed",
+              zIndex: 121,
+              top: 132,
+              left: "50%",
+              transform: "translateX(-50%)",
+              padding: "8px 12px",
+              borderRadius: 10,
+              background: "rgba(84,18,18,0.94)",
+              border: "1px solid rgba(255,110,110,0.65)"
+            }}
+          >
+            Sauvegarde tactique suspendue : {checkpointSaveError}. La reprise
+            fiable reste limitée au dernier checkpoint committé.
+          </div>
+        )}
+        {outcomeSubmissionError !== null && (
+          <div
+            role="alert"
+            style={{
+              position: "fixed",
+              zIndex: 122,
+              top: 184,
+              left: "50%",
+              transform: "translateX(-50%)",
+              padding: "8px 12px",
+              borderRadius: 10,
+              background: "rgba(84,18,18,0.96)",
+              border: "1px solid rgba(255,110,110,0.65)"
+            }}
+          >
+            Résultat tactique non enregistré : {outcomeSubmissionError}. Aucun
+            effet de campagne n’a été appliqué.
+          </div>
+        )}
         {isTextureLoading && (
           <div
             style={{

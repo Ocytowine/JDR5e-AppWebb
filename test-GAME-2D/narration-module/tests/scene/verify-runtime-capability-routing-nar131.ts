@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import type { AiIntentRuntimeHandlingV1, AiStructuredSemanticIntentV1 } from "../../src/ai/types";
-import { routeNarrativeSemanticIntentV1 } from "../../src/application";
+import {
+  NARRATIVE_RUNTIME_CAPABILITY_REGISTRY_VERSION_V2,
+  routeNarrativeSemanticIntentV1,
+  routeNarrativeSemanticIntentV2
+} from "../../src/application";
 
 const baseSemantic: AiStructuredSemanticIntentV1 = {
   schemaVersion: 1,
@@ -72,6 +76,41 @@ const unclear = routeNarrativeSemanticIntentV1({
   runtimeSuggestion: suggestion("scene_resolution", "act")
 });
 assert.equal(unclear.disposition, "CLARIFY");
+
+const explicitRestSemantic = {
+  ...baseSemantic,
+  kind: "context_question" as const,
+  playerGoal: "prendre un repos",
+  target: { kind: "self" as const, ref: "self", label: "personnage" },
+  commitment: "committed" as const
+};
+const restSuggestion = suggestion("rest", "rest");
+const closedRest = routeNarrativeSemanticIntentV2({
+  semanticIntent: explicitRestSemantic,
+  runtimeSuggestion: restSuggestion,
+  availability: { rest: false }
+});
+assert.equal(closedRest.disposition, "HANDOFF");
+assert.equal(closedRest.noGameTime, true);
+
+const ownedRest = routeNarrativeSemanticIntentV2({
+  semanticIntent: explicitRestSemantic,
+  runtimeSuggestion: restSuggestion,
+  availability: { rest: true }
+});
+assert.equal(ownedRest.registryVersion, NARRATIVE_RUNTIME_CAPABILITY_REGISTRY_VERSION_V2);
+assert.equal(ownedRest.disposition, "HANDLE");
+assert.equal(ownedRest.capabilityId, "rest.process");
+assert.equal(ownedRest.commitPolicy, "DOMAIN_VALIDATED");
+assert.equal(ownedRest.noGameTime, false);
+
+const mentionedRest = routeNarrativeSemanticIntentV2({
+  semanticIntent: { ...explicitRestSemantic, commitment: "none" },
+  runtimeSuggestion: restSuggestion,
+  availability: { rest: true }
+});
+assert.equal(mentionedRest.disposition, "HANDLE");
+assert.equal(mentionedRest.noGameTime, true);
 assert.equal(unclear.requiredDomain, null, "une intention inconnue ne retombe plus par défaut dans scene_resolution");
 
 console.log("runtime-capability-routing/nar131: OK");

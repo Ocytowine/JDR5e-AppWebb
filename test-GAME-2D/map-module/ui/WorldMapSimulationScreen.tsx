@@ -18,6 +18,23 @@ import { formatRuntimeMobileProgress } from "./simulation/mobileRuntimeDisplay";
 type SimulationVisualMode = "all" | "factions" | "objectives" | "mobility" | "pressures" | "relations";
 type FactionPanelFocus = "summary" | "goals" | "mobility";
 
+export interface CampaignWorldSimulationUiPortV1 {
+  restore(): Promise<{
+    worldState: WorldState;
+    elapsedGameSeconds: number;
+    worldSimulatedThrough: number;
+  }>;
+  advance(input: {
+    clientRequestId: string;
+    hours: number;
+  }): Promise<{
+    worldState: WorldState;
+    tickOutput: TickOutput;
+    elapsedGameSeconds: number;
+    worldSimulatedThrough: number;
+  }>;
+}
+
 const PRESSURE_LABELS: Record<string, string> = {
   criminal: "Criminelle",
   social: "Sociale",
@@ -381,6 +398,7 @@ export function WorldMapSimulationScreen(props: {
   layout: WorldMapLayout;
   onOpenEditor: () => void;
   onCloseSimulation: () => void;
+  campaignPort?: CampaignWorldSimulationUiPortV1;
 }): React.JSX.Element {
   const [layerVisibility, setLayerVisibility] = useState<Record<MapLayerId, boolean>>(createSimulationLayerVisibility());
   const [selectedCellKey, setSelectedCellKey] = useState<string>(getWorldMapCellKey(props.layout.cities[0]?.cell ?? { x: 0, y: 0 }));
@@ -392,6 +410,8 @@ export function WorldMapSimulationScreen(props: {
   const [factionPanelFocus, setFactionPanelFocus] = useState<FactionPanelFocus>("summary");
   const [state, setState] = useState<WorldState>(() => createWorldStateFromMapLayout(props.layout));
   const [outputs, setOutputs] = useState<TickOutput[]>([]);
+  const [campaignPending, setCampaignPending] = useState(false);
+  const [campaignError, setCampaignError] = useState<string | null>(null);
   const [panelMenuOpen, setPanelMenuOpen] = useState(false);
   const [openPanels, setOpenPanels] = useState({
     layers: true,
@@ -712,6 +732,32 @@ export function WorldMapSimulationScreen(props: {
   }, [props.layout]);
 
   useEffect(() => {
+    if (props.campaignPort === undefined) return;
+    let cancelled = false;
+    setCampaignPending(true);
+    setCampaignError(null);
+    void props.campaignPort.restore()
+      .then(snapshot => {
+        if (!cancelled) setState(cloneState(snapshot.worldState));
+      })
+      .catch(error => {
+        if (!cancelled) {
+          setCampaignError(
+            error instanceof Error
+              ? error.message
+              : "Restauration de la simulation de campagne impossible."
+          );
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setCampaignPending(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [props.campaignPort]);
+
+  useEffect(() => {
     if (!selectedFaction) return;
     const mainObjective = selectedFactionObjectives.find(objective => objective.state === "active") ?? selectedFactionObjectives[0] ?? null;
     if (mainObjective) {
@@ -860,7 +906,30 @@ export function WorldMapSimulationScreen(props: {
     setOutputs([]);
   }
 
-  function runHours(hours: number) {
+  async function runHours(hours: number) {
+    if (props.campaignPort !== undefined) {
+      if (campaignPending) return;
+      setCampaignPending(true);
+      setCampaignError(null);
+      try {
+        const advanced = await props.campaignPort.advance({
+          clientRequestId:
+            `world-map:${Date.now()}:${hours}`,
+          hours
+        });
+        setState(cloneState(advanced.worldState));
+        setOutputs(previous => [...previous, advanced.tickOutput]);
+      } catch (error) {
+        setCampaignError(
+          error instanceof Error
+            ? error.message
+            : "Avance de campagne impossible."
+        );
+      } finally {
+        setCampaignPending(false);
+      }
+      return;
+    }
     setState(current => {
       const next = cloneState(current);
       const output = runWorldHours(next, hours);
@@ -992,19 +1061,40 @@ export function WorldMapSimulationScreen(props: {
                     </div>
                   </div>
                   <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                    <button type="button" onClick={() => runHours(1)} style={createEditorButtonStyle({ compact: true })}>
+                    <button type="button" disabled={campaignPending} onClick={() => void runHours(1)} style={createEditorButtonStyle({ compact: true })}>
                       +1 h
                     </button>
-                    <button type="button" onClick={() => runHours(state.clock.microPerMacro)} style={createEditorButtonStyle({ compact: true, active: true })}>
+                    <button type="button" disabled={campaignPending} onClick={() => void runHours(state.clock.microPerMacro)} style={createEditorButtonStyle({ compact: true, active: true })}>
                       +6 h
                     </button>
-                    <button type="button" onClick={resetSimulation} style={createEditorButtonStyle({ compact: true })}>
-                      Reset
-                    </button>
-                    <button type="button" onClick={props.onOpenEditor} style={createEditorButtonStyle({ compact: true })}>
-                      Editer simulation
-                    </button>
+                    {props.campaignPort === undefined && (
+                      <>
+                        <button type="button" onClick={resetSimulation} style={createEditorButtonStyle({ compact: true })}>
+                          Reset
+                        </button>
+                        <button type="button" onClick={props.onOpenEditor} style={createEditorButtonStyle({ compact: true })}>
+                          Editer simulation
+                        </button>
+                      </>
+                    )}
                   </div>
+                  {props.campaignPort !== undefined && (
+                    <div
+                      role={campaignError === null ? "status" : "alert"}
+                      style={{
+                        color: campaignError === null
+                          ? EDITOR_THEME.colors.textMuted
+                          : "#ff9d76",
+                        fontSize: 12
+                      }}
+                    >
+                      {campaignPending
+                        ? "Avance autoritaire de la campagne en cours…"
+                        : campaignError === null
+                          ? "Simulation liée à la campagne : chaque avance est persistée."
+                          : `Avance refusée : ${campaignError}`}
+                    </div>
+                  )}
                   <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                     {([
                       ["all", "Tout"],

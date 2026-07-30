@@ -89,8 +89,9 @@ assert.equal(narrativeSurfaceSource.includes("Couples intention → réponse"), 
 assert.equal(presentationVariationSource.includes("presentation-variant:"), true, "projection tracée avec variante de présentation dans le service applicatif");
 assert.equal(mainSource.includes("GameBoard"), false, "main.tsx ne doit plus monter GameBoard directement");
 assert.equal(appSource.includes("from \"./GameBoard\""), true, "App.tsx monte GameBoard seulement comme surface tactique");
-assert.equal(appSource.includes("<GameBoard />"), true, "surface tactique explicite");
-assert.equal(appSource.includes("<NarrativeAppSurface />"), true, "surface narration explicite");
+assert.equal(appSource.includes("<GameBoard"), true, "surface tactique explicite");
+assert.equal(appSource.includes("<NarrativeAppSurface"), true, "surface narration explicite");
+assert.equal(appSource.includes("<CampaignGateway"), true, "porte d’entrée campagne explicite");
 assert.equal(appSource.includes("Narration"), true, "shell expose la surface narration");
 assert.equal(appSource.includes("Tactique"), true, "shell expose la surface tactique");
 

@@ -15,7 +15,7 @@ import {
   type Result
 } from "../core";
 import type { AiIncidentRecordV1 } from "../ai/types";
-import type { DisplayPacketV1 } from "../scene";
+import { validateDisplayPacketV1, type DisplayPacketV1 } from "../scene";
 import type { AiNarrativeEnhancementResultV1 } from "./aiNarrativeEnhancement";
 import type { NarrativeTurnControllerOutputV1 } from "./NarrativeTurnController";
 import { npcSpeakerIdForActorV1 } from "./npcActorIdentity";
@@ -83,6 +83,16 @@ export interface NarrativeRenderProjectionRecordResultV1 {
   projection: NarrativeRenderedProjectionV1;
 }
 
+export interface NarrativeDirectDisplayProjectionInputV1 {
+  schemaVersion: 1;
+  clientRequestId: string;
+  sourceOperationId: string;
+  sourceContractVersion: string;
+  displayPacket: DisplayPacketV1 & JsonObject;
+  statusMessage: string;
+  sourceRefs: string[];
+}
+
 export interface RestoredNarrativeThreadV1 extends JsonObject {
   schemaVersion: 1;
   contractVersion: "narrative-rendered-thread/1";
@@ -136,7 +146,12 @@ export async function recordNarrativeRenderedProjectionV1(input: {
   const campaign = await input.repository.getCampaign(input.campaignId);
   if (!campaign.ok) return campaign;
 
-  const suffix = normalizeIdSuffix(`${sourceOperationId}-${input.request.mode}`);
+  const suffix = (
+    await computeJsonFingerprint({
+      sourceOperationId,
+      mode: input.request.mode
+    })
+  ).replace(/^sha256:/u, "").slice(0, 32);
   const renderOperationId = opaqueId<OperationId>(`${input.idPrefix}-render-op-${suffix}`);
   const renderClientRequestId = opaqueId<RequestId>(`${normalizeIdSuffix(input.request.clientRequestId)}.render.${input.request.mode}`);
   const idempotencyKey = opaqueId<IdempotencyKey>(`${input.idPrefix}-render-idem-${suffix}`);
@@ -196,6 +211,136 @@ export async function recordNarrativeRenderedProjectionV1(input: {
       projection
     }
   };
+}
+
+export async function recordNarrativeDirectDisplayProjectionV1(input: {
+  repository: CampaignRepository;
+  campaignId: CampaignId;
+  clock: RepositoryClock;
+  idPrefix: string;
+  request: NarrativeDirectDisplayProjectionInputV1;
+}): Promise<Result<NarrativeRenderProjectionRecordResultV1>> {
+  const packetValidation = validateDisplayPacketV1(input.request.displayPacket);
+  if (
+    input.request.schemaVersion !== 1 ||
+    !input.request.clientRequestId.trim() ||
+    !input.request.sourceOperationId.trim() ||
+    !input.request.sourceContractVersion.trim() ||
+    !input.request.statusMessage.trim() ||
+    !packetValidation.ok
+  ) {
+    return {
+      ok: false,
+      error: coreError("VALIDATION_FAILED", "narrative.direct-render-projection.invalid-input", {
+        packetIssues: packetValidation.issues
+      })
+    };
+  }
+  const sourceOperation = await input.repository.getOperation(
+    opaqueId<OperationId>(input.request.sourceOperationId)
+  );
+  if (!sourceOperation.ok) return sourceOperation;
+  if (
+    sourceOperation.value.campaignId !== input.campaignId ||
+    sourceOperation.value.phase !== "COMPLETED" ||
+    sourceOperation.value.commitId === null
+  ) {
+    return {
+      ok: false,
+      error: coreError("VALIDATION_FAILED", "narrative.direct-render-projection.source-not-committed")
+    };
+  }
+  const campaign = await input.repository.getCampaign(input.campaignId);
+  if (!campaign.ok) return campaign;
+  const displayPacket = cloneJson(input.request.displayPacket) as JsonObject;
+  const displayPacketFingerprint = await computeJsonFingerprint(displayPacket);
+  const suffix = (
+    await computeJsonFingerprint({
+      sourceOperationId: input.request.sourceOperationId,
+      displayOperationId: input.request.displayPacket.operationId,
+      mode: "direct"
+    })
+  ).replace(/^sha256:/u, "").slice(0, 32);
+  const renderOperationId = opaqueId<OperationId>(`${input.idPrefix}-render-op-${suffix}`);
+  const recordedAt = input.clock.now().toISOString();
+  const projection: NarrativeRenderedProjectionV1 = {
+    schemaVersion: 1,
+    contractVersion: NARRATIVE_RENDER_PROJECTION_CONTRACT_VERSION_V1,
+    sourceOperationId: input.request.sourceOperationId,
+    sourceContractVersion: input.request.sourceContractVersion,
+    renderOperationId,
+    clientRequestId: input.request.clientRequestId,
+    mode: "local",
+    authority: "PRESENTATION_ONLY",
+    noGameTime: true,
+    displayPacket,
+    displayPacketFingerprint,
+    ai: {
+      schemaVersion: 1,
+      finalEnhanced: false,
+      finalUsedFallback: false,
+      fallbackAttempted: false,
+      statusMessage: input.request.statusMessage,
+      safetyNotes: ["Projection construite uniquement depuis le signal public committé."],
+      incidentIds: []
+    },
+    incidents: [],
+    sourceRefs: [...new Set([
+      `operation:${input.request.sourceOperationId}`,
+      ...input.request.sourceRefs,
+      `display:${displayPacketFingerprint}`
+    ])],
+    recordedAt,
+    version: 1
+  };
+  const requestPayload: JsonObject = {
+    schemaVersion: 1,
+    sourceOperationId: input.request.sourceOperationId,
+    sourceContractVersion: input.request.sourceContractVersion,
+    displayPacketFingerprint,
+    authority: "PRESENTATION_ONLY",
+    noGameTime: true
+  };
+  const requestFingerprint = await computeRequestFingerprint(
+    "narrative.render.projection",
+    1,
+    requestPayload
+  );
+  const operation: OperationRecord = {
+    schemaVersion: 1,
+    operationId: renderOperationId,
+    campaignId: input.campaignId,
+    clientRequestId: opaqueId<RequestId>(`${normalizeIdSuffix(input.request.clientRequestId)}.render.direct`),
+    idempotencyKey: opaqueId<IdempotencyKey>(`${input.idPrefix}-render-idem-${suffix}`),
+    requestFingerprint,
+    operationKind: "narrative.render.projection",
+    requestPayloadSchemaVersion: 1,
+    requestPayload,
+    phase: "RECEIVED",
+    observedCampaignRevision: campaign.value.campaignRevision,
+    commitId: null,
+    completionMode: null,
+    resultPayloadSchemaVersion: null,
+    resultPayload: null,
+    failure: null,
+    receivedAt: recordedAt,
+    updatedAt: recordedAt
+  };
+  const received = await input.repository.receiveOperation(operation);
+  if (!received.ok) return received;
+  if (received.value.phase === "COMPLETED" && received.value.resultPayload !== null) {
+    return {
+      ok: true,
+      value: {
+        operation: received.value,
+        projection: received.value.resultPayload as NarrativeRenderedProjectionV1
+      }
+    };
+  }
+  const completed = await input.repository.completeWithoutCommit(renderOperationId, 1, projection);
+  return completed.ok
+    ? { ok: true, value: { operation: completed.value, projection } }
+    : completed;
 }
 
 export async function restoreNarrativeRenderedThreadV1(input: {

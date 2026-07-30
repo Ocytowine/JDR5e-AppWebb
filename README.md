@@ -60,6 +60,7 @@ npm run narration-module:test:playable-scene
 npm run narration-module:test:lore-playable-scene
 npm run narration-module:test:scene-ephemeral-creation
 npm run narration-module:test:plot-preparation
+npm run narration-module:test:living-world-gate
 npm run narration-module:test:indexeddb
 npm run map-module:test:regression
 npm run verify:world-simulation
@@ -74,8 +75,30 @@ Les simulations longues sont disponibles avec `npm run verify:world-simulation:l
 - `test-GAME-2D/narration-module/` : noyau narratif actif avec persistance
   IndexedDB, intention sémantique V5, scènes guidées par le lore, populations
   locales, dialogue borné, rendu narratif contrôlé et OpenAI opt-in côté serveur.
-  Les relations durables, intrigues dynamiques, intégrations tactiques jouables et
-  la mémoire sociale longue restent à construire.
+  Le premier état social durable et le premier vertical d'intrigue privée
+  évoluant hors écran sont actifs. Les signaux perceptibles committés par la
+  simulation mondiale peuvent rejoindre le même flux causal sans exposer ses
+  décisions privées. La progression personnage peut désormais être ouverte,
+  validée, appliquée atomiquement puis restaurée dans le fil narratif sans
+  duplication. Une acquisition committée peut également établir le premier
+  registre de bastion. Un travail issu d'un catalogue injecté peut désormais
+  être planifié, achevé par l'horloge puis projeté sans coût ou aménagement
+  implicite. Un PNJ persistant peut également accepter une affectation
+  cataloguée et initier une première activité locale sans saisie joueur, tout
+  en conservant son état privé dans l'autorité sociale. Un événement committé
+  peut désormais ouvrir une occasion, appliquer une conséquence locale ou
+  démarrer une défense par handoff tactique sans en inventer l'issue. Le
+  build principal sait restaurer cette défense, valider ses projections puis
+  initialiser `GameBoard` depuis sa graine persistée sans configuration libre.
+  Un checkpoint de frontière de tour permet désormais de restaurer la rencontre
+  sans régénérer sa carte ni son initiative. Le résultat terminal peut être
+  persisté avant toute conséquence, puis validé par ses propriétaires et
+  intégré atomiquement avec le temps avant une reprise narrative restaurable.
+  Un constructeur catalogué peut désormais alimenter ce vertical depuis les
+  agrégats personnage d'une campagne sans recopier le payload privé de la
+  cause.
+  Les causes et catalogues de bastion réellement jouables, l'économie de
+  campagne et la mémoire sociale longue restent à construire.
 - `test-GAME-2D/scripts/` : generation de catalogues et scripts de verification.
 - `test-GAME-2D/docs/` : conception fonctionnelle et technique de l'application.
 - `wiki/` : lore et modeles de contenu de l'univers.

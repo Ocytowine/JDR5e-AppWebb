@@ -1,5 +1,6 @@
 import {
   computeRequestFingerprint,
+  coreError,
   MemoryCampaignRepository,
   opaqueId,
   type AggregateId,
@@ -17,8 +18,15 @@ import {
   type RepositoryClock,
   type RequestId,
   type Result,
+  type WorkerId,
   type WriterId
 } from "../../src/core/index";
+import {
+  createRestLifecycleSignalHookV1,
+  ORCHESTRATION_EVENT_TASK_TYPE_V1,
+  processClaimedOrchestrationTaskV1,
+  type OrchestrationEventHookV1
+} from "../../src/application/index";
 import {
   HANDOFF_CONTRACT_VERSION,
   createHandoffOutcomeTemporalBatchV1,
@@ -27,6 +35,7 @@ import {
   prepareNextRestSegmentV1,
   prepareHandoffOutcomeIntegrationV1,
   prepareRestStartCommitV1,
+  prepareSegmentedRestStartCommitV1,
   prepareRestSegmentCommitV1,
   prepareTimedHandoffOutcomeIntegrationV1,
   restProcessAggregateId,
@@ -600,6 +609,43 @@ test("04 rest starts only from an explicit valid seed and rest_started is commit
   assert.deepEqual(events.map(event => event.eventType), ["rest_started"]);
 });
 
+test("04b segmented rest start persists handoff and temporal checkpoint atomically", async () => {
+  const { repository, clock, campaign } = await setup("rest_segmented_start");
+  const seed = segmentRestSeed(campaign, "proc_rest_segmented_start_i07c");
+  const operation = await readyOperation(repository, campaign, clock, "rest_segmented_start", "handoff.rest.start", {
+    processId: seed.processId
+  });
+  const writerLease = await lease(repository, campaign.campaignId, "rest_segmented_start");
+  const request = await prepareSegmentedRestStartCommitV1({
+    campaign,
+    operation,
+    writerLease,
+    seed,
+    segmentSeconds: 3_600,
+    processIdempotencyKey: "handoff_rest_segmented_start_i07c",
+    commitId: id<CommitId>("cmt_i07c_rest_segmented_start"),
+    commandId: id<CommandId>("cmd_i07c_rest_segmented_start"),
+    eventId: id<EventId>("evt_i07c_rest_segmented_started")
+  });
+  const first = expectOk(await repository.commit(request));
+  assert.deepEqual(expectOk(await repository.commit(request)), first);
+  expectOk(await repository.releaseWriterLease(writerLease));
+  const handoff = expectOk(await repository.getAggregate(
+    campaign.campaignId,
+    "process.handoff",
+    processAggregateId(seed.processId)
+  ));
+  const checkpoint = expectOk(await repository.getAggregate(
+    campaign.campaignId,
+    "rest.process",
+    restProcessAggregateId(seed.processId)
+  ));
+  assert.equal(handoff.payload.status, "ACTIVE");
+  assert.equal(checkpoint.payload.status, "ACTIVE");
+  assert.equal(checkpoint.payload.elapsedRestSeconds, 0);
+  assert.deepEqual(checkpoint.payload.acquiredBenefits, []);
+});
+
 test("05 interrupted rest emits committed interruption event and grants no long-rest benefit", async () => {
   const { repository, clock, campaign } = await setup("rest_interrupted");
   const seed = restSeed(campaign, "proc_rest_interrupted_i07a");
@@ -763,7 +809,13 @@ test("08 segmented rest commits checkpoint and clock for one segment", async () 
     process,
     currentGameSecond: 0,
     deterministicSeed: "stable-rest-seed",
-    allowInterruption: true
+    allowInterruption: true,
+    activity: {
+      schemaVersion: 1,
+      activityKind: "CHARACTER_PROGRESSION",
+      characterId: "pj-1",
+      progressionAwardId: "award-rest-segment-one"
+    }
   });
   const committed = await commitRestSegment({
     repository,
@@ -777,10 +829,32 @@ test("08 segmented rest commits checkpoint and clock for one segment", async () 
   assert.equal(committed.process.elapsedRestSeconds, 3_600);
   assert.equal(committed.process.currentSegmentIndex, 1);
   assert.equal(committed.process.acquiredBenefits.length, 0);
+  assert.equal(committed.process.completedActivities.length, 1);
+  assert.equal(
+    committed.process.completedActivities[0]?.activityKind,
+    "CHARACTER_PROGRESSION"
+  );
   const storedClock = expectOk(await repository.getAggregate(campaign.campaignId, "world.clock", campaign.clockAggregateId));
   assert.equal(storedClock.payload.elapsedGameSeconds, 3_600);
   const events = expectOk(await repository.listEvents(campaign.campaignId, null, 20));
   assert.equal(events.filter(event => event.eventType === "rest_segment_completed").length, 1);
+  const progressionEvent = events.find(event => event.eventType === "rest_segment_completed");
+  const progressionResult = progressionEvent?.payload.result as {
+    restKind?: string;
+    activity?: { activityKind?: string };
+  } | undefined;
+  assert.equal(progressionResult?.restKind, "LONG_REST");
+  assert.equal(
+    progressionResult?.activity?.activityKind,
+    "CHARACTER_PROGRESSION"
+  );
+  const claimed = expectOk(await repository.claimOutboxTasks(
+    campaign.campaignId,
+    id<WorkerId>("worker_i07c_active"),
+    10,
+    30_000
+  ));
+  assert.equal(claimed.length, 0, "An ACTIVE rest segment must not wake orchestration.");
 });
 
 test("09 segmented rest completes only when target duration is reached", async () => {
@@ -815,14 +889,66 @@ test("09 segmented rest completes only when target duration is reached", async (
     segment: secondSegment,
     restProcessExpectedRevision: 0
   });
-  assert.equal(secondCommit.process.status, "COMPLETED");
+  assert.equal(secondCommit.process.status, "COMPLETED_PENDING_BENEFITS");
   assert.equal(secondCommit.process.elapsedRestSeconds, 7_200);
-  assert.equal(secondCommit.process.acquiredBenefits.length, 1);
-  assert.equal(secondCommit.process.remainingBenefits.length, 0);
+  assert.equal(secondCommit.process.acquiredBenefits.length, 0);
+  assert.equal(secondCommit.process.remainingBenefits.length, 1);
   const storedClock = expectOk(await repository.getAggregate(campaign.campaignId, "world.clock", campaign.clockAggregateId));
   assert.equal(storedClock.payload.elapsedGameSeconds, 7_200);
   const events = expectOk(await repository.listEvents(campaign.campaignId, null, 30));
-  assert.equal(events.filter(event => event.eventType === "rest_completed").length, 1);
+  assert.equal(events.filter(event => event.eventType === "rest_completed_pending_benefits").length, 1);
+  const workerId = id<WorkerId>("worker_i07c_completed");
+  const claimed = expectOk(await repository.claimOutboxTasks(campaign.campaignId, workerId, 10, 30_000));
+  assert.equal(claimed.length, 1);
+  assert.equal(claimed[0].taskType, ORCHESTRATION_EVENT_TASK_TYPE_V1);
+  assert.equal(claimed[0].payload.eventType, "rest_completed_pending_benefits");
+  const serializedEnvelope = JSON.stringify(claimed[0].payload);
+  assert.equal(serializedEnvelope.includes("safetyProfile"), false);
+  assert.equal(serializedEnvelope.includes("dangerPercent"), false);
+  assert.equal(serializedEnvelope.includes("deterministicSeed"), false);
+  assert.equal(serializedEnvelope.includes("remainingBenefits"), false);
+  assert.equal(claimed[0].payload.pendingBenefitCount, 1);
+  assert.equal(
+    Object.prototype.hasOwnProperty.call(claimed[0].payload.interruption, "checkFingerprint"),
+    false
+  );
+  const auditHook: OrchestrationEventHookV1 = {
+    hookId: "aaa.rest-audit-probe/1",
+    acceptedEventTypes: ["rest_completed_pending_benefits"],
+    async handle(envelope) {
+      return {
+        ok: true,
+        value: {
+          schemaVersion: 1,
+          hookId: "aaa.rest-audit-probe/1",
+          signalType: "REST_TERMINAL_EVENT_OBSERVED",
+          sourceEventId: envelope.sourceEventId,
+          processId: envelope.processId,
+          disposition: "OBSERVED",
+          payload: {}
+        }
+      };
+    }
+  };
+  const routed = expectOk(await processClaimedOrchestrationTaskV1({
+    repository,
+    task: claimed[0],
+    workerId,
+    hooks: [createRestLifecycleSignalHookV1(), auditHook],
+    retryAt: "2026-07-07T10:01:00.000Z"
+  }));
+  assert.equal(routed.status, "COMPLETED");
+  assert.equal(routed.receipt?.status, "DELIVERED");
+  assert.deepEqual(
+    routed.receipt?.deliveries.map(delivery => delivery.hookId),
+    ["aaa.rest-audit-probe/1", "rest.lifecycle-signal/1"],
+    "Subscribers must be delivered in stable hook-id order."
+  );
+  const lifecycleSignal = routed.receipt?.deliveries.find(
+    delivery => delivery.hookId === "rest.lifecycle-signal/1"
+  );
+  assert.equal(lifecycleSignal?.signalType, "REST_COMPLETED_PENDING_BENEFITS");
+  assert.equal(lifecycleSignal?.payload.pendingBenefitCount, 1);
 });
 
 test("10 segmented rest interruption is deterministic and grants no long rest benefit", async () => {
@@ -870,6 +996,41 @@ test("10 segmented rest interruption is deterministic and grants no long rest be
   assert.equal(interrupted.process.remainingBenefits.length, 1);
   const events = expectOk(await repository.listEvents(campaign.campaignId, null, 30));
   assert.equal(events.filter(event => event.eventType === "rest_interrupted").length, 1);
+  const workerId = id<WorkerId>("worker_i07c_interrupted");
+  const firstClaim = expectOk(await repository.claimOutboxTasks(campaign.campaignId, workerId, 1, 30_000));
+  assert.equal(firstClaim.length, 1);
+  const failingHook: OrchestrationEventHookV1 = {
+    hookId: "rest.failure-probe/1",
+    acceptedEventTypes: ["rest_interrupted"],
+    async handle() {
+      return {
+        ok: false,
+        error: coreError("CAMPAIGN_BUSY", "orchestration.test.temporary-failure")
+      };
+    }
+  };
+  const retryAt = new Date(clock.now().getTime() + 1_000).toISOString();
+  const failedAttempt = expectOk(await processClaimedOrchestrationTaskV1({
+    repository,
+    task: firstClaim[0],
+    workerId,
+    hooks: [failingHook],
+    retryAt
+  }));
+  assert.equal(failedAttempt.status, "FAILED_RETRYABLE");
+  assert.equal(failedAttempt.task.attemptCount, 1);
+  clock.advance(1_001);
+  const retryClaim = expectOk(await repository.claimOutboxTasks(campaign.campaignId, workerId, 1, 30_000));
+  assert.equal(retryClaim.length, 1);
+  const retried = expectOk(await processClaimedOrchestrationTaskV1({
+    repository,
+    task: retryClaim[0],
+    workerId,
+    hooks: [],
+    retryAt: new Date(clock.now().getTime() + 1_000).toISOString()
+  }));
+  assert.equal(retried.status, "COMPLETED");
+  assert.equal(retried.receipt?.status, "NO_SUBSCRIBER");
 });
 
 test("11 tactical placeholder produces deterministic typed outcomes", async () => {

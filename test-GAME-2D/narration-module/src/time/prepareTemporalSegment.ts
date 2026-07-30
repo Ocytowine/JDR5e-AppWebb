@@ -166,14 +166,24 @@ export async function prepareTemporalSegmentCommitV1(
         computeJsonFingerprint(result.worldState),
         computeJsonFingerprint(resultBase)
       ]);
-      const expectedHours = (batch.effectiveAtGameSecond - batch.currentGameSecond) / cursor.value.secondsPerMicroTick;
+      const declaredSimulationThrough =
+        Number(simulationTasks[0]?.payload.worldSimulatedThrough);
+      const expectedSimulationThrough =
+        Number.isInteger(declaredSimulationThrough)
+          ? declaredSimulationThrough
+          : batch.effectiveAtGameSecond;
+      const expectedHours =
+        (expectedSimulationThrough - cursor.value.worldSimulatedThrough)
+        / cursor.value.secondsPerMicroTick;
       const nextCursor = validateWorldSimulationCursorPayloadV1(result.cursor);
       const simulationResolution = input.resolutions.find(value => value.taskId === simulationTasks[0].taskId);
       if (result.schemaVersion !== 1 || !result.simulationId.trim() || !nextCursor.ok ||
           simulationResolution?.origin !== "WORLD_SIMULATION" || result.tickOutput.tick !== result.cursor.tick ||
           !Number.isInteger(expectedHours) || expectedHours <= 0 ||
           result.previousWorldSimulatedThrough !== cursor.value.worldSimulatedThrough ||
-          result.worldSimulatedThrough !== batch.effectiveAtGameSecond || result.hoursProcessed !== expectedHours ||
+          expectedSimulationThrough > batch.effectiveAtGameSecond
+          || result.worldSimulatedThrough !== expectedSimulationThrough
+          || result.hoursProcessed !== expectedHours ||
           result.cursor.worldSimulatedThrough !== result.worldSimulatedThrough ||
           result.previousWorldStateFingerprint !== storedFingerprint ||
           result.worldStateFingerprint !== nextFingerprint || result.resultFingerprint !== resultFingerprint) {
@@ -295,7 +305,11 @@ export async function prepareTemporalSegmentCommitV1(
     causation: { kind: "COMMAND", id: input.commandId },
     aggregateRefs,
     visibility: cloneJson(resolution.visibility),
-    occurredAtGameSecond: batch.effectiveAtGameSecond,
+    occurredAtGameSecond:
+      input.simulationResult
+      && simulationTasks[0]?.taskId === resolution.taskId
+        ? input.simulationResult.worldSimulatedThrough
+        : batch.effectiveAtGameSecond,
     payloadSchemaVersion: 1,
     payload: {
       taskId: resolution.taskId,

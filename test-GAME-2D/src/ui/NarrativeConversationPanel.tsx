@@ -5,6 +5,7 @@ import type {
   RenderBlockKindV1
 } from "../../narration-module/src/scene";
 import type { PendingNarrativeSkillCheckV1 } from "../../narration-module/src/application";
+import type { RestProcessStateV1 } from "../../narration-module/src/handoff";
 
 export interface NarrativeSubmitPayloadV1 {
   schemaVersion: 1;
@@ -20,6 +21,9 @@ export interface NarrativeConversationPanelProps {
   pendingSkillCheck?: PendingNarrativeSkillCheckV1 | null;
   rollingSkillCheck?: boolean;
   onRollSkillCheck?: (pending: PendingNarrativeSkillCheckV1) => void;
+  activeRestProcess?: RestProcessStateV1 | null;
+  advancingRest?: boolean;
+  onAdvanceRest?: (process: RestProcessStateV1) => void;
 }
 
 const KIND_LABELS: Record<RenderBlockKindV1, string> = {
@@ -209,11 +213,15 @@ export function NarrativeConversationPanel(props: NarrativeConversationPanelProp
     onSubmit,
     pendingSkillCheck = null,
     rollingSkillCheck = false,
-    onRollSkillCheck
+    onRollSkillCheck,
+    activeRestProcess = null,
+    advancingRest = false,
+    onAdvanceRest
   } = props;
   const [draft, setDraft] = useState("");
   const blocks = useMemo(() => flattenBlocks(packets), [packets]);
-  const canSubmit = draft.trim().length > 0 && !pending && pendingSkillCheck === null && typeof onSubmit === "function";
+  const canSubmit = draft.trim().length > 0 && !pending && pendingSkillCheck === null &&
+    activeRestProcess === null && typeof onSubmit === "function";
   const skillCheckRollReady = pendingSkillCheck !== null &&
     pendingSkillCheck.proposal.difficulty.status === "RULE_RESOLVED" &&
     pendingSkillCheck.proposal.characterContext !== null;
@@ -221,7 +229,7 @@ export function NarrativeConversationPanel(props: NarrativeConversationPanelProp
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const rawInput = draft.trim();
-    if (!rawInput || pending || pendingSkillCheck !== null || !onSubmit) return;
+    if (!rawInput || pending || pendingSkillCheck !== null || activeRestProcess !== null || !onSubmit) return;
     onSubmit({
       schemaVersion: 1,
       clientRequestId: createNarrativeClientRequestId(),
@@ -331,6 +339,45 @@ export function NarrativeConversationPanel(props: NarrativeConversationPanelProp
         </section>
       )}
 
+      {activeRestProcess !== null && (
+        <section
+          aria-label="Repos en cours"
+          data-active-rest-process={activeRestProcess.processId}
+          style={{
+            borderRadius: 12,
+            border: "1px solid rgba(111,207,151,0.42)",
+            background: "rgba(111,207,151,0.10)",
+            padding: "10px 12px"
+          }}
+        >
+          <div style={{ fontSize: 12, fontWeight: 900, color: "#9ce5b9" }}>Repos en cours</div>
+          <p style={{ margin: "4px 0 8px", fontSize: 12, lineHeight: 1.4 }}>
+            {activeRestProcess.restKind === "LONG_REST" ? "Repos long" : "Repos court"}
+            {" · "}
+            {Math.floor(activeRestProcess.elapsedRestSeconds / 3_600)} h sur{" "}
+            {Math.ceil(activeRestProcess.targetDurationSeconds / 3_600)} h
+          </p>
+          <button
+            type="button"
+            disabled={pending || advancingRest || typeof onAdvanceRest !== "function"}
+            onClick={() => onAdvanceRest?.(activeRestProcess)}
+            aria-label="Continuer le repos d’un segment"
+            style={{
+              minHeight: 38,
+              borderRadius: 9,
+              border: "1px solid rgba(111,207,151,0.55)",
+              background: pending || advancingRest ? "rgba(255,255,255,0.07)" : "rgba(111,207,151,0.22)",
+              color: pending || advancingRest ? "rgba(255,255,255,0.48)" : "#fff",
+              padding: "7px 12px",
+              fontWeight: 900,
+              cursor: pending || advancingRest ? "not-allowed" : "pointer"
+            }}
+          >
+            {advancingRest ? "Le temps s’écoule…" : "Continuer le repos"}
+          </button>
+        </section>
+      )}
+
       <form onSubmit={handleSubmit} aria-label="Saisie narrative libre" style={{ display: "flex", gap: 8 }}>
         <label htmlFor="narrative-free-input" style={{ position: "absolute", width: 1, height: 1, overflow: "hidden" }}>
           Entrée libre du joueur
@@ -339,7 +386,7 @@ export function NarrativeConversationPanel(props: NarrativeConversationPanelProp
           id="narrative-free-input"
           value={draft}
           onChange={event => setDraft(event.target.value)}
-          disabled={pending || pendingSkillCheck !== null}
+          disabled={pending || pendingSkillCheck !== null || activeRestProcess !== null}
           rows={2}
           placeholder="Décris librement ce que tu fais, dis ou demandes au MJ..."
           style={{

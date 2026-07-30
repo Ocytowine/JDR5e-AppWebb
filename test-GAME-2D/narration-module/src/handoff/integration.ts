@@ -33,6 +33,11 @@ import {
   validateRestOutcomeV1,
   validateRestSeedV1
 } from "./validation";
+import {
+  createRestProcessStateFromSeedV1,
+  restProcessAggregateId,
+  type RestProcessStateV1
+} from "./restProcess";
 
 function id<T extends string>(value: string): T {
   return opaqueId<T>(value);
@@ -51,6 +56,11 @@ export interface PrepareRestStartCommitInput {
   commitId: CommitId;
   commandId: CommandId;
   eventId: EventId;
+  restProcessState?: RestProcessStateV1;
+}
+
+export interface PrepareSegmentedRestStartCommitInput extends Omit<PrepareRestStartCommitInput, "restProcessState"> {
+  segmentSeconds: number;
 }
 
 export interface PrepareHandoffOutcomeIntegrationInput {
@@ -132,7 +142,13 @@ export function prepareRestStartCommitV1(input: PrepareRestStartCommitInput): Co
       expectedAggregateRevision: null,
       payloadSchemaVersion: HANDOFF_PAYLOAD_SCHEMA_VERSION,
       payload: process
-    }],
+    }, ...(input.restProcessState === undefined ? [] : [{
+      aggregateType: "rest.process",
+      aggregateId: restProcessAggregateId(input.seed.processId),
+      expectedAggregateRevision: null,
+      payloadSchemaVersion: HANDOFF_PAYLOAD_SCHEMA_VERSION,
+      payload: input.restProcessState
+    }])],
     events: [{
       schemaVersion: 1,
       eventId: input.eventId,
@@ -154,6 +170,20 @@ export function prepareRestStartCommitV1(input: PrepareRestStartCommitInput): Co
     }],
     outboxTasks: []
   };
+}
+
+/**
+ * Démarre le handoff et son checkpoint temporel initial dans un commit unique.
+ * Le checkpoint initial ne contient encore aucun bénéfice acquis.
+ */
+export async function prepareSegmentedRestStartCommitV1(
+  input: PrepareSegmentedRestStartCommitInput
+): Promise<CommitRequest> {
+  const restProcessState = await createRestProcessStateFromSeedV1({
+    seed: input.seed,
+    segmentSeconds: input.segmentSeconds
+  });
+  return prepareRestStartCommitV1({ ...input, restProcessState });
 }
 
 function eventTypeForRestOutcome(outcome: RestOutcomeV1): string {

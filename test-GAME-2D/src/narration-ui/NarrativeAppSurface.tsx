@@ -5,6 +5,7 @@ import {
   buildVisiblePopulationNarrationV1,
   applyNarrativePresentationVariationV1,
   createBrowserPersistentNarrativeTurnControllerV1,
+  createNarrativeRestRuntimeV1,
   createPrototypeNarrativeTurnControllerV1,
   enhanceNarrativeDisplayWithAiV1,
   isImmediateVisibleOrientationResolutionV1,
@@ -23,11 +24,27 @@ import {
   type AiIntentInterpreterConfigV1,
   type NpcPerformerConfigV1,
   type NarrativeTurnControllerV1,
+  type TacticalOutcomeIntegrationResultV1,
   type PendingNarrativeSkillCheckV1,
-  type PlayableSceneStateV1
+  type PlayableSceneStateV1,
+  type BastionTacticalSessionV1,
+  type CampaignWorldSimulationRuntimeV1,
+  type CampaignWorldSimulationSnapshotV1,
+  type CampaignWorldSimulationAdvanceResultV1
 } from "../../narration-module/src/application";
+import type {
+  ProcessCheckpointV1,
+  RestProcessStateV1,
+  TacticalOutcomeV1
+} from "../../narration-module/src/handoff";
 import { FakeContractAiProviderV1 } from "../../narration-module/src/ai/FakeContractAiProvider";
-import type { CampaignId, CampaignRepository, CoreError, JsonObject } from "../../narration-module/src/core";
+import type {
+  CampaignId,
+  CampaignRepository,
+  CoreError,
+  JsonObject,
+  Result
+} from "../../narration-module/src/core";
 import type { AiModelRouteV1, AiRetryPolicyV1 } from "../../narration-module/src/ai/types";
 import type { AiCallTelemetryV1 } from "../../narration-module/src/ai/types";
 import type { NarrativeTurnControllerOutputV1 } from "../../narration-module/src/application";
@@ -35,6 +52,7 @@ import type { DisplayPacketV1 } from "../../narration-module/src/scene";
 import { SCENE_SOCIAL_UI_CONTRACT_VERSION_V1 } from "../../narration-module/src/scene";
 import {
   NarrativeConversationPanel,
+  createNarrativeClientRequestId,
   type NarrativeSubmitPayloadV1
 } from "../ui/NarrativeConversationPanel";
 import {
@@ -43,26 +61,78 @@ import {
   buildOpenAiSceneCreatorConfigV2
 } from "./openAiNarrativeRuntimeConfig";
 import { ServerOpenAiEnhancementProviderV1 } from "./serverOpenAiEnhancementClient";
+import type {
+  CommittedCampaignFeatureAvailabilityV1
+} from "./campaignFeatureComposition";
 
-type NarrativeEnhancementMode = "local" | "openai";
+export type NarrativeEnhancementMode = "local" | "openai";
 let systemErrorSequence = 0;
 
 export interface NarrativeAppSurfaceBootstrapV1 {
   controller: NarrativeTurnControllerV1;
   openingScene: PlayableSceneStateV1;
+  worldSimulationRuntime?: CampaignWorldSimulationRuntimeV1;
+  readCommittedAvailability?: (
+    scene: PlayableSceneStateV1
+  ) => Promise<CommittedCampaignFeatureAvailabilityV1>;
+}
+
+export interface NarrativeWorldSimulationBridgeV1 {
+  restore(): Promise<Result<CampaignWorldSimulationSnapshotV1>>;
+  advance(input: {
+    clientRequestId: string;
+    hours: number;
+  }): Promise<Result<CampaignWorldSimulationAdvanceResultV1>>;
+}
+
+export interface NarrativeTacticalCheckpointBridgeV1 {
+  saveCheckpoint(input: {
+    processId: string;
+    clientRequestId: string;
+    lastAppliedTurnId: string;
+    ownerState: JsonObject;
+  }): Promise<Result<ProcessCheckpointV1>>;
+  recordPendingOutcome(input: {
+    clientRequestId: string;
+    outcome: TacticalOutcomeV1;
+  }): Promise<Result<TacticalOutcomeV1>>;
+  integratePendingOutcome(input: {
+    processId: string;
+    clientRequestId: string;
+  }): Promise<Result<TacticalOutcomeIntegrationResultV1>>;
 }
 
 export function NarrativeAppSurface(props: {
-  bootstrapController?: () => Promise<NarrativeAppSurfaceBootstrapV1>;
+  bootstrapController?: (
+    mode?: NarrativeEnhancementMode
+  ) => Promise<NarrativeAppSurfaceBootstrapV1>;
+  onTacticalHandoffChange?: (session: BastionTacticalSessionV1 | null) => void;
+  onOpenTacticalHandoff?: (session: BastionTacticalSessionV1) => void;
+  onTacticalCheckpointBridgeChange?: (
+    bridge: NarrativeTacticalCheckpointBridgeV1
+  ) => void;
+  onWorldSimulationBridgeChange?: (
+    bridge: NarrativeWorldSimulationBridgeV1
+  ) => void;
 } = {}) {
   const [controller, setController] = useState<NarrativeTurnControllerV1 | null>(null);
   const [packetsFromController, setPacketsFromController] = useState<DisplayPacketV1[]>([]);
   const [pending, setPending] = useState(false);
   const [pendingSkillCheck, setPendingSkillCheck] = useState<PendingNarrativeSkillCheckV1 | null>(null);
   const [rollingSkillCheck, setRollingSkillCheck] = useState(false);
+  const [activeRestProcess, setActiveRestProcess] = useState<RestProcessStateV1 | null>(null);
+  const [activeTacticalSession, setActiveTacticalSession] =
+    useState<BastionTacticalSessionV1 | null>(null);
+  const [advancingRest, setAdvancingRest] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [enhancementMode, setEnhancementMode] = useState<NarrativeEnhancementMode>("local");
   const [openingScene, setOpeningScene] = useState<PlayableSceneStateV1 | null>(null);
+  const [committedAvailability, setCommittedAvailability] =
+    useState<CommittedCampaignFeatureAvailabilityV1 | null>(null);
+  const [readCommittedAvailability, setReadCommittedAvailability] =
+    useState<NarrativeAppSurfaceBootstrapV1[
+      "readCommittedAvailability"
+    ]>(undefined);
   const modeStatus = enhancementMode === "openai"
     ? "Mode OpenAI actif. Un fallback local reste disponible si une sortie distante est inutilisable."
     : "Mode local actif pour l'interprétation et l'enrichissement.";
@@ -75,32 +145,185 @@ export function NarrativeAppSurface(props: {
     let cancelled = false;
     setController(null);
     setPendingSkillCheck(null);
+    setActiveRestProcess(null);
+    setActiveTacticalSession(null);
+    setCommittedAvailability(null);
+    setReadCommittedAvailability(undefined);
     const activateController = async (nextController: NarrativeTurnControllerV1, refreshOpening = false) => {
-      const [restored, restoredPending, restoredSkillResults, activeScene] = await Promise.all([
+      const [
+        restored,
+        restoredPending,
+        restoredSkillResults,
+        restoredRest,
+        restoredTactical,
+        activeScene
+      ] = await Promise.all([
         nextController.restoreRenderedThread(),
         nextController.restorePendingSkillCheck(),
         nextController.restoreSkillCheckResultPackets(),
+        nextController.restoreActiveRest(),
+        nextController.restoreActiveBastionTacticalSession(),
         refreshOpening ? nextController.resolveActiveScene() : Promise.resolve(null)
       ]);
+      let renderedThread = restored;
+      let tacticalSession = restoredTactical;
+      if (
+        tacticalSession.ok
+        && tacticalSession.value?.status ===
+          "COMPLETED_PENDING_INTEGRATION"
+      ) {
+        const integrated =
+          await nextController.integratePendingTacticalOutcome({
+            schemaVersion: 1,
+            processId: tacticalSession.value.process.processId,
+            clientRequestId:
+              `restore-integrate:${tacticalSession.value.process.processId}`
+          });
+        if (integrated.ok) {
+          [renderedThread, tacticalSession] = await Promise.all([
+            nextController.restoreRenderedThread(),
+            nextController.restoreActiveBastionTacticalSession()
+          ]);
+        } else {
+          reportCoreError(
+            integrated.error,
+            "Intégration de la défense tactique terminée"
+          );
+        }
+      }
+      const socialBoundary = await nextController.processActiveSceneEntrySocialBoundary({
+        schemaVersion: 1
+      });
+      const causalBoundary = await nextController.processActiveCausalSceneBoundary({
+        schemaVersion: 1
+      });
       if (cancelled) return;
-      if (restored.ok) {
-        setPacketsFromController([
-          ...restored.value.displayPackets,
-          ...(restoredSkillResults.ok ? restoredSkillResults.value : [])
-        ]);
+      if (renderedThread.ok) {
+        setPacketsFromController(mergeDisplayPacketsV1([
+          ...renderedThread.value.displayPackets,
+          ...(restoredSkillResults.ok ? restoredSkillResults.value : []),
+          ...(socialBoundary.ok && socialBoundary.value.displayPacket !== null
+            ? [socialBoundary.value.displayPacket]
+            : []),
+          ...(causalBoundary.ok && causalBoundary.value.displayPacket !== null
+            ? [causalBoundary.value.displayPacket]
+            : [])
+        ]));
       } else {
-        reportCoreError(restored.error, "Restauration du fil");
+        reportCoreError(renderedThread.error, "Restauration du fil");
+      }
+      if (!socialBoundary.ok) {
+        reportCoreError(socialBoundary.error, "Initiative sociale à l'entrée de scène");
+      }
+      if (!causalBoundary.ok) {
+        reportCoreError(causalBoundary.error, "Composition du monde et des intrigues à l'entrée de scène");
       }
       if (restoredPending.ok) setPendingSkillCheck(restoredPending.value);
       else reportCoreError(restoredPending.error, "Restauration du jet en attente");
       if (!restoredSkillResults.ok) reportCoreError(restoredSkillResults.error, "Restauration des résultats de dés");
+      if (restoredRest.ok) setActiveRestProcess(restoredRest.value);
+      else reportCoreError(restoredRest.error, "Restauration du repos");
+      if (tacticalSession.ok) {
+        setActiveTacticalSession(tacticalSession.value);
+        props.onTacticalHandoffChange?.(tacticalSession.value);
+      } else {
+        reportCoreError(tacticalSession.error, "Restauration de la défense tactique");
+      }
       if (activeScene?.ok) setOpeningScene(activeScene.value);
       else if (activeScene !== null) reportCoreError(activeScene.error, "Projection de la scène active");
       setController(nextController);
+      props.onTacticalCheckpointBridgeChange?.({
+        saveCheckpoint: input => nextController.saveTacticalCheckpoint({
+          schemaVersion: 1,
+          ...input
+        }),
+        recordPendingOutcome: input =>
+          nextController.recordPendingTacticalOutcome({
+            schemaVersion: 1,
+            ...input
+          }),
+        integratePendingOutcome: input =>
+          nextController.integratePendingTacticalOutcome({
+            schemaVersion: 1,
+            ...input
+          })
+      });
     };
     if (props.bootstrapController !== undefined) {
-      void props.bootstrapController().then(result => {
-        if (!cancelled) setOpeningScene(result.openingScene);
+      void props.bootstrapController(enhancementMode).then(result => {
+        if (!cancelled) {
+          setOpeningScene(result.openingScene);
+          setReadCommittedAvailability(
+            () => result.readCommittedAvailability
+          );
+          if (result.readCommittedAvailability !== undefined) {
+            void result.readCommittedAvailability(result.openingScene)
+              .then(value => {
+                if (!cancelled) setCommittedAvailability(value);
+              })
+              .catch(error => {
+                if (!cancelled) {
+                  reportUnexpectedError(
+                    error,
+                    "Lecture des disponibilités de campagne"
+                  );
+                }
+              });
+          }
+          if (result.worldSimulationRuntime !== undefined) {
+            props.onWorldSimulationBridgeChange?.({
+              restore: () =>
+                result.worldSimulationRuntime!.ensureInitialized(),
+              async advance(input) {
+                const advanced =
+                  await result.worldSimulationRuntime!.advance(input);
+                if (!advanced.ok) return advanced;
+                const bastion = await result.controller
+                  .processCommittedBastionCauseBoundary({
+                    sourceOperationId: advanced.value.sourceOperationId,
+                    sourceEventId: advanced.value.sourceEventId
+                  });
+                if (!bastion.ok) return bastion;
+                const causal = await result.controller
+                  .processActiveCausalSceneBoundary({ schemaVersion: 1 });
+                if (!causal.ok) return causal;
+                const social =
+                  causal.value.bundle.controlDecision === "RETURN_CONTROL"
+                    ? await result.controller
+                        .processActiveLocalTimeSocialBoundary({
+                          schemaVersion: 1,
+                          sourceOperationId:
+                            advanced.value.sourceOperationId
+                        })
+                    : null;
+                if (social !== null && !social.ok) return social;
+                const tactical = await result.controller
+                  .restoreActiveBastionTacticalSession();
+                if (!tactical.ok) return tactical;
+                if (!cancelled) {
+                  setPacketsFromController(previous =>
+                    mergeDisplayPacketsV1([
+                      ...previous,
+                      ...(bastion.value.projection?.displayPacket === undefined
+                        ? []
+                        : [bastion.value.projection.displayPacket]),
+                      ...(causal.value.displayPacket === null
+                        ? []
+                        : [causal.value.displayPacket]),
+                      ...(social?.value.displayPacket === null
+                        || social === null
+                        ? []
+                        : [social.value.displayPacket])
+                    ])
+                  );
+                  setActiveTacticalSession(tactical.value);
+                  props.onTacticalHandoffChange?.(tactical.value);
+                }
+                return advanced;
+              }
+            });
+          }
+        }
         return activateController(result.controller);
       }).catch(error => {
         if (!cancelled) reportUnexpectedError(error, "Initialisation du contrôleur");
@@ -168,11 +391,12 @@ export function NarrativeAppSurface(props: {
         return resolved.ok ? { ok: true as const, value: resolved.value.scene } : resolved;
         }
       });
-      return createBrowserPersistentNarrativeTurnControllerV1({ databaseName: "jdr5e-narration-archives-pilot-v4", intentInterpreterConfig, npcPerformerConfig, sceneTransitionRuntime, dynamicPlaceRuntime, initialScene: { scene: archivePilot.scene, locationRef: archivePilot.locationRef }, activeSceneResolver, initializeRepository: (repository, campaignId, clock) => ensureDynamicPlaceCreationStateV1({ repository, campaignId, clock, topology: archivePilot.topology }) });
+      const restRuntime = createArchivesRestRuntime();
+      return createBrowserPersistentNarrativeTurnControllerV1({ databaseName: "jdr5e-narration-archives-pilot-v4", intentInterpreterConfig, npcPerformerConfig, sceneTransitionRuntime, dynamicPlaceRuntime, restRuntime, initialScene: { scene: archivePilot.scene, locationRef: archivePilot.locationRef }, activeSceneResolver, initializeRepository: (repository, campaignId, clock) => ensureDynamicPlaceCreationStateV1({ repository, campaignId, clock, topology: archivePilot.topology }) });
     }).then(controller => activateController(controller, true)).catch(error => {
       void import("./archiveLorePilot").then(module => module.buildArchiveLorePilotV1()).then(archivePilot => {
         setOpeningScene(archivePilot.scene);
-        return createPrototypeNarrativeTurnControllerV1({ intentInterpreterConfig, npcPerformerConfig, initialScene: { scene: archivePilot.scene, locationRef: archivePilot.locationRef }, initializeRepository: (repository, campaignId, clock) => ensureDynamicPlaceCreationStateV1({ repository, campaignId, clock, topology: archivePilot.topology }), activeSceneResolver: { async resolve() { return { ok: true as const, value: archivePilot.scene }; } } });
+        return createPrototypeNarrativeTurnControllerV1({ intentInterpreterConfig, npcPerformerConfig, restRuntime: createArchivesRestRuntime(), initialScene: { scene: archivePilot.scene, locationRef: archivePilot.locationRef }, initializeRepository: (repository, campaignId, clock) => ensureDynamicPlaceCreationStateV1({ repository, campaignId, clock, topology: archivePilot.topology }), activeSceneResolver: { async resolve() { return { ok: true as const, value: archivePilot.scene }; } } });
       }).then(controller => activateController(controller, true)).catch(fallbackError => {
         if (!cancelled) {
           const primary = error instanceof Error ? error.message : String(error);
@@ -207,6 +431,11 @@ export function NarrativeAppSurface(props: {
       }
       const controllerFinishedAt = performance.now();
       setPendingSkillCheck(result.value.output.pendingSkillCheck);
+      if ("activeRestProcess" in result.value.output) {
+        setActiveRestProcess((result.value.output as typeof result.value.output & {
+          activeRestProcess: RestProcessStateV1 | null;
+        }).activeRestProcess);
+      }
       const enhancement = await enhancePrototypePacket(result.value.output, enhancementMode, packetsFromController);
       const enhancementFinishedAt = performance.now();
       const orchestrationStatus = [
@@ -269,7 +498,49 @@ export function NarrativeAppSurface(props: {
           totalMs: projectionFinishedAt - submittedAt
         }
       });
-      setPacketsFromController(prev => [...prev, enhanced]);
+      const causalBoundary = result.value.output.sceneArrival === null
+        ? null
+        : await controller.processActiveCausalSceneBoundary({ schemaVersion: 1 });
+      if (causalBoundary !== null && !causalBoundary.ok) {
+        reportCoreError(
+          causalBoundary.error,
+          "Composition du monde et des intrigues à l'entrée de scène",
+          result.value.output.operationId
+        );
+      }
+      const socialBoundary = result.value.output.sceneArrival === null
+        ? null
+        : await controller.processActiveSceneEntrySocialBoundary({ schemaVersion: 1 });
+      if (socialBoundary !== null && !socialBoundary.ok) {
+        reportCoreError(
+          socialBoundary.error,
+          "Initiative sociale à l'entrée de scène",
+          result.value.output.operationId
+        );
+      }
+      if (result.value.output.sceneArrival !== null) {
+        setOpeningScene(result.value.output.sceneArrival.scene);
+      }
+      const availabilityScene =
+        result.value.output.sceneArrival?.scene ?? openingScene;
+      if (
+        availabilityScene !== null
+        && readCommittedAvailability !== undefined
+      ) {
+        const availability =
+          await readCommittedAvailability(availabilityScene);
+        setCommittedAvailability(availability);
+      }
+      setPacketsFromController(prev => mergeDisplayPacketsV1([
+        ...prev,
+        enhanced,
+        ...(causalBoundary?.ok && causalBoundary.value.displayPacket !== null
+          ? [causalBoundary.value.displayPacket]
+          : []),
+        ...(socialBoundary?.ok && socialBoundary.value.displayPacket !== null
+          ? [socialBoundary.value.displayPacket]
+          : [])
+      ]));
     }).catch(error => {
       reportUnexpectedError(error, "Traitement de l'action", payload.clientRequestId);
     }).finally(() => {
@@ -304,7 +575,100 @@ export function NarrativeAppSurface(props: {
     });
   }
 
+  function handleAdvanceRest(process: RestProcessStateV1) {
+    if (!controller || advancingRest) return;
+    setAdvancingRest(true);
+    setPending(true);
+    setErrorMessage(null);
+    const clientRequestId = createNarrativeClientRequestId("nar-ui-rest-segment");
+    void controller.advanceRest({
+      schemaVersion: 1,
+      clientRequestId,
+      processId: process.processId
+    }).then(async result => {
+      if (!result.ok) {
+        reportCoreError(result.error, "Avancement du repos", clientRequestId);
+        return;
+      }
+      const output = result.value.output;
+      const nextRest = "activeRestProcess" in output
+        ? (output as typeof output & { activeRestProcess: RestProcessStateV1 | null }).activeRestProcess
+        : null;
+      const localProjection: AiNarrativeEnhancementResultV1 = {
+        schemaVersion: 1,
+        contractVersion: "narrative-ai-resolution/1",
+        enhanced: false,
+        usedFallback: false,
+        fallbackKind: "NONE",
+        displayPacket: output.displayPacket,
+        incidents: [],
+        telemetry: [],
+        safetyNotes: ["Projection déterministe du résultat de repos committé."]
+      };
+      const recorded = await controller.recordRenderedProjection({
+        schemaVersion: 1,
+        clientRequestId: `${clientRequestId}:render`,
+        sourceOutput: output,
+        mode: "local",
+        finalEnhancement: localProjection,
+        attemptedEnhancement: null,
+        statusMessage: "Continuation du repos produite depuis le segment committé."
+      });
+      if (!recorded.ok) {
+        reportCoreError(recorded.error, "Enregistrement de la continuation du repos", output.operationId);
+        return;
+      }
+      const causalBoundary = await controller.processActiveCausalSceneBoundary({ schemaVersion: 1 });
+      if (!causalBoundary.ok) {
+        reportCoreError(causalBoundary.error, "Composition du monde et des intrigues après le segment de repos", output.operationId);
+      }
+      const socialBoundary = nextRest !== null
+        && causalBoundary.ok
+        && causalBoundary.value.bundle.controlDecision === "RETURN_CONTROL"
+        ? await controller.processActiveLocalTimeSocialBoundary({
+            schemaVersion: 1,
+            sourceOperationId: output.operationId
+          })
+        : null;
+      if (socialBoundary !== null && !socialBoundary.ok) {
+        reportCoreError(
+          socialBoundary.error,
+          "Initiative sociale après le segment de temps",
+          output.operationId
+        );
+      }
+      setPacketsFromController(previous => mergeDisplayPacketsV1([
+        ...previous,
+        output.displayPacket,
+        ...(causalBoundary.ok && causalBoundary.value.displayPacket !== null
+          ? [causalBoundary.value.displayPacket]
+          : []),
+        ...(socialBoundary?.ok && socialBoundary.value.displayPacket !== null
+          ? [socialBoundary.value.displayPacket]
+          : [])
+      ]));
+      setActiveRestProcess(nextRest);
+      if (
+        openingScene !== null
+        && readCommittedAvailability !== undefined
+      ) {
+        setCommittedAvailability(
+          await readCommittedAvailability(openingScene)
+        );
+      }
+    }).catch(error => {
+      reportUnexpectedError(error, "Avancement du repos", clientRequestId);
+    }).finally(() => {
+      setAdvancingRest(false);
+      setPending(false);
+    });
+  }
+
   function reportCoreError(error: CoreError, context: string, operationId = nextSystemErrorOperationId()): void {
+    console.error(
+      `[Narration] ${context}`,
+      `${error.code}:${error.messageKey}`
+    );
     const guidance = narrativeErrorGuidance(error);
     setErrorMessage(guidance.summary);
     setPacketsFromController(previous => [...previous, createRuntimeFailurePacket({
@@ -407,7 +771,95 @@ export function NarrativeAppSurface(props: {
           )}
         </section>
 
-        <div style={{ height: "calc(100vh - 190px)", minHeight: 420 }}>
+        {activeTacticalSession !== null && (
+          <section
+            aria-label="Défense tactique en attente"
+            style={{
+              borderRadius: 16,
+              border: "1px solid rgba(255,190,92,0.42)",
+              background: "rgba(62,39,12,0.72)",
+              padding: 14
+            }}
+          >
+            <h2 style={{ margin: "0 0 6px", fontSize: 17 }}>
+              Défense du bastion
+            </h2>
+            <p style={{ margin: "0 0 10px", color: "rgba(255,255,255,0.82)", fontSize: 13 }}>
+              {activeTacticalSession.summary.incidentDisplayName} à{" "}
+              {activeTacticalSession.summary.placeDisplayName}.
+            </p>
+            {activeTacticalSession.status === "READY_FOR_TACTICAL" ? (
+              <button
+                type="button"
+                onClick={() => props.onOpenTacticalHandoff?.(activeTacticalSession)}
+                disabled={props.onOpenTacticalHandoff === undefined}
+              >
+                Ouvrir le plateau tactique
+              </button>
+            ) : (
+              <p role="status" style={{ margin: 0, fontSize: 12 }}>
+                Le combat est terminé ; son résultat attend encore l’intégration de campagne.
+              </p>
+            )}
+          </section>
+        )}
+
+        {committedAvailability !== null
+          && (
+            committedAvailability.rest.allowed
+            || committedAvailability.progression.length > 0
+            || committedAvailability.bastions.length > 0
+          ) && (
+          <section
+            aria-label="Disponibilités de campagne"
+            style={{
+              borderRadius: 16,
+              border: "1px solid rgba(129,196,255,0.28)",
+              background: "rgba(18,35,54,0.72)",
+              padding: 14
+            }}
+          >
+            <h2 style={{ margin: "0 0 8px", fontSize: 17 }}>
+              État de campagne
+            </h2>
+            {committedAvailability.rest.allowed && (
+              <p style={{ margin: "5px 0", fontSize: 13 }}>
+                Repos autorisé — {committedAvailability.rest.placeDisplayName}
+              </p>
+            )}
+            {committedAvailability.progression.map(award => (
+              <p key={award.awardId} style={{ margin: "5px 0", fontSize: 13 }}>
+                Progression en attente
+                {award.requiredChoices.length > 0
+                  ? ` — choix requis : ${award.requiredChoices.join(", ")}`
+                  : ""}
+              </p>
+            ))}
+            {committedAvailability.bastions.map(bastion => (
+              <p key={bastion.bastionId} style={{ margin: "5px 0", fontSize: 13 }}>
+                Bastion — {bastion.placeDisplayName}
+                {bastion.scheduledWorkCount > 0
+                  ? ` · ${bastion.scheduledWorkCount} travail en cours`
+                  : ""}
+                {bastion.activeOccupantCount > 0
+                  ? ` · ${bastion.activeOccupantCount} compagnon affecté`
+                  : ""}
+                {bastion.openIncidentCount > 0
+                  ? ` · ${bastion.openIncidentCount} incident actif`
+                  : ""}
+              </p>
+            ))}
+          </section>
+        )}
+
+        <div
+          style={{
+            height: activeTacticalSession === null
+              ? "calc(100vh - 190px)"
+              : "calc(100vh - 310px)",
+            minHeight: 420
+          }}
+        >
           <NarrativeConversationPanel
             packets={packets}
             pending={pending || controller === null}
@@ -416,11 +868,36 @@ export function NarrativeAppSurface(props: {
             pendingSkillCheck={pendingSkillCheck}
             rollingSkillCheck={rollingSkillCheck}
             onRollSkillCheck={handleRollSkillCheck}
+            activeRestProcess={activeRestProcess}
+            advancingRest={advancingRest}
+            onAdvanceRest={handleAdvanceRest}
           />
         </div>
       </div>
     </main>
   );
+}
+
+function createArchivesRestRuntime() {
+  return createNarrativeRestRuntimeV1({
+    rules: {
+      shortRestDurationSeconds: 3_600,
+      longRestDurationSeconds: 28_800,
+      segmentSeconds: 3_600
+    },
+    authorize: ({ scene }) => ({
+      allowed: false,
+      reason: `Dans ${scene.locationName}, rien ne te permet encore de t’installer assez sûrement pour commencer ce repos.`,
+      locationRef: {
+        kind: "scene",
+        id: scene.sceneId
+      },
+      safetyProfile: {
+        interruptionPercent: 0,
+        source: "scene-rest-policy-missing"
+      }
+    })
+  });
 }
 
 export function createRuntimeFailurePacket(input: { error: CoreError; operationId: string; sceneId: string; context: string }): DisplayPacketV1 {
@@ -495,6 +972,12 @@ export function narrativeErrorGuidance(error: CoreError): { summary: string; act
 function nextSystemErrorOperationId(): string {
   systemErrorSequence += 1;
   return `system-error-${Date.now()}-${systemErrorSequence}`;
+}
+
+function mergeDisplayPacketsV1(packets: DisplayPacketV1[]): DisplayPacketV1[] {
+  const byOperationId = new Map<string, DisplayPacketV1>();
+  for (const packet of packets) byOperationId.set(packet.operationId, packet);
+  return [...byOperationId.values()];
 }
 
 function appendNarrativeSystemTrace(input: {

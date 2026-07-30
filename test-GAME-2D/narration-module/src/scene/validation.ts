@@ -191,8 +191,17 @@ export function validateDisplayPacketV1(value: unknown): SceneValidationResultV1
       if (typeof block.isDegradedFallback !== "boolean") issues.push(issue(`${path}.isDegradedFallback`, "expected boolean"));
     });
   }
-  if (!isObject(packet.rawInputAccess) || packet.rawInputAccess.available !== true || typeof packet.rawInputAccess.operationId !== "string") {
-    issues.push(issue("rawInputAccess", "raw input access must be available"));
+  const hasRawInputBlock = Array.isArray(packet.displayBlocks)
+    && packet.displayBlocks.some(block => block.kind === "RAW_INPUT");
+  if (
+    !isObject(packet.rawInputAccess)
+    || typeof packet.rawInputAccess.available !== "boolean"
+    || typeof packet.rawInputAccess.operationId !== "string"
+    || packet.rawInputAccess.operationId.trim().length === 0
+  ) {
+    issues.push(issue("rawInputAccess", "expected a declared raw input availability and operation id"));
+  } else if (hasRawInputBlock && packet.rawInputAccess.available !== true) {
+    issues.push(issue("rawInputAccess.available", "must be true when a raw input block is displayed"));
   }
   issues.push(...stringArray(packet.reconstructionRefs, "reconstructionRefs"));
   issues.push(...positiveInteger(packet.version, "version"));

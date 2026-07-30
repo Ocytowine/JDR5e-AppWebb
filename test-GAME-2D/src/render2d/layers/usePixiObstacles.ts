@@ -304,7 +304,9 @@ export function usePixiObstacles(options: {
           if (animationFrames && animationFrames.length > 0) {
             hasAnimatedLayer = true;
             hasAnyAnimatedLayer = true;
-            const textures = animationFrames.map(frame => Texture.from(frame));
+            const textures = animationFrames.map(
+              frame => Texture.from(frame) ?? Texture.WHITE
+            );
             const anim = new AnimatedSprite(textures);
             const speed =
               typeof layer.animationSpeed === "number"
@@ -396,7 +398,7 @@ export function usePixiObstacles(options: {
                 ? def?.appearance?.shadowSpriteLeafless ?? "obstacle:tree-oak-trunk-shadow"
                 : def?.appearance?.shadowSpriteLeafy ?? "obstacle:tree-oak-canopy-shadow";
               const url = getObstaclePngUrl(key);
-              if (url) shadowTexture = Texture.from(url);
+              if (url) shadowTexture = Texture.from(url) ?? shadowTexture;
             }
             if (useTreeShadow) {
               if (!treeUseLeaflessShadow && !isCanopyLayer(layer)) {

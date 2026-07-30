@@ -7,6 +7,7 @@ import {
 import { planNextTemporalBatchV1, prepareTemporalSegmentCommitV1, type TemporalTaskV1 } from "../time";
 import { buildSceneReferentRegistryV1 } from "./sceneReferentRegistry";
 import { prepareSceneTransitionWorldRequestV1 } from "./sceneTransitionAdapter";
+import { PROTOTYPE_CAMPAIGN_RUNTIME_BINDINGS_V1 } from "./campaignRuntimeBindings";
 import { createNarrativeSceneTransitionRuntimeV1, type SceneTransitionRuntimePreparationPortV1 } from "./sceneTransitionRuntime";
 import { REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1, type PlayableSceneStateV1 } from "./playableScene";
 import {
@@ -17,11 +18,16 @@ import {
   PROTOTYPE_INN_SCENE_TRANSITION_TOPOLOGY_V1
 } from "./prototypeInnSceneTransitionContent";
 
-export const PROTOTYPE_POSITION_AGGREGATE_ID_V1 = opaqueId<AggregateId>("agg-prototype-world-position-player");
-export const PROTOTYPE_SCENE_LIFECYCLE_AGGREGATE_ID_V1 = opaqueId<AggregateId>("agg-prototype-scene-lifecycle");
-export const PROTOTYPE_SCHEDULE_AGGREGATE_ID_V1 = opaqueId<AggregateId>("agg-prototype-world-schedule");
-export const PROTOTYPE_CURSOR_AGGREGATE_ID_V1 = opaqueId<AggregateId>("agg-prototype-world-simulation-cursor");
-export const PROTOTYPE_PROCESS_AGGREGATE_ID_V1 = opaqueId<AggregateId>("agg-prototype-process-state");
+export const PROTOTYPE_POSITION_AGGREGATE_ID_V1 =
+  PROTOTYPE_CAMPAIGN_RUNTIME_BINDINGS_V1.positionAggregateId;
+export const PROTOTYPE_SCENE_LIFECYCLE_AGGREGATE_ID_V1 =
+  PROTOTYPE_CAMPAIGN_RUNTIME_BINDINGS_V1.sceneLifecycleAggregateId;
+export const PROTOTYPE_SCHEDULE_AGGREGATE_ID_V1 =
+  PROTOTYPE_CAMPAIGN_RUNTIME_BINDINGS_V1.scheduleAggregateId;
+export const PROTOTYPE_CURSOR_AGGREGATE_ID_V1 =
+  PROTOTYPE_CAMPAIGN_RUNTIME_BINDINGS_V1.simulationCursorAggregateId;
+export const PROTOTYPE_PROCESS_AGGREGATE_ID_V1 =
+  PROTOTYPE_CAMPAIGN_RUNTIME_BINDINGS_V1.processAggregateId;
 const POSITION_ID = PROTOTYPE_POSITION_AGGREGATE_ID_V1;
 const SCHEDULE_ID = PROTOTYPE_SCHEDULE_AGGREGATE_ID_V1;
 const CURSOR_ID = PROTOTYPE_CURSOR_AGGREGATE_ID_V1;

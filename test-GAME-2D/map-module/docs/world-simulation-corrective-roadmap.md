@@ -16,6 +16,31 @@ Objectif principal : rendre le monde plus lisible, plus reactif et moins dependa
 - Chaque nouvelle reaction doit etre observable dans l'UI ou dans une sonde CLI.
 - Les corrections doivent renforcer les interactions entre entites : faction, ville, route, region, tension, objectif et mobile.
 
+## Raccord narration — verticale 6V
+
+La simulation mondiale fournit les causes macroscopiques du monde vivant. Elle
+ne produit ni prose ni initiative sociale à la place du module narration.
+
+Lorsque l'horloge diégétique avance, elle doit pouvoir produire des événements
+où :
+
+- une faction ou un mobile agit sans que le personnage soit présent ;
+- l'action vise une ville, une route, une faction ou un autre mobile ;
+- une conséquence distante reste inconnue du personnage ;
+- un effet local pertinent peut ensuite être projeté vers une scène narrative.
+
+Le raccord cible est défini dans
+[`Contrat-cible-monde-vivant-et-initiative-pnj.md`](../../narration-module/docs/Contrat-cible-monde-vivant-et-initiative-pnj.md).
+La gate 6V est fermée avant le lot narration 6E. Elle vérifie que les événements
+autoritaires du monde sont filtrés par perception et connaissance avant leur
+mise en scène, sans dupliquer `world-simulation` dans le module narration.
+
+Raccord livré le 2026-07-28 : le module narration lit les résultats temporels
+`WORLD_SIMULATION` déjà committés et n'adapte que leurs signaux perceptibles.
+Les événements internes, deltas, tags et payloads restent hors de la projection.
+Un résolveur injecté relie la scène aux références du monde ; le noyau ne devine
+aucune correspondance. La gate 6V reste la prochaine certification transverse.
+
 ## Axe 1 - Diagnostic Mobile
 
 Statut : `in_progress`

@@ -22,6 +22,11 @@ import type {
   ResolvedContentPackageV1,
   RulesetResolverV1
 } from "./types";
+import {
+  ACTIVE_CAMPAIGN_CHARACTER_PROFILE_AGGREGATE_TYPE_V1,
+  activeCampaignCharacterProfileAggregateIdV1,
+  createActiveCampaignCharacterProfileV1
+} from "./activeCharacterProfile";
 
 const LOCATION_TYPES = new Set(["royaume", "territoire", "region", "ville", "quartier", "batiment"]);
 const INPUT_KEYS = [
@@ -119,7 +124,9 @@ async function validateContentPackage(
       continue;
     }
     const [actualSource, actualPayload] = await Promise.all([
-      sourceFingerprint(entry.sourceText),
+      entry.sourceText === null
+        ? Promise.resolve(entry.installedSourceFingerprint ?? null)
+        : sourceFingerprint(entry.sourceText),
       computeJsonFingerprint(entry.payload)
     ]);
     if (actualSource !== descriptor.sourceFingerprint || actualPayload !== descriptor.payloadFingerprint) {
@@ -366,6 +373,23 @@ export class CampaignBootstrapServiceV1 {
       { aggregateType: "character.state", aggregateId: input.ids.characterAggregateId, payload: asPayload(imported.value.character) },
       { aggregateType: "character.tactical-projection", aggregateId: input.ids.tacticalProjectionAggregateId, payload: asPayload(imported.value.tacticalProjection) },
       { aggregateType: "character.narrative-projection", aggregateId: input.ids.narrativeProjectionAggregateId, payload: asPayload(imported.value.narrativeProjection) },
+      {
+        aggregateType: ACTIVE_CAMPAIGN_CHARACTER_PROFILE_AGGREGATE_TYPE_V1,
+        aggregateId: activeCampaignCharacterProfileAggregateIdV1(input.ids.campaignId),
+        payload: asPayload(createActiveCampaignCharacterProfileV1({
+          campaignId: input.ids.campaignId,
+          characterId: imported.value.character.characterId,
+          characterStateAggregateId: input.ids.characterAggregateId,
+          tacticalProjectionAggregateId: input.ids.tacticalProjectionAggregateId,
+          narrativeProjectionAggregateId: input.ids.narrativeProjectionAggregateId,
+          positionAggregateId: input.ids.positionAggregateId,
+          contentPackageId: input.contentPackageId,
+          contentPackageVersion: input.contentPackageVersion,
+          rulesetId: input.rulesetId,
+          rulesetVersion: input.rulesetVersion,
+          sourceFingerprint: input.character.sourceFingerprint
+        }))
+      },
       { aggregateType: "world.position", aggregateId: input.ids.positionAggregateId, payload: { characterId: imported.value.character.characterId, locationId: input.initialLocationId, geographicChain: location.chain } },
       { aggregateType: "campaign.bootstrap-context", aggregateId: input.ids.bootstrapContextAggregateId, payload: asPayload({
         contentRootFingerprint: content.manifest.rootFingerprint,

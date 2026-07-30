@@ -7,8 +7,11 @@ import type { PlaceTopologyStateV1 } from "./placeCreationCommit";
 import { DYNAMIC_PLACE_TOPOLOGY_AGGREGATE_ID_V1 } from "./placeCreationRuntime";
 import type { PlayableSceneStateV1 } from "./playableScene";
 import {
-  PROTOTYPE_CURSOR_AGGREGATE_ID_V1, PROTOTYPE_POSITION_AGGREGATE_ID_V1, PROTOTYPE_PROCESS_AGGREGATE_ID_V1,
-  PROTOTYPE_SCENE_LIFECYCLE_AGGREGATE_ID_V1, PROTOTYPE_SCHEDULE_AGGREGATE_ID_V1, readOptionalPrototypeAggregateV1
+  PROTOTYPE_CAMPAIGN_RUNTIME_BINDINGS_V1,
+  type CampaignRuntimeBindingsV1
+} from "./campaignRuntimeBindings";
+import {
+  readOptionalPrototypeAggregateV1
 } from "./prototypeSceneTransitionRuntime";
 
 export function createCatalogSceneTransitionRuntimeV1(input: {
@@ -16,19 +19,22 @@ export function createCatalogSceneTransitionRuntimeV1(input: {
   resolveDestination(destinationRef: string, context: { repository: Parameters<Parameters<typeof createNarrativeSceneTransitionRuntimeV1>[0]["prepare"]>[0]["repository"]; campaignId: string }): Promise<Result<PlayableSceneStateV1>>;
   actorRef?: string;
   transitionSeconds?: number;
+  runtimeBindings?: CampaignRuntimeBindingsV1;
 }) {
   const duration = input.transitionSeconds ?? 8;
+  const bindings =
+    input.runtimeBindings ?? PROTOTYPE_CAMPAIGN_RUNTIME_BINDINGS_V1;
   return createNarrativeSceneTransitionRuntimeV1({
     async prepare(requestInput) {
       const target = requestInput.interpretation.referentResolution?.resolvedTarget ?? requestInput.interpretation.semanticIntent.target;
       if (!target?.ref) return failure("narrative.scene-transition.target-required");
       const [topologyAggregate, lifecycle, position, clock, schedule, cursor] = await Promise.all([
         requestInput.repository.getAggregate(requestInput.campaign.campaignId, "world.scene-topology", DYNAMIC_PLACE_TOPOLOGY_AGGREGATE_ID_V1),
-        requestInput.repository.getAggregate(requestInput.campaign.campaignId, "scene.lifecycle", PROTOTYPE_SCENE_LIFECYCLE_AGGREGATE_ID_V1),
-        requestInput.repository.getAggregate(requestInput.campaign.campaignId, "world.position", PROTOTYPE_POSITION_AGGREGATE_ID_V1),
+        requestInput.repository.getAggregate(requestInput.campaign.campaignId, "scene.lifecycle", bindings.sceneLifecycleAggregateId),
+        requestInput.repository.getAggregate(requestInput.campaign.campaignId, "world.position", bindings.positionAggregateId),
         requestInput.repository.getAggregate(requestInput.campaign.campaignId, "world.clock", requestInput.campaign.clockAggregateId),
-        readOptionalPrototypeAggregateV1(requestInput.repository, requestInput.campaign.campaignId, "world.schedule", PROTOTYPE_SCHEDULE_AGGREGATE_ID_V1),
-        readOptionalPrototypeAggregateV1(requestInput.repository, requestInput.campaign.campaignId, "world.simulation-cursor", PROTOTYPE_CURSOR_AGGREGATE_ID_V1)
+        readOptionalPrototypeAggregateV1(requestInput.repository, requestInput.campaign.campaignId, "world.schedule", bindings.scheduleAggregateId),
+        readOptionalPrototypeAggregateV1(requestInput.repository, requestInput.campaign.campaignId, "world.simulation-cursor", bindings.simulationCursorAggregateId)
       ]);
       if (!topologyAggregate.ok) return topologyAggregate; if (!lifecycle.ok) return lifecycle; if (!position.ok) return position;
       if (!clock.ok) return clock; if (!schedule.ok) return schedule; if (!cursor.ok) return cursor;
@@ -65,9 +71,9 @@ export function createCatalogSceneTransitionRuntimeV1(input: {
       if (!batch.ok || batch.value === null) return failure("narrative.scene-transition.temporal-plan-rejected", { diagnostics: batch.ok ? [] : batch.diagnostics });
       const temporal = await prepareTemporalSegmentCommitV1({
         campaign: requestInput.campaign, operation: requestInput.operation, writerLease: requestInput.writerLease,
-        clockAggregate: clock.value, scheduleAggregate: schedule.value, scheduleAggregateId: PROTOTYPE_SCHEDULE_AGGREGATE_ID_V1,
-        simulationCursorAggregate: cursor.value, simulationCursorAggregateId: PROTOTYPE_CURSOR_AGGREGATE_ID_V1,
-        processAggregate: null, processAggregateId: PROTOTYPE_PROCESS_AGGREGATE_ID_V1, nextProcess: null, batch: batch.value,
+        clockAggregate: clock.value, scheduleAggregate: schedule.value, scheduleAggregateId: bindings.scheduleAggregateId,
+        simulationCursorAggregate: cursor.value, simulationCursorAggregateId: bindings.simulationCursorAggregateId,
+        processAggregate: null, processAggregateId: bindings.processAggregateId, nextProcess: null, batch: batch.value,
         operationBinding: { mode: "COMPOSITE_DOMAIN_COMMIT", domainCommandId: opaqueId<CommandId>(prepared.command.commandId), batchFingerprint: batch.value.batchFingerprint },
         resolutions: [{ taskId: task.taskId, outcome: "RESOLVED", eventId: opaqueId<EventId>(`${requestInput.operation.operationId}:event:transition-time`), eventType: "world.scene-transition.time-resolved", origin: "PLAYER_INTENT", visibility: { scope: "SYSTEM", actorIds: [] }, payload: { durationSeconds: duration } }],
         newEffects: [], commitId: opaqueId<CommitId>(`${requestInput.operation.operationId}:commit:transition`), commandId: opaqueId<CommandId>(`${requestInput.operation.operationId}:command:time`)
@@ -75,7 +81,7 @@ export function createCatalogSceneTransitionRuntimeV1(input: {
       if (!temporal.ok) return failure("narrative.scene-transition.temporal-commit-rejected", { diagnostics: temporal.diagnostics });
       return { ok: true, value: {
         command: prepared.command, temporalCommit: temporal.value,
-        worldResult: { schemaVersion: 1, contractVersion: "world-prepared-scene-transition/1", commandId: prepared.command.commandId, requestId: prepared.command.requestId, confirmedDestinationRef: prepared.command.destinationRef, arrivalSceneId: destination.value.sceneId, durationSeconds: duration, effectiveAtGameSecond: currentGameSecond + duration, positionAggregateId: PROTOTYPE_POSITION_AGGREGATE_ID_V1, expectedPositionRevision: position.value.aggregateRevision, nextPositionPayload: { ...position.value.payload, canonicalLocationRef: prepared.command.destinationRef }, sourceRefs: prepared.command.sourceRefs, worldAuthority: true, version: 1 },
+        worldResult: { schemaVersion: 1, contractVersion: "world-prepared-scene-transition/1", commandId: prepared.command.commandId, requestId: prepared.command.requestId, confirmedDestinationRef: prepared.command.destinationRef, arrivalSceneId: destination.value.sceneId, durationSeconds: duration, effectiveAtGameSecond: currentGameSecond + duration, positionAggregateId: bindings.positionAggregateId, expectedPositionRevision: position.value.aggregateRevision, nextPositionPayload: { ...position.value.payload, canonicalLocationRef: prepared.command.destinationRef }, sourceRefs: prepared.command.sourceRefs, worldAuthority: true, version: 1 },
         currentPositionAggregate: position.value, currentSceneLifecycleAggregate: lifecycle.value, destinationScene: destination.value,
         authoritySourceRefs: prepared.command.sourceRefs, currentGameSecond, characterExpression: requestInput.rawInput.trim()
       } };

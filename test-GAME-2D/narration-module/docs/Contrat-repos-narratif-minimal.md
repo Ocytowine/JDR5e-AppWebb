@@ -1,6 +1,6 @@
 # Contrat du repos narratif minimal
 
-Statut : `PRÉPARATION`  
+Statut : `LIVRÉ_2026-07-28`
 Sous-lot : `6A`  
 Contrat cible : `narrative-rest-runtime/1`
 
@@ -43,13 +43,11 @@ Le runtime ne s'ouvre que si :
 Aucun nouveau dictionnaire de phrases françaises n'est ajouté au runtime. Le
 fallback lexical historique ne devient pas l'autorité du déclenchement.
 
-Le registre actuel `narrative-runtime-capability-registry/1` classe encore
-`rest` parmi les domaines fermés et impose `noGameTime=true` à toutes ses
-routes. Le raccord 6A doit donc versionner cette frontière : le repos reste un
-`HANDOFF` vers son propriétaire, mais devient disponible uniquement si le
-contrôleur possède un port `RestDomain`, avec une politique temporelle validée
-par ce domaine. Un simple retrait de `rest` de la liste fermée serait
-insuffisant et incohérent.
+Le registre historique `narrative-runtime-capability-registry/1` reste fermé.
+La version 2 ouvre désormais `rest.process` uniquement lorsque le contrôleur
+possède un port `NarrativeRestRuntimeV1`. Sans ce propriétaire, la même
+intention reste un `HANDOFF`, sans temps ni commit. Une évocation ou une
+hypothèse ne déclenche pas le runtime.
 
 Si le type de repos, les participants, la garde ou une activité incompatible
 manquent réellement, le système demande ces seuls éléments sans avancer le
@@ -123,3 +121,59 @@ Dans une scène autorisant le repos :
 - UI avancée de planification horaire.
 
 Ces extensions utiliseront le même processus, sans modifier son autorité.
+
+## Point d'implémentation du 2026-07-28
+
+Livré dans la première tranche :
+
+- routage V2 conditionné par la présence effective du propriétaire `rest` ;
+- port repos optionnel dans les contrôleurs mémoire et IndexedDB ;
+- transmission de l'intention structurée au propriétaire, jamais du texte
+  comme autorité de déclenchement ;
+- démarrage atomique du handoff et du checkpoint `rest.process` ;
+- checkpoint initial restaurable avec zéro temps écoulé et zéro bénéfice ;
+- rejeu idempotent du commit de démarrage.
+
+Livré dans la deuxième tranche :
+
+- `semanticIntent.restPlan` conserve le type de repos explicitement compris par
+  l'interpréteur, sans dictionnaire lexical dans le runtime ;
+- le schéma OpenAI strict impose `restPlan`, à `null` hors du domaine repos ;
+- la préparation distingue `NEEDS_PLAYER_CHOICES` et `READY` ;
+- une seule question est posée lorsque le type manque, sans temps ni commit ;
+- les durées et la taille des segments viennent d'une politique de règles
+  injectée ;
+- le propriétaire concret vérifie l'autorisation du lieu, prépare la graine,
+  acquiert l'autorité d'écriture et committe le démarrage ;
+- la narration de départ est construite depuis le résultat du domaine, avec un
+  diagnostic système séparé ;
+- le démarrage par contrôleur et son rejeu sont couverts.
+
+Extension 6E-D livrée :
+
+- un segment peut porter l'activité `CHARACTER_PROGRESSION` avec le personnage
+  et la récompense ciblés ;
+- seul son événement committé et non interrompu ouvre la fenêtre d'application ;
+- la progression de classe est ensuite préparée et validée par le domaine
+  personnage depuis les catalogues existants ;
+- les autres bénéfices de repos, notamment inventaire et récupération, restent
+  volontairement `COMPLETED_PENDING_BENEFITS` tant que leurs propriétaires ne
+  sont pas raccordés.
+
+Livré dans la troisième tranche :
+
+- commande contrôleur idempotente d'avancement d'un segment ;
+- commit atomique du checkpoint, de l'événement et de l'horloge ;
+- continuation narrative produite uniquement après ce commit ;
+- interruption déterministe racontée sans fuite du profil de danger ;
+- achèvement en `COMPLETED_PENDING_BENEFITS`, sans récupération anticipée ;
+- bouton de progression affichant les heures réellement committées ;
+- saisie libre suspendue pendant le processus actif ;
+- restauration IndexedDB du checkpoint et des continuations rendues ;
+- scénarios navigateur couvrant progression, rechargement, interruption et
+  achèvement sans bénéfice.
+
+La scène pilote des Archives ne déclare actuellement aucun emplacement de
+repos. Son runtime est bien raccordé, mais refuse donc le démarrage par une
+réponse narrative. Ce refus vient de la politique de scène absente, pas d'un
+test sur les mots du joueur.

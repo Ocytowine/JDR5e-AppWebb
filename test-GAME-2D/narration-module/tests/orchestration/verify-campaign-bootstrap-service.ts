@@ -2,10 +2,13 @@ import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import {
   CampaignBootstrapServiceV1,
+  ACTIVE_CAMPAIGN_CHARACTER_PROFILE_AGGREGATE_TYPE_V1,
+  activeCampaignCharacterProfileAggregateIdV1,
   createMvpRulesetManifestV1,
   MemoryCampaignBootstrapRepository,
   MVP_RULE_DEFINITIONS_V1,
   MVP_RULE_EXECUTORS_V1,
+  validateActiveCampaignCharacterProfileV1,
   type CampaignBootstrapInputV1,
   type ContentPackageResolverV1,
   type LoreEntityV1,
@@ -95,7 +98,7 @@ async function contentPackage(options: { brokenChain?: boolean } = {}): Promise<
     sourcePath: entry.entryKind === "LORE_ENTITY"
       ? loreEntities.find(entity => entity.entityId === entry.entryId)!.provenance.sourcePath
       : `catalog/${entry.entryId}.json`,
-    sourceFingerprint: await sourceFingerprint(entry.sourceText),
+    sourceFingerprint: await sourceFingerprint(entry.sourceText!),
     payloadFingerprint: await computeJsonFingerprint(entry.payload) as Sha256Fingerprint,
     references: []
   })));
@@ -206,10 +209,34 @@ async function run(): Promise<void> {
     ["character.state", request.ids.characterAggregateId],
     ["character.tactical-projection", request.ids.tacticalProjectionAggregateId],
     ["character.narrative-projection", request.ids.narrativeProjectionAggregateId],
+    [
+      ACTIVE_CAMPAIGN_CHARACTER_PROFILE_AGGREGATE_TYPE_V1,
+      activeCampaignCharacterProfileAggregateIdV1(request.ids.campaignId)
+    ],
     ["world.position", request.ids.positionAggregateId],
     ["campaign.bootstrap-context", request.ids.bootstrapContextAggregateId]
   ]) {
     assert.equal((await repository.getAggregate(request.ids.campaignId, aggregateType, aggregateId)).ok, true);
+  }
+  const activeProfile = await repository.getAggregate(
+    request.ids.campaignId,
+    ACTIVE_CAMPAIGN_CHARACTER_PROFILE_AGGREGATE_TYPE_V1,
+    activeCampaignCharacterProfileAggregateIdV1(request.ids.campaignId)
+  );
+  assert.equal(activeProfile.ok, true);
+  if (activeProfile.ok) {
+    assert.deepEqual(
+      validateActiveCampaignCharacterProfileV1(activeProfile.value.payload),
+      []
+    );
+    assert.equal(
+      activeProfile.value.payload.characterStateAggregateId,
+      request.ids.characterAggregateId
+    );
+    assert.equal(
+      activeProfile.value.payload.tacticalProjectionAggregateId,
+      request.ids.tacticalProjectionAggregateId
+    );
   }
   const events = await repository.listEvents(request.ids.campaignId, null, 10);
   assert.equal(events.ok, true);

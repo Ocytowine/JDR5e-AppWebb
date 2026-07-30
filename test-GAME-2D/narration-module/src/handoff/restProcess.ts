@@ -9,14 +9,21 @@ import type {
   EventId,
   JsonObject,
   OperationRecord,
+  OutboxTaskDraft,
+  TaskId,
   WriterLease
 } from "../core/index";
+import {
+  ORCHESTRATION_EVENT_ROUTER_CONTRACT_VERSION_V1,
+  ORCHESTRATION_EVENT_TASK_TYPE_V1,
+  type OrchestrationEventEnvelopeV1
+} from "../orchestration/index";
 import { prepareTemporalSegmentCommitV1, type TemporalBatchV1 } from "../time/index";
 import type { RestSeedV1 } from "./types";
 import { HANDOFF_CONTRACT_VERSION, HANDOFF_PAYLOAD_SCHEMA_VERSION } from "./types";
 import { assertValidHandoff, validateRestSeedV1 } from "./validation";
 
-export type RestProcessStatusV1 = "ACTIVE" | "COMPLETED" | "INTERRUPTED" | "FAILED";
+export type RestProcessStatusV1 = "ACTIVE" | "COMPLETED_PENDING_BENEFITS" | "COMPLETED" | "INTERRUPTED" | "FAILED";
 
 export interface RestInterruptionStateV1 extends JsonObject {
   interrupted: boolean;
@@ -38,6 +45,8 @@ export interface RestProcessStateV1 extends JsonObject {
   currentSegmentIndex: number;
   segmentSeconds: number;
   participants: JsonObject[];
+  availableActivities: JsonObject[];
+  completedActivities: JsonObject[];
   safetyProfile: JsonObject;
   availableSupplies: JsonObject[];
   acquiredBenefits: JsonObject[];
@@ -57,8 +66,16 @@ export interface PreparedRestSegmentV1 {
   completedAtGameSecond: number;
   interrupted: boolean;
   interruptionReason: string | null;
+  activity: RestSegmentActivityV1;
   nextProcess: RestProcessStateV1;
   segmentFingerprint: string;
+}
+
+export interface RestSegmentActivityV1 extends JsonObject {
+  schemaVersion: 1;
+  activityKind: "PASSIVE_REST" | "CHARACTER_PROGRESSION";
+  characterId: string | null;
+  progressionAwardId: string | null;
 }
 
 function id<T extends string>(value: string): T {
@@ -106,6 +123,8 @@ export async function createRestProcessStateFromSeedV1(input: {
     currentSegmentIndex: 0,
     segmentSeconds: input.segmentSeconds,
     participants: cloneJson(input.seed.participants),
+    availableActivities: cloneJson(input.seed.availableActivities),
+    completedActivities: [],
     safetyProfile: cloneJson(input.seed.safetyProfile),
     availableSupplies: cloneJson(input.seed.availableSupplies),
     acquiredBenefits: [],
@@ -126,6 +145,7 @@ export async function prepareNextRestSegmentV1(input: {
   currentGameSecond: number;
   deterministicSeed: string;
   allowInterruption: boolean;
+  activity?: RestSegmentActivityV1 | null;
 }): Promise<PreparedRestSegmentV1> {
   if (input.process.status !== "ACTIVE") throw new Error("Only an ACTIVE rest process can advance.");
   if (!Number.isInteger(input.currentGameSecond) || input.currentGameSecond < 0) {
@@ -133,6 +153,7 @@ export async function prepareNextRestSegmentV1(input: {
   }
   const remaining = input.process.targetDurationSeconds - input.process.elapsedRestSeconds;
   if (remaining <= 0) throw new Error("Rest process has no remaining duration.");
+  const activity = normalizeRestSegmentActivity(input.activity ?? null);
   const durationSeconds = Math.min(input.process.segmentSeconds, remaining);
   const completedAtGameSecond = input.currentGameSecond + durationSeconds;
   const checkBase = {
@@ -149,19 +170,33 @@ export async function prepareNextRestSegmentV1(input: {
     stablePercentFromFingerprint(checkFingerprint) < dangerPercent(input.process.safetyProfile);
   const elapsedRestSeconds = input.process.elapsedRestSeconds + durationSeconds;
   const completed = !interrupted && elapsedRestSeconds >= input.process.targetDurationSeconds;
-  const acquiredBenefits = completed ? cloneJson(input.process.remainingBenefits) : cloneJson(input.process.acquiredBenefits);
-  const remainingBenefits = completed ? [] : cloneJson(input.process.remainingBenefits);
+  const acquiredBenefits = cloneJson(input.process.acquiredBenefits);
+  const remainingBenefits = cloneJson(input.process.remainingBenefits);
   const consumptions = input.process.currentSegmentIndex === 0 && input.process.availableSupplies.length > 0
     ? [...cloneJson(input.process.consumptions), { segmentIndex: 0, consumed: cloneJson(input.process.availableSupplies) }]
     : cloneJson(input.process.consumptions);
+  const previousCompletedActivities = Array.isArray(input.process.completedActivities)
+    ? cloneJson(input.process.completedActivities)
+    : [];
+  const completedActivities = interrupted
+    ? previousCompletedActivities
+    : [
+        ...previousCompletedActivities,
+        {
+          ...cloneJson(activity),
+          segmentIndex: input.process.currentSegmentIndex,
+          completedAtGameSecond
+        }
+      ];
   const nextBase: Omit<RestProcessStateV1, "checkpointFingerprint"> = {
     ...cloneJson(input.process),
-    status: interrupted ? "INTERRUPTED" : completed ? "COMPLETED" : "ACTIVE",
+    status: interrupted ? "INTERRUPTED" : completed ? "COMPLETED_PENDING_BENEFITS" : "ACTIVE",
     elapsedRestSeconds,
     currentSegmentIndex: input.process.currentSegmentIndex + 1,
     acquiredBenefits,
     remainingBenefits,
     consumptions,
+    completedActivities,
     interruption: {
       interrupted,
       reason: interrupted ? "deterministic_rest_interruption" : null,
@@ -176,6 +211,7 @@ export async function prepareNextRestSegmentV1(input: {
     durationSeconds,
     completedAtGameSecond,
     interrupted,
+    activity,
     nextCheckpointFingerprint: nextProcess.checkpointFingerprint
   });
   return {
@@ -187,6 +223,7 @@ export async function prepareNextRestSegmentV1(input: {
     completedAtGameSecond,
     interrupted,
     interruptionReason: interrupted ? "deterministic_rest_interruption" : null,
+    activity,
     nextProcess,
     segmentFingerprint
   };
@@ -246,10 +283,10 @@ export async function prepareRestSegmentCommitV1(input: {
   }
   const eventType = input.segment.interrupted
     ? "rest_interrupted"
-    : input.segment.nextProcess.status === "COMPLETED"
-      ? "rest_completed"
+    : input.segment.nextProcess.status === "COMPLETED_PENDING_BENEFITS"
+      ? "rest_completed_pending_benefits"
       : "rest_segment_completed";
-  return prepareTemporalSegmentCommitV1({
+  const prepared = await prepareTemporalSegmentCommitV1({
     campaign: input.campaign,
     operation: input.operation,
     writerLease: input.writerLease,
@@ -274,6 +311,8 @@ export async function prepareRestSegmentCommitV1(input: {
         processId: input.segment.processId,
         segmentIndex: input.segment.segmentIndex,
         durationSeconds: input.segment.durationSeconds,
+        restKind: input.segment.nextProcess.restKind,
+        activity: cloneJson(input.segment.activity),
         status: input.segment.nextProcess.status,
         checkpointFingerprint: input.segment.nextProcess.checkpointFingerprint,
         acquiredBenefits: cloneJson(input.segment.nextProcess.acquiredBenefits),
@@ -292,8 +331,91 @@ export async function prepareRestSegmentCommitV1(input: {
     commitId: input.commitId,
     commandId: input.commandId
   });
+  if (!prepared.ok || eventType === "rest_segment_completed") return prepared;
+  return {
+    ok: true,
+    value: {
+      ...prepared.value,
+      outboxTasks: [
+        ...prepared.value.outboxTasks,
+        createRestTerminalOrchestrationTaskV1(input.eventId, eventType, input.segment.nextProcess)
+      ]
+    }
+  };
+}
+
+function normalizeRestSegmentActivity(
+  activity: RestSegmentActivityV1 | null
+): RestSegmentActivityV1 {
+  if (activity === null) {
+    return {
+      schemaVersion: 1,
+      activityKind: "PASSIVE_REST",
+      characterId: null,
+      progressionAwardId: null
+    };
+  }
+  if (
+    activity.schemaVersion !== 1
+    || !["PASSIVE_REST", "CHARACTER_PROGRESSION"].includes(activity.activityKind)
+  ) {
+    throw new Error("Rest segment activity is invalid.");
+  }
+  if (
+    activity.activityKind === "PASSIVE_REST"
+    && (activity.characterId !== null || activity.progressionAwardId !== null)
+  ) {
+    throw new Error("Passive rest cannot target a progression award.");
+  }
+  if (
+    activity.activityKind === "CHARACTER_PROGRESSION"
+    && (
+      typeof activity.characterId !== "string"
+      || !activity.characterId.trim()
+      || typeof activity.progressionAwardId !== "string"
+      || !activity.progressionAwardId.trim()
+    )
+  ) {
+    throw new Error("Character progression activity requires character and award ids.");
+  }
+  return cloneJson(activity);
 }
 
 export function restProcessAggregateId(processId: string): AggregateId {
   return id<AggregateId>(`agg_rest_process_${processId}`);
+}
+
+function createRestTerminalOrchestrationTaskV1(
+  eventId: EventId,
+  eventType: "rest_interrupted" | "rest_completed_pending_benefits",
+  process: RestProcessStateV1
+): OutboxTaskDraft {
+  if (process.status !== "INTERRUPTED" && process.status !== "COMPLETED_PENDING_BENEFITS") {
+    throw new Error("Only a terminal rest state can emit an orchestration task.");
+  }
+  const payload: OrchestrationEventEnvelopeV1 = {
+    schemaVersion: 1,
+    contractVersion: ORCHESTRATION_EVENT_ROUTER_CONTRACT_VERSION_V1,
+    sourceEventId: eventId,
+    eventType,
+    sourceDomain: "REST",
+    processId: process.processId,
+    processStatus: process.status,
+    elapsedRestSeconds: process.elapsedRestSeconds,
+    checkpointFingerprint: process.checkpointFingerprint,
+    pendingBenefitCount: process.remainingBenefits.length,
+    interruption: {
+      interrupted: process.interruption.interrupted,
+      reason: process.interruption.reason,
+      segmentIndex: process.interruption.segmentIndex
+    }
+  };
+  return {
+    schemaVersion: 1,
+    taskId: id<TaskId>(`task_orchestration_${eventId}`),
+    taskType: ORCHESTRATION_EVENT_TASK_TYPE_V1,
+    sourceEventIds: [eventId],
+    payloadSchemaVersion: 1,
+    payload
+  };
 }

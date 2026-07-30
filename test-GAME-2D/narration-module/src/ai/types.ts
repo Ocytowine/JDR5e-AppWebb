@@ -269,6 +269,10 @@ export interface AiStructuredSemanticIntentV1 {
     contentGoal: string;
     addresseeRef: string | null;
   } | null;
+  restPlan?: {
+    schemaVersion: 1;
+    restKind: "SHORT_REST" | "LONG_REST" | null;
+  } | null;
   composition?: {
     schemaVersion: 1;
     orderedComponents: Array<{

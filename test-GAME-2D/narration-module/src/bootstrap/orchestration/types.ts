@@ -8,14 +8,25 @@ import type {
   RequestId
 } from "../../core/contracts/types";
 import type { CharacterImportCatalogV1, CharacterImportEnvelopeV1, CharacterImportResultV1 } from "../character/types";
-import type { ContentEntryDescriptorV1, ContentPackageManifestV1, LoreEntityV1 } from "../lore/types";
+import type {
+  ContentEntryDescriptorV1,
+  ContentPackageManifestV1,
+  LoreEntityV1,
+  Sha256Fingerprint
+} from "../lore/types";
 import type { CampaignBootstrapPersistenceResultV1 } from "../persistence/types";
 import type { RuleDefinitionV1, RuleExecutorV1, RulesetManifestV1 } from "../rules/types";
 
 export interface ResolvedContentEntryV1 {
   entryKind: ContentEntryDescriptorV1["entryKind"];
   entryId: string;
-  sourceText: string;
+  /**
+   * Development packages may retain their source text. Installed browser
+   * packages retain only the build-time source fingerprint so private author
+   * material is not shipped to the client.
+   */
+  sourceText: string | null;
+  installedSourceFingerprint?: Sha256Fingerprint;
   payload: unknown;
 }
 

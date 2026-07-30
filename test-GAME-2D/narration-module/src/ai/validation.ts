@@ -264,7 +264,7 @@ function validateSemanticIntent(
   const semanticPath = `${path}.semanticIntent`;
   if (!isObject(value)) return [issue(semanticPath, "expected object")];
   const issues: string[] = [];
-  issues.push(...exactKeys(value, [
+  const semanticKeys = [
     "commitment",
     "confidence",
     "dialogueAct",
@@ -276,7 +276,9 @@ function validateSemanticIntent(
     "schemaVersion",
     "target",
     "uncertainties"
-  ], semanticPath));
+  ];
+  if (value.restPlan !== undefined) semanticKeys.push("restPlan");
+  issues.push(...exactKeys(value, semanticKeys, semanticPath));
   if (value.schemaVersion !== 1) issues.push(issue(`${semanticPath}.schemaVersion`, "expected 1"));
   if (typeof value.kind !== "string" || !allowedSemanticKinds.has(value.kind)) issues.push(issue(`${semanticPath}.kind`, "invalid semantic kind"));
   issues.push(...validateNonEmptyString(value.playerGoal, `${semanticPath}.playerGoal`));
@@ -306,6 +308,17 @@ function validateSemanticIntent(
       if (!["INITIATE_CONVERSATION", "ASK_QUESTION", "MAKE_STATEMENT", "REQUEST_ACTION", "OTHER"].includes(String(value.dialogueAct.act))) issues.push(issue(`${semanticPath}.dialogueAct.act`, "invalid dialogue act"));
       issues.push(...validateNonEmptyString(value.dialogueAct.contentGoal, `${semanticPath}.dialogueAct.contentGoal`));
       if (value.dialogueAct.addresseeRef !== null && typeof value.dialogueAct.addresseeRef !== "string") issues.push(issue(`${semanticPath}.dialogueAct.addresseeRef`, "expected string or null"));
+    }
+  }
+  if (value.restPlan !== undefined && value.restPlan !== null) {
+    if (!isObject(value.restPlan)) {
+      issues.push(issue(`${semanticPath}.restPlan`, "expected object or null"));
+    } else {
+      issues.push(...exactKeys(value.restPlan, ["restKind", "schemaVersion"], `${semanticPath}.restPlan`));
+      if (value.restPlan.schemaVersion !== 1) issues.push(issue(`${semanticPath}.restPlan.schemaVersion`, "expected 1"));
+      if (![null, "SHORT_REST", "LONG_REST"].includes(value.restPlan.restKind as null | string)) {
+        issues.push(issue(`${semanticPath}.restPlan.restKind`, "invalid rest kind or null"));
+      }
     }
   }
   if (value.target !== null) {

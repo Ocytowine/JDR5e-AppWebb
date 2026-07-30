@@ -2,7 +2,10 @@ import React, { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { WORLD_MAP_LAYOUT, type WorldMapLayout } from "../data/worldMapLayout";
 import { WorldMapEditorScreen } from "./WorldMapEditorScreen";
-import { WorldMapSimulationScreen } from "./WorldMapSimulationScreen";
+import {
+  WorldMapSimulationScreen,
+  type CampaignWorldSimulationUiPortV1
+} from "./WorldMapSimulationScreen";
 import { WorldMapViewerScreen } from "./WorldMapViewerScreen";
 import {
   deleteWorldMapLayout,
@@ -15,6 +18,8 @@ import {
 
 export function WorldMapScreen(props: {
   onBack: () => void;
+  campaignSimulationPort?: CampaignWorldSimulationUiPortV1;
+  backLabel?: string;
 }): React.JSX.Element {
   const [mode, setMode] = useState<"viewer" | "editor" | "simulation">("viewer");
   const [layout, setLayout] = useState<WorldMapLayout>(WORLD_MAP_LAYOUT);
@@ -155,7 +160,7 @@ export function WorldMapScreen(props: {
               fontWeight: 700
             }}
           >
-            Retour combat
+            {props.backLabel ?? "Retour combat"}
           </button>
           <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
             <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: "#c8d0de" }}>
@@ -163,7 +168,11 @@ export function WorldMapScreen(props: {
               <select
                 value={layoutKey}
                 onChange={event => void loadLayout(event.target.value)}
-                disabled={layoutLoading || layoutCatalog.length === 0}
+                disabled={
+                  layoutLoading
+                  || layoutCatalog.length === 0
+                  || props.campaignSimulationPort !== undefined
+                }
                 style={{
                   padding: "8px 10px",
                   borderRadius: 8,
@@ -252,7 +261,19 @@ export function WorldMapScreen(props: {
         </div>
 
         {mode === "viewer" && (
-          <WorldMapViewerScreen layout={layout} onOpenEditor={() => setMode("editor")} onOpenSimulation={() => setMode("simulation")} />
+          <WorldMapViewerScreen
+            layout={layout}
+            onOpenEditor={() => {
+              if (props.campaignSimulationPort === undefined) {
+                setMode("editor");
+              } else {
+                setLayoutError(
+                  "La carte installée d'une campagne active ne se modifie pas depuis cette vue."
+                );
+              }
+            }}
+            onOpenSimulation={() => setMode("simulation")}
+          />
         )}
       </div>
 
@@ -296,8 +317,13 @@ export function WorldMapScreen(props: {
                 ) : (
                   <WorldMapSimulationScreen
                     layout={layout}
-                    onOpenEditor={() => setMode("editor")}
+                    onOpenEditor={() => {
+                      if (props.campaignSimulationPort === undefined) {
+                        setMode("editor");
+                      }
+                    }}
                     onCloseSimulation={() => setMode("viewer")}
+                    campaignPort={props.campaignSimulationPort}
                   />
                 )}
               </div>

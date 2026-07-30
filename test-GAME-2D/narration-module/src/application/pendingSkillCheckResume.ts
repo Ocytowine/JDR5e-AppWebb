@@ -26,9 +26,6 @@ import { SCENE_SOCIAL_UI_CONTRACT_VERSION_V1, type DisplayPacketV1 } from "../sc
 import type { PendingNarrativeSkillCheckV1 } from "./NarrativeTurnController";
 import type { PlayableSceneStateV1 } from "./playableScene";
 import {
-  PROTOTYPE_CURSOR_AGGREGATE_ID_V1,
-  PROTOTYPE_PROCESS_AGGREGATE_ID_V1,
-  PROTOTYPE_SCHEDULE_AGGREGATE_ID_V1,
   readOptionalPrototypeAggregateV1
 } from "./prototypeSceneTransitionRuntime";
 import {
@@ -43,6 +40,10 @@ import {
 } from "./diceRollRecord";
 import { prepareSkillCheckOutcomeV1, type PreparedSkillCheckOutcomeV1 } from "./skillCheckOutcomePreparation";
 import { augmentTemporalCommitWithSkillCheckOutcomeV1 } from "./skillCheckOutcomeCommit";
+import {
+  PROTOTYPE_CAMPAIGN_RUNTIME_BINDINGS_V1,
+  type CampaignRuntimeBindingsV1
+} from "./campaignRuntimeBindings";
 
 export interface ResumePendingSkillCheckCommandV1 {
   schemaVersion: 1;
@@ -66,8 +67,11 @@ export async function resumePendingPerceptionSkillCheckV1(input: {
   pending: PendingNarrativeSkillCheckV1;
   scene: PlayableSceneStateV1;
   d20Source?: D20SourceV1;
+  runtimeBindings?: CampaignRuntimeBindingsV1;
 }): Promise<Result<ResumePendingSkillCheckResultV1>> {
   const { command, pending } = input;
+  const bindings =
+    input.runtimeBindings ?? PROTOTYPE_CAMPAIGN_RUNTIME_BINDINGS_V1;
   if (
     command.schemaVersion !== 1 ||
     command.sourceOperationId !== pending.sourceOperationId ||
@@ -228,8 +232,8 @@ export async function resumePendingPerceptionSkillCheckV1(input: {
     });
   }
   const [schedule, cursor] = await Promise.all([
-    readOptionalPrototypeAggregateV1(input.repository, input.campaignId, "world.schedule", PROTOTYPE_SCHEDULE_AGGREGATE_ID_V1),
-    readOptionalPrototypeAggregateV1(input.repository, input.campaignId, "world.simulation-cursor", PROTOTYPE_CURSOR_AGGREGATE_ID_V1)
+    readOptionalPrototypeAggregateV1(input.repository, input.campaignId, "world.schedule", bindings.scheduleAggregateId),
+    readOptionalPrototypeAggregateV1(input.repository, input.campaignId, "world.simulation-cursor", bindings.simulationCursorAggregateId)
   ]);
   if (!schedule.ok) return schedule;
   if (!cursor.ok) return cursor;
@@ -246,11 +250,11 @@ export async function resumePendingPerceptionSkillCheckV1(input: {
       writerLease: lease.value,
       clockAggregate: clock.value,
       scheduleAggregate: schedule.value,
-      scheduleAggregateId: PROTOTYPE_SCHEDULE_AGGREGATE_ID_V1,
+      scheduleAggregateId: bindings.scheduleAggregateId,
       simulationCursorAggregate: cursor.value,
-      simulationCursorAggregateId: PROTOTYPE_CURSOR_AGGREGATE_ID_V1,
+      simulationCursorAggregateId: bindings.simulationCursorAggregateId,
       processAggregate: null,
-      processAggregateId: PROTOTYPE_PROCESS_AGGREGATE_ID_V1,
+      processAggregateId: bindings.processAggregateId,
       nextProcess: null,
       batch: batch.value,
       operationBinding: {

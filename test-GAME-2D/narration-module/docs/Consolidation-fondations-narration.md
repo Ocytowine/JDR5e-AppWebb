@@ -1,6 +1,6 @@
 # État actuel et feuille de route du module narration
 
-Date de référence : 2026-07-28
+Date de référence : 2026-07-30
 
 Statut : `SOURCE_CANONIQUE_ACTIVE`
 
@@ -129,7 +129,7 @@ devient l'objet d'une recherche en jeu.
 | Dialogue | actes structurés, performer PNJ borné, mémoire courte par acteur et conversations à plusieurs tours dans le vertical |
 | Rédaction | `scene_writer` contrôlé par un plan de rendu, couverture minimale des référents et fallback déterministe |
 | Interface | surface React, mode local/OpenAI, blocs narratifs et diagnostics système séparés |
-| Handoffs | contrats tactique et repos disponibles ; moteurs jouables propriétaires encore incomplets |
+| Handoffs | repos narratif minimal jouable, segmenté et restaurable ; résultat terminal transmis par outbox à un routeur non autoritaire ; tactique jouable encore incomplet |
 | Validation | régressions déterministes, recettes navigateur et recettes OpenAI ciblées ; build global validé au dernier point de contrôle |
 
 Le dernier vertical Archives valide notamment :
@@ -162,8 +162,12 @@ Le dernier vertical Archives valide notamment :
   hors du contrat V1.
 - Le créateur de personnage doit fournir une projection mécanique stable aux
   tests de compétence.
-- Les autorités complètes d'intrigue, d'inventaire, de tactique et de mémoire
-  sociale longue ne sont pas ouvertes.
+- Le premier noyau d'intrigue privée est ouvert ; la génération complète
+  d'intrigues, l'inventaire, le tactique et la mémoire sociale longue ne le sont
+  pas encore.
+- Les initiatives PNJ causées et la projection des événements autonomes sont
+  raccordées et certifiées par la gate 6V. Le contenu de chaque campagne reste
+  fourni par ses domaines propriétaires.
 - Les métriques sont maintenant séparées par rôle dans la gate Archives ; elles
   doivent être conservées et étendues aux futurs corpus.
 
@@ -301,7 +305,7 @@ Résultat :
 
 ### Lot 6 — scénarios 005 à 009 et intégrations
 
-Statut : `EN_COURS_2026-07-28`
+Statut : `TERMINE_2026-07-30`
 
 Objectif : reprendre orchestrateur, progression, social, bastion et repos selon
 leurs dépendances réelles, puis brancher progressivement créateur de personnage,
@@ -315,15 +319,331 @@ Audit initial :
   d'intrigue après l'état social ;
 - le social 007 précède l'intrigue complète pour porter connaissances,
   croyances et relations des acteurs ;
+- une verticale transverse 6V impose que 6C ouvre l'initiative locale des PNJ
+  et que 6D raccorde l'évolution autonome à la scène ;
 - la progression 006 vient après le premier hook repos/orchestrateur ;
 - le bastion 008 ferme la série en raison de ses dépendances nombreuses ;
 - les intrigues et événements cachés ont un sous-lot explicite 6D et ne sont
   plus reportés dans une suite indéterminée.
 
+Résultat du sous-lot 6A :
+
+- intention `rest` ouverte uniquement si son propriétaire est injecté ;
+- type de repos conservé dans le contrat sémantique, sans dictionnaire lexical
+  dans le runtime ;
+- démarrage et segments atomiques, temporels et rejouables ;
+- interruption et continuation fondées sur le checkpoint committé ;
+- achèvement bloqué en attente des autorités de bénéfices ;
+- contrôle UI et restauration IndexedDB validés dans trois scénarios navigateur.
+
+Résultat du sous-lot 6B :
+
+- enveloppe `orchestration-event-router/1` créée dans le commit terminal du
+  repos ;
+- données privées de sécurité exclues avant la frontière d'orchestration ;
+- routeur limité à la validation, la sélection stable et la livraison ;
+- hook `rest.lifecycle-signal/1` purement signalétique ;
+- erreur temporaire, reprise et absence d'abonné couvertes sans double temps ni
+  double bénéfice.
+
+Objectif transversal 6V :
+
+- le personnage est un participant, jamais le déclencheur implicite du monde ;
+- une initiative PNJ exige une cause, un objectif et des connaissances propres ;
+- elle peut viser le lieu ou un autre acteur plutôt que le joueur ;
+- l'évolution hors écran dépend uniquement du temps diégétique validé ;
+- les événements privés restent hors du contexte du rédacteur ;
+- la gate 6V est certifiée avant l'ouverture de 6E.
+
+Résultat du sous-lot 6C :
+
+- registre social persistant distinct de la projection UI ;
+- faits connus, croyances, relations orientées, réputation, dettes, promesses
+  et préoccupations séparés par acteur ;
+- frontière autonome du contrôleur sans fausse saisie joueur ;
+- initiative locale committée vers une cible explicitement présente, ou résultat
+  `CALM` sans commit ;
+- projection bornée vers le performer et restauration navigateur sans
+  duplication.
+
+Résultat du sous-lot 6D :
+
+- vérité privée, engagements et voies d'indice committés avant mise en scène ;
+- évolution hors écran pilotée uniquement par l'horloge diégétique ;
+- révélations classifiées et committées séparément de la vérité ;
+- adaptation des seuls signaux perceptibles issus des événements monde déjà
+  committés, sans rejouer `world-simulation` ni exposer ses données internes ;
+- perceptions d'intrigue et du monde réunies dans un bundle causal commun ;
+- échéance importante arrêtant l'avance, mise en scène puis restitution de la
+  main au joueur ;
+- absence de fuite et rejeu sans duplication couverts au niveau domaine et
+  navigateur.
+
+Gate 6V certifiée le 2026-07-29 :
+
+- initiative PNJ vers le joueur ou un tiers depuis une cause antérieure ;
+- nouvelle frontière sociale après avance diégétique ;
+- priorité conservée pour une interruption urgente ;
+- scène calme, ordre stable, secrets exclus et rejeu sans duplication ;
+- commande unique `narration-module:test:living-world-gate`.
+
+6E-A à 6E-C livrés le 2026-07-29 :
+
+- disponibilité issue d'un événement committé et d'une politique injectée ;
+- choix de classe conservé sans mutation implicite du personnage ;
+- événement source dédupliqué et payload privé exclu de la projection publique ;
+- choix explicites et candidat complet revalidés par l'autorité
+  personnage/ruleset ;
+- registre, état personnage et projections tactique et narrative appliqués dans
+  un commit unique ;
+- rejet, rejeu, conflit et panne injectée sans mutation partielle ;
+- résumé public committé transformé en narration déterministe, puis restauré
+  par le fil commun sans duplication ni nouvelle application.
+
+6E-D livré le 2026-07-29 après réouverture du lot :
+
+- segment de repos court ou long typé `CHARACTER_PROGRESSION`, lié au
+  personnage et à la récompense ;
+- preuve committée obligatoire avant application, avec refus d'un segment
+  interrompu, étranger ou antérieur à la disponibilité ;
+- adaptateur lisant les catalogues actuels du créateur sans les recopier dans
+  la narration ;
+- candidat construit depuis l'entrée exacte du nouveau niveau ;
+- niveau global, maîtrise et PV maximum recalculés par le ruleset épinglé ;
+- contenu absent, choix non implémenté ou référence inconnue suspendant la
+  progression sans commit et sans compensation inventée ;
+- progression mécanique maintenue distincte de l'évolution sociale et
+  personnelle.
+
+6F-A livré le 2026-07-29 :
+
+- définition du bastion comme propriété durable liée à un lieu, et non comme
+  simple scène ou texte de possession ;
+- audit confirmant les fondations lieu, temps, monde, PNJ, social, mission et
+  rendu ;
+- absence confirmée d'autorité de propriété, de catalogue de travaux et de
+  transaction économique de campagne ;
+- matrice attribuant chaque propriété à une autorité unique ;
+- découpage retenu : établissement 6F-B, travail temporisé 6F-C, occupants
+  6F-D, incidents et défense 6F-E ;
+- interdiction de rendre gratuit ou automatique un prérequis dont le domaine
+  propriétaire n'existe pas encore.
+
+6F-B livré le 2026-07-29 :
+
+- registre propriétaire séparé du lieu et du lore ;
+- événement d'acquisition committé, politique injectée et lieu existant exigés ;
+- établissement atomique, dédupliqué et rejouable ;
+- événement public sans prix, dette ou payload privé de la source ;
+- narration déterministe n'ajoutant ni pièce, ni occupant, ni ressource ;
+- restauration navigateur sans duplication et rollback sans état partiel.
+
+6F-C livré le 2026-07-29 :
+
+- travail absent du catalogue injecté refusé avant toute mutation ;
+- durée, prérequis, effet et narration d'achèvement issus uniquement de la
+  définition cataloguée ;
+- coût ou matériau externe bloqué sans autorité et preuve, jamais converti en
+  gratuité ;
+- ordre et échéance committés ensemble, puis achèvement par l'horloge unique ;
+- installation, ordre terminé et événement public écrits atomiquement ;
+- projection du résultat committé et restauration navigateur sans duplication.
+
+6F-D livré le 2026-07-29 :
+
+- PNJ persistant et rôle catalogué exigés avant toute affectation ;
+- acceptation relue depuis une décision propriétaire committée ;
+- refus ou autorité absente sans mutation ;
+- registre du bastion limité au rôle et aux faits publics, sans copie de l'état
+  privé de l'acteur ;
+- frontière autonome dédiée au contrôleur, sans fausse saisie joueur ;
+- résultat `CALM` sans commit lorsqu'aucune initiative n'est autorisée ;
+- première activité autonome cataloguée, committée puis projetée dans le fil ;
+- rejeu et restauration navigateur sans duplication.
+
+6F-E livré le 2026-07-29 :
+
+- incidents uniquement dérivés d'une opération et d'un événement propriétaires
+  committés ;
+- politique et catalogue injectés, sans liste locale de menaces ou
+  d'opportunités ;
+- occasion conservée ouverte et conséquence bornée à l'installation visée ;
+- attaque refusée sans propriétaire tactique ;
+- registre du bastion, processus actif et graine tactique committés ensemble ;
+- aucun résultat de combat, dégât, butin ou vainqueur inventé par la narration ;
+- projection du résumé public sans fuite du payload privé de la cause ;
+- rejeu et restauration navigateur sans duplication.
+
+Le vertical contractuel 6F est ainsi fermé. La prochaine étape concrète est un
+lot d'intégration jouable : brancher des catalogues de campagne réels et les
+commandes joueur dans la surface principale, puis certifier en build complet le
+départ et le retour d'une défense tactique. Ce lot ne devra pas modifier les
+autorités désormais établies.
+
+7A livré le 2026-07-29 :
+
+- session tactique restaurée uniquement depuis l'événement public, le registre
+  du bastion, le processus et la graine committés ;
+- identités de campagne, de processus et de lieu vérifiées ensemble ;
+- défense en attente signalée dans la surface narration ;
+- ouverture de la surface tactique avec la session persistée ;
+- plateau avertissant explicitement que son combat manuel n'est pas un résultat
+  de campagne ;
+- aucune acquisition, attaque ou fixture ajoutée à la campagne Archives ;
+- restauration navigateur couverte.
+
+7B livré le 2026-07-29 :
+
+- projections personnage, équipe, adversaire et carte résolues par des
+  adaptateurs injectés, sans fiche locale ou personnage d'exemple ;
+- zones, terrain, dangers, lumière et visibilité confrontés à la graine ;
+- types d'adversaires et positions exacts chargés depuis les catalogues et la
+  projection ;
+- configuration libre contournée et démarrage automatique du plateau ;
+- refus avant combat des références absentes, équipes incohérentes, grilles
+  insuffisantes, positions impraticables, surprises et alliés non supportés ;
+- contexte lié au `processId` conservé dans la surface tactique ;
+- contrat, test déterministe, test navigateur et guide français ajoutés.
+
+7C-A livré le 2026-07-30 :
+
+- journal du plateau conservé dans un snapshot de frontière de tour ;
+- état des participants, ressources, initiative et carte committé dans un
+  checkpoint révisionné et protégé par empreinte ;
+- rejeu idempotent d'une même sauvegarde ;
+- checkpoint restauré avec la défense active puis injecté dans `GameBoard` ;
+- rechargement navigateur sans régénération de carte ni nouveau jet
+  d'initiative.
+
+7C-B livré le 2026-07-30 :
+
+- durée de round et mapping des fins fournis par la projection, sans décision
+  lexicale du plateau ;
+- checkpoint terminal exigé avant l'outcome ;
+- état final, ressources, positions, journal et neutralisations conservés dans
+  `TacticalOutcomeV1` ;
+- conséquences personnage et bastion laissées comme candidats non appliqués ;
+- outcome et processus en attente persistés atomiquement et rejouables ;
+- session en attente restaurable puis retour vers la surface narration.
+
+7C-C livré le 2026-07-30 :
+
+- registre injecté d'autorités, sans propriétaire implicite ;
+- PV confrontés aux agrégats personnage et projection tactique ;
+- incident confronté au registre de bastion actif ;
+- interprétation de la condition terminale déléguée à une politique injectée ;
+- temps, deltas, processus et outcome intégrés atomiquement ;
+- rejeu idempotent sans double dégât ;
+- continuation MJ déterministe persistée depuis l'événement public résolu.
+
+Le vertical technique 7C est fermé. La prochaine étape est de brancher des
+catalogues, références et causes de bastion réels dans une campagne jouable,
+sans amorçage artificiel des Archives.
+
+8A livré le 2026-07-30 :
+
+- constructeur de graine alimenté par un catalogue de rencontre injecté ;
+- projection joueur confrontée aux agrégats personnage réels ;
+- références personnage conservées jusqu'au retour 7C ;
+- carte, adversaires et fins définis par le catalogue, sans table runtime ;
+- résolution terminale issue de la même entrée cataloguée ;
+- payload privé de la cause exclu du seed ;
+- factory du contrôleur réunissant entrée, préparation et autorités de retour.
+
+8B livré le 2026-07-30 :
+
+- profil du personnage actif persisté atomiquement au bootstrap ;
+- références des agrégats canonique, tactique, narratif et position conservées
+  sans recopier la fiche ;
+- dépendances contenu et règles confrontées à celles de la campagne ;
+- résolveur relisant le profil et les agrégats avant projection ;
+- adaptateur GameBoard injecté, sans personnage d'exemple de secours ;
+- équipe joueur déclarée par la rencontre et non déduite par le runtime ;
+- catalogue de défense chargé depuis l'entrée versionnée du paquet épinglé.
+
+8C livré le 2026-07-30 :
+
+- cause relue exclusivement depuis une opération et un événement committés ;
+- politique injectée responsable de comprendre la source monde ou intrigue ;
+- cible limitée aux bastions actifs et refus d'une identité périmée ;
+- aucune décision fondée sur le nom ou le texte de l'événement ;
+- frontière calme sans opération, commit ou rendu ;
+- commande dérivée de manière déterministe et rejeu idempotent ;
+- défense tactique réelle passant par cette nouvelle frontière ;
+- données privées de la cause exclues du routage et de la projection.
+
+8D livré le 2026-07-30 :
+
+- campagne IndexedDB isolée réellement bootstrapée depuis la sortie actuelle
+  du créateur de personnage ;
+- paquet de contenu, profil actif et catalogue de défense versionnés relus ;
+- cause monde committée routée vers un bastion actif sans exposer son payload
+  privé ;
+- ouverture réelle de `GameBoard`, checkpoint puis restauration après
+  rechargement ;
+- outcome terminal, validations propriétaires, temps et deltas intégrés
+  atomiquement ;
+- continuation publique restaurée exactement une fois après un nouveau
+  rechargement ;
+- aucun raid ou bastion de test ajouté à la campagne Archives ;
+- défauts d'intégration corrigés sur la longueur des identifiants persistants,
+  les textures Pixi chargées tardivement et l'idempotence de l'entrée de scène
+  sociale après avance de l'horloge.
+
+Le lot 8 et le vertical bastion-tactique sont fermés par une preuve navigateur
+complète. La prochaine étape n'est pas une nouvelle autorité métier : le lot 9
+doit d'abord cadrer le chemin de campagne réellement accessible dans le build
+principal et son ordre avec la consolidation restante de la simulation du
+monde.
+
+9A livré le 2026-07-30 :
+
+- entrée principale, pilote Archives, stockage legacy des fiches, bootstrap,
+  contenu généré et simulation de carte audités dans le code ;
+- absence de résolveur de contenu/ruleset installé confirmée ;
+- cycle de scène manquant au bootstrap réel et usages résiduels des identités
+  `PROTOTYPE_*` recensés ;
+- différence entre simulation React et événement monde committé explicitée ;
+- contrat du lot 9 découpé en 9B liaisons, 9C porte d'entrée, 9D composition,
+  9E simulation et 9F certification du build principal ;
+- première frontière fixée : créer ou reprendre une campagne depuis une fiche
+  validée avant d'exposer les commandes métier.
+
+9B livré le 2026-07-30 :
+
+- identités runtime regroupées dans `campaign-runtime-bindings/1` et validées ;
+- constantes historiques limitées au profil du pilote ;
+- contrôleur, transition cataloguée, création dynamique, frontières de scène
+  et reprise de jet capables de lire les agrégats propres à une campagne ;
+- première scène activée par un commit idempotent qui complète la position et
+  crée son cycle de scène ;
+- gate 8D rejouée avec des identifiants non-prototype, sans amorçage manuel du
+  cycle de scène.
+
+9C livré le 2026-07-30 :
+
+- paquet `campaign-bootstrap/2` généré pour le navigateur sans livrer le texte
+  wiki auteur brut ;
+- catalogues du créateur et ruleset MVP résolus depuis les sources installées ;
+- fiche active lue et diagnostiquée uniquement par un adaptateur UI ;
+- campagne identifiée par la version exacte de sa sauvegarde de départ, puis
+  bootstrapée et reprise sans réimport silencieux ;
+- entrée réelle `créer / reprendre / pilote Archives` certifiée dans Chromium ;
+- refus avant écriture d'une fiche dont une référence catalogue est absente.
+
 Références :
 
 - [`Audit-lot-6-scenarios-005-009.md`](Audit-lot-6-scenarios-005-009.md) ;
-- [`Contrat-repos-narratif-minimal.md`](Contrat-repos-narratif-minimal.md).
+- [`Contrat-repos-narratif-minimal.md`](Contrat-repos-narratif-minimal.md) ;
+- [`Contrat-routeur-evenements-orchestrateur.md`](Contrat-routeur-evenements-orchestrateur.md) ;
+- [`Contrat-cible-monde-vivant-et-initiative-pnj.md`](Contrat-cible-monde-vivant-et-initiative-pnj.md) ;
+- [`Contrat-etat-social-durable-et-initiative-locale.md`](Contrat-etat-social-durable-et-initiative-locale.md) ;
+- [`Contrat-noyau-intrigue-et-revelation-bornee.md`](Contrat-noyau-intrigue-et-revelation-bornee.md) ;
+- [`Matrice-certification-gate-6V-monde-vivant.md`](Matrice-certification-gate-6V-monde-vivant.md) ;
+- [`Contrat-progression-personnage-bornee.md`](Contrat-progression-personnage-bornee.md) ;
+- [`Contrat-bastion-minimal.md`](Contrat-bastion-minimal.md) ;
+- [`Contrat-integration-jouable-bastion-tactique.md`](Contrat-integration-jouable-bastion-tactique.md).
+- [`Guide-defense-bastion-et-plateau-tactique.md`](Guide-defense-bastion-et-plateau-tactique.md).
 
 ## Méthode obligatoire pour chaque lot
 
@@ -339,7 +659,10 @@ Références :
 7. Exécuter le build global.
 8. Relire le diff et le statut Git, puis mettre à jour ce document seulement si
    l'état ou l'ordre change.
-9. Garder `TASKS.md` court et ne créer aucun commit sans demande explicite.
+9. À la clôture d'un lot fonctionnel, créer ou mettre à jour un guide en
+   français expliquant le fonctionnement, des exemples, les commandes de test
+   et les limites encore non jouables.
+10. Garder `TASKS.md` court et ne créer aucun commit sans demande explicite.
 
 ## Règles documentaires
 
@@ -353,3 +676,6 @@ Références :
   dans `TASKS.md`.
 - Toute nouvelle documentation doit être ajoutée à l'index avec un rôle clair :
   `ACTIF`, `PREUVE_HISTORIQUE` ou `ARCHIVE`.
+- Les guides français sont des documents `ACTIF` destinés à la compréhension et
+  aux futurs tests fonctionnels ; ils distinguent toujours preuve automatisée
+  et fonctionnalité réellement accessible dans le build principal.

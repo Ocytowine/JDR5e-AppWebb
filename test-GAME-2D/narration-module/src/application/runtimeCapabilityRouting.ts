@@ -1,6 +1,7 @@
 import type { AiIntentRuntimeHandlingV1, AiStructuredSemanticIntentV1 } from "../ai/types";
 
 export const NARRATIVE_RUNTIME_CAPABILITY_REGISTRY_VERSION_V1 = "narrative-runtime-capability-registry/1" as const;
+export const NARRATIVE_RUNTIME_CAPABILITY_REGISTRY_VERSION_V2 = "narrative-runtime-capability-registry/2" as const;
 export type NarrativeRuntimeDomainV1 = NonNullable<AiIntentRuntimeHandlingV1["requiredDomain"]>;
 export type NarrativeRuntimeRouteDispositionV1 = "HANDLE" | "HANDOFF" | "CLARIFY";
 export type NarrativeRuntimeCommandFamilyV1 = "SPEECH" | "PERCEPTION" | "SCENE_INTERACTION" | "HANDOFF" | "NONE";
@@ -26,6 +27,15 @@ export interface NarrativeRuntimeRouteV1 {
   commitPolicy: "FORBIDDEN" | "DOMAIN_VALIDATED";
   noGameTime: true;
   reason: string;
+}
+
+export interface NarrativeRuntimeAvailabilityV2 {
+  rest: boolean;
+}
+
+export interface NarrativeRuntimeRouteV2 extends Omit<NarrativeRuntimeRouteV1, "registryVersion" | "noGameTime"> {
+  registryVersion: typeof NARRATIVE_RUNTIME_CAPABILITY_REGISTRY_VERSION_V2;
+  noGameTime: boolean;
 }
 
 export const NARRATIVE_RUNTIME_CAPABILITIES_V1: readonly NarrativeRuntimeCapabilityV1[] = [
@@ -66,6 +76,48 @@ export function routeNarrativeSemanticIntentV1(input: {
     return handoffRoute(suggestedDomain);
   }
   return clarifyRoute("Aucune capacité ouverte ne correspond à l'intention sémantique; le sens n'est pas forcé dans scene_resolution.");
+}
+
+/**
+ * V2 conserve le registre fermé par défaut, mais permet au contrôleur d'ouvrir
+ * un domaine uniquement lorsqu'un propriétaire effectif lui a été injecté.
+ * La disponibilité ne change jamais le sens proposé par l'interpréteur.
+ */
+export function routeNarrativeSemanticIntentV2(input: {
+  semanticIntent: AiStructuredSemanticIntentV1;
+  runtimeSuggestion: AiIntentRuntimeHandlingV1 | null;
+  availability: NarrativeRuntimeAvailabilityV2;
+}): NarrativeRuntimeRouteV2 {
+  const legacy = routeNarrativeSemanticIntentV1(input);
+  const committedRest =
+    input.runtimeSuggestion?.requiredDomain === "rest" &&
+    input.semanticIntent.commitment === "committed" &&
+    input.semanticIntent.confidence !== "low" &&
+    input.semanticIntent.kind !== "unclear_intent";
+  if (committedRest && input.availability.rest) {
+    return {
+      ...legacy,
+      registryVersion: NARRATIVE_RUNTIME_CAPABILITY_REGISTRY_VERSION_V2,
+      routeId: "capability:rest.process",
+      capabilityId: "rest.process",
+      disposition: "HANDLE",
+      requiredDomain: "rest",
+      commandFamily: "HANDOFF",
+      commitPolicy: "DOMAIN_VALIDATED",
+      noGameTime: false,
+      reason: "Le propriétaire du repos est disponible; il valide les choix, le temps et le commit du processus."
+    };
+  }
+  if (committedRest) {
+    return {
+      ...handoffRoute("rest"),
+      registryVersion: NARRATIVE_RUNTIME_CAPABILITY_REGISTRY_VERSION_V2
+    };
+  }
+  return {
+    ...legacy,
+    registryVersion: NARRATIVE_RUNTIME_CAPABILITY_REGISTRY_VERSION_V2
+  };
 }
 
 function shouldHonorClosedDomain(semantic: AiStructuredSemanticIntentV1, domain: NarrativeRuntimeDomainV1): boolean {

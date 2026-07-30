@@ -402,7 +402,8 @@ function semanticIntentFor(req, intent) {
         contentGoal: intent.coreMeaning,
         addresseeRef: intent.target?.ref ?? null
       }
-      : null
+      : null,
+    restPlan: null
   };
 }
 

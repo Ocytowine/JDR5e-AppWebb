@@ -15,17 +15,16 @@ import {
   DYNAMIC_PLACE_TOPOLOGY_AGGREGATE_ID_V1
 } from "./placeCreationRuntime";
 import {
-  PROTOTYPE_CURSOR_AGGREGATE_ID_V1,
-  PROTOTYPE_POSITION_AGGREGATE_ID_V1,
-  PROTOTYPE_PROCESS_AGGREGATE_ID_V1,
-  PROTOTYPE_SCENE_LIFECYCLE_AGGREGATE_ID_V1,
-  PROTOTYPE_SCHEDULE_AGGREGATE_ID_V1,
   readOptionalPrototypeAggregateV1
 } from "./prototypeSceneTransitionRuntime";
 import type { PlaceCreationValidationPolicyV1 } from "./placeCreationValidation";
 import type { SceneTransitionWorldCommandV1 } from "./sceneTransitionAdapter";
 import type { PlayableSceneStateV1 } from "./playableScene";
 import type { SceneTransitionTopologyV1 } from "./sceneTransition";
+import {
+  PROTOTYPE_CAMPAIGN_RUNTIME_BINDINGS_V1,
+  type CampaignRuntimeBindingsV1
+} from "./campaignRuntimeBindings";
 
 const DEFAULT_TRANSITION_SECONDS = 8;
 
@@ -38,8 +37,11 @@ export function createCampaignLoreGuidedDynamicPlaceRuntimeV1(input: {
   generatorConfig: LoreGuidedPlaceCandidateGeneratorConfigV2;
   actorRef?: string;
   transitionSeconds?: number;
+  runtimeBindings?: CampaignRuntimeBindingsV1;
 }) {
   const transitionSeconds = input.transitionSeconds ?? DEFAULT_TRANSITION_SECONDS;
+  const bindings =
+    input.runtimeBindings ?? PROTOTYPE_CAMPAIGN_RUNTIME_BINDINGS_V1;
   return createDynamicPlaceEntryRuntimeV1(createLoreGuidedDynamicPlacePreparationPortV1({
     contextPort: {
       async canCreate(request) {
@@ -121,11 +123,11 @@ export function createCampaignLoreGuidedDynamicPlaceRuntimeV1(input: {
         const arrivalSceneId = typeof place.arrivalSceneId === "string" ? place.arrivalSceneId : null;
         if (arrivalSceneId === null) return failure("narrative.dynamic-place.arrival-scene-missing");
         const [position, lifecycle, clock, schedule, cursor] = await Promise.all([
-          request.repository.getAggregate(request.campaign.campaignId, "world.position", PROTOTYPE_POSITION_AGGREGATE_ID_V1),
-          request.repository.getAggregate(request.campaign.campaignId, "scene.lifecycle", PROTOTYPE_SCENE_LIFECYCLE_AGGREGATE_ID_V1),
+          request.repository.getAggregate(request.campaign.campaignId, "world.position", bindings.positionAggregateId),
+          request.repository.getAggregate(request.campaign.campaignId, "scene.lifecycle", bindings.sceneLifecycleAggregateId),
           request.repository.getAggregate(request.campaign.campaignId, "world.clock", request.campaign.clockAggregateId),
-          readOptionalPrototypeAggregateV1(request.repository, request.campaign.campaignId, "world.schedule", PROTOTYPE_SCHEDULE_AGGREGATE_ID_V1),
-          readOptionalPrototypeAggregateV1(request.repository, request.campaign.campaignId, "world.simulation-cursor", PROTOTYPE_CURSOR_AGGREGATE_ID_V1)
+          readOptionalPrototypeAggregateV1(request.repository, request.campaign.campaignId, "world.schedule", bindings.scheduleAggregateId),
+          readOptionalPrototypeAggregateV1(request.repository, request.campaign.campaignId, "world.simulation-cursor", bindings.simulationCursorAggregateId)
         ]);
         if (!position.ok) return position; if (!lifecycle.ok) return lifecycle; if (!clock.ok) return clock; if (!schedule.ok) return schedule; if (!cursor.ok) return cursor;
         if (lifecycle.value.payload.activeSceneId !== request.activeScene.sceneId) return failure("narrative.dynamic-place.active-scene-changed");
@@ -148,9 +150,9 @@ export function createCampaignLoreGuidedDynamicPlaceRuntimeV1(input: {
         if (!batch.ok || batch.value === null) return failure("narrative.dynamic-place.temporal-plan-rejected", { diagnostics: batch.ok ? [] : batch.diagnostics });
         const temporal = await prepareTemporalSegmentCommitV1({
           campaign: request.campaign, operation: request.operation, writerLease: request.writerLease,
-          clockAggregate: clock.value, scheduleAggregate: schedule.value, scheduleAggregateId: PROTOTYPE_SCHEDULE_AGGREGATE_ID_V1,
-          simulationCursorAggregate: cursor.value, simulationCursorAggregateId: PROTOTYPE_CURSOR_AGGREGATE_ID_V1,
-          processAggregate: null, processAggregateId: PROTOTYPE_PROCESS_AGGREGATE_ID_V1, nextProcess: null, batch: batch.value,
+          clockAggregate: clock.value, scheduleAggregate: schedule.value, scheduleAggregateId: bindings.scheduleAggregateId,
+          simulationCursorAggregate: cursor.value, simulationCursorAggregateId: bindings.simulationCursorAggregateId,
+          processAggregate: null, processAggregateId: bindings.processAggregateId, nextProcess: null, batch: batch.value,
           operationBinding: { mode: "COMPOSITE_DOMAIN_COMMIT", domainCommandId: opaqueId<CommandId>(commandId), batchFingerprint: batch.value.batchFingerprint },
           resolutions: [{ taskId: task.taskId, outcome: "RESOLVED", eventId: opaqueId<EventId>(`${request.operation.operationId}:event:dynamic-transition-time`), eventType: "world.scene-transition.time-resolved", origin: "PLAYER_INTENT", visibility: { scope: "SYSTEM", actorIds: [] }, payload: { durationSeconds: transitionSeconds } }],
           newEffects: [], commitId: opaqueId<CommitId>(`${request.operation.operationId}:commit:dynamic-place-entry`), commandId: opaqueId<CommandId>(`${request.operation.operationId}:command:time`)
@@ -160,7 +162,7 @@ export function createCampaignLoreGuidedDynamicPlaceRuntimeV1(input: {
           placeRegistryAggregateId: DYNAMIC_PLACE_REGISTRY_AGGREGATE_ID_V1, topologyAggregateId: DYNAMIC_PLACE_TOPOLOGY_AGGREGATE_ID_V1,
           factRegistryAggregateId: DYNAMIC_PLACE_FACTS_AGGREGATE_ID_V1, positionAggregate: position.value,
           sceneLifecycleAggregate: lifecycle.value, temporalCommit: temporal.value, transitionCommand: command,
-          worldResult: { schemaVersion: 1, contractVersion: "world-prepared-scene-transition/1", commandId, requestId, confirmedDestinationRef: incoming.destinationRef, arrivalSceneId, durationSeconds: transitionSeconds, effectiveAtGameSecond: currentGameSecond + transitionSeconds, positionAggregateId: PROTOTYPE_POSITION_AGGREGATE_ID_V1, expectedPositionRevision: position.value.aggregateRevision, nextPositionPayload: { ...position.value.payload, canonicalLocationRef: incoming.destinationRef }, sourceRefs: incoming.sourceRefs, worldAuthority: true, version: 1 },
+          worldResult: { schemaVersion: 1, contractVersion: "world-prepared-scene-transition/1", commandId, requestId, confirmedDestinationRef: incoming.destinationRef, arrivalSceneId, durationSeconds: transitionSeconds, effectiveAtGameSecond: currentGameSecond + transitionSeconds, positionAggregateId: bindings.positionAggregateId, expectedPositionRevision: position.value.aggregateRevision, nextPositionPayload: { ...position.value.payload, canonicalLocationRef: incoming.destinationRef }, sourceRefs: incoming.sourceRefs, worldAuthority: true, version: 1 },
           placeCommandId: `${request.operation.operationId}:command:create-place`, commitId: opaqueId<CommitId>(`${request.operation.operationId}:commit:dynamic-place-entry`),
           currentGameSecond, characterExpression: request.rawInput.trim(), authoritySourceRefs: request.creative.validation.proposal.existingFactRefsUsed
         } };

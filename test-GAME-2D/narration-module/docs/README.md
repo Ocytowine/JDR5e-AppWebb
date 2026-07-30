@@ -16,6 +16,7 @@ avec un ancien plan de travail.
 ### Autorité, campagne et persistance
 
 - [`Matrice-autorite.md`](Matrice-autorite.md)
+- [`Contrat-integration-campagne-jouable-build-principal.md`](Contrat-integration-campagne-jouable-build-principal.md)
 - [`Contrat-autorite-mission-relation.md`](Contrat-autorite-mission-relation.md)
 - [`Contrat-projection-campagne-sur-lore.md`](Contrat-projection-campagne-sur-lore.md)
 - [`Contrat-noyau-campagne.md`](Contrat-noyau-campagne.md)
@@ -65,14 +66,55 @@ avec un ancien plan de travail.
 
 - [`Audit-lot-6-scenarios-005-009.md`](Audit-lot-6-scenarios-005-009.md)
 - [`Contrat-repos-narratif-minimal.md`](Contrat-repos-narratif-minimal.md)
+- [`Contrat-routeur-evenements-orchestrateur.md`](Contrat-routeur-evenements-orchestrateur.md)
+- [`Contrat-cible-monde-vivant-et-initiative-pnj.md`](Contrat-cible-monde-vivant-et-initiative-pnj.md)
+- [`Contrat-etat-social-durable-et-initiative-locale.md`](Contrat-etat-social-durable-et-initiative-locale.md)
+- [`Contrat-noyau-intrigue-et-revelation-bornee.md`](Contrat-noyau-intrigue-et-revelation-bornee.md)
+- [`Contrat-progression-personnage-bornee.md`](Contrat-progression-personnage-bornee.md)
+- [`Contrat-bastion-minimal.md`](Contrat-bastion-minimal.md)
+- [`Contrat-integration-jouable-bastion-tactique.md`](Contrat-integration-jouable-bastion-tactique.md)
+- [`Contrat-alimentation-campagne-bastion-tactique.md`](Contrat-alimentation-campagne-bastion-tactique.md)
 - [`Contrat-handoffs-tactique-repos.md`](Contrat-handoffs-tactique-repos.md)
 - [`Integration-domaines.md`](Integration-domaines.md)
 - [`Coherence-intrigues.md`](Coherence-intrigues.md)
 - [`Creations-dynamiques.md`](Creations-dynamiques.md)
 - [`Memoire-et-rappel.md`](Memoire-et-rappel.md)
 
+## Guides en français
+
+- [`Guide-bastion-fonctionnement-et-tests.md`](Guide-bastion-fonctionnement-et-tests.md)
+  explique les lots 6F-B à 6F-E, leurs exemples, les commandes de vérification
+  et la frontière entre preuve automatisée et parcours jouable dans le build
+  principal.
+- [`Guide-pnj-compagnons-et-initiative.md`](Guide-pnj-compagnons-et-initiative.md)
+  distingue présence ambiante, acteur local, PNJ durable, occupant et futur
+  compagnon.
+- [`Guide-repos-et-progression.md`](Guide-repos-et-progression.md) explique le
+  repos segmenté, les interruptions, les bénéfices en attente et la progression
+  de classe.
+- [`Guide-lieux-connus-crees-et-deplacements.md`](Guide-lieux-connus-crees-et-deplacements.md)
+  explique lore, connaissances, topologie, déplacements et création dynamique.
+- [`Guide-defense-bastion-et-plateau-tactique.md`](Guide-defense-bastion-et-plateau-tactique.md)
+  explique la restauration d'une défense, son adaptation vérifiée à
+  `GameBoard`, les refus protecteurs, l'intégration complète du lot 7C et la
+  certification navigateur de campagne du lot 8.
+- [`Guide-creer-et-reprendre-une-campagne.md`](Guide-creer-et-reprendre-une-campagne.md)
+  explique la fiche active, les diagnostics, la création, la reprise et
+  l'isolement du pilote Archives.
+- [`Guide-composition-campagne-lot-9D.md`](Guide-composition-campagne-lot-9D.md)
+  explique pourquoi repos, progression, bastion et défense n'apparaissent que
+  depuis un état de campagne committé.
+- [`Guide-simulation-monde-campagne-lot-9E.md`](Guide-simulation-monde-campagne-lot-9E.md)
+  explique l'avance persistante de la carte, son commit atomique, les signaux
+  narratifs locaux et les refus protecteurs.
+- [`Recette-campagne-build-principal-lot-9F.md`](Recette-campagne-build-principal-lot-9F.md)
+  décrit le test manuel depuis la vraie entrée et la gate complète qui ferme le
+  lot 9.
+
 ## Scénarios et preuves
 
+- [`Matrice-certification-gate-6V-monde-vivant.md`](Matrice-certification-gate-6V-monde-vivant.md)
+  certifie la verticale transverse PNJ, intrigue, monde et temps.
 - [`Scenarios-acceptation.md`](Scenarios-acceptation.md) décrit les comportements
   observables.
 - [`Matrice-couverture-scenarios.md`](Matrice-couverture-scenarios.md) relie les

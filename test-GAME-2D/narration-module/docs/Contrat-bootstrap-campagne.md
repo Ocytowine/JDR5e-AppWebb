@@ -301,6 +301,14 @@ La projection narrative contient uniquement ce qui peut être utile au MJ : iden
 - `knownToPlayer` : connu du joueur mais pas nécessairement visible;
 - `privateMechanical` : utilisable par les règles, jamais exposé comme observation.
 
+Le bootstrap persiste aussi `campaign.active-character-profile`. Ce profil ne
+copie aucune projection : il relie le personnage actif à ses agrégats
+`character.state`, `character.tactical-projection`,
+`character.narrative-projection` et `world.position`, tout en conservant les
+versions de contenu et de règles épinglées. Les intégrations comme la défense
+de bastion peuvent ainsi retrouver les propriétaires exacts sans consulter
+l'état React, `localStorage` ou un personnage d'exemple.
+
 Les beaux vêtements, signes d'unité, symboles sacrés, armes visibles, salissures et dégradations peuvent fournir des facteurs contextuels à une résolution sociale. Ils ne changent pas le score ni le modificateur de Charisme. La règle sociale doit citer les facteurs réellement observables et peut produire avantage, désavantage, seuil ou réaction selon le ruleset; la prose ne crée pas ce bonus.
 
 ### 5.4 Recalcul unique
@@ -520,7 +528,7 @@ L'opération `campaign.bootstrap` suit cet ordre sans écrire avant l'étape 8 :
 4. vérifier le lieu initial et sa chaîne géographique;
 5. importer la fiche et produire les diagnostics;
 6. recalculer les dérivés et construire les projections;
-7. préparer campagne, horloge, personnage, position initiale et références épinglées;
+7. préparer campagne, horloge, personnage, profil actif, position initiale et références épinglées;
 8. persister atomiquement campagne, opération, agrégats, commit et événement `campaign.bootstrapped` avec `CampaignBootstrapRepository`;
 9. retourner le résultat idempotent existant en cas de répétition identique.
 
@@ -528,7 +536,10 @@ Les empreintes de l'enveloppe, du paquet, du ruleset et de la source personnage 
 
 L'implémentation `CampaignBootstrapServiceV1` suit cette séquence derrière deux ports de résolution. Elle vérifie l'identité et la racine du manifeste, chaque source et payload, la parité des entités lore et de leur provenance, ainsi que la présence des entrées de catalogue utilisées par l'import. Elle recalcule niveau, modificateurs, maîtrise, points de vie, classe d'armure et perception passive via le `RuleRegistry`, puis remet une seule requête au `CampaignBootstrapRepository`.
 
-La suite `narration-module:test:orchestration` couvre le démarrage aux Archives de Lysenthe, les six agrégats initiaux, l'événement, le rejeu idempotent et huit frontières de rejet sans campagne partielle. Les jonctions UI, créateur et plateau restent volontairement hors de ce service.
+La suite `narration-module:test:orchestration` couvre le démarrage aux Archives
+de Lysenthe, les sept agrégats initiaux dont le profil actif, l'événement, le
+rejeu idempotent et huit frontières de rejet sans campagne partielle. Les
+jonctions UI, créateur et plateau restent volontairement hors de ce service.
 
 ## 9. Preuves exigées pour fermer I-02
 

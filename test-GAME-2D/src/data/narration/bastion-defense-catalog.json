@@ -1,0 +1,137 @@
+{
+  "schemaVersion": 1,
+  "contractVersion": "bastion-defense-encounter-catalog/1",
+  "catalogId": "catalog:bastion-defense-production-v1",
+  "definitions": [
+    {
+      "schemaVersion": 1,
+      "contractVersion": "bastion-defense-encounter-catalog/1",
+      "incidentDefinitionRef": "incident-definition:bastion-raid-v1",
+      "playerTeamId": "bastion-defenders",
+      "rulesetRef": {
+        "kind": "ruleset",
+        "id": "rules.jdr5e:2"
+      },
+      "objectives": [
+        {
+          "teamId": "bastion-defenders",
+          "objective": "protect_the_bastion"
+        }
+      ],
+      "hostileParticipants": [
+        {
+          "actorId": "bastion-raider:brute-1",
+          "gameBoardProjection": {
+            "schemaVersion": 1,
+            "contractVersion": "game-board-actor-projection/1",
+            "actorId": "bastion-raider:brute-1",
+            "teamId": "bastion-raiders",
+            "side": "ENEMY",
+            "enemyTypeId": "brute"
+          }
+        }
+      ],
+      "teams": [
+        {
+          "teamId": "bastion-defenders",
+          "actors": [
+            "$ACTIVE_CAMPAIGN_CHARACTER"
+          ]
+        },
+        {
+          "teamId": "bastion-raiders",
+          "actors": [
+            "bastion-raider:brute-1"
+          ]
+        }
+      ],
+      "tacticalMapRef": null,
+      "mapGenerationRequest": {
+        "gameBoardProjection": {
+          "schemaVersion": 1,
+          "contractVersion": "game-board-map-projection/1",
+          "mapRef": "map:bastion-defense-courtyard-v1",
+          "prompt": "cour fortifiée de bastion, accès principal dégagé et abris de défense",
+          "grid": {
+            "cols": 12,
+            "rows": 10
+          },
+          "roundDurationSeconds": 6,
+          "representedEntryZoneIds": [
+            "bastion-courtyard"
+          ],
+          "representedExitZoneIds": [
+            "outer-road"
+          ],
+          "representedTerrainIds": [],
+          "representedHazardIds": [],
+          "lightingAndVisibility": {
+            "light": "night",
+            "visibility": "dim"
+          },
+          "terminalConditions": {
+            "allEnemiesNeutralized": "all_hostiles_neutralized",
+            "playerDefeated": "bastion_overrun"
+          }
+        }
+      },
+      "entryZones": [
+        {
+          "zoneId": "bastion-courtyard"
+        }
+      ],
+      "exitZones": [
+        {
+          "zoneId": "outer-road"
+        }
+      ],
+      "knownTerrain": [],
+      "lightingAndVisibility": {
+        "light": "night",
+        "visibility": "dim"
+      },
+      "weatherAndHazards": [],
+      "initialPositions": [
+        {
+          "actorId": "$ACTIVE_CAMPAIGN_CHARACTER",
+          "x": 2,
+          "y": 4
+        },
+        {
+          "actorId": "bastion-raider:brute-1",
+          "x": 8,
+          "y": 4
+        }
+      ],
+      "surpriseState": {
+        "surprisedActors": []
+      },
+      "allowedEndConditions": [
+        "all_hostiles_neutralized",
+        "bastion_overrun"
+      ],
+      "resolutions": [
+        {
+          "schemaVersion": 1,
+          "endCondition": "all_hostiles_neutralized",
+          "resolutionCode": "BASTION_DEFENDED",
+          "bastionStatus": "ACTIVE",
+          "publicNarrative": "Les assaillants se replient ; le bastion reste aux mains de ses défenseurs."
+        },
+        {
+          "schemaVersion": 1,
+          "endCondition": "bastion_overrun",
+          "resolutionCode": "BASTION_LOST",
+          "bastionStatus": "LOST",
+          "publicNarrative": "La défense cède et le bastion tombe aux mains des assaillants."
+        }
+      ],
+      "sourceRefs": [
+        {
+          "kind": "catalog-entry",
+          "id": "catalog:bastion-defense-production-v1"
+        }
+      ]
+    }
+  ]
+}

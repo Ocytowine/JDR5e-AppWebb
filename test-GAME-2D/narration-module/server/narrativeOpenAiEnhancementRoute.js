@@ -235,7 +235,7 @@ function buildRolePayloadSchema(requestOrRole) {
               semanticIntent: {
                 type: "object",
                 additionalProperties: false,
-                required: ["schemaVersion", "kind", "playerGoal", "target", "commitment", "evidenceFromInput", "uncertainties", "forbiddenInterpretations", "confidence", "perception", "dialogueAct"],
+                required: ["schemaVersion", "kind", "playerGoal", "target", "commitment", "evidenceFromInput", "uncertainties", "forbiddenInterpretations", "confidence", "perception", "dialogueAct", "restPlan"],
                 properties: {
                   schemaVersion: { enum: [1] },
                   kind: { enum: ["address_visible_actor", "move_near_visible_actor", "manipulate_visible_object", "traverse_visible_boundary", "observe_environment", "nonverbal_signal", "hypothetical_action", "context_question", "meta_request", "unclear_intent"] },
@@ -283,6 +283,17 @@ function buildRolePayloadSchema(requestOrRole) {
                         act: { enum: ["INITIATE_CONVERSATION", "ASK_QUESTION", "MAKE_STATEMENT", "REQUEST_ACTION", "OTHER"] },
                         contentGoal: { type: "string" },
                         addresseeRef: { type: ["string", "null"] }
+                      }
+                    }, { type: "null" }]
+                  },
+                  restPlan: {
+                    anyOf: [{
+                      type: "object",
+                      additionalProperties: false,
+                      required: ["schemaVersion", "restKind"],
+                      properties: {
+                        schemaVersion: { enum: [1] },
+                        restKind: { enum: ["SHORT_REST", "LONG_REST", null] }
                       }
                     }, { type: "null" }]
                   }
@@ -1273,6 +1284,7 @@ function buildRoleInstructions(request) {
       "Utilise diagnostics=[] si tout va bien, supersedesOutputId=null et status=OK pour une sortie utilisable.",
       "Role player_intent_interpreter: produire une intention structuree, pas un resultat.",
       "Chaque intention doit remplir semanticIntent: kind, playerGoal, target, commitment, evidenceFromInput, uncertainties, forbiddenInterpretations, confidence, perception et dialogueAct.",
+      "Si requiredDomain=rest, ajoute semanticIntent.restPlan avec restKind=SHORT_REST, LONG_REST ou null selon ce que le joueur a réellement précisé. Sinon restPlan peut être null ou absent. Ne déduis jamais le type de repos par préférence.",
       "Pour observe_environment, perception est obligatoire: GLANCE pour une perception immédiate, FOCUSED pour une attention renforcée, SEARCH pour rechercher activement une information qui peut exiger une vérification. Déduis ce niveau du sens complet de la demande, jamais d'un mot isolé.",
       "Choisis GLANCE par défaut pour une observation ordinaire sans intensification ni objectif de recherche, par exemple 'Je regarde la serveuse'. Ne surclasse jamais une demande ordinaire en FOCUSED par prudence ou pour enrichir la narration.",
       "Choisis FOCUSED seulement si le joueur exprime réellement une attention renforcée, prolongée, précise ou comparative, par exemple 'Je l'observe plus attentivement'. Choisis SEARCH seulement si le joueur cherche à découvrir ou établir une information déterminée au-delà des signes immédiatement visibles.",
@@ -2103,6 +2115,14 @@ function validateIntentSemanticIntent(value, intent, index, allowedSemanticKinds
     if (!["INITIATE_CONVERSATION", "ASK_QUESTION", "MAKE_STATEMENT", "REQUEST_ACTION", "OTHER"].includes(value.dialogueAct.act)) issues.push(`payload.intents[${index}].semanticIntent.dialogueAct.act is invalid.`);
     if (typeof value.dialogueAct.contentGoal !== "string" || value.dialogueAct.contentGoal.trim().length === 0) issues.push(`payload.intents[${index}].semanticIntent.dialogueAct.contentGoal must be a non-empty string.`);
     if (!(value.dialogueAct.addresseeRef === null || typeof value.dialogueAct.addresseeRef === "string")) issues.push(`payload.intents[${index}].semanticIntent.dialogueAct.addresseeRef must be a string or null.`);
+  }
+  if (value.restPlan !== undefined && value.restPlan !== null) {
+    if (!value.restPlan || typeof value.restPlan !== "object" || Array.isArray(value.restPlan)) {
+      issues.push(`payload.intents[${index}].semanticIntent.restPlan must be an object or null.`);
+    } else {
+      if (value.restPlan.schemaVersion !== 1) issues.push(`payload.intents[${index}].semanticIntent.restPlan.schemaVersion must be 1.`);
+      if (![null, "SHORT_REST", "LONG_REST"].includes(value.restPlan.restKind)) issues.push(`payload.intents[${index}].semanticIntent.restPlan.restKind is invalid.`);
+    }
   }
   if (value.target !== null) {
     if (!value.target || typeof value.target !== "object" || Array.isArray(value.target)) {

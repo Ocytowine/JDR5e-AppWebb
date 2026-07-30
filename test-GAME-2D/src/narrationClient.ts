@@ -30,6 +30,7 @@ const buffer: RoundNarrationBuffer = {
 
 let eventCounter = 0;
 const lastSpeechByEnemyGlobal = new Map<string, string>();
+let encounterJournal: CombatEvent[] = [];
 
 export function beginRoundNarrationBuffer(
   round: number,
@@ -78,6 +79,7 @@ export function recordCombatEvent(input: {
     timestamp: Date.now()
   };
   buffer.events.push(evt);
+  encounterJournal.push(evt);
 }
 
 export function recordEnemySpeech(enemyId: string, line: string): void {
@@ -113,6 +115,19 @@ export function getLastSpeechForEnemy(enemyId: string): string | null {
 export function getRecentCombatEvents(limit: number): CombatEvent[] {
   if (!Number.isFinite(limit) || limit <= 0) return buffer.events.slice();
   return buffer.events.slice(-Math.floor(limit));
+}
+
+export function getCombatEventJournal(): CombatEvent[] {
+  return encounterJournal.slice();
+}
+
+export function restoreCombatEventJournal(events: CombatEvent[]): void {
+  encounterJournal = events.slice();
+}
+
+export function resetCombatEventJournal(): void {
+  encounterJournal = [];
+  eventCounter = 0;
 }
 
 export function buildRoundNarrationRequest(input: {

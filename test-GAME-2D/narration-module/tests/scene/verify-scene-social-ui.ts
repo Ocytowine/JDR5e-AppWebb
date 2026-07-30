@@ -233,6 +233,29 @@ assert.equal(packet.displayBlocks[3]?.speaker.displayName, "archiviste nerveuse"
 assert.ok(packet.displayBlocks.every(block => block.ariaLabel.length > 0 && block.roleLabel.length > 0), "l'attribution ne dépend pas de la couleur seule");
 assert.equal(packet.rawInputAccess.available, true, "entrée brute consultable");
 
+const autonomousPacket = {
+  ...packet,
+  operationId: "op-autonomous-018",
+  displayBlocks: packet.displayBlocks.filter(block => block.kind !== "RAW_INPUT"),
+  rawInputAccess: {
+    available: false,
+    operationId: "op-autonomous-018"
+  }
+};
+assert.equal(
+  validateDisplayPacketV1(autonomousPacket).ok,
+  true,
+  "un rendu autonome sans entrée joueur déclare explicitement l'absence d'entrée brute"
+);
+assert.equal(
+  validateDisplayPacketV1({
+    ...autonomousPacket,
+    displayBlocks: packet.displayBlocks
+  }).ok,
+  false,
+  "un bloc d'entrée brute ne peut jamais être affiché comme indisponible"
+);
+
 const logEntries = reconstructInteractionLogEntriesV1({
   campaignId: "campaign-1",
   operationId: renderPlan.operationId,
