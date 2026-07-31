@@ -33,6 +33,7 @@ avec un ancien plan de travail.
 - [`Contrat-execution-composantes-ordonnees-V5.md`](Contrat-execution-composantes-ordonnees-V5.md)
 - [`Contrat-gate-realiste-semantique-V5.md`](Contrat-gate-realiste-semantique-V5.md)
 - [`Contrat-registre-referents-scene.md`](Contrat-registre-referents-scene.md)
+- [`Contrat-contexte-personnage-interpreteur.md`](Contrat-contexte-personnage-interpreteur.md)
 - [`Contrat-routage-capacites-runtime-NAR131.md`](Contrat-routage-capacites-runtime-NAR131.md)
 - [`Contrat-resolution-perceptive.md`](Contrat-resolution-perceptive.md)
 - [`Contrat-resolution-tests-competence.md`](Contrat-resolution-tests-competence.md)

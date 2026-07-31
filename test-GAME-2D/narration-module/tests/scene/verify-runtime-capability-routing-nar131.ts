@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import type { AiIntentRuntimeHandlingV1, AiStructuredSemanticIntentV1 } from "../../src/ai/types";
 import {
   NARRATIVE_RUNTIME_CAPABILITY_REGISTRY_VERSION_V2,
+  buildInterpreterRuntimeContextV1,
   routeNarrativeSemanticIntentV1,
   routeNarrativeSemanticIntentV2
 } from "../../src/application";
@@ -112,5 +113,32 @@ const mentionedRest = routeNarrativeSemanticIntentV2({
 assert.equal(mentionedRest.disposition, "HANDLE");
 assert.equal(mentionedRest.noGameTime, true);
 assert.equal(unclear.requiredDomain, null, "une intention inconnue ne retombe plus par défaut dans scene_resolution");
+
+const interpreterContext = buildInterpreterRuntimeContextV1({
+  sceneTransition: true,
+  dynamicPlace: false,
+  rest: true
+});
+assert.equal(
+  interpreterContext.capabilities.find(entry =>
+    entry.capabilityId === "scene.visible-dialogue"
+  )?.availability,
+  "AVAILABLE",
+  "la vue interpréteur doit être projetée depuis le registre local"
+);
+assert.equal(
+  interpreterContext.capabilities.find(entry =>
+    entry.capabilityId === "rest.process"
+  )?.availability,
+  "AVAILABLE",
+  "un propriétaire injecté rend le repos compréhensible comme capacité raccordée"
+);
+assert.equal(
+  interpreterContext.capabilities.find(entry =>
+    entry.capabilityId === "inventory.mutation"
+  )?.availability,
+  "HANDOFF_ONLY",
+  "le manifeste ne doit jamais ouvrir silencieusement l'inventaire"
+);
 
 console.log("runtime-capability-routing/nar131: OK");

@@ -45,6 +45,59 @@ assert.equal(failureText.includes("secret player input"), false, "entrée brute 
 assert.equal(failureText.includes("secret:hidden-actor"), false, "détail privé non exposé");
 assert.match(narrativeErrorGuidance({ ...safeError, code: "IDEMPOTENCY_CONFLICT" }).summary, /contenu différent/);
 
+const validationPacket = createRuntimeFailurePacket({
+  error: {
+    code: "VALIDATION_FAILED",
+    category: "VALIDATION",
+    retry: "NEVER",
+    messageKey: "core.validation.failed",
+    details: {
+      issues: [
+        "/acceptedCommands/0/commandId must match pattern",
+        "Aggregate payload exceeds 2097152 bytes (2097153)."
+      ]
+    },
+    incidentId: null
+  },
+  operationId: "operation:validation-display",
+  sceneId: "scene:test",
+  context: "Résolution de l'action",
+  rawInput: "Je tente une action précise."
+});
+assert.equal(validationPacket.displayBlocks[0]?.kind, "RAW_INPUT");
+assert.equal(validationPacket.displayBlocks[0]?.text, "Je tente une action précise.");
+assert.match(
+  validationPacket.displayBlocks[1]?.text ?? "",
+  /Détail validation : \/acceptedCommands\/0\/commandId must match pattern/
+);
+
+const postCommitFailurePacket = createRuntimeFailurePacket({
+  error: safeError,
+  operationId: "operation:post-commit-error",
+  sourceOperationId: "confirmed-transition",
+  sceneId: "scene:destination",
+  context: "Composition du monde à l'entrée de scène",
+  primaryActionCommitted: true
+});
+const postCommitFailureText = postCommitFailurePacket.displayBlocks[0]?.text ?? "";
+assert.match(
+  postCommitFailureText,
+  /Action principale confirmée/,
+  "un échec secondaire ne contredit pas le commit principal"
+);
+assert.equal(
+  postCommitFailureText.includes("Action non exécutée"),
+  false,
+  "un échec post-commit ne qualifie pas l'action principale de refusée"
+);
+assert.equal(
+  postCommitFailurePacket.reconstructionRefs.includes(
+    "operation:confirmed-transition:confirmed"
+  ),
+  true,
+  "l'échec secondaire référence explicitement l'opération principale confirmée"
+);
+
 const narrativeSurfaceSource = readFileSync(resolve("src/narration-ui/NarrativeAppSurface.tsx"), "utf8");
 const turnControllerSource = readFileSync(resolve("narration-module/src/application/NarrativeTurnController.ts"), "utf8");
 const openAiRuntimeConfigSource = readFileSync(resolve("src/narration-ui/openAiNarrativeRuntimeConfig.ts"), "utf8");
@@ -60,8 +113,26 @@ assert.equal(narrativeSurfaceSource.includes("restorePendingSkillCheck"), true, 
 assert.equal(narrativeSurfaceSource.includes("restoreSkillCheckResultPackets"), true, "surface restaure les résultats de jets visibles");
 assert.equal(narrativeSurfaceSource.includes("rollPendingSkillCheck"), true, "surface utilise la commande explicite de lancer");
 assert.equal(openAiRuntimeConfigSource.includes("player_intent_interpreter"), true, "mode OpenAI configure aussi l'interpreteur d'intention via fournisseur route serveur");
+assert.equal(openAiRuntimeConfigSource.includes("buildOpenAiMjPlannerConfigV1"), true, "mode OpenAI configure le MJ planner via la route serveur");
+assert.equal(narrativeSurfaceSource.includes("mjPlan: output.mjPlan"), true, "le plan MJ validé est transmis au scene_writer");
+assert.equal(narrativeSurfaceSource.includes('campaignId: "cmp-narrative-prototype"'), false, "le scene_writer reçoit l'identité de la campagne active, jamais celle du pilote en dur");
+assert.equal(
+  narrativeSurfaceSource.match(/controlDecision === "RETURN_CONTROL"/gu)?.length ?? 0,
+  4,
+  "toutes les frontières sociales automatiques attendent la restitution de la main par le bundle causal"
+);
 assert.equal(openAiRuntimeConfigSource.includes("AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V5"), true, "contrat de composantes ordonnées V5 explicite dans la config UI partagée");
 assert.equal(narrativeSurfaceSource.includes("REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1"), true, "amorce UI issue du PlayableSceneStateV1 de reference");
+assert.equal(
+  narrativeSurfaceSource.includes("setOpeningScene(result.value.output.sceneArrival.scene)"),
+  false,
+  "une arrivée ne doit jamais réécrire rétroactivement la scène d'ouverture du fil"
+);
+assert.equal(
+  narrativeSurfaceSource.includes("setCurrentScene(result.value.output.sceneArrival.scene)"),
+  true,
+  "une arrivée met à jour la scène courante séparément de l'ouverture immuable"
+);
 assert.equal(narrativeSurfaceSource.includes("applyNarrativePresentationVariationV1"), true, "surface délègue la variation de présentation au service applicatif");
 assert.equal(narrativeSurfaceSource.includes("function applyLocalPresentationVariation"), false, "surface ne doit pas porter la logique de variation en local");
 assert.equal(narrativeSurfaceSource.includes("function countPriorMetaAnswerBlocks"), false, "surface ne doit pas compter elle-même les réponses de contexte");

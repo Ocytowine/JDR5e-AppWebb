@@ -1,6 +1,7 @@
 # Pipeline et contrats IA
 
-Statut : `RETENU` — pipeline conceptuel, arbitrages, contrats, reprises et sécurité de sortie définis; schémas d'implémentation à produire ultérieurement.
+Statut : `ACTIF` — pipeline, contrats structurés, validation locale et routes
+d'exécution intégrés dans le build principal.
 
 ## Objectif
 
@@ -85,6 +86,14 @@ Appel obligatoire dès que le monde narratif progresse. Il propose les mouvement
 
 Il n'est pas appelé pour une pure question méta, une clarification suspendue ou une opération technique sans effet narratif.
 
+Dans le build principal, le mode OpenAI configure explicitement sa route
+serveur. Le plan accepté est transmis aux performances PNJ et au
+`scene_writer`. Ces consommateurs peuvent suivre ses rythmes, assignations et
+conditions de restitution de la main, mais ils ne peuvent ni exécuter ses
+propositions de commandes ni élargir l'autorité de rendu. En cas d'échec, le
+plan local déterministe conserve l'orchestration et l'incident reste visible
+dans le diagnostic du tour.
+
 ### `player_expression_adapter`
 
 Appel conditionnel chargé de mettre en scène l'action ou la parole du personnage joueur selon ses traits, compétences et registre. Il reçoit une enveloppe sémantique fermée et ne peut ajouter ni objectif, ni consentement, ni information, ni prise de risque absents de l'intention interprétée.
@@ -130,7 +139,21 @@ Sa sortie distingue règle directement applicable, interprétation d'une règle 
 
 ### `scene_writer`
 
-Dans le parcours IA nominal, l'appel est obligatoire pour toute sortie narrative. Il rédige les blocs de narration qui entourent l'expression validée du personnage, les dialogues validés et les résultats committés. Il ne réécrit pas les répliques et ne décide plus du contenu sémantique de la scène. Le rendu déterministe de sécurité utilisé lorsque ce rôle est indisponible n'est pas un appel créatif et constitue l'unique exception prévue.
+Dans le parcours IA nominal, l'appel est conditionnel à une matière narrative
+autorisée qui bénéficie réellement d'une rédaction de scène. Il rédige les
+blocs de narration qui entourent l'expression validée du personnage, les
+dialogues validés et les résultats committés. Il ne réécrit pas les répliques
+et ne décide plus du contenu sémantique de la scène.
+
+Il est omis lorsqu'une orientation immédiate vers une présence déjà visible,
+une clarification ou une réplique PNJ validée forme déjà une réponse complète.
+Le rendu déterministe de sécurité utilisé lorsque ce rôle est indisponible
+n'est pas un appel créatif.
+
+Son paquet contient le plan MJ accepté lorsqu'il existe, en plus de la scène
+visible, de la résolution autorisée et de l'historique court. Le fingerprint du
+contexte couvre aussi ce plan : deux planifications différentes ne partagent
+pas silencieusement la même identité de contexte.
 
 ### Contrôles sans rôle créatif
 
@@ -158,9 +181,16 @@ Le `PreparedTurnResult` ne peut pas être utilisé comme souvenir, vérité de c
 
 ### Dialogues et engagements verbaux
 
-Le texte exact d'un PNJ est préparé avant le commit. Sa sortie distingue au minimum la formulation visible de ses actes de parole structurés : affirmation, question, promesse, menace, ordre, refus, mensonge intentionnel ou révélation.
+Dans le mini-runtime actif, le `npc_performer` intervient après la résolution
+locale ou le commit éventuel du domaine. Sa sortie distingue la formulation
+visible de ses actes de parole structurés et reste une projection attribuée à
+ce PNJ. Elle ne peut contenir ni engagement durable, ni fait de campagne, ni
+révélation non préalablement autorisée.
 
-Le validateur contrôle que le PNJ possède les connaissances nécessaires et que ses engagements sont compatibles avec ses capacités et motivations. Les actes de parole durables sont inclus dans le commit du tour.
+Une future parole qui promet, menace, accepte une mission ou modifie une
+relation devra suivre un autre parcours : préparation par le PNJ, validation
+par l'autorité mission/relation ou sociale, puis commit atomique avant
+projection. Ce parcours cible ne doit pas être présenté comme déjà livré.
 
 Le `scene_writer` peut mettre en rythme une réplique validée, mais il ne peut pas lui ajouter une promesse, une information ou une implication nouvelle.
 
@@ -192,20 +222,33 @@ Une confiance déclarée par le modèle ne remplace jamais une validation. Une c
 
 ## Contrat de l'interpréteur
 
-Une entrée peut contenir plusieurs intentions ordonnées. Le contrat porte donc `intents[]`, et non une classification unique.
+Le contrat actif V5 porte une intention principale structurée `intent`, avec
+des composantes ordonnées pour les micro-actions sociales bornées. Il ne porte
+pas `intents[]`. Le contrat V1 historique utilisait une autre projection et
+reste accepté uniquement pour compatibilité.
 
-Chaque intention indique au minimum :
+L'intention indique au minimum :
 
 - `intentId` et ordre;
-- type : parole, action, question méta, question de possibilité, rappel, correction ou commande technique reconnue;
+- famille sémantique, portée et objectif joueur complet ;
 - niveau d'engagement : aucun, hypothétique, conditionnel ou engagé;
-- cibles et références explicites;
+- mention de cible, lien contextuel et référence proposée ;
 - sens central et résultat souhaité, sans le confondre avec un résultat acquis;
 - détails imposés par le joueur;
 - détails laissés ouverts à la mise en scène;
 - ajouts interdits;
 - ambiguïtés et champ minimal à clarifier;
-- effet attendu sur le temps : aucun ou à déterminer par les domaines.
+- perception, acte de dialogue et composantes ordonnées lorsque pertinents.
+
+Le paquet d'entrée contient seulement la scène et les référents publics, la
+projection minimale `interpreter-character-context/1`, la mémoire sémantique
+courte restaurable, l'interlocuteur actif et le manifeste
+`interpreter-runtime-context/1`. La projection personnage exclut la fiche
+mécanique, les ressources, l'inventaire non visible, les textes biographiques
+et les secrets. Une ambiguïté d'alias non levée est refusée par une garde locale
+après l'appel IA. Le manifeste runtime décrit les raccords disponibles, les
+handoffs et les déclenchements externes ; aucun de ces contextes ne permet à
+l'interpréteur d'autoriser une fonctionnalité.
 
 Exemple conceptuel :
 

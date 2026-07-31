@@ -29,6 +29,7 @@ export interface LoreGuidedDynamicPlaceCreativeContextV1 {
   sourceLocationRef: string;
   sourceBoundaryRef: string;
   requestedDestinationDescription: string;
+  requestedDestinationName?: string | null;
   generatorConfig: LoreGuidedPlaceCandidateGeneratorConfigV2;
 }
 
@@ -106,6 +107,15 @@ export function createLoreGuidedDynamicPlacePreparationPortV1(input: {
           schemaChars: metric.schemaChars
         }))
       });
+      if (
+        context.value.requestedDestinationName
+        && normalizeDestinationName(generated.candidate.displayName)
+          !== normalizeDestinationName(context.value.requestedDestinationName)
+      ) {
+        return failure("narrative.dynamic-place.requested-destination-identity-mismatch", [
+          `The generated place "${generated.candidate.displayName}" does not preserve the requested visible destination "${context.value.requestedDestinationName}".`
+        ]);
+      }
       const proposal = completeRequiredPlaceConnectionsV1({
         proposal: generated.proposal,
         sourceSceneId: context.value.sourceSceneId,
@@ -152,6 +162,14 @@ function completeRequiredPlaceConnectionsV1(input: {
     { sourceSceneId: arrivalSceneId, boundaryRef: "poi:return-to-source", destinationRef: input.sourceLocationRef, scale: "LOCAL", sourceRefs }
   ];
   return { ...structuredClone(input.proposal), proposedProperties: { ...properties, connectionIntents: connections } };
+}
+
+function normalizeDestinationName(value: string): string {
+  return value.trim().toLocaleLowerCase("fr-FR")
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .trim();
 }
 
 function failure(messageKey: string, issues: string[], details: Record<string, unknown> = {}): Result<never> {

@@ -171,14 +171,34 @@ export async function importLegacyCharacterV1(
   Object.keys(classSource ?? {}).sort((a, b) => Number(a) - Number(b)).forEach(key => {
     const entry = record(classSource?.[key]);
     const classId = typeof entry?.classeId === "string" ? entry.classeId : "";
-    const subclassId = typeof entry?.subclasseId === "string" && entry.subclasseId ? entry.subclasseId : null;
+    let subclassId = typeof entry?.subclasseId === "string" && entry.subclasseId ? entry.subclasseId : null;
     const level = number(entry?.niveau, Number.NaN);
     const classDefinition = options.catalog.classes.get(classId);
     if (!classDefinition) diagnostic(diagnostics, "CHARACTER_CLASS_UNKNOWN", "ERROR", `/character/classe/${key}/classeId`, { id: classId });
     if (!Number.isInteger(level) || level < 1 || level > 20) {
       diagnostic(diagnostics, "CHARACTER_CLASS_LEVEL_INVALID", "ERROR", `/character/classe/${key}/niveau`, { level });
     }
-    if (subclassId && options.catalog.subclasses.get(subclassId) !== classId) {
+    const prematureSubclass =
+      subclassId !== null
+      && Number.isInteger(level)
+      && classDefinition?.subclassLevel !== null
+      && classDefinition?.subclassLevel !== undefined
+      && level < classDefinition.subclassLevel;
+    if (prematureSubclass) {
+      diagnostic(
+        diagnostics,
+        "CHARACTER_PREMATURE_SUBCLASS_IGNORED",
+        "WARNING",
+        `/character/classe/${key}/subclasseId`,
+        {
+          id: subclassId,
+          classId,
+          level,
+          subclassLevel: classDefinition.subclassLevel
+        }
+      );
+      subclassId = null;
+    } else if (subclassId && options.catalog.subclasses.get(subclassId) !== classId) {
       diagnostic(diagnostics, "CHARACTER_SUBCLASS_UNKNOWN", "ERROR", `/character/classe/${key}/subclasseId`, { id: subclassId, classId });
     }
     classes.push({ classId, subclassId, level });
@@ -237,8 +257,26 @@ export async function importLegacyCharacterV1(
   const instances = new Map(inventory.map(item => [item.instanceId, item]));
   inventory.forEach((item, index) => {
     if (item.storedInInstanceId && !instances.has(item.storedInInstanceId)) {
-      const slotted = slots[item.storedInInstanceId];
-      if (typeof slotted === "string" && instances.has(slotted)) item.storedInInstanceId = slotted;
+      const legacySlotId = item.storedInInstanceId;
+      const declaredSlotValue = slots[legacySlotId];
+      const candidates = inventory.filter(candidate => {
+        if (candidate.equippedSlot !== legacySlotId) return false;
+        if (!options.catalog.items.get(candidate.itemId)?.container) return false;
+        return (
+          declaredSlotValue === undefined
+          || declaredSlotValue === candidate.instanceId
+          || (
+            envelope.sourceKind === "CHARACTER_CREATOR_LEGACY"
+            && declaredSlotValue === candidate.itemId
+          )
+        );
+      });
+      if (
+        envelope.sourceKind === "CHARACTER_CREATOR_LEGACY"
+        && candidates.length === 1
+      ) {
+        item.storedInInstanceId = candidates[0].instanceId;
+      }
     }
     if (item.storedInInstanceId) {
       const container = instances.get(item.storedInInstanceId);

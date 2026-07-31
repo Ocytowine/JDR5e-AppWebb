@@ -3,6 +3,7 @@
 const assert = require("node:assert/strict");
 const {
   buildOpenAiResponsesBody,
+  buildRoleInstructions,
   buildServerRoute,
   buildStrictAiOutputSchema,
   createNarrativeOpenAiEnhancementApi,
@@ -820,6 +821,28 @@ async function main() {
       }
     }
   });
+  const sceneWriterInstructions = buildRoleInstructions(sceneReq);
+  assert.equal(
+    sceneWriterInstructions.includes("départ, le franchissement puis l'arrivée"),
+    true,
+    "le writer doit préserver le cheminement post-commit"
+  );
+  assert.equal(
+    sceneWriterInstructions.includes("ne réduis jamais ce tour à une description statique"),
+    true
+  );
+  assert.equal(
+    sceneWriterInstructions.includes("changement de milieu"),
+    true,
+    "le writer doit rendre perceptible un seuil intérieur/extérieur seulement quand les faits le permettent"
+  );
+  assert.equal(
+    buildRoleInstructions(sceneCreatorRequestV2()).includes(
+      "sans la remplacer par son passage, son entrée, son seuil"
+    ),
+    true,
+    "le créateur doit conserver l'identité de la destination demandée"
+  );
   const normalizedSceneWriterBudget = normalizeAiCallRequest(sceneReq);
   assert.equal(normalizedSceneWriterBudget.ok, true);
   const rejectedSceneWriterBudget = normalizeAiCallRequest({
@@ -936,8 +959,25 @@ async function main() {
   assert.equal(semanticIntentBody.input[0].content[0].text.includes("ni projection legacy"), true);
   assert.equal(semanticIntentBody.input[0].content[0].text.includes("Ce n'est ni address_visible_actor, ni nonverbal_signal"), true);
   assert.equal(semanticIntentBody.input[0].content[0].text.includes("la limite visible franchie"), true);
+  assert.equal(semanticIntentBody.input[0].content[0].text.includes("Sa cible doit donc être candidateKind=npc"), true);
+  assert.equal(semanticIntentBody.input[0].content[0].text.includes("expose la destination nommée dans destinations"), true);
   assert.equal(semanticIntentBody.input[0].content[0].text.includes("plusieurs candidats restent réellement plausibles"), true);
   assert.equal(semanticIntentBody.input[0].content[0].text.includes("Toute action dépendant d'une précondition explicite utilise commitment=conditional"), true);
+  assert.equal(
+    semanticIntentBody.input[0].content[0].text.includes("task.characterContext"),
+    true,
+    "le prompt sémantique doit borner le contexte personnage"
+  );
+  assert.equal(
+    semanticIntentBody.input[0].content[0].text.includes("ne sont pas des référents de scène"),
+    true,
+    "le prompt ne doit pas confondre une référence personnage avec une cible visible"
+  );
+  assert.equal(
+    semanticIntentBody.input[0].content[0].text.includes("Ne choisis jamais un sort, une action ou un objet arbitrairement"),
+    true,
+    "le prompt doit imposer la clarification des alias personnage ambigus"
+  );
   assert.equal(
     semanticIntentBody.input[0].content[0].text.includes("task.activeDialogueTarget"),
     true,

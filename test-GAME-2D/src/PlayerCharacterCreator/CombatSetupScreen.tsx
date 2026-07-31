@@ -4850,6 +4850,7 @@ export function CombatSetupScreen(props: {
       if (!containerId) return;
       const container = items.find(entry => entry?.instanceId === containerId);
       if (!container) return;
+      item.storedIn = containerId;
       if (!Array.isArray(container.contenu)) container.contenu = [];
       container.contenu = Array.from(new Set([...container.contenu, item.instanceId]));
     });

@@ -92,6 +92,80 @@ async function main(): Promise<void> {
     scene: REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1
   }).disposition, "AUTOMATIC_SUCCESS", "la question perceptive présente atteint effectivement la résolution");
   assert.equal(results.every(result => result.interpretation.runtimeHandling?.noGameTime === true), true);
+  const archiveBoundaryScene = {
+    ...REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1,
+    sceneId: "wiki-location:archives_de_lysenthe",
+    locationName: "Archives de Lysenthe",
+    pointsOfInterest: [{
+      schemaVersion: 1 as const,
+      pointId: "archives_de_lysenthe:poi:2",
+      label: "Place des archives",
+      visibleDescription: "Un passage visible mène vers place des archives.",
+      keywords: ["place des archives", "place_des_archives"],
+      destinationAliases: ["place des archives"],
+      version: 1 as const
+    }]
+  };
+  const destinationInput = "je me dirige vers la places des Archives";
+  const destinationPayload = semanticCase(destinationInput, {
+    kind: "move_near_visible_actor",
+    commitment: "committed",
+    playerGoal: "Se diriger vers la place des Archives.",
+    actionHint: "se_diriger",
+    domainHint: "scene_resolution",
+    scope: "LOCAL_INTERACTION",
+    targetMention: {
+      surface: "la places des Archives",
+      candidateKind: "place",
+      proposedRef: "poi:archives_de_lysenthe:poi:2",
+      contextLink: "SCENE_DESCRIPTION"
+    },
+    perception: null,
+    dialogueAct: null,
+    uncertainties: [],
+    clarificationPrompt: null,
+    confidence: "high"
+  }).payload;
+  const destinationResult = await interpretNarrativeInputWithAiV1({
+    campaignId: "cmp-player-archives",
+    operationId: "op-player-archives-transition",
+    intentId: "intent-player-archives-transition",
+    rawInput: destinationInput,
+    playableScene: archiveBoundaryScene,
+    config: {
+      ...config,
+      provider: {
+        async generate(request: AiCallRequestV1): Promise<unknown> {
+          return {
+            schemaVersion: 1,
+            contractVersion: request.contractVersion,
+            outputId: `output:${request.attemptId}`,
+            callId: request.callId,
+            attemptId: request.attemptId,
+            packId: request.packId,
+            snapshotId: request.snapshotId,
+            role: request.role,
+            status: "OK",
+            payload: destinationPayload,
+            diagnostics: [],
+            supersedesOutputId: null
+          } satisfies AiRoleOutputEnvelopeV1<AiSemanticIntentPayloadV2>;
+        }
+      }
+    }
+  });
+  assert.equal(destinationResult.usedAiInterpretation, true);
+  assert.equal(
+    destinationResult.interpretation.semanticIntent.kind,
+    "traverse_visible_boundary",
+    "une destination publique structurée ne doit jamais devenir une approche d'acteur"
+  );
+  assert.equal(destinationResult.interpretation.runtimeHandling?.requiredDomain, "world");
+  assert.equal(
+    destinationResult.interpretation.target?.ref,
+    "poi:archives_de_lysenthe:poi:2"
+  );
+  assert.equal(destinationResult.interpretation.requiresClarification, false);
   let retryCalls = 0;
   const retryFixture = cases[0]!;
   const retryConfig = {

@@ -117,6 +117,39 @@ La gate rejette :
 
 Une acceptation produit uniquement `READY_FOR_PLACE_COMMAND`, des additions topologiques proposées et `commitAuthority=false`. Les validateurs déclarés sont `WorldDomain`, `SceneDomain` et `CampaignFactDomain`.
 
+## Portée réelle de la plausibilité d'une destination joueur
+
+Le runtime actif distingue deux situations :
+
+- une sortie visible expose une destination publique encore absente de la
+  topologie : le `scene_creator` peut matérialiser cette destination ;
+- l'interpréteur propose une destination locale non encore référencée sous la
+  forme `requested-destination:*` : le même pipeline créatif peut actuellement
+  être ouvert.
+
+Les gates actives prouvent la compatibilité avec les contraintes de lore
+transmises, le parent géographique autorisé, la profondeur de persistance, les
+doublons, les identités connues, les connexions et le commit atomique. Pour une
+destination déjà nommée par une sortie visible ou proposée explicitement par le
+joueur, la candidate acceptée doit désormais conserver exactement cette
+identité : demander la « Place des Archives » ne peut plus produire un lieu
+distinct appelé « Passage de la Place des Archives ». Le passage appartient au
+cheminement, pas à l'identité de la destination. Cette fidélité nominale
+n'établit toutefois pas à elle seule que le lieu proposé est plausible.
+
+En revanche, la version actuelle ne produit pas encore de décision structurée
+et indépendante sur la plausibilité sémantique d'un lieu entièrement proposé
+par le joueur. Elle ne classe pas explicitement une demande comme locale,
+lointaine, contradictoire avec le lore, ambiguë ou plausible sous condition. Le
+`scene_creator` reçoit les contraintes et peut refuser une sortie incompatible,
+mais son champ `reason` n'est pas une autorité de plausibilité.
+
+Cette limite est importante : les protections topologiques actives ne doivent
+pas être présentées comme une validation complète de la cohérence fictionnelle.
+Un futur contrat devra rendre cette décision explicite avant tout appel de
+création et choisir entre création locale, clarification, handoff de voyage ou
+refus sourcé.
+
 ## Commande `PLACE`
 
 `place-creation-command/1` est préparée uniquement depuis une gate `READY_FOR_PLACE_COMMAND`. Elle épingle :
@@ -206,6 +239,13 @@ Le contrat est désormais exécuté par `placeCreationRuntime.ts` après validat
 Le contrôleur expose `NarrativeDynamicPlaceRuntimeV1`. Sa méthode `canHandle` reçoit l'intention structurée, la commande de domaine et la scène active : la détection appartient donc au domaine monde, sans analyse lexicale ajoutée au contrôleur. La suite Chromium confirme également qu'un lieu dynamique committé dans IndexedDB est reconstruit par le catalogue sans stockage parallèle ni PNJ implicite.
 
 `dynamicPlaceEntryRuntime.ts` fournit l'assembleur transactionnel de cette capacité. Il fusionne le commit de création avec le segment temporel préparé par le domaine monde, puis ajoute position et cycle de scène. Horloge, lieu, topologie, faits, position et scène active sont ainsi publiés dans un seul commit. Après écriture, les cinq agrégats métier concernés sont relus et la narration d'arrivée n'est construite que si la création et l'entrée portent le même `commitId` confirmé.
+
+Les `requestId` et `commandId` de cette transition sont dérivés d'une empreinte
+déterministe de l'`operationId`. Ils restent ainsi sous la limite des identifiants
+du noyau, quelle que soit la longueur valide de l'opération source. La causalité
+continue de relier explicitement commande et événement ; elle ne dépend pas de
+la concaténation de leurs libellés. Il ne faut donc ni concaténer sans borne
+l'identifiant d'opération, ni relâcher le schéma commun pour ce seul runtime.
 
 La préparation est divisée en deux phases. `prepareCreative` exécute la sélection du lore, l'éventuel appel IA et les gates sans lease d'écriture. `prepareWorldCommit` relit et prépare les artefacts monde/temps sous lease juste avant le commit. Une latence fournisseur ne peut donc pas immobiliser inutilement l'écrivain de campagne.
 

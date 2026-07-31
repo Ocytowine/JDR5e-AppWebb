@@ -1342,6 +1342,7 @@ function buildRoleInstructions(request) {
       "Tu proposes un lieu de jeu nouveau à partir du brief de lore fourni.",
       "Tu n'as aucune autorité de commit, de vérité durable, de création de PNJ présent ni de révélation de secret.",
       "Respecte strictConstraints comme canon, localGuidance comme guide local et regionalGuidance comme inspiration souple.",
+      "requestedDestinationDescription désigne la destination elle-même. displayName doit reprendre cette identité sans la remplacer par son passage, son entrée, son seuil, sa route ou un autre lieu intermédiaire; le cheminement sera raconté séparément après le commit.",
       v2
         ? "Produis des identifiants canoniques stables. Ne propose aucune connexion ni topologie : le runtime les construit après validation."
         : "Produis des identifiants canoniques stables et des connexions explicites; chaque connexion déclare au moins une sourceRef fournie par le brief.",
@@ -1371,11 +1372,16 @@ function buildRoleInstructions(request) {
     ) {
       return [
         "Tu interprètes librement le sens de l'intention du joueur sans produire de conséquence ni de narration.",
+        "task.runtimeContext décrit les capacités publiques raccordées: AVAILABLE signifie qu'un propriétaire pourra encore valider la demande, HANDOFF_ONLY qu'il faut conserver le domaine sans prétendre l'exécuter, EXTERNAL_TRIGGER_ONLY que cette fonctionnalité ne part jamais de la saisie libre. Ce contexte aide à comprendre et ne donne aucune autorité.",
+        "task.characterContext est une projection minimale de références du personnage: identité, langues, actions, sorts et équipement explicitement visible. REFERENCE_ONLY aide uniquement à reconnaître les mots du joueur; cela ne prouve jamais disponibilité, possession actuelle, ressource, réussite ni droit d'exécution.",
+        "Les références de task.characterContext ne sont pas des référents de scène et ne doivent jamais être copiées dans targetMention.proposedRef. Conserve leur sens dans playerGoal, actionHint et domainHint; le propriétaire local résoudra et validera ensuite la référence.",
+        "Si task.characterContext.ambiguities contient l'expression employée et qu'aucun autre mot ne distingue exactement un candidat, retourne unclear_intent avec commitment=unclear et une clarificationPrompt courte. Ne choisis jamais un sort, une action ou un objet arbitrairement.",
+        "Les champs annoncés dans characterContext.deliberatelyExcluded sont volontairement absents. Ne les devine pas et ne demande pas la fiche complète pour interpréter le tour.",
         "Retourne uniquement le JSON strict demandé. N'ajoute ni projection legacy, ni décision de commit, ni décision temporelle, ni statut runtime.",
         "playerGoal conserve toute la nuance exprimée. actionHint est un bref concept d'action en langage stable, sans être limité à une liste fermée.",
         "domainHint suggère seulement le domaine propriétaire; le logiciel garde l'autorité de routage.",
         "scope=SCENE_TRANSITION si le but est de franchir une limite, entrer, sortir ou changer de lieu; LOCAL_INTERACTION si le but reste une manipulation dans la scène courante.",
-        "kind=move_near_visible_actor pour se placer, s'approcher ou se déplacer vers un acteur visible sans lui parler ni lui adresser de signal. Ce n'est ni address_visible_actor, ni nonverbal_signal, ni manipulate_visible_object.",
+        "kind=move_near_visible_actor pour se placer, s'approcher ou se déplacer vers un acteur visible sans lui parler ni lui adresser de signal. Sa cible doit donc être candidateKind=npc. Ce n'est ni address_visible_actor, ni nonverbal_signal, ni manipulate_visible_object, ni un déplacement vers un lieu.",
         "Si la même entrée combine une approche et une parole ou salutation immédiate, la communication est l'intention principale: utilise address_visible_actor et conserve l'approche dans playerGoal/evidenceFromInput. N'utilise move_near_visible_actor que lorsque aucune parole ni salutation n'est engagée.",
         "Une salutation formulée sans geste explicite ouvre une conversation: utilise address_visible_actor avec dialogueAct=INITIATE_CONVERSATION. Réserve nonverbal_signal aux gestes effectivement décrits, par exemple signe de tête, geste de la main ou regard, sans parole ni salutation verbale.",
         ...([SEMANTIC_INTENT_CONTRACT_VERSION_V3, SEMANTIC_INTENT_CONTRACT_VERSION_V4, SEMANTIC_INTENT_CONTRACT_VERSION_V5].includes(request.contractVersion) ? [
@@ -1401,7 +1407,7 @@ function buildRoleInstructions(request) {
         ] : []),
         "Si task.activeDialogueTarget est renseigné, une demande, question ou déclaration qui poursuit naturellement cet échange reste une communication SPEECH adressée à cette cible avec contextLink=RECENT_FOCUS, même si la nouvelle phrase ne répète ni le nom du PNJ ni un verbe comme parler. Ne conserve pas ce dialogue si le joueur change explicitement d'interlocuteur, met fin à l'échange ou engage une action physique distincte.",
         "kind=nonverbal_signal seulement si le joueur cherche à communiquer par un geste, un regard, une posture ou un autre signal sans parole.",
-        "kind=traverse_visible_boundary lorsque le but est de franchir une porte, une ouverture ou une limite vers un autre espace. targetMention désigne alors la limite visible franchie, même si le joueur nomme surtout la destination.",
+        "kind=traverse_visible_boundary lorsque le but est de franchir une porte, une ouverture ou une limite vers un autre espace. targetMention désigne alors la limite visible franchie, même si le joueur nomme surtout la destination. Lorsqu'un référent expose la destination nommée dans destinations, aller, se diriger ou marcher vers cette destination est une transition même si le joueur ne décrit pas explicitement le geste de franchir.",
         "kind=manipulate_visible_object lorsque le but porte sur l'objet dans la scène courante sans franchissement: ouvrir, fermer, déplacer, examiner par manipulation ou actionner.",
         "hypothetical_action est réservé à une possibilité non engagée et exige commitment=hypothetical. Une tentative, même prudente, discrète ou conditionnelle, n'est pas hypothétique dès que le joueur veut réellement l'accomplir.",
         "preconditions recopie les conditions qui doivent être vraies ou vérifiées avant l'action; [] s'il n'y en a aucune. Toute action dépendant d'une précondition explicite utilise commitment=conditional, jamais committed, même si le joueur veut réellement agir une fois la condition satisfaite.",
@@ -1423,6 +1429,8 @@ function buildRoleInstructions(request) {
       "Recopie exactement schemaVersion, contractVersion, callId, attemptId, packId, snapshotId et role depuis l'entree utilisateur.",
       "Utilise diagnostics=[] si tout va bien, supersedesOutputId=null et status=OK pour une sortie utilisable.",
       "Role player_intent_interpreter: produire une intention structuree, pas un resultat.",
+      "task.characterContext est une projection REFERENCE_ONLY du personnage. Elle aide à reconnaître langues, actions, sorts et équipement visible sans prouver leur disponibilité ni leur réussite.",
+      "Si characterContext.ambiguities contient les mots employés et qu'aucun candidat n'est précisément distingué, exige une clarification. Ne choisis jamais arbitrairement entre plusieurs références.",
       "Chaque intention doit remplir semanticIntent: kind, playerGoal, target, commitment, evidenceFromInput, uncertainties, forbiddenInterpretations, confidence, perception et dialogueAct.",
       "Si requiredDomain=rest, ajoute semanticIntent.restPlan avec restKind=SHORT_REST, LONG_REST ou null selon ce que le joueur a réellement précisé. Sinon restPlan peut être null ou absent. Ne déduis jamais le type de repos par préférence.",
       "Pour observe_environment, perception est obligatoire: GLANCE pour une perception immédiate, FOCUSED pour une attention renforcée, SEARCH pour rechercher activement une information qui peut exiger une vérification. Déduis ce niveau du sens complet de la demande, jamais d'un mot isolé.",
@@ -1550,7 +1558,9 @@ function buildRoleInstructions(request) {
   return [
     ...shared,
     "Role scene_writer: ajoute seulement une narration MJ atmospherique ancree dans les resolutions deja confirmees.",
-    "Pour une arrivée après transition, raconte la scène destination fournie dans le bloc SCENE. N'importe jamais une présence, un décor ou une tension de la scène précédente.",
+    "Pour une arrivée après transition, task.confirmedTransitionNarrative est la base post-commit autoritaire lorsqu'elle est fournie. Raconte dans cet ordre le départ, le franchissement puis l'arrivée; ne réduis jamais ce tour à une description statique de la destination.",
+    "Le lieu source peut être nommé uniquement comme point de départ confirmé. N'importe jamais une présence, un décor ou une tension de cette scène précédente dans la scène d'arrivée.",
+    "Si les faits visibles fournis établissent un changement de milieu, par exemple d'un intérieur vers un espace ouvert avec brume, pavés ou parvis, rends perceptible ce seuil par une sensation déjà sourcée. N'infère jamais un intérieur, un extérieur ni une météo absents des faits autorisés.",
     "ambientPopulation décrit une foule visible, pas une liste de PNJ individualisés. Mets-la en mouvement en une ou deux phrases, regroupe les rôles et ne récite jamais 'Présences visibles' suivi d'un inventaire.",
     "Quand une présence fournit designation, emploie firstMention à sa première apparition puis subsequentMention. N'utilise jamais son publicRole ou son ancien displayName comme s'il s'agissait d'un nom propre.",
     "Pour une observation générale de la population, réponds par un paragraphe narratif continu: choisis deux ou trois figures représentatives, relie leurs activités visibles et termine par l'impression d'ensemble. Ne produis ni trois phrases clonées, ni une fiche par personne, ni une liste séparée par répétition de 'À proximité'.",
@@ -1564,7 +1574,7 @@ function buildRoleInstructions(request) {
     "Pour une parole ou une action engagee, montre la mise en scene immediate sans decider le succes, l'echec, la reaction decisive ou une consequence durable.",
     "Pour une question de contexte no-commit, reponds directement avec les perceptions et faits visibles deja fournis dans un bloc blockKind=MJ_NARRATION; n'ajoute aucune action du personnage et ne fais pas avancer le temps.",
     "Pour une clarification ou une possibilite, rends la limite claire: aucune action n'est executee et le temps de jeu ne progresse pas.",
-    "Ne decris aucun evenement nouveau non fourni: pas de porte d'entree qui s'ouvre, pas d'arrivee, pas de sortie, pas de nouveau client, pas de silhouette cachee ou d'occupant dissimule.",
+    "Ne decris aucun evenement nouveau non fourni. Le départ, le franchissement et l'arrivée présents dans task.confirmedTransitionNarrative sont déjà confirmés et doivent être racontés; n'ajoute ni porte qui s'ouvre, ni détour, ni rencontre, ni obstacle, ni nouveau client, ni silhouette cachée.",
     "Pour decrire les gens presents, limite-toi aux PNJ visibles fournis dans le contexte. Si aucun autre occupant visible n'est fourni, ne les invente pas.",
     "Chaque bloc doit citer dans groundedIn au moins une reference exacte fournie dans task.allowedGrounding. Tu peux citer plusieurs references, mais au moins une doit etre recopiee exactement.",
     "groundedIn certifie ce que le texte couvre effectivement; ne cite jamais une reference uniquement parce qu'elle figurait dans le contexte.",

@@ -125,6 +125,9 @@ Livré :
 - catalogue personnage construit depuis les chargeurs réels du créateur et
   résolveur exact de `rules.jdr5e@2` ;
 - adaptateur UI isolé pour `jdr5e_saved_sheets` et `jdr5e_active_sheet` ;
+- sortie du créateur canonicalisée pour que `storedIn` référence une instance
+  de conteneur ; compatibilité d'import limitée aux anciens slots résolubles
+  sans ambiguïté et aux sous-classes résiduelles encore inactives ;
 - diagnostics d'import affichés avant création et erreurs bloquantes ;
 - identité déterministe liée à la sauvegarde et à son instantané de départ ;
 - enveloppe de création conservée avant l'appel pour reprendre une issue
@@ -234,6 +237,25 @@ contrôlée sont préparés dans la base isolée de la gate, jamais ajoutés au
 contenu initial des Archives. La procédure et cette distinction sont publiées
 dans
 [`Recette-campagne-build-principal-lot-9F.md`](Recette-campagne-build-principal-lot-9F.md).
+
+### Cohérence temporelle du fil et erreurs après commit
+
+La scène d'ouverture affichée en tête du fil est un fait historique de la
+session rendue. Une transition réussie met à jour la scène courante utilisée
+par les prochains tours, les disponibilités et les diagnostics, mais ne
+réécrit jamais rétroactivement cette amorce.
+
+Une erreur survenant après le commit de l'action principale — projection de
+rendu, composition causale, initiative sociale ou continuation — est une
+erreur d'étape secondaire. La surface doit alors :
+
+- confirmer que la mutation principale reste enregistrée ;
+- créer une notification avec un `operationId` distinct pour éviter sa
+  déduplication avec le paquet du tour réussi ;
+- référencer l'opération principale confirmée ;
+- afficher le `messageKey` sûr de l'étape secondaire ;
+- ne jamais employer « action refusée » ou « action non exécutée » pour
+  qualifier le commit principal.
 
 ## Scénarios de refus obligatoires
 

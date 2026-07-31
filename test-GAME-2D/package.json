@@ -77,6 +77,7 @@
     "narration-module:test:game-board-handoff-ui": "playwright test -c narration-module/tests/browser/game-board-handoff-ui.playwright.config.ts",
     "narration-module:test:bastion-vertical-8d": "playwright test -c narration-module/tests/browser/bastion-vertical-8d.playwright.config.ts",
     "narration-module:test:ai-intent-interpretation": "npx --yes tsx narration-module/tests/scene/verify-ai-intent-interpretation.ts",
+    "narration-module:test:interpreter-character-context": "npx --yes tsx narration-module/tests/scene/verify-interpreter-character-context.ts",
     "narration-module:test:semantic-invariance": "npx --yes tsx narration-module/tests/scene/verify-semantic-invariance-i06zq.ts",
     "narration-module:test:intent-authority": "npx --yes tsx narration-module/tests/scene/verify-intent-authority-i06zr.ts",
     "narration-module:test:runtime-routing": "npx --yes tsx narration-module/tests/scene/verify-runtime-capability-routing-nar131.ts",

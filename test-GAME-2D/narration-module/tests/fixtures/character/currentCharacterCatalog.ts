@@ -52,7 +52,10 @@ export function currentCharacterCatalog(): CharacterImportCatalogV1 {
     backgrounds: new Set(loadBackgroundTypesFromIndex().map(value => value.id)),
     languages: new Set(loadLanguageTypesFromIndex().map(value => value.id)),
     classes: new Map(loadClassTypesFromIndex().map(value => [value.id, {
-      id: value.id, hitDie: value.hitDie ?? 0, subclassIds: value.subclassIds ?? []
+      id: value.id,
+      hitDie: value.hitDie ?? 0,
+      subclassLevel: value.subclassLevel ?? null,
+      subclassIds: value.subclassIds ?? []
     }])),
     subclasses: new Map(loadSubclassTypesFromIndex().map(value => [value.id, value.classId])),
     items,

@@ -32,6 +32,15 @@ Une cible décrite par ses propriétés publiques n'est proposée que si les fai
 
 Les points de passage peuvent déclarer des `destinationAliases` publics. Le registre les projette en `publicDestinationAliases`, transmis à l'interpréteur sous `destinations`. Si l'IA reconnaît un `traverse_visible_boundary` mais laisse `proposedRef=null`, l'adaptateur local peut relier la destination mentionnée à une ouverture uniquement lorsqu'une seule relation publique correspond, indépendamment de l'étiquette de lien contextuel proposée. Zéro ou plusieurs correspondances conservent la clarification : aucun choix arbitraire n'est effectué.
 
+`move_near_visible_actor` ne peut pas devenir une échappatoire pour une cible de
+lieu. Si la sortie structurée propose cette famille mais désigne
+`candidateKind=place` sur un référent portant une destination publique unique,
+l'adaptateur recanonicalise localement la famille en
+`traverse_visible_boundary`, le domaine en `world` et la portée en
+`SCENE_TRANSITION`. Cette protection repose uniquement sur le contrat structuré
+et le registre visible : elle n'analyse ni verbes, ni noms de lieux particuliers
+dans la phrase brute. Une véritable approche d'acteur reste inchangée.
+
 ## Sorties retirées de l'IA
 
 - projection legacy complète ;
@@ -68,7 +77,15 @@ Le tour de transition a produit le handoff attendu en 17,3 s puis 18,8 s lors de
 
 Chaque appel serveur expose désormais dans la notification système existante : rôle, modèle, latence fournisseur, tokens d'entrée/sortie/total, motif de fin, budgets, taille du contexte et taille du schéma. Un transport interrompu conserve les mêmes dimensions avec des compteurs de tokens inconnus.
 
-Le contexte V2 est limité aux référents visibles et à leurs propriétés publiques, aux trois focus récents et aux trois intentions sémantiques récentes. Le V1 conserve son paquet historique.
+Le contexte V2–V5 est limité aux référents visibles et à leurs propriétés
+publiques, à la projection minimale `interpreter-character-context/1`, aux
+trois focus récents, aux trois intentions sémantiques récentes et au manifeste
+public `interpreter-runtime-context/1`. La projection personnage ne porte ni
+fiche mécanique ni disponibilité. La mémoire source conserve cinq tours dans
+le contrôleur afin de reconstruire correctement les trois entrées utiles après
+rechargement ; le contexte personnage est relu depuis ses agrégats courants.
+Le V1 conserve son contrat de sortie historique, mais bénéficie lui aussi de la
+projection filtrée et de la garde locale d'ambiguïté.
 
 Un unique retry technique est autorisé pour l'interpréteur V2. Il ne s'applique qu'aux transports, timeouts, erreurs HTTP ou sorties incomplètes, avec une seconde borne ramenée à 15 s. Les erreurs sémantiques et d'autorité ne sont jamais rejouées.
 

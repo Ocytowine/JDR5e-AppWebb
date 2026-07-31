@@ -288,6 +288,49 @@ async function run(): Promise<void> {
       assert.equal(productionCreative.value.aiTelemetry[0]?.role, "scene_creator");
       assert.equal(productionCreative.value.aiTelemetry[0]?.finishReason, "provider_metrics_missing");
     }
+    const identityGuardPreparation = createLoreGuidedDynamicPlacePreparationPortV1({
+      contextPort: {
+        canCreate: () => true,
+        async buildContext() {
+          return {
+            ok: true,
+            value: {
+              brief: briefResult.brief,
+              dynamicCreationPolicy: policy,
+              placeValidationPolicy: placePolicy,
+              topology,
+              sourceSceneId: "wiki-location:archives_de_lysenthe",
+              sourceLocationRef: "location:archives_de_lysenthe",
+              sourceBoundaryRef: "poi:archives_de_lysenthe:poi:2",
+              requestedDestinationDescription: "Place des Archives",
+              requestedDestinationName: "Place des Archives",
+              generatorConfig: oneWayGeneratorConfig
+            }
+          };
+        }
+      },
+      worldPort: {
+        async prepare() {
+          throw new Error("an identity mismatch must be rejected before world preparation");
+        }
+      }
+    });
+    const identityMismatch = await identityGuardPreparation.prepareCreative({
+      repository: {} as never,
+      campaign: { campaignId: "campaign-1" } as never,
+      operation: { operationId: "operation-destination-identity-guard" } as never,
+      rawInput: "Je vais vers la Place des Archives.",
+      interpretation: {} as never,
+      domainCommand: null,
+      activeScene: {} as never
+    });
+    assert.equal(identityMismatch.ok, false);
+    if (!identityMismatch.ok) {
+      assert.equal(
+        identityMismatch.error.messageKey,
+        "narrative.dynamic-place.requested-destination-identity-mismatch"
+      );
+    }
     assert.equal(placeValidation.commitAuthority, false);
     assert.equal(placeValidation.topologyAdditions[0]?.destinationRef, "location:passage_des_copistes");
 
@@ -483,7 +526,9 @@ async function run(): Promise<void> {
           reconstructionRefs: [`commit:${committed.commitId}`],
           narrationStatus: "READY_AFTER_COMMIT",
           version: 1
-        }
+        },
+        sourceScene: boundaryScene,
+        sourceBoundaryRef: "poi:external-exit"
       });
       const arrivalNarration = arrivalPacket.displayBlocks.find(block => block.kind === "GM_NARRATION")?.text ?? "";
       assert.ok(/Le lieu est habité/u.test(arrivalNarration));

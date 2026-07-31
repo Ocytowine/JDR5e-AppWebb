@@ -4,8 +4,10 @@ import {
   AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V3,
   AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V4,
   AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V5,
+  MJ_PLANNER_CONTRACT_VERSION_V1,
   NPC_PERFORMER_CONTRACT_VERSION_V1,
   type AiIntentInterpreterConfigV1,
+  type MjPlannerConfigV1,
   type NpcPerformerConfigV1
 } from "../../narration-module/src/application";
 import type { LoreGuidedPlaceCandidateGeneratorConfigV2 } from "../../narration-module/src/application";
@@ -37,6 +39,35 @@ export function buildOpenAiIntentInterpreterConfigV1(endpoint?: string): AiInten
       maxTargetedCorrections: 0,
       maxFullRegenerations: 0,
       allowFallback: true
+    }
+  };
+}
+
+export function buildOpenAiMjPlannerConfigV1(endpoint?: string): MjPlannerConfigV1 {
+  return {
+    provider: new ServerOpenAiEnhancementProviderV1(endpoint),
+    route: {
+      schemaVersion: 1,
+      routeId: "campaign-ui-openai-mj-planner",
+      role: "mj_planner",
+      providerKind: "FAKE_CONTRACT",
+      providerId: "server-openai-route",
+      modelId: "server-selected-openai-mj-planner-model",
+      modelConfigVersion: "narrative-orchestration-v1",
+      certified: true,
+      allowedContractVersions: [MJ_PLANNER_CONTRACT_VERSION_V1],
+      inputTokenLimit: 2_000,
+      outputTokenLimit: 1_000,
+      timeoutMs: 30_000,
+      fallbackRouteIds: []
+    },
+    retryPolicy: {
+      schemaVersion: 1,
+      role: "mj_planner",
+      maxTechnicalRetries: 0,
+      maxTargetedCorrections: 0,
+      maxFullRegenerations: 0,
+      allowFallback: false
     }
   };
 }

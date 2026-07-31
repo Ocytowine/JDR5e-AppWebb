@@ -114,7 +114,9 @@ const fixtures = new Map<string, AiSemanticIntentPayloadV5>([
     },
     perception: null,
     dialogueAct: null,
-    composition: composition()
+    composition: composition({
+      leadIn: ["Se diriger vers la porte étroite.", 1]
+    })
   })],
   [inputs.observeDestination, payload(inputs.observeDestination, {
     kind: "observe_environment",
@@ -207,6 +209,12 @@ async function main(): Promise<void> {
   assertBefore(switched, "GM_NARRATION", "NPC_SPEECH");
 
   const transition = await turn(controller, "gate-v5-07", inputs.transition);
+  assert.equal(
+    transition.interpretation.semanticIntent.kind,
+    "traverse_visible_boundary",
+    "une amorce spatiale ne doit pas déclasser une transition en approche locale"
+  );
+  assert.deepEqual(componentKinds(transition), ["APPROACH_TARGET"]);
   assert.equal(transition.sceneArrival?.scene.sceneId, "reference-inn-back-room-001");
   assert.equal(transition.sceneArrival?.enteredAtGameSecond, 8);
   assert.equal(transition.noGameTime, false);

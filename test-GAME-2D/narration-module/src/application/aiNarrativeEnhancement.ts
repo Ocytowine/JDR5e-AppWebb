@@ -7,6 +7,7 @@ import type {
   AiModelRouteV1,
   AiRetryPolicyV1,
   CoherenceCriticPayloadV1,
+  MjPlannerPayloadV1,
   PlayerExpressionPayloadV1,
   SceneWriterPayloadV1
 } from "../ai/types";
@@ -48,6 +49,7 @@ export async function enhanceNarrativeDisplayWithAiV1(input: {
   displayPacket: DisplayPacketV1 & JsonObject;
   priorDisplayPackets?: DisplayPacketV1[];
   resolution: NarrativeResolutionResultV1;
+  mjPlan?: (MjPlannerPayloadV1 & JsonObject) | null;
   sceneState?: ReferenceSceneStateV1;
   activeScene?: PlayableSceneStateV1;
   config: AiNarrativeEnhancementConfigV1;
@@ -174,9 +176,10 @@ export async function enhanceNarrativeDisplayWithAiV1(input: {
       interpretation: input.resolution.interpretation,
       resolution: input.resolution,
       activeScene,
-      priorDisplayPackets: input.priorDisplayPackets
+      priorDisplayPackets: input.priorDisplayPackets,
+      displayPacket: input.displayPacket
     });
-    const sceneContextPack = await buildActiveSceneContextPackV1({
+    const baseSceneContextPack = await buildActiveSceneContextPackV1({
       campaignId: input.campaignId,
       operationId: input.operationId,
       packId,
@@ -185,6 +188,12 @@ export async function enhanceNarrativeDisplayWithAiV1(input: {
       brief: sceneTask,
       priorDisplayPackets: input.priorDisplayPackets
     });
+    const sceneContextPack = {
+      ...baseSceneContextPack,
+      mjPlan: input.mjPlan ?? null
+    } as unknown as JsonObject;
+    const sceneContextFingerprint =
+      await computeJsonFingerprint(sceneContextPack) as `sha256:${string}`;
     const renderAuthority = buildNarrativeRenderAuthorityV1(input.resolution, input.displayPacket);
     const sceneRun = await runAiPipelineCallV1({
       provider: input.config.provider,
@@ -201,12 +210,16 @@ export async function enhanceNarrativeDisplayWithAiV1(input: {
         role: "scene_writer",
         contractVersion: NARRATIVE_AI_RESOLUTION_CONTRACT_VERSION_V1,
         modelRouteId: input.config.sceneWriterRoute.routeId,
-        contextFingerprint: sceneContextPack.packFingerprint,
+        contextFingerprint: sceneContextFingerprint,
         idempotencyKey: `${input.operationId}:ai:scene-writer`,
         input: {
           instructionsRef: "narrative-ai-resolution/scene-writer/active-scene/v1",
           roleContextPack: sceneContextPack,
-          task: { ...sceneTask, renderAuthority }
+          task: {
+            ...sceneTask,
+            mjPlan: input.mjPlan ?? null,
+            renderAuthority
+          }
         },
         limits: {
           inputTokenBudget: 900,
@@ -270,7 +283,7 @@ export async function enhanceNarrativeDisplayWithAiV1(input: {
           role: "coherence_critic",
           contractVersion: NARRATIVE_AI_RESOLUTION_CONTRACT_VERSION_V1,
           modelRouteId: input.config.coherenceCriticRoute.routeId,
-          contextFingerprint: sceneContextPack.packFingerprint,
+          contextFingerprint: sceneContextFingerprint,
           idempotencyKey: `${input.operationId}:ai:coherence-critic`,
           input: {
             instructionsRef: "narrative-ai-resolution/coherence-critic/render-authority/v1",
@@ -465,7 +478,7 @@ export function isImmediateVisibleOrientationResolutionV1(
 export interface NarrativeRenderAuthorityV1 extends JsonObject {
   schemaVersion: 1;
   renderPlanVersion: "narrative-render-plan/1";
-  mode: "PLAYER_EXPRESSION_FIDELITY" | "OBSERVATION_RESULT" | "ACTION_STAGING_ONLY" | "CONFIRMED_OUTCOME" | "NPC_REACTION";
+  mode: "PLAYER_EXPRESSION_FIDELITY" | "OBSERVATION_RESULT" | "ACTION_STAGING_ONLY" | "SCENE_TRANSITION" | "CONFIRMED_OUTCOME" | "NPC_REACTION";
   semanticGoal: string;
   targetRef: string | null;
   perspective: "FIRST_PERSON_PLAYER" | "SECOND_PERSON_PLAYER" | "THIRD_PERSON_ACTOR";
@@ -547,6 +560,44 @@ export function buildNarrativeRenderAuthorityV1(
   const semantic = resolution.interpretation.semanticIntent;
   const target = resolution.interpretation.referentResolution?.resolvedTarget ?? semantic.target;
   const sourceRefs = [`resolution:${resolution.resolutionId}`];
+  const confirmedTransitionBlocks = semantic.kind === "traverse_visible_boundary"
+    && resolution.commitId !== null
+    ? displayPacket.displayBlocks.filter(block =>
+        block.kind === "GM_NARRATION" && block.text.trim().length > 0
+      )
+    : [];
+  if (confirmedTransitionBlocks.length > 0) {
+    return {
+      schemaVersion: 1,
+      renderPlanVersion: "narrative-render-plan/1",
+      mode: "SCENE_TRANSITION",
+      semanticGoal: semantic.playerGoal,
+      targetRef: target?.ref ?? null,
+      perspective: "SECOND_PERSON_PLAYER",
+      allowedClaims: confirmedTransitionBlocks.map((block, index) => ({
+        schemaVersion: 1,
+        claimId: `confirmed-transition-${index + 1}`,
+        category: "CONFIRMED_RESULT" as const,
+        text: block.text,
+        sourceRefs: block.sourceRefs
+      })),
+      allowedActorReactionRefs: [],
+      texturePolicy: texturePolicy(true),
+      confirmedClaims: confirmedTransitionBlocks.map(block => block.text),
+      unconfirmedClaims: [
+        "Tout élément du trajet absent du cheminement déterministe confirmé.",
+        "Tout contenu provenant de la scène précédente autre que son départ."
+      ],
+      forbiddenClaims: [
+        "Omettre le départ ou le franchissement pour ne décrire que la destination.",
+        "Inventer une étape intermédiaire, une rencontre, un obstacle ou une réaction."
+      ],
+      sourceRefs: [
+        ...sourceRefs,
+        ...confirmedTransitionBlocks.flatMap(block => block.sourceRefs)
+      ]
+    };
+  }
   if (semantic.kind === "observe_environment") {
     const perception = resolution.perception;
     return {

@@ -285,7 +285,20 @@ La fixture exécutable `tests/fixtures/character/valid/creator-ready.json` suit 
 | sorts et capacités | choix/grants validés contre les catalogues | les listes dérivées sont reconstruites |
 | propreté et état de tenue | état de campagne explicite | absence = `UNKNOWN`, jamais « propre » inventé |
 
-Le format legacy peut référencer un conteneur par son `instanceId` ou par l'emplacement qui le porte. L'import résout toujours cette référence vers l'`instanceId` canonique. Un cycle de conteneurs, un conteneur absent, un objet dans deux emplacements ou deux objets dans un emplacement exclusif sont des erreurs.
+Le format legacy peut référencer un conteneur par son `instanceId` ou par
+l'emplacement qui le porte. L'import résout cette référence vers
+l'`instanceId` canonique uniquement si cet emplacement désigne un unique
+contenant équipé, y compris lorsque `materielSlots` porte encore l'identifiant
+de définition de l'objet. Une résolution absente ou ambiguë reste une erreur.
+Un cycle de conteneurs, un conteneur absent, un objet dans deux emplacements ou
+deux objets dans un emplacement exclusif sont des erreurs.
+
+Une ancienne fiche peut aussi porter une sous-classe résiduelle avant le niveau
+où sa classe autorise ce choix. Cette valeur inactive est retirée avec le
+diagnostic `CHARACTER_PREMATURE_SUBCLASS_IGNORED`. À partir du niveau de choix,
+une sous-classe inconnue ou appartenant à une autre classe reste une erreur
+`CHARACTER_SUBCLASS_UNKNOWN`. Cette compatibilité ne crée donc jamais une
+sous-classe et ne masque pas un choix mécanique devenu actif.
 
 Si `argent` existe sans instances physiques correspondantes, l'adaptateur ne choisit pas seul un contenant. L'import est suspendu avec une correction explicite à appliquer dans l'éditeur ou un assistant de migration UI.
 
@@ -328,9 +341,9 @@ Chaque calcul retourne sa valeur et les références de règles/catalogues utili
 
 ### 5.5 Rejets minimaux
 
-Les tests couvrent au minimum : fiche valide fournie, version future, JSON non objet, identifiant manquant, score hors limites, classe ou objet inconnu, niveau incohérent, `instanceId` dupliqué, conteneur absent ou cyclique, emplacement incohérent, monnaie incohérente, capacité/action/sort absent du paquet et ressource courante supérieure à son maximum.
+Les tests couvrent au minimum : fiche valide fournie, version future, JSON non objet, identifiant manquant, score hors limites, classe, sous-classe ou objet inconnu, niveau incohérent, `instanceId` dupliqué, conteneur absent ou cyclique, emplacement incohérent, monnaie incohérente, capacité/action/sort absent du paquet et ressource courante supérieure à son maximum. Ils prouvent aussi les deux migrations bornées du créateur legacy : conteneur nommé par son slot et sous-classe résiduelle avant son niveau de sélection.
 
-La suite exécutable couvre ces rejets par 16 mutations ciblées de la fixture, vérifie aussi l'abandon des propriétés inconnues avec avertissement et exige des projections déterministes.
+La suite exécutable couvre ces rejets par 17 mutations ciblées de la fixture, vérifie aussi l'abandon des propriétés inconnues avec avertissement et exige des projections déterministes.
 
 ## 6. AF-R07 — RuleRegistry MVP
 

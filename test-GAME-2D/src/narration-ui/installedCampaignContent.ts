@@ -99,6 +99,7 @@ export function buildInstalledCharacterCatalogV1(): CharacterImportCatalogV1 {
     classes: new Map(loadClassTypesFromIndex().map(value => [value.id, {
       id: value.id,
       hitDie: value.hitDie ?? 0,
+      subclassLevel: value.subclassLevel ?? null,
       subclassIds: value.subclassIds ?? []
     }])),
     subclasses: new Map(loadSubclassTypesFromIndex()

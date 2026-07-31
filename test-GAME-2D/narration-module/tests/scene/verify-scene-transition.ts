@@ -6,7 +6,8 @@ import {
 } from "../../src/application/sceneTransition";
 import {
   prepareSceneTransitionWorldRequestV1,
-  validateSceneTransitionWorldCommandV1
+  validateSceneTransitionWorldCommandV1,
+  type SceneTransitionWorldCommandV1
 } from "../../src/application/sceneTransitionAdapter";
 import type { SceneReferentRegistryV1 } from "../../src/application/sceneReferentRegistry";
 import {
@@ -19,6 +20,9 @@ import { buildSceneArrivalDisplayPacketV1, buildSceneArrivalRenderPlanV1 } from 
 import { WATCHTOWER_DAWN_PLAYABLE_SCENE_V1 } from "../../src/application/playableScene";
 import { createNarrativeSceneTransitionRuntimeV1 } from "../../src/application/sceneTransitionRuntime";
 import { mergePlaceCreationWithTemporalCommitV1 } from "../../src/application/dynamicPlaceEntryRuntime";
+import {
+  buildCampaignDynamicPlaceTransitionIdsV1
+} from "../../src/application/campaignDynamicPlaceRuntime";
 import {
   AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V2,
   buildActiveSceneContextPackV1,
@@ -195,6 +199,103 @@ if (!atomicCreationAndEntry.ok) throw new Error("atomic creation and entry faile
 assert.equal(atomicCreationAndEntry.value.aggregateWrites.length, 6, "time, place, topology, facts, position and scene lifecycle must share one commit");
 assert.equal(validateCommitRequest(atomicCreationAndEntry.value).valid, true);
 
+async function verifyPlayerCampaignDynamicTransitionIds(): Promise<void> {
+  const playerCampaignOperationId = opaqueId<OperationId>(
+    "nar:cmp-player-f82559af7f30cfcf03bcc8a41f6820e9-op-nar-ui-02c62261-e5fc-4a70-9b0c-caf4cb76edce"
+  );
+  const playerCampaignTransitionIds =
+    await buildCampaignDynamicPlaceTransitionIdsV1(playerCampaignOperationId);
+  assert.match(
+    playerCampaignTransitionIds.requestId,
+    /^[a-z][a-z0-9._:-]{2,127}$/u
+  );
+  assert.match(
+    playerCampaignTransitionIds.commandId,
+    /^[a-z][a-z0-9._:-]{2,127}$/u
+  );
+  const playerCampaignCommand: SceneTransitionWorldCommandV1 = {
+    ...prepared.command!,
+    requestId: playerCampaignTransitionIds.requestId,
+    commandId: playerCampaignTransitionIds.commandId,
+    operationId: playerCampaignOperationId
+  };
+  const playerCampaignTemporalCommit: CommitRequest = {
+    ...temporalCommit,
+    operationId: playerCampaignOperationId,
+    acceptedCommands: temporalCommit.acceptedCommands.map(command => ({
+      ...command,
+      operationId: playerCampaignOperationId,
+      payload: {
+        ...command.payload,
+        domainCommandId: playerCampaignTransitionIds.commandId
+      }
+    }))
+  };
+  const playerCampaignPlaceCommit: CommitRequest = {
+    ...placeCreationCommit,
+    operationId: playerCampaignOperationId,
+    acceptedCommands: placeCreationCommit.acceptedCommands.map(command => ({
+      ...command,
+      operationId: playerCampaignOperationId
+    })),
+    events: placeCreationCommit.events.map(event => ({
+      ...event,
+      operationId: playerCampaignOperationId
+    }))
+  };
+  const playerCampaignMerged = mergePlaceCreationWithTemporalCommitV1({
+    temporalCommit: playerCampaignTemporalCommit,
+    placeCommit: playerCampaignPlaceCommit,
+    writerLease: temporalCommit.writerLease
+  });
+  assert.equal(
+    playerCampaignMerged.ok,
+    true,
+    playerCampaignMerged.ok ? undefined : playerCampaignMerged.issues.join(" | ")
+  );
+  if (!playerCampaignMerged.ok) {
+    throw new Error("player campaign composite creation merge failed");
+  }
+  const playerCampaignAtomic = augmentTemporalCommitWithSceneTransitionV1({
+    temporalCommit: playerCampaignMerged.commit,
+    command: playerCampaignCommand,
+    result: {
+      ...worldResult,
+      requestId: playerCampaignTransitionIds.requestId,
+      commandId: playerCampaignTransitionIds.commandId
+    },
+    currentGameSecond: 100,
+    currentPositionAggregate: currentPosition,
+    sceneLifecycleAggregate: currentLifecycle
+  });
+  assert.equal(
+    playerCampaignAtomic.ok,
+    true,
+    playerCampaignAtomic.ok ? undefined : playerCampaignAtomic.issues.join(" | ")
+  );
+  if (!playerCampaignAtomic.ok) {
+    throw new Error("player campaign atomic transition preparation failed");
+  }
+  const playerCampaignValidation = validateCommitRequest(
+    playerCampaignAtomic.value
+  );
+  assert.equal(
+    playerCampaignValidation.valid,
+    true,
+    playerCampaignValidation.valid
+      ? undefined
+      : playerCampaignValidation.issues.join(" | ")
+  );
+  assert.equal(
+    playerCampaignAtomic.value.acceptedCommands[2]?.commandId,
+    playerCampaignTransitionIds.commandId
+  );
+  assert.equal(
+    playerCampaignAtomic.value.events[1]?.causation.id,
+    playerCampaignTransitionIds.commandId
+  );
+}
+
 const committed: CommitRecord = {
   schemaVersion: 1,
   commitId: temporalCommit.commitId,
@@ -237,6 +338,20 @@ const destinationScene = {
   playerKnownFacts: ["Le personnage a franchi le passage depuis la salle commune."],
   currentTension: "Le contenu visible de la pièce reste à examiner."
 };
+const sourceScene = {
+  ...WATCHTOWER_DAWN_PLAYABLE_SCENE_V1,
+  sceneId: "scene-common-room",
+  locationName: "Salle commune",
+  pointsOfInterest: [{
+    schemaVersion: 1 as const,
+    pointId: "service-door",
+    label: "Passage de service",
+    visibleDescription: "Un passage visible mène vers la pièce voisine.",
+    keywords: ["passage", "service"],
+    destinationAliases: ["la pièce voisine"],
+    version: 1 as const
+  }]
+};
 const arrival = buildSceneArrivalAfterCommitV1({
   commit: committed,
   positionAggregate: committedPosition,
@@ -250,13 +365,15 @@ assert.equal(arrival.value.narrationStatus, "READY_AFTER_COMMIT");
 assert.equal(arrival.value.scene.locationName, "Pièce de service");
 assert.equal(arrival.value.previousSceneId, "scene-common-room");
 assert.equal(arrival.value.scene.perceptibleSituation.some(text => text.includes("tour de pierre")), false, "la mise en scène précédente ne doit pas être restaurée");
-const arrivalPlan = buildSceneArrivalRenderPlanV1({ operationId, rawInput: "Je franchis le passage.", characterExpression: "Je franchis le passage.", arrival: arrival.value, durationSeconds: 8 });
+const arrivalPlan = buildSceneArrivalRenderPlanV1({ operationId, rawInput: "Je franchis le passage.", characterExpression: "Je franchis le passage.", arrival: arrival.value, durationSeconds: 8, sourceScene, sourceBoundaryRef: "poi:service-door" });
 assert.equal(arrivalPlan.rhythmDecision.reason, "ASK_PLAYER");
 assert.equal(arrivalPlan.blocks.find(block => block.kind === "GM_NARRATION")?.textPolicy, "AI_NARRATIVE_ALLOWED");
 assert.equal(arrivalPlan.blocks.find(block => block.kind === "GM_NARRATION")?.groundedIn.includes(`commit:${committed.commitId}`), true);
-const arrivalPacket = buildSceneArrivalDisplayPacketV1({ operationId, rawInput: "Je franchis le passage.", characterExpression: "Je franchis le passage.", arrival: arrival.value, durationSeconds: 8 });
+const arrivalPacket = buildSceneArrivalDisplayPacketV1({ operationId, rawInput: "Je franchis le passage.", characterExpression: "Je franchis le passage.", arrival: arrival.value, durationSeconds: 8, sourceScene, sourceBoundaryRef: "poi:service-door" });
 assert.equal(arrivalPacket.sceneId, destinationScene.sceneId);
 assert.match(arrivalPacket.displayBlocks.find(block => block.kind === "GM_NARRATION")?.text ?? "", /Pièce de service/u);
+assert.match(arrivalPacket.displayBlocks.find(block => block.kind === "GM_NARRATION")?.text ?? "", /quittes Salle commune/u);
+assert.match(arrivalPacket.displayBlocks.find(block => block.kind === "GM_NARRATION")?.text ?? "", /passage indiqué vers la pièce voisine/u);
 assert.match(arrivalPacket.displayBlocks.find(block => block.kind === "SYSTEM_NOTICE")?.text ?? "", /temps=8 s/u);
 
 const uncommittedArrival = buildSceneArrivalAfterCommitV1({
@@ -296,7 +413,7 @@ const concreteRuntime = createNarrativeSceneTransitionRuntimeV1({
   }
 });
 async function verifyConcreteRuntime(): Promise<void> {
-  const runtimeResult = await concreteRuntime.execute({ repository: runtimeRepository, campaignId, operation: runtimeOperation, rawInput: "Je franchis le passage.", interpretation: {} as never, domainCommand: {} as never });
+  const runtimeResult = await concreteRuntime.execute({ repository: runtimeRepository, campaignId, operation: runtimeOperation, rawInput: "Je franchis le passage.", interpretation: {} as never, domainCommand: {} as never, activeScene: sourceScene });
   assert.ok(runtimeResult.ok, runtimeResult.ok ? undefined : runtimeResult.error.messageKey);
   assert.equal(runtimeResult.value.arrival.scene.sceneId, destinationScene.sceneId);
   assert.equal(runtimeResult.value.displayPacket.displayBlocks.some(block => block.kind === "GM_NARRATION"), true);
@@ -363,6 +480,31 @@ async function verifyPrototypeVerticalTransition(): Promise<void> {
   assert.equal(result.value.output.sceneArrival?.scene.sceneId, "reference-inn-back-room-001");
   assert.equal(result.value.output.sceneArrival?.enteredAtGameSecond, 8);
   assert.equal(result.value.output.displayPacket.displayBlocks.some(block => block.kind === "GM_NARRATION" && block.text.includes("Arrière-salle")), true);
+  const arrivalBrief = buildActiveSceneNarrativeBriefV1({
+    rawInput: "Je franchis la porte du fond et entre dans l'arrière-salle.",
+    interpretation: result.value.output.interpretation,
+    resolution: result.value.output.resolution,
+    activeScene: PROTOTYPE_INN_BACK_ROOM_SCENE_V1,
+    displayPacket: result.value.output.displayPacket
+  });
+  assert.equal(arrivalBrief.transitionNarrativeRequired, true);
+  assert.match(arrivalBrief.confirmedTransitionNarrative ?? "", /quittes Auberge du Seuil/u);
+  assert.match(arrivalBrief.confirmedTransitionNarrative ?? "", /Quelques pas plus loin/u);
+  const arrivalPack = await buildActiveSceneContextPackV1({
+    campaignId: "cmp-narrative-prototype",
+    operationId: result.value.output.operationId,
+    packId: "pack-transition-journey",
+    snapshotId: "snapshot-transition-journey",
+    activeScene: PROTOTYPE_INN_BACK_ROOM_SCENE_V1,
+    brief: arrivalBrief
+  });
+  assert.equal(
+    arrivalPack.blocks.some(block =>
+      block.text.includes("départ, franchissement, arrivée")
+    ),
+    true,
+    "le writer reçoit le cheminement confirmé sans la scène source complète"
+  );
   const next = await controller.submit({ schemaVersion: 1, clientRequestId: "prototype-transition-observation", rawInput: "Que vois-je ici ?" });
   assert.ok(next.ok, next.ok ? undefined : next.error.messageKey);
   assert.deepEqual(observedSceneIds, ["reference-inn-rain-001", "reference-inn-back-room-001"]);
@@ -437,7 +579,11 @@ const ambiguous = decideSceneTransitionV1({
 assert.equal(ambiguous.code, "AMBIGUOUS_CONNECTION");
 assert.equal(ambiguous.disposition, "CLARIFY");
 
-void Promise.all([verifyConcreteRuntime(), verifyPrototypeVerticalTransition()]).then(() => {
+void Promise.all([
+  verifyConcreteRuntime(),
+  verifyPrototypeVerticalTransition(),
+  verifyPlayerCampaignDynamicTransitionIds()
+]).then(() => {
   console.log("scene-transition/1: OK");
 }).catch(error => {
   console.error(error);

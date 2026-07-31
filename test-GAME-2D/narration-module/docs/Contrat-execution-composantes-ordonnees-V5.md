@@ -25,6 +25,12 @@ Les composantes bornées deviennent :
 
 Elles décrivent uniquement des étapes demandées par le joueur. Elles ne transportent ni réussite sociale, ni réaction PNJ, ni temps, ni nouvel état durable.
 
+Une `APPROACH_TARGET` peut précéder une intention principale
+`traverse_visible_boundary` : elle décrit alors l'amorce du déplacement vers le
+passage et ne remplace pas le franchissement. La canonicalisation ne rabat donc
+une amorce spatiale vers `move_near_visible_actor` que si l'intention principale
+n'est ni une transition déclarée, ni de portée `SCENE_TRANSITION`.
+
 ## Consommation
 
 Le planner local projette les composantes en beats ordonnés. Le rendu produit seulement les étapes locales réversibles autorisées :
@@ -55,6 +61,44 @@ Le positionnement précis n'est pas persisté comme vérité spatiale durable da
 - le renderer réalise les gestes confirmés sans annoncer de conséquence ;
 - le performer PNJ reste seul producteur de la réplique ;
 - aucune lecture du texte brut n'est ajoutée au chemin de décision.
+
+## Paquet d'entrée actif de l'interpréteur
+
+V5 conserve une sortie `intent` principale unique avec ses composantes
+ordonnées. L'entrée `player_intent_interpreter` contient :
+
+- le texte joueur comme donnée non fiable ;
+- l'identifiant et la version de la scène active ;
+- uniquement les référents visibles, alias, propriétés publiques et
+  destinations publiques ;
+- `characterContext` conforme à `interpreter-character-context/1`, limité à
+  l'identité, aux langues, aux actions, aux sorts et à l'équipement visible ;
+- jusqu'à trois focus locaux et trois tours sémantiques récents ;
+- l'interlocuteur actif lorsqu'un échange validé n'a pas libéré son focus ;
+- `runtimeContext` conforme à `interpreter-runtime-context/1`.
+
+`runtimeContext.capabilities[]` expose pour chaque capacité publique :
+
+- son identifiant stable et son domaine propriétaire ;
+- `AVAILABLE` si le runtime possède un raccord effectif, sans préjuger de
+  l'autorisation métier ;
+- `HANDOFF_ONLY` si le sens doit être conservé mais que la saisie libre ne peut
+  pas exécuter le domaine ;
+- `EXTERNAL_TRIGGER_ONLY` si la fonctionnalité part d'une cause ou commande
+  propriétaire et jamais de l'interpréteur.
+
+Le contexte personnage aide uniquement à reconnaître une référence. Toutes ses
+entrées sont `REFERENCE_ONLY`; une ambiguïté d'alias non levée impose une
+clarification locale, même si l'IA avait choisi un candidat.
+
+Le manifeste runtime aide à choisir le bon domaine. Il n'autorise ni succès, ni commit,
+ni temps, ni mutation, et le logiciel recalcule toujours la décision runtime.
+
+L'empreinte de contexte couvre la scène visible, les focus, les tours récents,
+l'interlocuteur actif, le contexte personnage et ce manifeste. Après
+rechargement, le contrôleur
+reconstruit les cinq derniers tours sémantiques depuis les opérations
+persistées avant d'accepter une nouvelle saisie.
 
 ## Preuves attendues
 

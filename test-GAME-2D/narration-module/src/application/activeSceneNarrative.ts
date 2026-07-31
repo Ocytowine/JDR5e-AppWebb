@@ -21,6 +21,8 @@ export interface ActiveSceneNarrativeBriefV1 extends ReferenceSceneWriterContext
   requiredNarrativeGroundingAnyOf: string[];
   requiredNarrativeMentionAnyOf: string[];
   priorSceneIdsForbidden: string[];
+  confirmedTransitionNarrative: string | null;
+  transitionNarrativeRequired: boolean;
 }
 
 export function buildActiveSceneNarrativeBriefV1(input: {
@@ -29,6 +31,7 @@ export function buildActiveSceneNarrativeBriefV1(input: {
   resolution: NarrativeResolutionResultV1;
   activeScene: PlayableSceneStateV1;
   priorDisplayPackets?: DisplayPacketV1[];
+  displayPacket?: DisplayPacketV1;
 }): ActiveSceneNarrativeBriefV1 {
   const sceneRef = `playable-scene:${input.activeScene.sceneId}:${input.activeScene.version}`;
   const resolutionRef = `resolution:${input.resolution.resolutionId}`;
@@ -61,6 +64,14 @@ export function buildActiveSceneNarrativeBriefV1(input: {
   const isNoCommitSceneContext = input.resolution.resultKind === "NO_COMMIT_RESPONSE" &&
     (input.interpretation.semanticIntent.kind === "meta_request" ||
       input.interpretation.semanticIntent.kind === "context_question");
+  const transitionNarrativeRequired =
+    input.interpretation.semanticIntent.kind === "traverse_visible_boundary"
+    && input.resolution.commitId !== null;
+  const confirmedTransitionNarrative = transitionNarrativeRequired
+    ? input.displayPacket?.displayBlocks
+      .find(block => block.kind === "GM_NARRATION")
+      ?.text.trim() || null
+    : null;
   const requiredNarrativeGroundingAnyOf = isNoCommitSceneContext
     ? [sceneRef]
     : input.interpretation.semanticIntent.kind === "observe_environment" && targetRef === null
@@ -92,6 +103,8 @@ export function buildActiveSceneNarrativeBriefV1(input: {
     requiredNarrativeGroundingAnyOf,
     requiredNarrativeMentionAnyOf,
     priorSceneIdsForbidden: [...new Set((input.priorDisplayPackets ?? []).map(packet => packet.sceneId).filter(sceneId => sceneId !== input.activeScene.sceneId))],
+    confirmedTransitionNarrative,
+    transitionNarrativeRequired,
     version: 1
   };
 }
@@ -116,7 +129,9 @@ export async function buildActiveSceneContextPackV1(input: {
     snapshotId: input.snapshotId,
     campaignId: input.campaignId,
     role: "scene_writer",
-    task: "Raconter uniquement le résultat confirmé dans la scène active, sans autorité métier ni import d'une autre scène.",
+    task: input.brief.transitionNarrativeRequired
+      ? "Raconter le cheminement confirmé, du départ à l'arrivée dans la scène active, sans importer d'autre contenu de la scène précédente."
+      : "Raconter uniquement le résultat confirmé dans la scène active, sans autorité métier ni import d'une autre scène.",
     perspective: { kind: "PLAYER_CHARACTER", actorId: "player-character:prototype" },
     baseCampaignRevision: 0,
     dependencyVersions: [{ sourceRef: sceneMemoryRef, properties: ["locationName", "perceptibleSituation", "visibleElements", "presentNpc", "ambientPopulation", "pointsOfInterest", "currentTension", "playerKnownFacts", "aiSceneWriterPolicy"] }],
@@ -125,13 +140,33 @@ export async function buildActiveSceneContextPackV1(input: {
       mayReference: [sceneRef, ...input.brief.visibleReferentRefs, ...input.activeScene.aiSceneWriterPolicy.mayReference],
       mayProposeCommands: [],
       mayReveal: { reveal: [], hint: ["faits déjà visibles dans la scène active"], withhold: ["faits cachés", "conséquences non confirmées"] },
-      mustPreserve: [input.activeScene.sceneId, input.brief.coreMeaning, input.brief.resultKind],
+      mustPreserve: [
+        input.activeScene.sceneId,
+        input.brief.coreMeaning,
+        input.brief.resultKind,
+        ...(input.brief.confirmedTransitionNarrative === null
+          ? []
+          : [input.brief.confirmedTransitionNarrative])
+      ],
       mustNotCreate: [...input.activeScene.aiSceneWriterPolicy.mustNotCreate],
       mustNotModify: ["resolution.resultKind", "commitId", "horloge", "inventaire", "scene.lifecycle"],
       noveltyConstraints: [...input.activeScene.aiSceneWriterPolicy.noveltyConstraints]
     },
     budget: { unit: "MODEL_TOKENS_ESTIMATE", maximum: 1_200, reservedForInstructionsAndSchema: 250, reservedForOutput: 350, reservedForInput: 600, reservedForMandatory: 360, consumedByBlocks: 360, remainingMargin: 240, reductionStepsApplied: [] },
-    blocks: [{
+    blocks: [
+    ...(input.brief.confirmedTransitionNarrative === null ? [] : [{
+      blockId: `${input.operationId}:confirmed-transition`,
+      blockKind: "CONSTRAINT" as const,
+      sourceRefs: [resolutionMemoryRef],
+      visibility: "SYSTEM_ONLY" as const,
+      actorScope: [],
+      text: `Cheminement post-commit à préserver dans cet ordre — départ, franchissement, arrivée : ${input.brief.confirmedTransitionNarrative}`,
+      payload: {
+        transitionNarrativeRequired: true,
+        confirmedTransitionNarrative: input.brief.confirmedTransitionNarrative
+      },
+      tokenEstimate: 120
+    }]), {
       blockId: `${input.operationId}:active-scene`, blockKind: "SCENE", sourceRefs: [sceneMemoryRef], visibility: "PLAYER_CHARACTER", actorScope: [],
       text: [
         `Désignation du lieu accessible au personnage: ${narrativeFirstMentionV1(narrativeDesignationOfV1(input.activeScene, "locationDesignation"), input.activeScene.locationName)}.`,
@@ -172,7 +207,10 @@ export async function buildActiveSceneContextPackV1(input: {
       blockId: `${input.operationId}:active-scene-history`, blockKind: "MEMORY_CAPSULE" as const, sourceRefs: [sceneMemoryRef], visibility: "PLAYER_CHARACTER" as const, actorScope: [], text: visibleHistory.text, payload: visibleHistory as unknown as JsonObject, tokenEstimate: visibleHistory.tokenEstimate
     }]), {
       blockId: `${input.operationId}:active-scene-brief`, blockKind: "CONSTRAINT", sourceRefs: [sceneMemoryRef, resolutionMemoryRef], visibility: "SYSTEM_ONLY", actorScope: [],
-      text: "Employer seulement les entités visibles de la scène active et les faits confirmés du résultat. Toute ancienne scène est hors contexte.", payload: input.brief as unknown as JsonObject, tokenEstimate: 100
+      text: input.brief.transitionNarrativeRequired
+        ? "Préserver le départ et le franchissement confirmés, puis employer seulement les entités visibles de la scène d'arrivée. Aucun autre contenu de l'ancienne scène n'est autorisé."
+        : "Employer seulement les entités visibles de la scène active et les faits confirmés du résultat. Toute ancienne scène est hors contexte.",
+      payload: input.brief as unknown as JsonObject, tokenEstimate: 100
     }],
     outputContractId: "narrative-ai-resolution/1",
     packFingerprint: "sha256:pending"

@@ -27,6 +27,10 @@ La gate de référence enchaîne :
 7. franchissement d'une frontière visible ;
 8. observation de la scène destination.
 
+Une preuve complémentaire recrée ensuite le contrôleur sur le même repository,
+restaure le fil et soumet une reprise pronominale du dernier focus encore
+valide.
+
 ## Oracles
 
 - Une observation générale ne demande ni cible artificielle ni parole PNJ.
@@ -43,6 +47,12 @@ La gate de référence enchaîne :
 - Une transition utilise le référent de frontière validé, avance le temps une
   seule fois et publie la scène destination.
 - Le tour suivant est interprété et rendu depuis la nouvelle scène.
+- Le fil restauré reconstruit aussi le contexte sémantique récent ; le focus ne
+  dépend pas uniquement de la mémoire JavaScript de l'ancien contrôleur.
+- Le paquet expose les capacités publiques raccordées sans permettre à
+  l'interpréteur d'en décider l'autorisation ou le résultat.
+- Le paquet expose seulement les références personnage autorisées ; un alias
+  partagé non précisé devient une clarification locale sans commit ni temps.
 - Les blocs MJ ne contiennent ni clés techniques ni noms de composantes.
 - Chaque sortie expose les durées contrôleur par étape ; la recette OpenAI
   complète ces mesures avec la télémétrie fournisseur par rôle.
@@ -77,6 +87,9 @@ Changer une formulation ne doit pas changer :
 - `npm run narration-module:test:semantic-v5-realistic-gate` valide huit tours,
   la clarification à confiance faible, le rejet d'un focus recréé par
   `proposedRef`, le changement d'interlocuteur et la transition.
+- `npm run narration-module:test:ai-intent-interpretation` recrée un contrôleur
+  et prouve la restauration du contexte sémantique avant une reprise
+  pronominale.
 - La recette Archives composée valide quatre interprétations, trois performances
   PNJ, une clarification sans performer et une reprise explicite.
 - Mesures réseau observées : interpréteur moyenne 3,05 s, performer moyenne

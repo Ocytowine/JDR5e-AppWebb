@@ -1,12 +1,45 @@
 # Contrat contrôleur de tour narratif applicatif
 
-Statut : `FIGE` pour le sous-lot I-06D.
+Statut : `ACTIF_ETENDU`. Le numéro de contrat reste
+`narrative-turn-controller/1`; les restrictions I-06D ci-dessous sont
+conservées comme historique du socle initial et ne décrivent plus le runtime
+complet.
 
 Version : `narrative-turn-controller/1`.
 
 Date : 2026-07-07.
 
-## Objectif
+## Contrat actif
+
+Le contrôleur reçoit toujours une `NarrativeTurnInputV1` libre et non fiable,
+mais il orchestre désormais :
+
+```text
+opération idempotente
+→ interprétation V5 ou fallback diagnostiqué
+→ routage local autoritaire
+→ planner MJ non autoritaire
+→ propriétaire métier ou arrêt explicite
+→ performer PNJ conditionnel
+→ résultat et projection de rendu persistables
+```
+
+Avant chaque interprétation, il fournit la scène visible, les référents
+publics, la projection minimale `interpreter-character-context/1`, les focus et
+tours sémantiques récents ainsi que `interpreter-runtime-context/1`. La
+projection personnage est relue depuis les agrégats courants ; elle n'est pas
+une copie mémorisée de la fiche. Une garde locale transforme un alias personnage
+encore ambigu en clarification sans commit ni temps de jeu.
+`restoreRenderedThread()` reconstruit aussi les cinq derniers tours sémantiques
+depuis les opérations `narrative.turn.input` complétées. La reprise du fil et la
+reprise du contexte de compréhension forment donc une même frontière
+applicative.
+
+Le contrôleur n'accorde aucune autorité supplémentaire à l'IA. Les commits, le
+temps, les règles, les secrets, les handoffs et les mutations restent validés
+par le registre et les domaines propriétaires.
+
+## Objectif historique I-06D
 
 Ce contrat fixe le premier contrôleur applicatif entre la saisie libre de la surface narration et le noyau de campagne.
 
@@ -20,7 +53,7 @@ saisie libre
   -> surface narration
 ```
 
-## Périmètre autorisé I-06D
+## Périmètre historique I-06D
 
 I-06D peut produire :
 
@@ -106,6 +139,9 @@ La fermeture d'I-06D exige :
 - `NarrativeAppSurface` utilise le contrôleur sans réseau ni stockage local;
 - build global réussi.
 
-## Décision
+## Décision historique
 
-`narrative-turn-controller/1` autorise uniquement le contrôleur applicatif prototype sans commit métier. Le prochain sous-lot devra auditer l'interprétation d'intention et les clarifications réelles avant toute résolution narrative.
+I-06D autorisait uniquement le contrôleur applicatif prototype sans commit
+métier. Cette restriction a été levée par les lots ultérieurs sans changer le
+numéro du contrat enveloppe ; elle ne doit plus être interprétée comme l'état
+du build principal.

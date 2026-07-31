@@ -14,7 +14,7 @@ export const sampleCharacter: Personnage = {
   raceId: "human",
   backgroundId: "veteran-de-guerre",
   classe: {
-    1: { classeId: "fighter", subclasseId: "champion", niveau: 1 }
+    1: { classeId: "fighter", subclasseId: null, niveau: 1 }
   },
   niveauGlobal: 1,
   xp: 0,

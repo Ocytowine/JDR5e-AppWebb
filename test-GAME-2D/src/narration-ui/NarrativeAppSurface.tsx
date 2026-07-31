@@ -5,6 +5,7 @@ import {
   buildVisiblePopulationNarrationV1,
   applyNarrativePresentationVariationV1,
   createBrowserPersistentNarrativeTurnControllerV1,
+  createInterpreterCharacterContextResolverV1,
   createNarrativeRestRuntimeV1,
   createPrototypeNarrativeTurnControllerV1,
   enhanceNarrativeDisplayWithAiV1,
@@ -57,6 +58,7 @@ import {
 } from "../ui/NarrativeConversationPanel";
 import {
   buildOpenAiIntentInterpreterConfigV1,
+  buildOpenAiMjPlannerConfigV1,
   buildOpenAiNpcPerformerConfigV1,
   buildOpenAiSceneCreatorConfigV2
 } from "./openAiNarrativeRuntimeConfig";
@@ -64,6 +66,8 @@ import { ServerOpenAiEnhancementProviderV1 } from "./serverOpenAiEnhancementClie
 import type {
   CommittedCampaignFeatureAvailabilityV1
 } from "./campaignFeatureComposition";
+import { buildInstalledInterpreterCharacterReferenceCatalogV1 } from
+  "./interpreterCharacterContextCatalog";
 
 export type NarrativeEnhancementMode = "local" | "openai";
 let systemErrorSequence = 0;
@@ -127,6 +131,7 @@ export function NarrativeAppSurface(props: {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [enhancementMode, setEnhancementMode] = useState<NarrativeEnhancementMode>("local");
   const [openingScene, setOpeningScene] = useState<PlayableSceneStateV1 | null>(null);
+  const [currentScene, setCurrentScene] = useState<PlayableSceneStateV1 | null>(null);
   const [committedAvailability, setCommittedAvailability] =
     useState<CommittedCampaignFeatureAvailabilityV1 | null>(null);
   const [readCommittedAvailability, setReadCommittedAvailability] =
@@ -149,6 +154,8 @@ export function NarrativeAppSurface(props: {
     setActiveTacticalSession(null);
     setCommittedAvailability(null);
     setReadCommittedAvailability(undefined);
+    setOpeningScene(null);
+    setCurrentScene(null);
     const activateController = async (nextController: NarrativeTurnControllerV1, refreshOpening = false) => {
       const [
         restored,
@@ -191,18 +198,22 @@ export function NarrativeAppSurface(props: {
           );
         }
       }
-      const socialBoundary = await nextController.processActiveSceneEntrySocialBoundary({
-        schemaVersion: 1
-      });
       const causalBoundary = await nextController.processActiveCausalSceneBoundary({
         schemaVersion: 1
       });
+      const socialBoundary =
+        causalBoundary.ok
+        && causalBoundary.value.bundle.controlDecision === "RETURN_CONTROL"
+          ? await nextController.processActiveSceneEntrySocialBoundary({
+              schemaVersion: 1
+            })
+          : null;
       if (cancelled) return;
       if (renderedThread.ok) {
         setPacketsFromController(mergeDisplayPacketsV1([
           ...renderedThread.value.displayPackets,
           ...(restoredSkillResults.ok ? restoredSkillResults.value : []),
-          ...(socialBoundary.ok && socialBoundary.value.displayPacket !== null
+          ...(socialBoundary?.ok && socialBoundary.value.displayPacket !== null
             ? [socialBoundary.value.displayPacket]
             : []),
           ...(causalBoundary.ok && causalBoundary.value.displayPacket !== null
@@ -212,7 +223,7 @@ export function NarrativeAppSurface(props: {
       } else {
         reportCoreError(renderedThread.error, "Restauration du fil");
       }
-      if (!socialBoundary.ok) {
+      if (socialBoundary !== null && !socialBoundary.ok) {
         reportCoreError(socialBoundary.error, "Initiative sociale à l'entrée de scène");
       }
       if (!causalBoundary.ok) {
@@ -229,7 +240,10 @@ export function NarrativeAppSurface(props: {
       } else {
         reportCoreError(tacticalSession.error, "Restauration de la défense tactique");
       }
-      if (activeScene?.ok) setOpeningScene(activeScene.value);
+      if (activeScene?.ok) {
+        setOpeningScene(activeScene.value);
+        setCurrentScene(activeScene.value);
+      }
       else if (activeScene !== null) reportCoreError(activeScene.error, "Projection de la scène active");
       setController(nextController);
       props.onTacticalCheckpointBridgeChange?.({
@@ -253,6 +267,7 @@ export function NarrativeAppSurface(props: {
       void props.bootstrapController(enhancementMode).then(result => {
         if (!cancelled) {
           setOpeningScene(result.openingScene);
+          setCurrentScene(result.openingScene);
           setReadCommittedAvailability(
             () => result.readCommittedAvailability
           );
@@ -333,6 +348,9 @@ export function NarrativeAppSurface(props: {
       };
     }
     const intentInterpreterConfig = buildIntentInterpreterConfig(enhancementMode);
+    const mjPlannerConfig = enhancementMode === "openai"
+      ? buildOpenAiMjPlannerConfigV1()
+      : undefined;
     const npcPerformerConfig = buildNpcPerformerConfig(enhancementMode);
     void import("./archiveLorePilot").then(module => module.buildArchiveLorePilotV1()).then(async archivePilot => {
       const resolveSceneById = async (repository: CampaignRepository, campaignId: CampaignId, sceneId: string) => {
@@ -366,6 +384,7 @@ export function NarrativeAppSurface(props: {
         return resolved.ok ? { ok: true as const, value: resolved.value.scene } : resolved;
       } };
       setOpeningScene(archivePilot.scene);
+      setCurrentScene(archivePilot.scene);
       const dynamicPlaceRuntime = enhancementMode === "openai" ? createCampaignLoreGuidedDynamicPlaceRuntimeV1({
         resolveLorePacket: sceneId => archivePilot.lorePacketBySceneId.get(sceneId) ?? null,
         resolveAuthoredSceneLocationRef: sceneId => archivePilot.locationRefBySceneId.get(sceneId) ?? null,
@@ -392,11 +411,62 @@ export function NarrativeAppSurface(props: {
         }
       });
       const restRuntime = createArchivesRestRuntime();
-      return createBrowserPersistentNarrativeTurnControllerV1({ databaseName: "jdr5e-narration-archives-pilot-v4", intentInterpreterConfig, npcPerformerConfig, sceneTransitionRuntime, dynamicPlaceRuntime, restRuntime, initialScene: { scene: archivePilot.scene, locationRef: archivePilot.locationRef }, activeSceneResolver, initializeRepository: (repository, campaignId, clock) => ensureDynamicPlaceCreationStateV1({ repository, campaignId, clock, topology: archivePilot.topology }) });
+      const interpreterCharacterContextResolver =
+        createInterpreterCharacterContextResolverV1(
+          buildInstalledInterpreterCharacterReferenceCatalogV1()
+        );
+      return createBrowserPersistentNarrativeTurnControllerV1({
+        databaseName: "jdr5e-narration-archives-pilot-v4",
+        intentInterpreterConfig,
+        mjPlannerConfig,
+        npcPerformerConfig,
+        interpreterCharacterContextResolver,
+        sceneTransitionRuntime,
+        dynamicPlaceRuntime,
+        restRuntime,
+        initialScene: {
+          scene: archivePilot.scene,
+          locationRef: archivePilot.locationRef
+        },
+        activeSceneResolver,
+        initializeRepository: (repository, campaignId, clock) =>
+          ensureDynamicPlaceCreationStateV1({
+            repository,
+            campaignId,
+            clock,
+            topology: archivePilot.topology
+          })
+      });
     }).then(controller => activateController(controller, true)).catch(error => {
       void import("./archiveLorePilot").then(module => module.buildArchiveLorePilotV1()).then(archivePilot => {
         setOpeningScene(archivePilot.scene);
-        return createPrototypeNarrativeTurnControllerV1({ intentInterpreterConfig, npcPerformerConfig, restRuntime: createArchivesRestRuntime(), initialScene: { scene: archivePilot.scene, locationRef: archivePilot.locationRef }, initializeRepository: (repository, campaignId, clock) => ensureDynamicPlaceCreationStateV1({ repository, campaignId, clock, topology: archivePilot.topology }), activeSceneResolver: { async resolve() { return { ok: true as const, value: archivePilot.scene }; } } });
+        setCurrentScene(archivePilot.scene);
+        return createPrototypeNarrativeTurnControllerV1({
+          intentInterpreterConfig,
+          mjPlannerConfig,
+          npcPerformerConfig,
+          interpreterCharacterContextResolver:
+            createInterpreterCharacterContextResolverV1(
+              buildInstalledInterpreterCharacterReferenceCatalogV1()
+            ),
+          restRuntime: createArchivesRestRuntime(),
+          initialScene: {
+            scene: archivePilot.scene,
+            locationRef: archivePilot.locationRef
+          },
+          initializeRepository: (repository, campaignId, clock) =>
+            ensureDynamicPlaceCreationStateV1({
+              repository,
+              campaignId,
+              clock,
+              topology: archivePilot.topology
+            }),
+          activeSceneResolver: {
+            async resolve() {
+              return { ok: true as const, value: archivePilot.scene };
+            }
+          }
+        });
       }).then(controller => activateController(controller, true)).catch(fallbackError => {
         if (!cancelled) {
           const primary = error instanceof Error ? error.message : String(error);
@@ -424,8 +494,9 @@ export function NarrativeAppSurface(props: {
         setPacketsFromController(previous => [...previous, createRuntimeFailurePacket({
           error: result.error,
           operationId: payload.clientRequestId,
-          sceneId: openingScene?.sceneId ?? "unknown-scene",
-          context: "Résolution de l'action"
+          sceneId: currentScene?.sceneId ?? openingScene?.sceneId ?? "unknown-scene",
+          context: "Résolution de l'action",
+          rawInput: payload.rawInput
         })]);
         return;
       }
@@ -436,7 +507,12 @@ export function NarrativeAppSurface(props: {
           activeRestProcess: RestProcessStateV1 | null;
         }).activeRestProcess);
       }
-      const enhancement = await enhancePrototypePacket(result.value.output, enhancementMode, packetsFromController);
+      const enhancement = await enhancePrototypePacket(
+        result.value.operation.campaignId,
+        result.value.output,
+        enhancementMode,
+        packetsFromController
+      );
       const enhancementFinishedAt = performance.now();
       const orchestrationStatus = [
         result.value.output.mjPlannerFailure === null
@@ -481,7 +557,11 @@ export function NarrativeAppSurface(props: {
         statusMessage
       });
       if (!recorded.ok) {
-        reportCoreError(recorded.error, "Enregistrement de la narration", result.value.output.operationId);
+        reportPostCommitError(
+          recorded.error,
+          "Enregistrement de la narration",
+          result.value.output.operationId
+        );
         return;
       }
       const projectionFinishedAt = performance.now();
@@ -502,27 +582,32 @@ export function NarrativeAppSurface(props: {
         ? null
         : await controller.processActiveCausalSceneBoundary({ schemaVersion: 1 });
       if (causalBoundary !== null && !causalBoundary.ok) {
-        reportCoreError(
+        reportPostCommitError(
           causalBoundary.error,
           "Composition du monde et des intrigues à l'entrée de scène",
           result.value.output.operationId
         );
       }
-      const socialBoundary = result.value.output.sceneArrival === null
-        ? null
-        : await controller.processActiveSceneEntrySocialBoundary({ schemaVersion: 1 });
+      const socialBoundary =
+        result.value.output.sceneArrival !== null
+        && causalBoundary?.ok
+        && causalBoundary.value.bundle.controlDecision === "RETURN_CONTROL"
+          ? await controller.processActiveSceneEntrySocialBoundary({
+              schemaVersion: 1
+            })
+          : null;
       if (socialBoundary !== null && !socialBoundary.ok) {
-        reportCoreError(
+        reportPostCommitError(
           socialBoundary.error,
           "Initiative sociale à l'entrée de scène",
           result.value.output.operationId
         );
       }
       if (result.value.output.sceneArrival !== null) {
-        setOpeningScene(result.value.output.sceneArrival.scene);
+        setCurrentScene(result.value.output.sceneArrival.scene);
       }
       const availabilityScene =
-        result.value.output.sceneArrival?.scene ?? openingScene;
+        result.value.output.sceneArrival?.scene ?? currentScene ?? openingScene;
       if (
         availabilityScene !== null
         && readCommittedAvailability !== undefined
@@ -615,12 +700,20 @@ export function NarrativeAppSurface(props: {
         statusMessage: "Continuation du repos produite depuis le segment committé."
       });
       if (!recorded.ok) {
-        reportCoreError(recorded.error, "Enregistrement de la continuation du repos", output.operationId);
+        reportPostCommitError(
+          recorded.error,
+          "Enregistrement de la continuation du repos",
+          output.operationId
+        );
         return;
       }
       const causalBoundary = await controller.processActiveCausalSceneBoundary({ schemaVersion: 1 });
       if (!causalBoundary.ok) {
-        reportCoreError(causalBoundary.error, "Composition du monde et des intrigues après le segment de repos", output.operationId);
+        reportPostCommitError(
+          causalBoundary.error,
+          "Composition du monde et des intrigues après le segment de repos",
+          output.operationId
+        );
       }
       const socialBoundary = nextRest !== null
         && causalBoundary.ok
@@ -631,7 +724,7 @@ export function NarrativeAppSurface(props: {
           })
         : null;
       if (socialBoundary !== null && !socialBoundary.ok) {
-        reportCoreError(
+        reportPostCommitError(
           socialBoundary.error,
           "Initiative sociale après le segment de temps",
           output.operationId
@@ -649,11 +742,11 @@ export function NarrativeAppSurface(props: {
       ]));
       setActiveRestProcess(nextRest);
       if (
-        openingScene !== null
+        (currentScene ?? openingScene) !== null
         && readCommittedAvailability !== undefined
       ) {
         setCommittedAvailability(
-          await readCommittedAvailability(openingScene)
+          await readCommittedAvailability((currentScene ?? openingScene)!)
         );
       }
     }).catch(error => {
@@ -674,8 +767,31 @@ export function NarrativeAppSurface(props: {
     setPacketsFromController(previous => [...previous, createRuntimeFailurePacket({
       error,
       operationId,
-      sceneId: openingScene?.sceneId ?? "unknown-scene",
+      sceneId: currentScene?.sceneId ?? openingScene?.sceneId ?? "unknown-scene",
       context
+    })]);
+  }
+
+  function reportPostCommitError(
+    error: CoreError,
+    context: string,
+    sourceOperationId: string
+  ): void {
+    console.error(
+      `[Narration] ${context}`,
+      `${error.code}:${error.messageKey}`
+    );
+    const operationId = nextSystemErrorOperationId();
+    setErrorMessage(
+      `L'action principale reste confirmée, mais une étape secondaire a échoué : ${context}.`
+    );
+    setPacketsFromController(previous => [...previous, createRuntimeFailurePacket({
+      error,
+      operationId,
+      sceneId: currentScene?.sceneId ?? openingScene?.sceneId ?? "unknown-scene",
+      context,
+      sourceOperationId,
+      primaryActionCommitted: true
     })]);
   }
 
@@ -900,30 +1016,88 @@ function createArchivesRestRuntime() {
   });
 }
 
-export function createRuntimeFailurePacket(input: { error: CoreError; operationId: string; sceneId: string; context: string }): DisplayPacketV1 {
+export function createRuntimeFailurePacket(input: {
+  error: CoreError;
+  operationId: string;
+  sceneId: string;
+  context: string;
+  rawInput?: string;
+  sourceOperationId?: string;
+  primaryActionCommitted?: boolean;
+}): DisplayPacketV1 {
   const guidance = narrativeErrorGuidance(input.error);
   const incident = input.error.incidentId === null ? "aucun" : input.error.incidentId;
+  const validationDetail = safeValidationDetail(input.error);
+  const rawInput = input.rawInput?.trim() ?? "";
+  const sourceOperationRef = input.sourceOperationId === undefined
+    ? null
+    : `operation:${input.sourceOperationId}:confirmed`;
+  const failureHeading = input.primaryActionCommitted === true
+    ? `Action principale confirmée — étape secondaire non exécutée : ${input.context}`
+    : `Action non exécutée — ${input.context}`;
+  const failureSummary = input.primaryActionCommitted === true
+    ? "La mutation principale reste enregistrée. Cette erreur concerne uniquement le traitement secondaire indiqué."
+    : guidance.summary;
   return {
     schemaVersion: 1,
     contractVersion: SCENE_SOCIAL_UI_CONTRACT_VERSION_V1,
     operationId: input.operationId,
     sceneId: input.sceneId,
-    displayBlocks: [{
+    displayBlocks: [
+      ...(rawInput.length === 0 ? [] : [{
+        blockId: `${input.operationId}:raw-input`,
+        kind: "RAW_INPUT" as const,
+        speaker: {
+          speakerId: "speaker-player",
+          kind: "PLAYER_CHARACTER" as const,
+          displayName: "Joueur",
+          roleLabel: "Expression joueur",
+          ariaLabel: "Expression brute du joueur",
+          visualToken: "speaker-player"
+        },
+        text: rawInput,
+        ariaLabel: "Entrée originale du joueur avant l'échec",
+        roleLabel: "Expression joueur",
+        visualStyleToken: "speaker-player",
+        sourceRefs: [`operation:${input.operationId}:raw`],
+        isDegradedFallback: false
+      }]),
+      {
       blockId: `${input.operationId}:runtime-failure`,
       kind: "SYSTEM_NOTICE",
       speaker: { speakerId: "speaker-system", kind: "SYSTEM", displayName: "Système", roleLabel: "Notification système", ariaLabel: "Notification système", visualToken: "speaker-system" },
-      text: `Action non exécutée — ${input.context}\n${guidance.summary}\nAide : ${guidance.action}\nDiagnostic sûr : ${input.error.messageKey}; code=${input.error.code}; catégorie=${input.error.category}; reprise=${input.error.retry}; incident=${incident}.`,
+      text: `${failureHeading}\n${failureSummary}\nAide : ${guidance.action}\nDiagnostic sûr : ${input.error.messageKey}; code=${input.error.code}; catégorie=${input.error.category}; reprise=${input.error.retry}; incident=${incident}.${validationDetail}`,
       ariaLabel: "Notification système: échec runtime diagnostiqué",
       roleLabel: "Notification système",
       visualStyleToken: "speaker-system",
-      sourceRefs: [`runtime-error:${input.error.messageKey}`],
+      sourceRefs: [
+        `runtime-error:${input.error.messageKey}`,
+        ...(sourceOperationRef === null ? [] : [sourceOperationRef])
+      ],
       isDegradedFallback: true
     }],
     rawInputAccess: { available: true, operationId: input.operationId },
     rhythmDiagnostics: `runtime failure: ${input.error.messageKey}`,
-    reconstructionRefs: [`runtime-error:${input.error.messageKey}`],
+    reconstructionRefs: [
+      `runtime-error:${input.error.messageKey}`,
+      ...(sourceOperationRef === null ? [] : [sourceOperationRef])
+    ],
     version: 1
   };
+}
+
+function safeValidationDetail(error: CoreError): string {
+  if (error.messageKey !== "core.validation.failed") return "";
+  const issues = error.details.issues;
+  if (!Array.isArray(issues)) return "";
+  const safeIssues = issues
+    .filter((issue): issue is string => typeof issue === "string")
+    .map(issue => issue.replaceAll(/[\r\n\t]+/gu, " ").trim().slice(0, 180))
+    .filter(Boolean)
+    .slice(0, 3);
+  return safeIssues.length === 0
+    ? ""
+    : ` Détail validation : ${safeIssues.join(" | ")}.`;
 }
 
 export function narrativeErrorGuidance(error: CoreError): { summary: string; action: string } {
@@ -1175,6 +1349,7 @@ function createLegacyPrototypeWelcomePacket(): DisplayPacketV1 {
 }
 
 async function enhancePrototypePacket(
+  campaignId: CampaignId,
   output: NarrativeTurnControllerOutputV1,
   mode: NarrativeEnhancementMode,
   priorPackets: DisplayPacketV1[] = []
@@ -1279,11 +1454,12 @@ async function enhancePrototypePacket(
     ? new ServerOpenAiEnhancementProviderV1()
     : localProvider;
   const enhanced = await enhanceNarrativeDisplayWithAiV1({
-    campaignId: "cmp-narrative-prototype",
+    campaignId,
     operationId,
     displayPacket: output.displayPacket,
     priorDisplayPackets: priorPackets,
     resolution: output.resolution,
+    mjPlan: output.mjPlan,
     sceneState: output.sceneState,
     activeScene: output.activeScene,
     config: {
@@ -1297,11 +1473,12 @@ async function enhancePrototypePacket(
   });
   if (mode === "openai" && enhanced.fallbackKind === "TECHNICAL_INCIDENT") {
     const fallback = await enhanceNarrativeDisplayWithAiV1({
-      campaignId: "cmp-narrative-prototype",
+      campaignId,
       operationId,
       displayPacket: output.displayPacket,
       priorDisplayPackets: priorPackets,
       resolution: output.resolution,
+      mjPlan: output.mjPlan,
       sceneState: output.sceneState,
       activeScene: output.activeScene,
       config: {

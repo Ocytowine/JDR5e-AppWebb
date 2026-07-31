@@ -106,9 +106,13 @@ async function main(): Promise<void> {
 
   const config = createDefaultAiIntentInterpreterConfigV1();
   let capturedSemanticHistory: unknown = null;
+  let capturedRuntimeContext: unknown = null;
+  let capturedContextFingerprint = "";
   const capturingProvider: ContractAiProviderV1 = {
     async generate(request) {
       capturedSemanticHistory = (request.input.task as { recentSemanticTurns?: unknown }).recentSemanticTurns;
+      capturedRuntimeContext = (request.input.task as { runtimeContext?: unknown }).runtimeContext;
+      capturedContextFingerprint = request.contextFingerprint;
       return config.provider.generate(request);
     }
   };
@@ -126,7 +130,17 @@ async function main(): Promise<void> {
       primaryTarget: { kind: "npc", ref: "npc:npc-serveuse-nerveuse", label: "Serveuse nerveuse" },
       topic: "la porte du fond",
       commitment: "committed"
-    }]
+    }],
+    runtimeContext: {
+      schemaVersion: 1,
+      contractVersion: "interpreter-runtime-context/1",
+      capabilities: [{
+        capabilityId: "rest.process",
+        domain: "rest",
+        availability: "AVAILABLE",
+        playerFacingScope: "Repos validé par son propriétaire."
+      }]
+    }
   });
   assert.deepEqual(capturedSemanticHistory, [{
     schemaVersion: 1,
@@ -137,6 +151,42 @@ async function main(): Promise<void> {
     topic: "la porte du fond",
     commitment: "committed"
   }], "l'interpréteur doit recevoir le contexte sémantique récent sans réinterprétation locale");
+
+  assert.deepEqual(capturedRuntimeContext, {
+    schemaVersion: 1,
+    contractVersion: "interpreter-runtime-context/1",
+    capabilities: [{
+      capabilityId: "rest.process",
+      domain: "rest",
+      availability: "AVAILABLE",
+      playerFacingScope: "Repos validé par son propriétaire."
+    }]
+  }, "l'interpréteur doit recevoir les capacités publiques sans autorité métier");
+  assert.match(capturedContextFingerprint, /^sha256:[0-9a-f]{64}$/u);
+  const availableContextFingerprint = capturedContextFingerprint;
+  await interpretNarrativeInputWithAiV1({
+    campaignId: "cmp-semantic-history",
+    operationId: "op-semantic-history-closed-rest",
+    intentId: "intent-semantic-history-closed-rest",
+    rawInput: "Je l'ouvre.",
+    config: { ...config, provider: capturingProvider },
+    recentSemanticTurns: [],
+    runtimeContext: {
+      schemaVersion: 1,
+      contractVersion: "interpreter-runtime-context/1",
+      capabilities: [{
+        capabilityId: "rest.process",
+        domain: "rest",
+        availability: "HANDOFF_ONLY",
+        playerFacingScope: "Repos compris mais non raccordé."
+      }]
+    }
+  });
+  assert.notEqual(
+    capturedContextFingerprint,
+    availableContextFingerprint,
+    "la mémoire et les capacités doivent participer à l'empreinte du contexte"
+  );
 
   for (const rawInput of speechInputs) {
     const result = await interpret(rawInput, config);
@@ -509,6 +559,19 @@ async function main(): Promise<void> {
   assert.equal(localReferentResult.open.output.displayPacket.displayBlocks.some(block =>
     /référent visible/u.test(block.text)
   ), true, "le rendu doit expliquer que seul le référent visible est validé");
+
+  const restoredContext = await runRestoredInterpreterContextCase();
+  assert.equal(
+    Array.isArray(restoredContext.recentSemanticTurns)
+      && restoredContext.recentSemanticTurns.length > 0,
+    true,
+    "un nouveau contrôleur doit restaurer les intentions récentes avant le tour suivant"
+  );
+  assert.equal(
+    restoredContext.result.output.interpretation.target?.ref,
+    "npc:npc-garde-blesse",
+    "le focus visible restauré doit permettre de comprendre le pronom après rechargement"
+  );
 
   const nonCanonicalAction = await interpret("J'ouvre la porte du fond", nonCanonicalActionConfig());
   assert.equal(nonCanonicalAction.usedAiInterpretation, false, "une action IA non canonique doit etre rejetee");
@@ -1297,6 +1360,80 @@ function unsupportedInventoryRuntimeConfig(): AiIntentInterpreterConfigV1 {
       }
     } satisfies ContractAiProviderV1
   };
+}
+
+async function runRestoredInterpreterContextCase() {
+  const clock = new FixedClock();
+  const repository = new MemoryCampaignRepository({ clock });
+  const campaignId = opaqueId<CampaignId>("cmp-ai-intent-restored-context");
+  const clockAggregateId = opaqueId<AggregateId>("agg-ai-intent-restored-context-clock");
+  const now = clock.now().toISOString();
+  const created = await repository.createCampaign({
+    schemaVersion: 1,
+    campaignId,
+    campaignRevision: 0,
+    status: "ACTIVE",
+    clockAggregateId,
+    dependencies: {
+      contentPackageId: "prototype.narration",
+      contentPackageVersion: 1,
+      rulesetId: "prototype.rules",
+      rulesetVersion: 1,
+      calendarId: "prototype.calendar",
+      calendarVersion: 1
+    },
+    writeBlock: null,
+    lastCommitId: null,
+    createdAt: now,
+    updatedAt: now
+  }, {
+    elapsedGameSeconds: 0,
+    calendarId: "prototype.calendar",
+    calendarVersion: 1
+  });
+  if (!created.ok) throw new Error(created.error.messageKey);
+
+  const firstController = new NarrativeTurnControllerV1({
+    repository,
+    campaignId,
+    clock,
+    idPrefix: "restored-context:first"
+  });
+  const focus = await firstController.submit({
+    schemaVersion: 1,
+    clientRequestId: "req-restored-context-focus",
+    rawInput: "Je regarde le garde blessé."
+  });
+  if (!focus.ok) throw new Error(focus.error.messageKey);
+
+  const baseConfig = createDefaultAiIntentInterpreterConfigV1();
+  let recentSemanticTurns: unknown = null;
+  const secondController = new NarrativeTurnControllerV1({
+    repository,
+    campaignId,
+    clock,
+    idPrefix: "restored-context:second",
+    intentInterpreterConfig: {
+      ...baseConfig,
+      provider: {
+        async generate(request) {
+          recentSemanticTurns =
+            (request.input.task as { recentSemanticTurns?: unknown })
+              .recentSemanticTurns;
+          return baseConfig.provider.generate(request);
+        }
+      }
+    }
+  });
+  const restored = await secondController.restoreRenderedThread();
+  if (!restored.ok) throw new Error(restored.error.messageKey);
+  const result = await secondController.submit({
+    schemaVersion: 1,
+    clientRequestId: "req-restored-context-follow-up",
+    rawInput: "Je lui demande ce qu'il a vu."
+  });
+  if (!result.ok) throw new Error(result.error.messageKey);
+  return { recentSemanticTurns, result: result.value };
 }
 
 async function runControllerSpeechCase() {

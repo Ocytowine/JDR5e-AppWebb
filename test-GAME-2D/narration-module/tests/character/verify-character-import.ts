@@ -68,12 +68,68 @@ async function run(): Promise<void> {
   }
   console.log("PASS [character-import] current creator slot values are normalized to instance ids");
 
+  const currentCreatorContainers = clone(base);
+  currentCreatorContainers.inventoryItems[3].storedIn = "ceinture_bourse_1";
+  currentCreatorContainers.materielSlots.ceinture_bourse_1 = "obj_bourse";
+  const currentCreatorContainerImport = await importLegacyCharacterV1(
+    await envelope(currentCreatorContainers),
+    options
+  );
+  assert.equal(
+    currentCreatorContainerImport.ok,
+    true,
+    currentCreatorContainerImport.ok
+      ? undefined
+      : currentCreatorContainerImport.diagnostics.map(value => value.code).join(", ")
+  );
+  if (currentCreatorContainerImport.ok) {
+    assert.equal(
+      currentCreatorContainerImport.value.character.inventory
+        .find(item => item.instanceId === "item-or")?.storedInInstanceId,
+      "item-bourse"
+    );
+  }
+  console.log("PASS [character-import] current creator container slots are normalized to instance ids");
+
+  const prematureLegacySubclass = clone(base);
+  prematureLegacySubclass.classe[1].subclasseId = "champion";
+  const prematureLegacySubclassImport = await importLegacyCharacterV1(
+    await envelope(prematureLegacySubclass),
+    options
+  );
+  assert.equal(
+    prematureLegacySubclassImport.ok,
+    true,
+    prematureLegacySubclassImport.ok
+      ? undefined
+      : prematureLegacySubclassImport.diagnostics.map(value => value.code).join(", ")
+  );
+  if (prematureLegacySubclassImport.ok) {
+    assert.equal(prematureLegacySubclassImport.value.character.classes[0].subclassId, null);
+    assert.ok(
+      prematureLegacySubclassImport.value.diagnostics.some(
+        value => value.code === "CHARACTER_PREMATURE_SUBCLASS_IGNORED"
+      )
+    );
+  }
+  console.log("PASS [character-import] stale subclass below its selection level is discarded with a warning");
+
   const cases: Array<{ name: string; mutate: (value: Record<string, any>) => unknown; code: string; version?: number }> = [
     { name: "future version", mutate: value => value, code: "CHARACTER_VERSION_UNSUPPORTED", version: 2 },
     { name: "non-object", mutate: () => [], code: "CHARACTER_JSON_NOT_OBJECT" },
     { name: "missing id", mutate: value => { delete value.id; return value; }, code: "CHARACTER_ID_MISSING" },
     { name: "ability range", mutate: value => { value.caracs.force.FOR = 31; return value; }, code: "CHARACTER_ABILITY_OUT_OF_RANGE" },
     { name: "unknown class", mutate: value => { value.classe[1].classeId = "unknown"; return value; }, code: "CHARACTER_CLASS_UNKNOWN" },
+    {
+      name: "unknown subclass at selection level",
+      mutate: value => {
+        value.classe[1].subclasseId = "champion";
+        value.classe[1].niveau = 3;
+        value.niveauGlobal = 3;
+        return value;
+      },
+      code: "CHARACTER_SUBCLASS_UNKNOWN"
+    },
     { name: "level mismatch", mutate: value => { value.niveauGlobal = 2; return value; }, code: "CHARACTER_GLOBAL_LEVEL_MISMATCH" },
     { name: "unknown item", mutate: value => { value.inventoryItems[0].id = "unknown"; return value; }, code: "CHARACTER_ITEM_UNKNOWN" },
     { name: "duplicate instance", mutate: value => { value.inventoryItems[1].instanceId = "item-armure"; return value; }, code: "CHARACTER_ITEM_INSTANCE_ID_DUPLICATE" },

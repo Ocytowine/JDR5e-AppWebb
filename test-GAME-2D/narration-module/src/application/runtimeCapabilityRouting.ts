@@ -1,4 +1,5 @@
 import type { AiIntentRuntimeHandlingV1, AiStructuredSemanticIntentV1 } from "../ai/types";
+import type { JsonObject } from "../core";
 
 export const NARRATIVE_RUNTIME_CAPABILITY_REGISTRY_VERSION_V1 = "narrative-runtime-capability-registry/1" as const;
 export const NARRATIVE_RUNTIME_CAPABILITY_REGISTRY_VERSION_V2 = "narrative-runtime-capability-registry/2" as const;
@@ -33,6 +34,19 @@ export interface NarrativeRuntimeAvailabilityV2 {
   rest: boolean;
 }
 
+export interface InterpreterRuntimeCapabilityV1 extends JsonObject {
+  capabilityId: string;
+  domain: NarrativeRuntimeDomainV1;
+  availability: "AVAILABLE" | "HANDOFF_ONLY" | "EXTERNAL_TRIGGER_ONLY";
+  playerFacingScope: string;
+}
+
+export interface InterpreterRuntimeContextV1 extends JsonObject {
+  schemaVersion: 1;
+  contractVersion: "interpreter-runtime-context/1";
+  capabilities: InterpreterRuntimeCapabilityV1[];
+}
+
 export interface NarrativeRuntimeRouteV2 extends Omit<NarrativeRuntimeRouteV1, "registryVersion" | "noGameTime"> {
   registryVersion: typeof NARRATIVE_RUNTIME_CAPABILITY_REGISTRY_VERSION_V2;
   noGameTime: boolean;
@@ -44,6 +58,61 @@ export const NARRATIVE_RUNTIME_CAPABILITIES_V1: readonly NarrativeRuntimeCapabil
   { capabilityId: "scene.visible-perception", domain: "perception", semanticKinds: ["observe_environment"], disposition: "HANDLE", commandFamily: "PERCEPTION", commitPolicy: "FORBIDDEN", noGameTime: true },
   { capabilityId: "scene.context-response", domain: "scene_resolution", semanticKinds: ["context_question", "meta_request", "hypothetical_action"], disposition: "HANDLE", commandFamily: "PERCEPTION", commitPolicy: "FORBIDDEN", noGameTime: true }
 ] as const;
+
+export function buildInterpreterRuntimeContextV1(input: {
+  sceneTransition: boolean;
+  dynamicPlace: boolean;
+  rest: boolean;
+}): InterpreterRuntimeContextV1 {
+  return {
+    schemaVersion: 1,
+    contractVersion: "interpreter-runtime-context/1",
+    capabilities: [
+      ...NARRATIVE_RUNTIME_CAPABILITIES_V1.map(capability => ({
+        capabilityId: capability.capabilityId,
+        domain: capability.domain,
+        availability: "AVAILABLE" as const,
+        playerFacingScope: playerFacingScope(capability.capabilityId)
+      })),
+      {
+        capabilityId: "world.scene-transition",
+        domain: "world",
+        availability: input.sceneTransition ? "AVAILABLE" : "HANDOFF_ONLY",
+        playerFacingScope: "Franchissement d'une limite visible vers une destination connue."
+      },
+      {
+        capabilityId: "world.dynamic-place",
+        domain: "world",
+        availability: input.dynamicPlace ? "AVAILABLE" : "HANDOFF_ONLY",
+        playerFacingScope: "Déplacement engagé vers un lieu compatible qui n'existe pas encore dans la scène."
+      },
+      {
+        capabilityId: "rest.process",
+        domain: "rest",
+        availability: input.rest ? "AVAILABLE" : "HANDOFF_ONLY",
+        playerFacingScope: "Demande engagée de repos court ou long; le propriétaire vérifie ensuite le lieu et les règles."
+      },
+      {
+        capabilityId: "inventory.mutation",
+        domain: "inventory",
+        availability: "HANDOFF_ONLY",
+        playerFacingScope: "Prendre, donner, acheter, vendre ou équiper; aucune mutation n'est autorisée par l'interpréteur."
+      },
+      {
+        capabilityId: "tactical.generic-handoff",
+        domain: "tactical",
+        availability: "HANDOFF_ONLY",
+        playerFacingScope: "Intention violente ou combat libre; aucun résultat tactique n'est autorisé par l'interpréteur."
+      },
+      {
+        capabilityId: "campaign.autonomous-boundaries",
+        domain: "world",
+        availability: "EXTERNAL_TRIGGER_ONLY",
+        playerFacingScope: "Monde, intrigue, progression, bastion et défense évoluent depuis leurs causes ou commandes propriétaires."
+      }
+    ]
+  };
+}
 
 const CLOSED_DOMAINS = new Set<NarrativeRuntimeDomainV1>(["inventory", "tactical", "rest", "world"]);
 
@@ -127,6 +196,19 @@ function shouldHonorClosedDomain(semantic: AiStructuredSemanticIntentV1, domain:
   if (domain === "tactical" && targetKind === "npc") return true;
   if (domain === "world") return !semantic.forbiddenInterpretations.includes("scene_transition");
   return targetKind !== "object" && targetKind !== "place";
+}
+
+function playerFacingScope(capabilityId: string): string {
+  switch (capabilityId) {
+    case "scene.visible-interaction":
+      return "Interactions locales avec les acteurs, objets et signes visibles de la scène.";
+    case "scene.visible-dialogue":
+      return "Paroles, questions, déclarations et demandes adressées à un acteur visible.";
+    case "scene.visible-perception":
+      return "Observation générale, examen visible et recherche d'un indice incertain.";
+    default:
+      return "Questions de contexte, demandes méta et possibilités sans action engagée.";
+  }
 }
 
 function handoffRoute(domain: NarrativeRuntimeDomainV1): NarrativeRuntimeRouteV1 {

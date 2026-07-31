@@ -129,6 +129,7 @@ export interface CharacterImportItemCatalogEntryV1 {
 export interface CharacterImportClassCatalogEntryV1 {
   id: string;
   hitDie: number;
+  subclassLevel: number | null;
   subclassIds: string[];
 }
 

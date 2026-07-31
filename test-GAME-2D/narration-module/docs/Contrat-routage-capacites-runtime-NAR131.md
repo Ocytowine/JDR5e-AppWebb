@@ -31,7 +31,27 @@ Le registre `narrative-runtime-capability-registry/1` déclare un identifiant st
 | `scene.visible-perception` | observation | `perception` | `PERCEPTION` | interdit |
 | `scene.context-response` | contexte, méta, hypothèse | `scene_resolution` | aucune commande engagée | interdit |
 
-Les domaines `inventory`, `tactical`, `rest` et `world` restent fermés. Une intention qui les requiert conserve son sens et produit un `HANDOFF`; elle n'est jamais rabattue sur `scene_resolution`.
+Le registre V1 garde `inventory`, `tactical`, `rest` et `world` fermés. Le
+registre actif V2 ouvre uniquement `rest.process` lorsqu'un propriétaire de
+repos effectif est injecté. Les transitions monde et la création dynamique
+restent exécutées par leurs runtimes dédiés après validation de l'intention.
+`inventory` et le combat tactique générique restent des handoffs non exécutés.
+Une intention qui requiert un domaine fermé conserve son sens et n'est jamais
+rabattue sur `scene_resolution`.
+
+## Vue fournie à l'interpréteur
+
+`interpreter-runtime-context/1` est un manifeste public d'aide à
+l'interprétation. Il distingue :
+
+- `AVAILABLE` : raccord applicatif présent, autorisation métier encore requise ;
+- `HANDOFF_ONLY` : domaine compris mais non exécutable depuis le tour libre ;
+- `EXTERNAL_TRIGGER_ONLY` : fonctionnalité réveillée par une cause ou commande
+  propriétaire.
+
+Le manifeste ne remplace pas le registre. Une disponibilité proposée ou
+interprétée par l'IA n'ouvre aucune capacité : `routeNarrativeSemanticIntentV2`
+reçoit séparément les propriétaires réellement injectés et reste autoritaire.
 
 ## Sources et autorité
 

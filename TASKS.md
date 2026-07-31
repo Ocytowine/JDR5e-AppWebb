@@ -1,6 +1,6 @@
 # Tableau de bord du projet
 
-Dernière mise à jour : 2026-07-30
+Dernière mise à jour : 2026-07-31
 
 Ce fichier ne contient que le travail actif, la prochaine décision et les blocages.
 L'état détaillé du module narration, ses principes et sa feuille de route sont dans
@@ -185,11 +185,81 @@ Référence :
 
 ## Autres chantiers
 
+- [ ] Audit transverse du pipeline narratif et de la qualité MJ :
+  - [x] raccorder la route OpenAI du `mj_planner` dans le pilote Archives et la
+    campagne jouable ;
+  - [x] transmettre le plan MJ accepté au `scene_writer` et l'inclure dans
+    l'identité de son contexte ;
+  - [x] retirer l'identité de campagne prototype des appels de rendu d'une
+    campagne jouable ;
+  - [x] exécuter le bundle causal avant toute initiative PNJ automatique et
+    respecter sa décision de restitution de la main ;
+  - [x] réconcilier le contrat IA avec le runtime actif sur le caractère
+    conditionnel du `scene_writer` et l'absence d'engagement PNJ durable ;
+  - [x] restaurer les cinq derniers tours sémantiques et les focus locaux avant
+    une reprise de campagne ;
+  - [x] fournir à l'interpréteur un manifeste public et fingerprinté des
+    capacités disponibles, handoff-only et à déclenchement externe ;
+  - [x] aligner les contrats V5, NAR-131 et pipeline IA sur l'entrée réellement
+    consommée par `player_intent_interpreter` ;
+  - [ ] certifier dans une recette navigateur OpenAI que chaque rôle utile est
+    appelé une seule fois et dans l'ordre attendu sur action, dialogue,
+    observation, transition et clarification ;
+  - [ ] définir avec chaque propriétaire les commandes joueur encore absentes
+    de l'ontologie sémantique — inventaire, progression, bastion et tactique
+    générique — avant de les annoncer comme déclenchables par texte libre ;
+  - [ ] cadrer le contexte public du personnage réellement utile à la
+    compréhension, sans transmettre fiche mécanique complète, secrets ou
+    inventaire privé à l'interpréteur :
+    - [x] projeter identité, langues, actions, sorts et équipement visible,
+      fingerprintés, sans disponibilité mécanique ;
+    - [x] bloquer localement un alias personnage ambigu et demander une
+      clarification sans commit ni temps de jeu ;
+    - [x] prouver que l'agrégat privé, les ressources, la biographie et
+      l'inventaire non visible ne sont ni lus ni transmis ;
+    - [ ] créer avec leurs propriétaires une projection typée des
+      connaissances et états observables avant de les exposer ;
+  - [ ] auditer les frontières automatiques après chaque type de tour : monde,
+    intrigue, initiative PNJ, temps, progression, bastion et tactique ;
+  - [ ] étendre la qualité multi-tours au-delà du pilote Archives : continuité
+    de scène, variété, rythme, conséquences perceptibles et restitution claire
+    de la main :
+    - [x] raconter une transition committée comme un cheminement
+      `départ → franchissement → arrivée`, transmis au writer sans la fiche
+      complète de l'ancienne scène ;
+    - [x] empêcher le `scene_creator` de remplacer une destination publique
+      demandée par un seuil, un passage ou un lieu intermédiaire ;
+    - [ ] introduire avant création une décision structurée de plausibilité
+      pour les destinations entièrement proposées par le joueur : création
+      locale, clarification, voyage ou contradiction sourcée.
 - [ ] Poursuivre la passe de validation manuelle du build principal :
   - [x] raccorder l’accueil sans fiche au créateur existant et revenir aux
     campagnes avec relecture automatique de la fiche active ;
   - [x] normaliser les emplacements d’équipement historiques produits par le
     créateur vers les identifiants d’exemplaires exigés par la campagne ;
+  - [x] canonicaliser les conteneurs `storedIn` produits par le créateur et
+    migrer seulement les anciens slots qui désignent un contenant unique ;
+  - [x] retirer la sous-classe `champion` obsolète du personnage modèle et
+    ignorer avec avertissement une sous-classe legacy encore inactive, sans
+    relâcher le rejet au niveau où le choix devient mécanique ;
+  - [x] conserver l'entrée joueur dans le fil lors d'un échec runtime et
+    afficher les issues structurelles bornées de `core.validation.failed`,
+    sans exposer les détails privés d'autres erreurs ;
+  - [x] borner par empreinte déterministe les identifiants de transition vers
+    un lieu dynamique afin qu'une opération joueur valide ne fasse plus rejeter
+    la troisième commande et sa causalité par le noyau ;
+  - [x] empêcher une destination publique structurée d'être déclassée en
+    `move_near_visible_actor`, y compris lorsqu'une amorce spatiale V3–V5
+    précède le franchissement ;
+  - [x] séparer la scène d'ouverture historique de la scène courante afin
+    qu'une transition ne réécrive plus rétroactivement le début du fil ;
+  - [x] distinguer un échec d'étape secondaire après commit de l'échec de
+    l'action principale, avec notification non dédupliquée et diagnostic sûr ;
+  - [ ] rejouer la transition OpenAI vers la Place des Archives et corriger
+    l'étape secondaire exacte si son nouveau diagnostic apparaît encore ;
+  - [ ] corriger le conflit d'idempotence
+    `social.local-initiative-request-conflict` reproduit lorsqu'un acteur de
+    scène a été promu puis que la campagne est rechargée ;
   - [x] canonicaliser une composante de parole V3–V5 avant le contrôle
     `kind/dialogueAct`, avec régression sur la demande de registres adressée au
     clerc déjà focalisé ;

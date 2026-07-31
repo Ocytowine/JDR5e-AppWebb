@@ -6,6 +6,7 @@ export * from "./domainCommands";
 export * from "./difficultyAssessment";
 export * from "./diceRollRecord";
 export * from "./intentClarification";
+export * from "./interpreterCharacterContext";
 export * from "./lorePlayableScene";
 export * from "./loreGuidedSceneCreation";
 export * from "./loreGuidedPlaceCandidateGeneration";

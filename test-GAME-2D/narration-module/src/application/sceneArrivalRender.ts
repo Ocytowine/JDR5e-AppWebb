@@ -3,6 +3,8 @@ import { buildDisplayPacketFromRenderPlanV1, SCENE_SOCIAL_UI_CONTRACT_VERSION_V1
 import type { SceneArrivalStateV1 } from "./sceneArrival";
 import { buildVisiblePopulationNarrationV1 } from "./ambientScenePresence";
 import { narrativeDesignationOfV1, narrativeFirstMentionV1 } from "./narrativeDesignation";
+import { buildSceneReferentRegistryV1 } from "./sceneReferentRegistry";
+import type { PlayableSceneStateV1 } from "./playableScene";
 
 const PLAYER: SpeakerRefV1 = { schemaVersion: 1, speakerId: "speaker-player", kind: "PLAYER_CHARACTER", actorRef: null, displayName: "Personnage", knownNameStatus: "KNOWN", roleLabel: "Expression joueur", accessibilityLabel: "Expression du personnage joueur", visualToken: "speaker-player" };
 const RAW_PLAYER: SpeakerRefV1 = { schemaVersion: 1, speakerId: "speaker-player-raw", kind: "PLAYER_CHARACTER", actorRef: null, displayName: "Joueur", knownNameStatus: "KNOWN", roleLabel: "Entrée originale", accessibilityLabel: "Entrée brute du joueur", visualToken: "speaker-player" };
@@ -15,12 +17,17 @@ export function buildSceneArrivalRenderPlanV1(input: {
   characterExpression: string;
   arrival: SceneArrivalStateV1;
   durationSeconds: number;
+  sourceScene: PlayableSceneStateV1;
+  sourceBoundaryRef: string;
 }): RenderPlanV1 {
   if (!input.operationId.trim() || !input.rawInput.trim() || !input.characterExpression.trim()) throw new Error("Arrival rendering requires operation and player expression");
   if (input.arrival.narrationStatus !== "READY_AFTER_COMMIT") throw new Error("Arrival narration requires confirmed post-commit state");
   if (!Number.isInteger(input.durationSeconds) || input.durationSeconds < 1) throw new Error("durationSeconds must be a positive integer");
   const sceneSources = [...new Set([...input.arrival.authoritySourceRefs, ...input.arrival.reconstructionRefs])];
-  const narration = buildDeterministicArrivalNarration(input.arrival);
+  if (input.sourceScene.sceneId !== input.arrival.previousSceneId) {
+    throw new Error("Arrival rendering requires the committed previous scene");
+  }
+  const narration = buildDeterministicArrivalNarration(input);
   const plan: RenderPlanV1 = {
     schemaVersion: 1,
     contractVersion: SCENE_SOCIAL_UI_CONTRACT_VERSION_V1,
@@ -58,10 +65,46 @@ export function buildSceneArrivalDisplayPacketV1(input: Parameters<typeof buildS
   });
 }
 
-function buildDeterministicArrivalNarration(arrival: SceneArrivalStateV1): string {
-  const situation = arrival.scene.perceptibleSituation.join(" ");
-  const actors = buildVisiblePopulationNarrationV1(arrival.scene);
-  const points = arrival.scene.pointsOfInterest.map(point => `${point.label} : ${point.visibleDescription}`).join(" ");
-  const place = narrativeFirstMentionV1(narrativeDesignationOfV1(arrival.scene, "locationDesignation"), arrival.scene.locationName);
-  return `Tu arrives à ${place}. ${situation} ${actors} ${points} Tension actuelle : ${arrival.scene.currentTension}`.replace(/\s+/gu, " ").trim();
+function buildDeterministicArrivalNarration(input: {
+  arrival: SceneArrivalStateV1;
+  durationSeconds: number;
+  sourceScene: PlayableSceneStateV1;
+  sourceBoundaryRef: string;
+}): string {
+  const source = narrativeFirstMentionV1(
+    narrativeDesignationOfV1(input.sourceScene, "locationDesignation"),
+    input.sourceScene.locationName
+  );
+  const place = narrativeFirstMentionV1(
+    narrativeDesignationOfV1(input.arrival.scene, "locationDesignation"),
+    input.arrival.scene.locationName
+  );
+  const boundary = buildSceneReferentRegistryV1(input.sourceScene).referents
+    .find(referent => referent.canonicalRef === input.sourceBoundaryRef);
+  const destinationLabel = boundary?.publicDestinationAliases[0]?.trim() || place;
+  const departure = boundary === undefined
+    ? `Tu quittes ${source} et prends la direction de ${destinationLabel}.`
+    : `Tu quittes ${source} et empruntes le passage indiqué vers ${destinationLabel}.`;
+  const crossing = input.durationSeconds <= 15
+    ? `Quelques pas plus loin, tu arrives à ${place}.`
+    : `Au terme de ce court trajet, tu arrives à ${place}.`;
+  const situation = input.arrival.scene.perceptibleSituation
+    .slice(0, 2)
+    .map(asNarrativeSentence)
+    .filter(Boolean)
+    .join(" ");
+  const actors = asNarrativeSentence(buildVisiblePopulationNarrationV1(input.arrival.scene));
+  const tension = asNarrativeSentence(input.arrival.scene.currentTension);
+  return [departure, crossing, situation, actors, tension]
+    .filter(Boolean)
+    .join(" ")
+    .replace(/\s+/gu, " ")
+    .trim();
+}
+
+function asNarrativeSentence(value: string): string {
+  const normalized = value.replace(/\s+/gu, " ").trim();
+  if (!normalized) return "";
+  const capitalized = normalized[0]!.toLocaleUpperCase("fr-FR") + normalized.slice(1);
+  return /[.!?…]$/u.test(capitalized) ? capitalized : `${capitalized}.`;
 }

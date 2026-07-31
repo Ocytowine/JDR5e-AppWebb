@@ -182,7 +182,9 @@ export function createDynamicPlaceEntryRuntimeV1<TCreative extends DynamicPlaceE
               rawInput: input.rawInput,
               characterExpression: prepared.value.characterExpression,
               arrival: arrival.value,
-              durationSeconds: prepared.value.worldResult.durationSeconds
+              durationSeconds: prepared.value.worldResult.durationSeconds,
+              sourceScene: input.activeScene,
+              sourceBoundaryRef: prepared.value.transitionCommand.boundaryRef
             }) as DisplayPacketV1 & JsonObject,
             characterExpression: prepared.value.characterExpression,
             durationSeconds: prepared.value.worldResult.durationSeconds,

@@ -6,9 +6,14 @@ test("transition locale jouée depuis la surface narration", async ({ page }) =>
   const send = page.getByRole("button", { name: "Envoyer" });
 
   await expect(input).toBeEnabled();
+  const originalWelcome = page
+    .getByRole("log")
+    .getByText(/Tu te trouves à Auberge du Seuil/);
+  await expect(originalWelcome).toHaveCount(1);
   await input.fill("Je franchis la porte du fond et entre dans l'arrière-salle.");
   await send.click();
   await expect(page.getByRole("log")).toContainText("Arrière-salle de l'Auberge du Seuil");
+  await expect(originalWelcome).toHaveCount(1);
 
   await input.fill("Que vois-je ici ?");
   await send.click();
@@ -25,7 +30,7 @@ test("transition locale jouée depuis la surface narration", async ({ page }) =>
 
   await input.fill("Je repasse par la porte vers la salle commune.");
   await send.click();
-  await expect(page.getByRole("log")).toContainText("Tu arrives à Auberge du Seuil");
+  await expect(page.getByRole("log")).toContainText("tu arrives à Auberge du Seuil");
   await expect(page.getByRole("log")).toContainText("Destination=location:inn-common-room");
   await expect(page.getByRole("alert")).toHaveCount(0);
 });

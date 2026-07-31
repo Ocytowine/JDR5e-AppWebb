@@ -2,15 +2,18 @@
 
 Date : 2026-07-22
 
-Statut : `IMPLEMENTE_RUNTIME_ORCHESTRE_NON_ACTIVE_UI`
+Statut : `IMPLEMENTE_RUNTIME_ORCHESTRE_ACTIF_UI`
 
 Version : `scene-transition/1`
 
 ## Objectif
 
-Ouvrir la première capacité métier post-consolidation : valider une transition entre une scène source et une destination canonique sans donner à la narration, à l'IA ou aux alias visibles l'autorité sur la géographie.
-
-Ce socle ne committe encore aucun déplacement et ne construit pas la scène d'arrivée. L'adaptateur produit désormais une commande préparatoire `world-scene-transition-command/1` uniquement pour une connexion locale ouverte et validée.
+Valider puis committer atomiquement une transition entre une scène source et
+une destination canonique sans donner à la narration, à l'IA ou aux alias
+visibles l'autorité sur la géographie. L'adaptateur produit une commande
+préparatoire `world-scene-transition-command/1` uniquement pour une connexion
+locale ouverte et validée ; le runtime monde/temps applique ensuite le
+déplacement et reconstruit la scène d'arrivée après le commit.
 
 ## Autorités
 
@@ -104,7 +107,17 @@ Ce constructeur ne rédige aucune narration. Il établit uniquement la matière 
 3. narration MJ déterministe mais `AI_NARRATIVE_ALLOWED`, fondée sur les sources lore/monde et les agrégats committés ;
 4. notification système déterministe avec destination, scène, durée et commit.
 
-Le rythme rend ensuite la main au joueur avec `ASK_PLAYER`. Le fallback déterministe décrit seulement la situation, les présences et points d'intérêt de la nouvelle scène. Une future reformulation IA ne pourra utiliser que les mêmes sources.
+Le rythme rend ensuite la main au joueur avec `ASK_PLAYER`. Le fallback
+déterministe raconte le départ depuis la scène source, le franchissement du
+passage validé et l'arrivée, puis établit sobrement la situation, les présences
+et la tension de la nouvelle scène. Il ne récite pas le catalogue complet des
+points d'intérêt.
+
+Le `scene_writer` reçoit ce cheminement post-commit comme base autoritaire. Il
+peut le mettre en prose, mais doit conserver l'ordre
+`départ → franchissement → arrivée`. Le nom de la scène source est autorisé
+uniquement pour raconter le départ ; ses présences, son décor et sa tension ne
+sont pas importés dans la destination.
 
 ## Port du contrôleur
 

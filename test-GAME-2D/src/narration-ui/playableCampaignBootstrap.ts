@@ -8,6 +8,7 @@ import {
   ensureDynamicPlaceCreationStateV1,
   NarrativeTurnControllerV1,
   createCampaignWorldSimulationRuntimeV1,
+  createInterpreterCharacterContextResolverV1,
   resolveSceneV1,
   activateCampaignInitialSceneV1,
   CAMPAIGN_RUNTIME_BINDINGS_CONTRACT_V1,
@@ -33,6 +34,7 @@ import type { CharacterImportDiagnosticV1 } from "../../narration-module/src/boo
 import type { NarrativeAppSurfaceBootstrapV1 } from "./NarrativeAppSurface";
 import {
   buildOpenAiIntentInterpreterConfigV1,
+  buildOpenAiMjPlannerConfigV1,
   buildOpenAiNpcPerformerConfigV1,
   buildOpenAiSceneCreatorConfigV2
 } from "./openAiNarrativeRuntimeConfig";
@@ -56,6 +58,8 @@ import {
 } from "./campaignFeatureComposition";
 import { currentCharacterProgressionCatalogV1 } from
   "./characterProgressionCatalogAdapter";
+import { buildInstalledInterpreterCharacterReferenceCatalogV1 } from
+  "./interpreterCharacterContextCatalog";
 import {
   createInstalledBastionTacticalRuntimeFactoryV1
 } from "./playableCampaignBastionTactical";
@@ -354,8 +358,14 @@ export async function createPlayableCampaignControllerV1(
       runtimeBindings,
       intentInterpreterConfig:
         mode === "openai" ? buildOpenAiIntentInterpreterConfigV1() : null,
+      mjPlannerConfig:
+        mode === "openai" ? buildOpenAiMjPlannerConfigV1() : undefined,
       npcPerformerConfig:
         mode === "openai" ? buildOpenAiNpcPerformerConfigV1() : null,
+      interpreterCharacterContextResolver:
+        createInterpreterCharacterContextResolverV1(
+          buildInstalledInterpreterCharacterReferenceCatalogV1()
+        ),
       sceneTransitionRuntime,
       dynamicPlaceRuntime: mode === "openai"
         ? createCampaignLoreGuidedDynamicPlaceRuntimeV1({

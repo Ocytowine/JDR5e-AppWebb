@@ -100,7 +100,14 @@ import {
   type RecordCampaignLoreProjectionCommandV1,
   type RecordCampaignLoreProjectionResultV1
 } from "./campaignLoreProjectionRuntime";
-import { routeNarrativeSemanticIntentV2 } from "./runtimeCapabilityRouting";
+import {
+  buildInterpreterRuntimeContextV1,
+  routeNarrativeSemanticIntentV2
+} from "./runtimeCapabilityRouting";
+import {
+  createInterpreterCharacterContextResolverV1,
+  type InterpreterCharacterContextResolverV1
+} from "./interpreterCharacterContext";
 import type { RestProcessStateV1, RestSegmentActivityV1 } from "../handoff";
 import {
   SOCIAL_LOCAL_INITIATIVE_CONTRACT_V1,
@@ -208,6 +215,7 @@ export interface NarrativeSceneTransitionRuntimeV1 {
     rawInput: string;
     interpretation: NarrativeIntentInterpretationV1;
     domainCommand: NarrativeDomainCommandV1;
+    activeScene: PlayableSceneStateV1;
   }): Promise<Result<{
     commit: CommitRecord;
     arrival: SceneArrivalStateV1;
@@ -349,6 +357,8 @@ export interface NarrativeTurnControllerOptions {
   socialInitiativePerformer?: SocialInitiativePerformerV1 | null;
   worldSceneLocationResolver?: NarrativeWorldSceneLocationResolverV1 | null;
   activeSceneResolver?: NarrativeActiveSceneResolverV1 | null;
+  interpreterCharacterContextResolver?:
+    InterpreterCharacterContextResolverV1 | null;
   tacticalConsequenceAuthorities?: readonly TacticalConsequenceAuthorityV1[];
   bastionTacticalRuntimeFactory?: NarrativeBastionTacticalRuntimeFactoryV1;
   d20Source?: D20SourceV1;
@@ -388,6 +398,8 @@ export class NarrativeTurnControllerV1 {
   private readonly socialInitiativePerformer: SocialInitiativePerformerV1 | null;
   private readonly worldSceneLocationResolver: NarrativeWorldSceneLocationResolverV1 | null;
   private readonly activeSceneResolver: NarrativeActiveSceneResolverV1 | null;
+  private readonly interpreterCharacterContextResolver:
+    InterpreterCharacterContextResolverV1 | null;
   private readonly tacticalConsequenceAuthorities:
     readonly TacticalConsequenceAuthorityV1[];
   private readonly bastionTacticalRuntime:
@@ -419,6 +431,10 @@ export class NarrativeTurnControllerV1 {
       : options.socialInitiativePerformer;
     this.worldSceneLocationResolver = options.worldSceneLocationResolver ?? null;
     this.activeSceneResolver = options.activeSceneResolver ?? null;
+    this.interpreterCharacterContextResolver =
+      options.interpreterCharacterContextResolver === undefined
+        ? createInterpreterCharacterContextResolverV1()
+        : options.interpreterCharacterContextResolver;
     this.bastionTacticalRuntime =
       options.bastionTacticalRuntimeFactory?.create({
         repository: options.repository,
@@ -902,6 +918,8 @@ export class NarrativeTurnControllerV1 {
       npcPerformerConfig: this.npcPerformerConfig,
       localReferentHints: this.recentLocalReferents.filter(hint => hint.sceneId === activeScene.sceneId && hint.sceneVersion === activeScene.version),
       recentSemanticTurns: this.recentSemanticTurns,
+      interpreterCharacterContextResolver:
+        this.interpreterCharacterContextResolver,
       sceneTransitionRuntime: this.sceneTransitionRuntime,
       dynamicPlaceRuntime: this.dynamicPlaceRuntime,
       restRuntime: this.restRuntime,
@@ -1397,11 +1415,15 @@ export class NarrativeTurnControllerV1 {
   }
 
   async restoreRenderedThread(limit = 100): Promise<Result<RestoredNarrativeThreadV1>> {
-    return restoreNarrativeRenderedThreadV1({
+    const rendered = await restoreNarrativeRenderedThreadV1({
       repository: this.repository,
       campaignId: this.campaignId,
       limit
     });
+    if (!rendered.ok) return rendered;
+    const restoredContext = await this.restoreRecentInterpreterContext();
+    if (!restoredContext.ok) return restoredContext;
+    return rendered;
   }
 
   async restorePendingSkillCheck(): Promise<Result<PendingNarrativeSkillCheckV1 | null>> {
@@ -1482,6 +1504,39 @@ export class NarrativeTurnControllerV1 {
       ...this.recentSemanticTurns.filter(entry => entry.operationId !== turn.operationId)
     ].slice(0, 5);
   }
+
+  private async restoreRecentInterpreterContext(): Promise<Result<null>> {
+    const operations = await this.repository.listOperations(
+      this.campaignId,
+      "narrative.turn.input",
+      100
+    );
+    if (!operations.ok) return operations;
+    const outputs = operations.value
+      .filter(operation =>
+        operation.phase === "COMPLETED"
+        && operation.resultPayload !== null
+      )
+      .sort((left, right) => left.receivedAt.localeCompare(right.receivedAt))
+      .slice(-5)
+      .map(operation =>
+        upgradeLegacyControllerOutput(
+          operation.resultPayload as NarrativeTurnControllerOutputV1
+        )
+      )
+      .filter(output =>
+        output.contractVersion === "narrative-turn-controller/1"
+        && output.activeScene !== undefined
+        && output.interpretation !== undefined
+      );
+    this.recentLocalReferents = [];
+    this.recentSemanticTurns = [];
+    for (const output of outputs) {
+      this.rememberLocalReferent(output, output.activeScene);
+      this.rememberSemanticTurn(output);
+    }
+    return { ok: true, value: null };
+  }
 }
 
 async function cancelUncommittedOperationAfterFailure(repository: CampaignRepository, operationId: OperationId): Promise<void> {
@@ -1538,6 +1593,8 @@ export async function createPrototypeNarrativeTurnControllerV1(options: {
   restRuntime?: NarrativeRestRuntimeV1 | null;
   worldSceneLocationResolver?: NarrativeWorldSceneLocationResolverV1 | null;
   activeSceneResolver?: NarrativeActiveSceneResolverV1 | null;
+  interpreterCharacterContextResolver?:
+    InterpreterCharacterContextResolverV1 | null;
   tacticalConsequenceAuthorities?: readonly TacticalConsequenceAuthorityV1[];
   bastionTacticalRuntimeFactory?: NarrativeBastionTacticalRuntimeFactoryV1;
   initialScene?: { scene: PlayableSceneStateV1; locationRef: string };
@@ -1564,6 +1621,8 @@ export async function createPrototypeNarrativeTurnControllerV1(options: {
     activeSceneResolver: options.activeSceneResolver === undefined
       ? { resolve: resolvePrototypeInnActiveSceneV1 }
       : options.activeSceneResolver,
+    interpreterCharacterContextResolver:
+      options.interpreterCharacterContextResolver,
     tacticalConsequenceAuthorities: options.tacticalConsequenceAuthorities,
     bastionTacticalRuntimeFactory: options.bastionTacticalRuntimeFactory
   });
@@ -1580,6 +1639,8 @@ export async function createBrowserPersistentNarrativeTurnControllerV1(options: 
   restRuntime?: NarrativeRestRuntimeV1 | null;
   worldSceneLocationResolver?: NarrativeWorldSceneLocationResolverV1 | null;
   activeSceneResolver?: NarrativeActiveSceneResolverV1 | null;
+  interpreterCharacterContextResolver?:
+    InterpreterCharacterContextResolverV1 | null;
   tacticalConsequenceAuthorities?: readonly TacticalConsequenceAuthorityV1[];
   bastionTacticalRuntimeFactory?: NarrativeBastionTacticalRuntimeFactoryV1;
   initialScene?: { scene: PlayableSceneStateV1; locationRef: string };
@@ -1596,6 +1657,8 @@ export async function createBrowserPersistentNarrativeTurnControllerV1(options: 
     restRuntime: options.restRuntime,
     worldSceneLocationResolver: options.worldSceneLocationResolver,
     activeSceneResolver: options.activeSceneResolver,
+    interpreterCharacterContextResolver:
+      options.interpreterCharacterContextResolver,
     initialScene: options.initialScene,
     initializeRepository: options.initializeRepository,
     tacticalConsequenceAuthorities: options.tacticalConsequenceAuthorities,
@@ -1624,6 +1687,8 @@ export async function createBrowserPersistentNarrativeTurnControllerV1(options: 
     activeSceneResolver: options.activeSceneResolver === undefined
       ? { resolve: resolvePrototypeInnActiveSceneV1 }
       : options.activeSceneResolver,
+    interpreterCharacterContextResolver:
+      options.interpreterCharacterContextResolver,
     tacticalConsequenceAuthorities: options.tacticalConsequenceAuthorities,
     bastionTacticalRuntimeFactory: options.bastionTacticalRuntimeFactory
   });
@@ -1790,6 +1855,8 @@ async function buildResolvedOutput(input: {
   npcPerformerConfig: NpcPerformerConfigV1 | null;
   localReferentHints?: LocalReferentHintV1[];
   recentSemanticTurns?: RecentSemanticTurnV1[];
+  interpreterCharacterContextResolver:
+    InterpreterCharacterContextResolverV1 | null;
   sceneTransitionRuntime: NarrativeSceneTransitionRuntimeV1 | null;
   dynamicPlaceRuntime: NarrativeDynamicPlaceRuntimeV1 | null;
   restRuntime: NarrativeRestRuntimeV1 | null;
@@ -1798,6 +1865,15 @@ async function buildResolvedOutput(input: {
   const resolvedOutputStartedAt = Date.now();
   const intentId = `${input.operation.operationId}:intent:1`;
   const interpretationStartedAt = Date.now();
+  const characterContextResult =
+    input.intentInterpreterConfig === null
+    || input.interpreterCharacterContextResolver === null
+      ? { ok: true as const, value: null }
+      : await input.interpreterCharacterContextResolver.resolve({
+          repository: input.repository,
+          campaignId: input.campaignId
+        });
+  if (!characterContextResult.ok) return characterContextResult;
   const interpretationResult = input.intentInterpreterConfig === null
     ? null
     : await interpretNarrativeInputWithAiV1({
@@ -1808,6 +1884,12 @@ async function buildResolvedOutput(input: {
       config: input.intentInterpreterConfig,
       localReferentHints: input.localReferentHints ?? [],
       recentSemanticTurns: input.recentSemanticTurns ?? [],
+      runtimeContext: buildInterpreterRuntimeContextV1({
+        sceneTransition: input.sceneTransitionRuntime !== null,
+        dynamicPlace: input.dynamicPlaceRuntime !== null,
+        rest: input.restRuntime !== null
+      }),
+      characterContext: characterContextResult.value,
       playableScene: input.activeScene
     });
   const interpretation = interpretationResult === null
@@ -1898,7 +1980,8 @@ async function buildResolvedOutput(input: {
       operation: input.operation,
       rawInput: input.input.rawInput,
       interpretation,
-      domainCommand
+      domainCommand,
+      activeScene: input.activeScene
     });
     if (!transition.ok) return transition;
     const transitionResolution: NarrativeResolutionResultV1 = {

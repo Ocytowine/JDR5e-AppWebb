@@ -1,5 +1,14 @@
 import type { LoreInfluencePacketV1 } from "../context";
-import { coreError, opaqueId, type AggregateId, type CommandId, type CommitId, type EventId, type Result } from "../core";
+import {
+  computeJsonFingerprint,
+  coreError,
+  opaqueId,
+  type AggregateId,
+  type CommandId,
+  type CommitId,
+  type EventId,
+  type Result
+} from "../core";
 import { planNextTemporalBatchV1, prepareTemporalSegmentCommitV1, type TemporalTaskV1 } from "../time";
 import type { DynamicCreationValidationPolicyV1 } from "../ai/types";
 import { createDynamicPlaceEntryRuntimeV1 } from "./dynamicPlaceEntryRuntime";
@@ -68,6 +77,15 @@ export function createCampaignLoreGuidedDynamicPlaceRuntimeV1(input: {
         if (sourceLocationRef === null) return failure("narrative.dynamic-place.source-location-ref-missing", { sceneId: request.activeScene.sceneId });
         const target = resolveUnmappedVisibleCreationBoundaryV1({ semanticKind: request.interpretation.semanticIntent.kind, requiresClarification: request.interpretation.requiresClarification, targetRef: resolvedTargetRef(request.interpretation), activeScene: request.activeScene, topology: topologyState.topology });
         if (target === null) return failure("narrative.dynamic-place.target-required");
+        const targetReferent = buildSceneReferentRegistryV1(request.activeScene)
+          .referents.find(referent => referent.canonicalRef === target);
+        const interpretedTargetLabel = resolvedTargetLabel(request.interpretation);
+        const requestedDestinationName =
+          targetReferent?.publicDestinationAliases[0]?.trim()
+          || (target.startsWith("requested-destination:")
+            ? interpretedTargetLabel
+            : null)
+          || null;
         const brief = await buildLoreGuidedSceneCreationBriefFromCampaignV1({
           briefId: `${request.operation.operationId}:lore-brief`,
           campaignId: request.campaign.campaignId,
@@ -107,7 +125,11 @@ export function createCampaignLoreGuidedDynamicPlaceRuntimeV1(input: {
         return { ok: true, value: {
           brief: brief.brief, dynamicCreationPolicy: dynamicPolicy, placeValidationPolicy: placePolicy,
           topology: topologyState.topology, sourceSceneId: request.activeScene.sceneId, sourceLocationRef, sourceBoundaryRef: target,
-          requestedDestinationDescription: request.interpretation.semanticIntent.playerGoal,
+          requestedDestinationDescription:
+            requestedDestinationName
+            ?? interpretedTargetLabel
+            ?? request.interpretation.semanticIntent.playerGoal,
+          requestedDestinationName,
           generatorConfig: input.generatorConfig
         } };
       }
@@ -132,8 +154,10 @@ export function createCampaignLoreGuidedDynamicPlaceRuntimeV1(input: {
         if (!position.ok) return position; if (!lifecycle.ok) return lifecycle; if (!clock.ok) return clock; if (!schedule.ok) return schedule; if (!cursor.ok) return cursor;
         if (lifecycle.value.payload.activeSceneId !== request.activeScene.sceneId) return failure("narrative.dynamic-place.active-scene-changed");
         const currentGameSecond = Number(clock.value.payload.elapsedGameSeconds);
-        const requestId = `${request.operation.operationId}:dynamic-place-transition`;
-        const commandId = `${requestId}:world-command:1`;
+        const { requestId, commandId } =
+          await buildCampaignDynamicPlaceTransitionIdsV1(
+            request.operation.operationId
+          );
         const command: SceneTransitionWorldCommandV1 = {
           schemaVersion: 1, contractVersion: "world-scene-transition-command/1", commandId, requestId,
           operationId: request.operation.operationId, campaignId: request.campaign.campaignId,
@@ -169,6 +193,21 @@ export function createCampaignLoreGuidedDynamicPlaceRuntimeV1(input: {
       }
     }
   }));
+}
+
+export async function buildCampaignDynamicPlaceTransitionIdsV1(
+  operationId: string
+): Promise<{ requestId: string; commandId: string }> {
+  const fingerprint = await computeJsonFingerprint({
+    schemaVersion: 1,
+    operationId,
+    purpose: "campaign-dynamic-place-transition"
+  });
+  const token = fingerprint.replace(/^sha256:/u, "");
+  return {
+    requestId: `dynamic-place-transition:${token}`,
+    commandId: `dynamic-place-command:${token}`
+  };
 }
 
 export function isUnmappedVisibleCreationBoundaryV1(input: {
@@ -216,6 +255,19 @@ function resolvedTargetRef(interpretation: {
   const label = typeof target?.label === "string" ? target.label : null;
   if (target?.kind === "place" && label?.trim()) return `requested-destination:${slugRequestedDestination(label)}`;
   return null;
+}
+
+function resolvedTargetLabel(interpretation: {
+  referentResolution?: { resolvedTarget: { label?: string | null } | null } | null;
+  semanticIntent: { target: { label?: string | null } | null };
+}): string | null {
+  const target =
+    interpretation.referentResolution?.resolvedTarget
+    ?? interpretation.semanticIntent.target
+    ?? null;
+  return typeof target?.label === "string" && target.label.trim()
+    ? target.label.trim()
+    : null;
 }
 
 function slugRequestedDestination(value: string): string {

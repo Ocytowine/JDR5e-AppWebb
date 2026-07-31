@@ -100,7 +100,9 @@ export function createNarrativeSceneTransitionRuntimeV1(
               rawInput: input.rawInput,
               characterExpression: prepared.value.characterExpression,
               arrival: arrival.value,
-              durationSeconds: prepared.value.worldResult.durationSeconds
+              durationSeconds: prepared.value.worldResult.durationSeconds,
+              sourceScene: input.activeScene,
+              sourceBoundaryRef: prepared.value.command.boundaryRef
             }) as ReturnType<typeof buildSceneArrivalDisplayPacketV1> & JsonObject,
             characterExpression: prepared.value.characterExpression,
             durationSeconds: prepared.value.worldResult.durationSeconds,
