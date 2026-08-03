@@ -1,10 +1,12 @@
 # Tableau de bord du projet
 
-Dernière mise à jour : 2026-07-31
+Dernière mise à jour : 2026-08-03
 
 Ce fichier ne contient que le travail actif, la prochaine décision et les blocages.
 L'état détaillé du module narration, ses principes et sa feuille de route sont dans
 [`Consolidation-fondations-narration.md`](test-GAME-2D/narration-module/docs/Consolidation-fondations-narration.md).
+La méthode de reprise des prochains lots de contrôles d'accès est détaillée dans
+[`Passation-prochains-lots-controles-acces.md`](test-GAME-2D/narration-module/docs/Passation-prochains-lots-controles-acces.md).
 
 ## Étape active
 
@@ -211,6 +213,8 @@ Référence :
   - [x] certifier le scénario transverse des trois témoins jusqu'à la
     matérialisation, l'accès, la confirmation ou la réfutation et la reprise.
 - [ ] Raccorder les approches jouables aux contrôles d'accès persistants :
+  - ordre et méthode de reprise :
+    [`Passation-prochains-lots-controles-acces.md`](test-GAME-2D/narration-module/docs/Passation-prochains-lots-controles-acces.md) ;
   - [x] implémenter l'approche inventaire autoritaire : possession réelle,
     accessibilité, justificatif actif, conservation ou consommation atomique,
     ouverture et rejeu dans l'opération narrative ;

@@ -6,10 +6,12 @@ avec un ancien plan de travail.
 ## Commencer ici
 
 1. [`TASKS.md`](../../../TASKS.md) — lot immédiat et blocages.
-2. [`Consolidation-fondations-narration.md`](Consolidation-fondations-narration.md)
+2. [`Passation-prochains-lots-controles-acces.md`](Passation-prochains-lots-controles-acces.md)
+   — ordre, méthode et critères de fermeture des prochains raccords d'accès.
+3. [`Consolidation-fondations-narration.md`](Consolidation-fondations-narration.md)
    — état actuel, principes, limites, feuille de route et méthode.
-3. Le contrat actif du comportement à modifier.
-4. Les tests et le code correspondants.
+4. Le contrat actif du comportement à modifier.
+5. Les tests et le code correspondants.
 
 ## Contrats actifs
 
@@ -90,6 +92,9 @@ avec un ancien plan de travail.
 
 ## Guides en français
 
+- [`Passation-prochains-lots-controles-acces.md`](Passation-prochains-lots-controles-acces.md)
+  guide la prochaine conversation depuis `TASKS.md`, fixe l'ordre des lots et
+  rappelle les invariants, tests et limites à préserver.
 - [`Guide-personnel-scenario-fonctionnement-global.md`](Guide-personnel-scenario-fonctionnement-global.md)
 - [`Recette-transverse-temoignages-lieu-acces.md`](Recette-transverse-temoignages-lieu-acces.md)
   est le document vivant destiné au propriétaire du projet : un scénario
