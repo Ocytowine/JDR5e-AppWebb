@@ -14,6 +14,7 @@ import {
 } from "../../src/core";
 import {
   NarrativeTurnControllerV1,
+  REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1,
   createInitialReferenceSceneStateV1,
   normalizeSurfaceTyposV1,
   validateNpcPerformanceAgainstVisibleSceneV1
@@ -356,6 +357,280 @@ async function main(): Promise<void> {
   assert.equal(dynamicTurn.ok, true, dynamicTurn.ok ? undefined : dynamicTurn.error.messageKey);
   assert.equal(dynamicCapabilityCalled, true, "le contrôleur doit consulter la capacité de création dynamique structurée");
   if (dynamicTurn.ok) assert.equal(dynamicTurn.value.output.resolution.safetyNotes.some(note => note.includes("Lieu dynamique créé")), true);
+
+  let forbiddenCreationCalled = false;
+  const destinationDecisionController = new NarrativeTurnControllerV1({
+    repository,
+    campaignId,
+    clock,
+    idPrefix: "destination-decision",
+    dynamicPlaceRuntime: {
+      canHandle() { return true; },
+      async evaluateDestination() {
+        return { ok: true as const, value: {
+          decision: {
+            schemaVersion: 1 as const, contractVersion: "destination-plausibility/1" as const,
+            outcome: "CLARIFY" as const, code: "DESTINATION_SCOPE_UNCLEAR" as const,
+            destinationRef: null, allowedParentLocationRef: null, candidatePlaceRefs: [],
+            reason: "Dans quel quartier cherches-tu cette rue ?", accessHint: null, sourceRefs: [], commitAuthority: false as const
+          },
+          aiTelemetry: []
+        } };
+      },
+      async execute() {
+        forbiddenCreationCalled = true;
+        return { ok: false, error: coreError("VALIDATION_FAILED", "test.creation-must-not-run") };
+      }
+    }
+  });
+  const destinationDecisionTurn = await destinationDecisionController.submit({ schemaVersion: 1, clientRequestId: "req-destination-decision", rawInput: "Je cherche une rue calme." });
+  assert.equal(destinationDecisionTurn.ok, true, destinationDecisionTurn.ok ? undefined : destinationDecisionTurn.error.messageKey);
+  assert.equal(forbiddenCreationCalled, false, "scene_creator ne doit pas être atteint après une décision autre que CREATE_LOCAL");
+  if (destinationDecisionTurn.ok) {
+    assert.equal(destinationDecisionTurn.value.output.noCommit, true);
+    assert.equal(destinationDecisionTurn.value.output.noGameTime, true);
+    assert.equal(destinationDecisionTurn.value.output.suspendedIntent?.missingField, "destination");
+  }
+
+  let controlledCreationCalled = false;
+  const controlledDestinationController = new NarrativeTurnControllerV1({
+    repository,
+    campaignId,
+    clock,
+    idPrefix: "controlled-destination",
+    dynamicPlaceRuntime: {
+      canHandle() { return true; },
+      async evaluateDestination() {
+        return { ok: true as const, value: { decision: {
+          schemaVersion: 1 as const, contractVersion: "destination-plausibility/1" as const,
+          outcome: "CREATE_LOCAL" as const, code: "VISIBLE_EXIT_CAN_BE_MATERIALIZED" as const,
+          destinationRef: null, allowedParentLocationRef: "location:archives", candidatePlaceRefs: [],
+          reason: "Lieu plausible mais accès gardé.",
+          accessHint: { schemaVersion: 1 as const, state: "CONTROLLED" as const, ownerDomain: "WorldDomain", reason: "Accès gardé.", requirements: ["Mandat secret"], sourceRefs: ["wiki:archives"], authority: "NON_COMMITTABLE_ACCESS_HINT" as const },
+          sourceRefs: ["wiki:archives"], commitAuthority: false as const
+        }, aiTelemetry: [] } };
+      },
+      async execute() {
+        controlledCreationCalled = true;
+        return { ok: false, error: coreError("VALIDATION_FAILED", "test.controlled-creation-must-not-run") };
+      }
+    }
+  });
+  const controlledDestinationTurn = await controlledDestinationController.submit({ schemaVersion: 1, clientRequestId: "req-controlled-destination", rawInput: "Je cherche la salle confidentielle." });
+  assert.equal(controlledDestinationTurn.ok, true, controlledDestinationTurn.ok ? undefined : controlledDestinationTurn.error.messageKey);
+  assert.equal(controlledCreationCalled, false, "un indice d'accès non autoritaire ne doit jamais provoquer création et entrée automatiques");
+  if (controlledDestinationTurn.ok) {
+    assert.equal(controlledDestinationTurn.value.output.noCommit, true);
+    assert.equal(JSON.stringify(controlledDestinationTurn.value.output.displayPacket).includes("Mandat secret"), false, "le brief privé de l'arbitre ne doit pas être exposé au joueur");
+  }
+
+  let inventoryAccessCalled = false;
+  const inventoryAccessController = new NarrativeTurnControllerV1({
+    repository,
+    campaignId,
+    clock,
+    idPrefix: "inventory-access-route",
+    inventoryAccessRuntime: {
+      canHandle() { return true; },
+      async execute(input) {
+        inventoryAccessCalled = true;
+        const preparing = await input.repository.transitionOperation(input.operation.operationId, "RECEIVED", "PREPARING");
+        if (!preparing.ok) return preparing;
+        const ready = await input.repository.transitionOperation(input.operation.operationId, "PREPARING", "READY_TO_COMMIT");
+        if (!ready.ok) return ready;
+        const currentCampaign = await input.repository.getCampaign(input.campaignId);
+        if (!currentCampaign.ok) return currentCampaign;
+        const lease = await input.repository.acquireWriterLease(input.campaignId, opaqueId("writer-inventory-access-route"), 120_000);
+        if (!lease.ok) return lease;
+        const aggregateId = opaqueId<AggregateId>("agg-inventory-access-route");
+        const commandId = opaqueId<CommandId>("command-inventory-access-route");
+        const committed = await input.repository.commit({
+          campaignId: input.campaignId, operationId: input.operation.operationId, commitId: opaqueId<CommitId>("commit-inventory-access-route"),
+          idempotencyKey: input.operation.idempotencyKey, requestFingerprint: input.operation.requestFingerprint,
+          expectedCampaignRevision: currentCampaign.value.campaignRevision, writerLease: lease.value,
+          acceptedCommands: [{ schemaVersion: 1, contractId: "inventory-access-route", contractVersion: 1, commandId, campaignId: input.campaignId,
+            operationId: input.operation.operationId, commandType: "inventory.access.test", target: { aggregateType: "test.inventory-access", aggregateId, expectedAggregateRevision: null },
+            payloadSchemaVersion: 1, payload: { verified: true }, acceptedAtGameSecond: 0 }],
+          aggregateWrites: [{ aggregateType: "test.inventory-access", aggregateId, expectedAggregateRevision: null, payloadSchemaVersion: 1, payload: { verified: true } }],
+          events: [{ schemaVersion: 1, eventId: opaqueId<EventId>("event-inventory-access-route"), campaignId: input.campaignId, operationId: input.operation.operationId,
+            eventType: "inventory.access.test", origin: "PLAYER_INTENT", causation: { kind: "COMMAND", id: commandId }, aggregateRefs: [{ aggregateType: "test.inventory-access", aggregateId, aggregateRevision: 0 }],
+            visibility: { scope: "PLAYER_VISIBLE", actorIds: [] }, occurredAtGameSecond: 0, payloadSchemaVersion: 1, payload: { verified: true } }], outboxTasks: []
+        });
+        await input.repository.releaseWriterLease(lease.value);
+        if (!committed.ok) return committed;
+        return { ok: true as const, value: {
+          commit: committed.value,
+          resolution: { schemaVersion: 1 as const, accessControlRef: "access-control:test", requirementRef: "requirement:test", itemInstanceId: "item:mandate", itemId: "mandate", usePolicy: "RETAIN" as const, resultingAccessState: "OPEN" as const, credentialProofRef: "credential:test", commitId: committed.value.commitId, replayed: false },
+          characterExpression: input.rawInput,
+          playerFacingText: "Le mandat est vérifié et le passage est ouvert.",
+          sourceRefs: ["inventory:item:mandate"]
+        } };
+      }
+    }
+  });
+  const inventoryAccessTurn = await inventoryAccessController.submit({ schemaVersion: 1, clientRequestId: "req-inventory-access-route", rawInput: "Je tente de présenter mon mandat au garde." });
+  assert.equal(inventoryAccessTurn.ok, true, inventoryAccessTurn.ok ? undefined : inventoryAccessTurn.error.messageKey);
+  assert.equal(inventoryAccessCalled, true, "une intention inventaire commise doit atteindre le runtime inventaire configuré");
+  if (inventoryAccessTurn.ok) {
+    assert.equal(inventoryAccessTurn.value.output.resolution.resultKind, "COMMIT_APPLIED");
+    assert.equal(inventoryAccessTurn.value.output.noGameTime, true);
+    assert.match(inventoryAccessTurn.value.output.displayPacket.displayBlocks[0]?.text ?? "", /mandat est vérifié/u);
+  }
+
+  let socialAccessCalled = false;
+  const socialAccessController = new NarrativeTurnControllerV1({
+    repository,
+    campaignId,
+    clock,
+    idPrefix: "social-access-route",
+    socialAccessRuntime: {
+      canHandle() { return true; },
+      async execute(input) {
+        socialAccessCalled = true;
+        const preparing = await input.repository.transitionOperation(input.operation.operationId, "RECEIVED", "PREPARING");
+        if (!preparing.ok) return preparing;
+        const ready = await input.repository.transitionOperation(input.operation.operationId, "PREPARING", "READY_TO_COMMIT");
+        if (!ready.ok) return ready;
+        const currentCampaign = await input.repository.getCampaign(input.campaignId);
+        if (!currentCampaign.ok) return currentCampaign;
+        const lease = await input.repository.acquireWriterLease(input.campaignId, opaqueId("writer-social-access-route"), 120_000);
+        if (!lease.ok) return lease;
+        const aggregateId = opaqueId<AggregateId>("agg-social-access-route");
+        const commandId = opaqueId<CommandId>("command-social-access-route");
+        const committed = await input.repository.commit({
+          campaignId: input.campaignId, operationId: input.operation.operationId, commitId: opaqueId<CommitId>("commit-social-access-route"),
+          idempotencyKey: input.operation.idempotencyKey, requestFingerprint: input.operation.requestFingerprint,
+          expectedCampaignRevision: currentCampaign.value.campaignRevision, writerLease: lease.value,
+          acceptedCommands: [{ schemaVersion: 1, contractId: "social-access-route", contractVersion: 1, commandId, campaignId: input.campaignId,
+            operationId: input.operation.operationId, commandType: "social.access.test", target: { aggregateType: "test.social-access", aggregateId, expectedAggregateRevision: null },
+            payloadSchemaVersion: 1, payload: { outcome: "GRANTED" }, acceptedAtGameSecond: 0 }],
+          aggregateWrites: [{ aggregateType: "test.social-access", aggregateId, expectedAggregateRevision: null, payloadSchemaVersion: 1, payload: { outcome: "GRANTED" } }],
+          events: [{ schemaVersion: 1, eventId: opaqueId<EventId>("event-social-access-route"), campaignId: input.campaignId, operationId: input.operation.operationId,
+            eventType: "social.access.test", origin: "PLAYER_INTENT", causation: { kind: "COMMAND", id: commandId }, aggregateRefs: [{ aggregateType: "test.social-access", aggregateId, aggregateRevision: 0 }],
+            visibility: { scope: "PLAYER_VISIBLE", actorIds: [] }, occurredAtGameSecond: 0, payloadSchemaVersion: 1, payload: { outcome: "GRANTED" } }], outboxTasks: []
+        });
+        await input.repository.releaseWriterLease(lease.value);
+        if (!committed.ok) return committed;
+        return { ok: true as const, value: {
+          commit: committed.value,
+          resolution: { schemaVersion: 1 as const, accessControlRef: "access-control:test-social", resolutionRef: "social-resolution:test", outcome: "GRANTED" as const, resultingAccessState: "OPEN" as const, playerFacingResponse: "Très bien. Vous pouvez passer.", conditionRef: null, checkProposalRef: null, commitId: committed.value.commitId, replayed: false },
+          characterExpression: input.rawInput,
+          respondingActorRef: "actor:guard",
+          respondingActorName: "Le garde",
+          playerFacingText: "Très bien. Vous pouvez passer.",
+          sourceRefs: ["social-resolution:test"]
+        } };
+      }
+    }
+  });
+  const socialAccessTurn = await socialAccessController.submit({ schemaVersion: 1, clientRequestId: "req-social-access-route", rawInput: "Je demande au garde de me laisser passer." });
+  assert.equal(socialAccessTurn.ok, true, socialAccessTurn.ok ? undefined : socialAccessTurn.error.messageKey);
+  assert.equal(socialAccessCalled, true, "une demande sociale engagée au seuil doit atteindre l'autorité sociale configurée");
+  if (socialAccessTurn.ok) {
+    assert.equal(socialAccessTurn.value.output.resolution.resultKind, "COMMIT_APPLIED");
+    assert.equal(socialAccessTurn.value.output.displayPacket.displayBlocks[0]?.kind, "NPC_SPEECH");
+    assert.match(socialAccessTurn.value.output.displayPacket.displayBlocks[0]?.text ?? "", /pouvez passer/u);
+  }
+
+  const recoveryRepository = new MemoryCampaignRepository({ clock });
+  const recoveryCampaignId = opaqueId<CampaignId>("cmp-controller-recovery");
+  const recoveryClockId = opaqueId<AggregateId>("agg-controller-recovery-clock");
+  const recoveryCampaign = await recoveryRepository.createCampaign({
+    ...campaign,
+    campaignId: recoveryCampaignId,
+    clockAggregateId: recoveryClockId
+  }, { elapsedGameSeconds: 0, calendarId: "prototype.calendar", calendarVersion: 1 });
+  if (!recoveryCampaign.ok) throw new Error(recoveryCampaign.error.messageKey);
+  const destinationScene = {
+    ...structuredClone(REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1),
+    sceneId: "scene:recovered-dynamic-place",
+    locationName: "Place restaurée"
+  };
+  let recoveryCommitted = false;
+  const recoveryController = new NarrativeTurnControllerV1({
+    repository: recoveryRepository,
+    campaignId: recoveryCampaignId,
+    clock,
+    idPrefix: "recovery",
+    activeSceneResolver: {
+      async resolve() {
+        return { ok: true as const, value: recoveryCommitted ? destinationScene : REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1 };
+      }
+    },
+    dynamicPlaceRuntime: {
+      canHandle() { return true; },
+      async execute(input) {
+        const preparing = await input.repository.transitionOperation(input.operation.operationId, "RECEIVED", "PREPARING");
+        if (!preparing.ok) return preparing;
+        const ready = await input.repository.transitionOperation(input.operation.operationId, "PREPARING", "READY_TO_COMMIT");
+        if (!ready.ok) return ready;
+        const currentCampaign = await input.repository.getCampaign(input.campaignId);
+        if (!currentCampaign.ok) return currentCampaign;
+        const lease = await input.repository.acquireWriterLease(input.campaignId, opaqueId("writer-recovery-controller"), 120_000);
+        if (!lease.ok) return lease;
+        const positionId = opaqueId<AggregateId>("agg-recovery-position");
+        const lifecycleId = opaqueId<AggregateId>("agg-recovery-lifecycle");
+        const commandId = opaqueId<CommandId>("command-recovery-transition");
+        const committed = await input.repository.commit({
+          campaignId: input.campaignId,
+          operationId: input.operation.operationId,
+          commitId: opaqueId<CommitId>("commit-recovery-transition"),
+          idempotencyKey: input.operation.idempotencyKey,
+          requestFingerprint: input.operation.requestFingerprint,
+          expectedCampaignRevision: currentCampaign.value.campaignRevision,
+          writerLease: lease.value,
+          acceptedCommands: [{
+            schemaVersion: 1, contractId: "recovery-transition", contractVersion: 1, commandId,
+            campaignId: input.campaignId, operationId: input.operation.operationId, commandType: "world.transition.recovery-test",
+            target: { aggregateType: "world.position", aggregateId: positionId, expectedAggregateRevision: null },
+            payloadSchemaVersion: 1, payload: { destinationRef: "location:recovered-dynamic-place" }, acceptedAtGameSecond: 0
+          }],
+          aggregateWrites: [
+            { aggregateType: "world.position", aggregateId: positionId, expectedAggregateRevision: null, payloadSchemaVersion: 1, payload: { canonicalLocationRef: "location:recovered-dynamic-place" } },
+            { aggregateType: "scene.lifecycle", aggregateId: lifecycleId, expectedAggregateRevision: null, payloadSchemaVersion: 1, payload: {
+              schemaVersion: 1, contractVersion: "scene-lifecycle/1", activeSceneId: destinationScene.sceneId,
+              activeLocationRef: "location:recovered-dynamic-place", previousSceneId: REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1.sceneId,
+              enteredAtGameSecond: 0, lastTransitionRequestId: "transition:recovery", version: 1
+            } }
+          ],
+          events: [{
+            schemaVersion: 1,
+            eventId: opaqueId<EventId>("event-recovery-transition"),
+            campaignId: input.campaignId,
+            operationId: input.operation.operationId,
+            eventType: "world.scene-transition.completed",
+            origin: "SYSTEM",
+            causation: { kind: "COMMAND", id: commandId },
+            aggregateRefs: [
+              { aggregateType: "world.position", aggregateId: positionId, aggregateRevision: 0 },
+              { aggregateType: "scene.lifecycle", aggregateId: lifecycleId, aggregateRevision: 0 }
+            ],
+            visibility: { scope: "SYSTEM", actorIds: [] },
+            occurredAtGameSecond: 0,
+            payloadSchemaVersion: 1,
+            payload: { destinationRef: "location:recovered-dynamic-place" }
+          }],
+          outboxTasks: []
+        });
+        await input.repository.releaseWriterLease(lease.value);
+        if (!committed.ok) return committed;
+        recoveryCommitted = true;
+        return { ok: false, error: coreError("VALIDATION_FAILED", "test.presentation-failed-after-commit") };
+      }
+    }
+  });
+  const recoveryInput = { schemaVersion: 1 as const, clientRequestId: "req-recovery", rawInput: "Je franchis le passage." };
+  const interruptedPresentation = await recoveryController.submit(recoveryInput);
+  assert.equal(interruptedPresentation.ok, false, "le premier rendu doit échouer après le commit de test");
+  const pendingRecoveryOperation = await recoveryRepository.getOperation(opaqueId("recovery-op-req-recovery"));
+  assert.equal(pendingRecoveryOperation.ok && pendingRecoveryOperation.value.phase, "COMMITTED_PENDING_RENDER");
+  const recoveredPresentation = await recoveryController.submit(recoveryInput);
+  assert.equal(recoveredPresentation.ok, true, recoveredPresentation.ok ? undefined : recoveredPresentation.error.messageKey);
+  if (recoveredPresentation.ok) {
+    assert.equal(recoveredPresentation.value.operation.completionMode, "COMMITTED_DEGRADED");
+    assert.equal(recoveredPresentation.value.output.activeScene.sceneId, destinationScene.sceneId);
+    assert.equal(recoveredPresentation.value.output.displayPacket.displayBlocks[0]?.isDegradedFallback, true);
+  }
 
   console.log("narrative-turn-controller/1: OK");
 }

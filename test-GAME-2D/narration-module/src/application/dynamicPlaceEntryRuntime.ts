@@ -29,6 +29,7 @@ import {
   type WorldPreparedSceneTransitionV1
 } from "./sceneTransitionCommit";
 import type { SceneTransitionWorldCommandV1 } from "./sceneTransitionAdapter";
+import type { DestinationPlausibilityDecisionV1 } from "./destinationPlausibility";
 
 export interface DynamicPlaceEntryPreparationV1 {
   placeRegistryAggregateId: AggregateId;
@@ -61,6 +62,7 @@ export interface DynamicPlaceEntryPreparationPortV1<TCreative extends DynamicPla
     interpretation: Parameters<NarrativeDynamicPlaceRuntimeV1["execute"]>[0]["interpretation"];
     domainCommand: Parameters<NarrativeDynamicPlaceRuntimeV1["execute"]>[0]["domainCommand"];
     activeScene: PlayableSceneStateV1;
+    destinationDecision?: DestinationPlausibilityDecisionV1;
   }): Promise<Result<TCreative>>;
   prepareWorldCommit(input: {
     repository: Parameters<NarrativeDynamicPlaceRuntimeV1["execute"]>[0]["repository"];
@@ -70,6 +72,7 @@ export interface DynamicPlaceEntryPreparationPortV1<TCreative extends DynamicPla
     interpretation: Parameters<NarrativeDynamicPlaceRuntimeV1["execute"]>[0]["interpretation"];
     domainCommand: Parameters<NarrativeDynamicPlaceRuntimeV1["execute"]>[0]["domainCommand"];
     activeScene: PlayableSceneStateV1;
+    destinationDecision?: DestinationPlausibilityDecisionV1;
     creative: TCreative;
     writerLease: WriterLease;
   }): Promise<Result<DynamicPlaceEntryPreparationV1>>;

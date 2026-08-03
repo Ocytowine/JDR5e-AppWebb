@@ -44,6 +44,8 @@ export interface DynamicPlaceRecordV1 extends JsonObject {
   populationRoles: string[];
   localNorms: string[];
   persistenceDepth: "LIGHT_REFERENCE" | "FULL_ENTITY";
+  loreAnchorEntityId: string | null;
+  loreGeographicChain: string[];
   sourceRefs: string[];
   createdByProposalId: string;
   version: 1;
@@ -135,6 +137,8 @@ export function preparePlaceCreationCommandV1(input: {
     populationRoles: stringArray(properties.populationRoles),
     localNorms: stringArray(properties.localNorms),
     persistenceDepth: input.validation.proposal.requestedDepth as "LIGHT_REFERENCE" | "FULL_ENTITY",
+    loreAnchorEntityId: optionalString(properties.loreAnchorEntityId),
+    loreGeographicChain: stringArray(properties.loreGeographicChain),
     sourceRefs: unique(input.validation.proposal.existingFactRefsUsed),
     createdByProposalId: input.validation.proposal.proposalId,
     version: 1
@@ -380,4 +384,8 @@ function unique(values: string[]): string[] {
 function humanize(ref: string): string {
   const value = ref.slice(ref.indexOf(":") + 1).replaceAll("_", " ").replaceAll("-", " ");
   return value.charAt(0).toLocaleUpperCase("fr-FR") + value.slice(1);
+}
+
+function optionalString(value: unknown): string | null {
+  return typeof value === "string" && value.trim() ? value.trim() : null;
 }

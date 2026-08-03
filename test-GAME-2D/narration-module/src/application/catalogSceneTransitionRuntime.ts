@@ -5,6 +5,7 @@ import { prepareSceneTransitionWorldRequestV1 } from "./sceneTransitionAdapter";
 import { createNarrativeSceneTransitionRuntimeV1 } from "./sceneTransitionRuntime";
 import type { PlaceTopologyStateV1 } from "./placeCreationCommit";
 import { DYNAMIC_PLACE_TOPOLOGY_AGGREGATE_ID_V1 } from "./placeCreationRuntime";
+import { loadAccessControlRegistryV1 } from "./accessControlAuthority";
 import type { PlayableSceneStateV1 } from "./playableScene";
 import {
   PROTOTYPE_CAMPAIGN_RUNTIME_BINDINGS_V1,
@@ -38,6 +39,8 @@ export function createCatalogSceneTransitionRuntimeV1(input: {
       ]);
       if (!topologyAggregate.ok) return topologyAggregate; if (!lifecycle.ok) return lifecycle; if (!position.ok) return position;
       if (!clock.ok) return clock; if (!schedule.ok) return schedule; if (!cursor.ok) return cursor;
+      const accessRegistry = await loadAccessControlRegistryV1(requestInput.repository, requestInput.campaign.campaignId);
+      if (!accessRegistry.ok) return accessRegistry;
       const source = await input.resolveSource(String(lifecycle.value.payload.activeSceneId), { repository: requestInput.repository, campaignId: requestInput.campaign.campaignId });
       if (!source.ok) return source;
       const topology = (topologyAggregate.value.payload as PlaceTopologyStateV1).topology;
@@ -49,11 +52,18 @@ export function createCatalogSceneTransitionRuntimeV1(input: {
         boundaryRef: target.ref, expectedDestinationRef: null, intentId: requestInput.interpretation.intentId,
         idempotencyKey: requestInput.operation.idempotencyKey
       };
-      const prepared = prepareSceneTransitionWorldRequestV1({ request: transitionRequest, registry: buildSceneReferentRegistryV1(source.value), topology, currentSceneVersion: source.value.version });
+      const prepared = prepareSceneTransitionWorldRequestV1({
+        request: transitionRequest,
+        registry: buildSceneReferentRegistryV1(source.value),
+        topology,
+        currentSceneVersion: source.value.version,
+        accessControls: accessRegistry.value.state.controls
+      });
       if (prepared.command === null) return failure("narrative.scene-transition.catalog-connection-rejected", {
         decisionCode: prepared.decision.code,
         decisionDisposition: prepared.decision.disposition,
         decisionReason: prepared.decision.reason,
+        accessControl: prepared.decision.access,
         sourceSceneId: source.value.sceneId,
         sourceSceneVersion: source.value.version,
         boundaryRef: target.ref,

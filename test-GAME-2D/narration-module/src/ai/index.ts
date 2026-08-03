@@ -4,3 +4,4 @@ export * from "./FakeContractAiProvider";
 export * from "./pipeline";
 export * from "./circuitBreaker";
 export * from "./openaiProvider";
+export * from "./callBudget";

@@ -18,6 +18,8 @@ Le vertical jouable sait notamment :
 - interpréter des intentions libres et composées avec le contrat sémantique V5 ;
 - résoudre des observations, approches, dialogues et transitions locales dans
   leur périmètre actuel ;
+- arbitrer une destination proposée avant toute création dynamique : lieu connu,
+  création locale, clarification, voyage, contradiction sourcée ou condition ;
 - distinguer foule ambiante, acteur local, identité reconnue et PNJ durable ;
 - maintenir cinq couples de dialogue exacts par acteur à travers un changement
   d'interlocuteur et un retour de scène ;
@@ -59,6 +61,8 @@ incomplètes.
 - L'IA comprend et rédige ; les domaines locaux valident, résolvent et
   persistent.
 - Une parole de PNJ reste une parole attribuée, pas une vérité automatique.
+- Un objet annoncé dans la prose n'existe que si l'inventaire persistant le
+  confirme ; l'accès par objet est résolu localement et atomiquement.
 - Une sortie destinée au joueur reste narrative. Les diagnostics appartiennent
   aux blocs système et ne doivent jamais contaminer la prose du MJ.
 - Aucun mot ou exemple joueur n'est codé en dur pour décider du domaine, de la

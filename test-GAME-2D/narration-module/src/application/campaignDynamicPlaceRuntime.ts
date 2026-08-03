@@ -31,6 +31,16 @@ import type { SceneTransitionWorldCommandV1 } from "./sceneTransitionAdapter";
 import type { PlayableSceneStateV1 } from "./playableScene";
 import type { SceneTransitionTopologyV1 } from "./sceneTransition";
 import {
+  buildDestinationMentionV1,
+  decideDestinationPlausibilityV1,
+  type DestinationPlausibilityDecisionV1,
+  type DestinationResolutionContextV1
+} from "./destinationPlausibility";
+import {
+  arbitrateDestinationPlausibilityV1,
+  type DestinationPlausibilityArbiterConfigV1
+} from "./destinationPlausibilityArbitration";
+import {
   PROTOTYPE_CAMPAIGN_RUNTIME_BINDINGS_V1,
   type CampaignRuntimeBindingsV1
 } from "./campaignRuntimeBindings";
@@ -40,10 +50,12 @@ const DEFAULT_TRANSITION_SECONDS = 8;
 export function createCampaignLoreGuidedDynamicPlaceRuntimeV1(input: {
   packet?: LoreInfluencePacketV1;
   resolveLorePacket?: (sceneId: string) => LoreInfluencePacketV1 | null;
+  resolveLorePacketByAnchor?: (anchorEntityId: string) => LoreInfluencePacketV1 | null;
   resolveAuthoredSceneLocationRef?: (sceneId: string) => string | null;
   knownAuthoredSceneIds?: readonly string[];
   knownAuthoredPlaces?: readonly { placeRef: string; displayName: string; aliases: string[]; parentLocationRef: string; sourceRefs: string[] }[];
   generatorConfig: LoreGuidedPlaceCandidateGeneratorConfigV2;
+  destinationArbiterConfig?: DestinationPlausibilityArbiterConfigV1;
   actorRef?: string;
   transitionSeconds?: number;
   runtimeBindings?: CampaignRuntimeBindingsV1;
@@ -51,7 +63,7 @@ export function createCampaignLoreGuidedDynamicPlaceRuntimeV1(input: {
   const transitionSeconds = input.transitionSeconds ?? DEFAULT_TRANSITION_SECONDS;
   const bindings =
     input.runtimeBindings ?? PROTOTYPE_CAMPAIGN_RUNTIME_BINDINGS_V1;
-  return createDynamicPlaceEntryRuntimeV1(createLoreGuidedDynamicPlacePreparationPortV1({
+  const entryRuntime = createDynamicPlaceEntryRuntimeV1(createLoreGuidedDynamicPlacePreparationPortV1({
     contextPort: {
       async canCreate(request) {
         if (request.interpretation.semanticIntent.kind !== "traverse_visible_boundary" || request.interpretation.requiresClarification) return false;
@@ -61,8 +73,9 @@ export function createCampaignLoreGuidedDynamicPlaceRuntimeV1(input: {
         return resolveUnmappedVisibleCreationBoundaryV1({ semanticKind: request.interpretation.semanticIntent.kind, requiresClarification: request.interpretation.requiresClarification, targetRef: resolvedTargetRef(request.interpretation), activeScene: request.activeScene, topology: state.topology }) !== null;
       },
       async buildContext(request) {
-        const packet = input.resolveLorePacket?.(request.activeScene.sceneId) ?? input.packet ?? null;
-        if (packet === null) return failure("narrative.dynamic-place.lore-context-missing", { sceneId: request.activeScene.sceneId });
+        if (request.destinationDecision?.outcome !== "CREATE_LOCAL") {
+          return failure("narrative.dynamic-place.destination-creation-not-authorized");
+        }
         const [topologyAggregate, registryAggregate] = await Promise.all([
           request.repository.getAggregate(request.campaign.campaignId, "world.scene-topology", DYNAMIC_PLACE_TOPOLOGY_AGGREGATE_ID_V1),
           request.repository.getAggregate(request.campaign.campaignId, "world.place-registry", DYNAMIC_PLACE_REGISTRY_AGGREGATE_ID_V1)
@@ -71,7 +84,16 @@ export function createCampaignLoreGuidedDynamicPlaceRuntimeV1(input: {
         if (!registryAggregate.ok) return registryAggregate;
         const topologyState = topologyAggregate.value.payload as PlaceTopologyStateV1;
         const registry = registryAggregate.value.payload as PlaceRegistryStateV1;
-        const sourceLocationRef = registry.places.find(place => place.arrivalSceneId === request.activeScene.sceneId)?.placeRef
+        const dynamicSourcePlace = registry.places.find(place => place.arrivalSceneId === request.activeScene.sceneId);
+        const inheritedLoreAnchor = dynamicSourcePlace?.loreAnchorEntityId
+          ?? dynamicSourcePlace?.parentLocationRef.replace(/^location:/u, "")
+          ?? null;
+        const packet = input.resolveLorePacket?.(request.activeScene.sceneId)
+          ?? (inheritedLoreAnchor ? input.resolveLorePacketByAnchor?.(inheritedLoreAnchor) : null)
+          ?? input.packet
+          ?? null;
+        if (packet === null) return failure("narrative.dynamic-place.lore-context-missing", { sceneId: request.activeScene.sceneId });
+        const sourceLocationRef = dynamicSourcePlace?.placeRef
           ?? input.resolveAuthoredSceneLocationRef?.(request.activeScene.sceneId)
           ?? null;
         if (sourceLocationRef === null) return failure("narrative.dynamic-place.source-location-ref-missing", { sceneId: request.activeScene.sceneId });
@@ -80,12 +102,13 @@ export function createCampaignLoreGuidedDynamicPlaceRuntimeV1(input: {
         const targetReferent = buildSceneReferentRegistryV1(request.activeScene)
           .referents.find(referent => referent.canonicalRef === target);
         const interpretedTargetLabel = resolvedTargetLabel(request.interpretation);
-        const requestedDestinationName =
-          targetReferent?.publicDestinationAliases[0]?.trim()
-          || (target.startsWith("requested-destination:")
-            ? interpretedTargetLabel
-            : null)
-          || null;
+        const mention = buildDestinationMentionV1({
+          rawMention: interpretedTargetLabel ?? request.interpretation.semanticIntent.playerGoal,
+          proposedPlaceRef: targetReferent === undefined ? resolvedKnownTargetRef(request.interpretation) : null,
+          visibleBoundaryRef: targetReferent?.canonicalRef ?? null,
+          visibleDestinationName: targetReferent?.publicDestinationAliases[0]?.trim() ?? null
+        });
+        const requestedDestinationName = mention.requestedDisplayName;
         const brief = await buildLoreGuidedSceneCreationBriefFromCampaignV1({
           briefId: `${request.operation.operationId}:lore-brief`,
           campaignId: request.campaign.campaignId,
@@ -98,6 +121,7 @@ export function createCampaignLoreGuidedDynamicPlaceRuntimeV1(input: {
         });
         if (!brief.ok) return failure("narrative.dynamic-place.lore-brief-invalid", { issues: brief.issues });
         const parentEntityId = packet.geographicChain[1] ?? packet.anchorEntityId;
+        const allowedParentLocationRef = request.destinationDecision.allowedParentLocationRef ?? `location:${parentEntityId}`;
         const dynamicPolicy: DynamicCreationValidationPolicyV1 = {
           schemaVersion: 1,
           creativeScope: {
@@ -114,7 +138,7 @@ export function createCampaignLoreGuidedDynamicPlaceRuntimeV1(input: {
         const placePolicy: PlaceCreationValidationPolicyV1 = {
           schemaVersion: 1, contractVersion: "place-creation-validation/1",
           allowedPersistenceDepths: ["LIGHT_REFERENCE", "FULL_ENTITY"],
-          allowedParentLocationRefs: [`location:${parentEntityId}`],
+          allowedParentLocationRefs: [allowedParentLocationRef],
           knownSourceSceneIds: [...new Set([...(input.knownAuthoredSceneIds ?? []), request.activeScene.sceneId, ...registry.places.map(place => place.arrivalSceneId)])],
           knownPlaces: [
             ...(input.knownAuthoredPlaces ?? []).map(place => ({ ...place, aliases: [...place.aliases], sourceRefs: [...place.sourceRefs] })),
@@ -126,10 +150,11 @@ export function createCampaignLoreGuidedDynamicPlaceRuntimeV1(input: {
           brief: brief.brief, dynamicCreationPolicy: dynamicPolicy, placeValidationPolicy: placePolicy,
           topology: topologyState.topology, sourceSceneId: request.activeScene.sceneId, sourceLocationRef, sourceBoundaryRef: target,
           requestedDestinationDescription:
-            requestedDestinationName
-            ?? interpretedTargetLabel
+            mention.destinationDescription
+            ?? requestedDestinationName
             ?? request.interpretation.semanticIntent.playerGoal,
           requestedDestinationName,
+          destinationDecision: request.destinationDecision,
           generatorConfig: input.generatorConfig
         } };
       }
@@ -193,6 +218,106 @@ export function createCampaignLoreGuidedDynamicPlaceRuntimeV1(input: {
       }
     }
   }));
+  return {
+    ...entryRuntime,
+    async evaluateDestination(request: Parameters<NonNullable<import("./NarrativeTurnController").NarrativeDynamicPlaceRuntimeV1["evaluateDestination"]>>[0]) {
+      const campaign = await request.repository.getCampaign(request.campaignId);
+      if (!campaign.ok) return campaign;
+      const [topologyAggregate, registryAggregate] = await Promise.all([
+        request.repository.getAggregate(request.campaignId, "world.scene-topology", DYNAMIC_PLACE_TOPOLOGY_AGGREGATE_ID_V1),
+        request.repository.getAggregate(request.campaignId, "world.place-registry", DYNAMIC_PLACE_REGISTRY_AGGREGATE_ID_V1)
+      ]);
+      if (!topologyAggregate.ok) return topologyAggregate;
+      if (!registryAggregate.ok) return registryAggregate;
+      const topologyState = topologyAggregate.value.payload as PlaceTopologyStateV1;
+      const registry = registryAggregate.value.payload as PlaceRegistryStateV1;
+      const dynamicSourcePlace = registry.places.find(place => place.arrivalSceneId === request.activeScene.sceneId);
+      const inheritedLoreAnchor = dynamicSourcePlace?.loreAnchorEntityId
+        ?? dynamicSourcePlace?.parentLocationRef.replace(/^location:/u, "")
+        ?? null;
+      const packet = input.resolveLorePacket?.(request.activeScene.sceneId)
+        ?? (inheritedLoreAnchor ? input.resolveLorePacketByAnchor?.(inheritedLoreAnchor) : null)
+        ?? input.packet
+        ?? null;
+      if (packet === null) return failure("narrative.dynamic-place.lore-context-missing", { sceneId: request.activeScene.sceneId });
+      const sourceLocationRef = dynamicSourcePlace?.placeRef
+        ?? input.resolveAuthoredSceneLocationRef?.(request.activeScene.sceneId)
+        ?? null;
+      if (sourceLocationRef === null) return failure("narrative.dynamic-place.source-location-ref-missing", { sceneId: request.activeScene.sceneId });
+      const target = resolveUnmappedVisibleCreationBoundaryV1({
+        semanticKind: request.interpretation.semanticIntent.kind,
+        requiresClarification: request.interpretation.requiresClarification,
+        targetRef: resolvedTargetRef(request.interpretation),
+        activeScene: request.activeScene,
+        topology: topologyState.topology
+      });
+      if (target === null) return failure("narrative.dynamic-place.target-required");
+      const targetReferent = buildSceneReferentRegistryV1(request.activeScene).referents.find(referent => referent.canonicalRef === target);
+      const targetLabel = resolvedTargetLabel(request.interpretation) ?? request.interpretation.semanticIntent.playerGoal;
+      const mention = buildDestinationMentionV1({
+        rawMention: targetLabel,
+        proposedPlaceRef: targetReferent === undefined ? resolvedKnownTargetRef(request.interpretation) : null,
+        visibleBoundaryRef: targetReferent?.canonicalRef ?? null,
+        visibleDestinationName: targetReferent?.publicDestinationAliases[0]?.trim() ?? null
+      });
+      const parentEntityId = packet.geographicChain[1] ?? packet.anchorEntityId;
+      const knownPlaces = [
+        ...(input.knownAuthoredPlaces ?? []).map(place => ({ ...place, schemaVersion: 1 as const, arrivalSceneId: null })),
+        ...registry.places.map(place => ({
+          schemaVersion: 1 as const,
+          placeRef: place.placeRef,
+          displayName: place.displayName,
+          aliases: [] as string[],
+          parentLocationRef: place.parentLocationRef,
+          arrivalSceneId: place.arrivalSceneId,
+          sourceRefs: [...place.sourceRefs]
+        }))
+      ];
+      const decisionContext: DestinationResolutionContextV1 = {
+        schemaVersion: 1,
+        contractVersion: "destination-plausibility/1",
+        sourceSceneId: request.activeScene.sceneId,
+        sourceLocationRef,
+        currentParentLocationRef: `location:${parentEntityId}`,
+        geographicChain: [...packet.geographicChain],
+        mention,
+        knownPlaces,
+        topology: topologyState.topology,
+        matchedLoreConstraints: []
+      };
+      const deterministic = decideDestinationPlausibilityV1(decisionContext);
+      if (deterministic.outcome !== "ARBITRATION_REQUIRED") {
+        return { ok: true as const, value: { decision: deterministic, aiTelemetry: [] } };
+      }
+      if (input.destinationArbiterConfig === undefined) {
+        return { ok: true as const, value: {
+          decision: fallbackClarificationDecision(deterministic),
+          aiTelemetry: []
+        } };
+      }
+      const brief = await buildLoreGuidedSceneCreationBriefFromCampaignV1({
+        briefId: `${request.operation.operationId}:destination-lore-brief`,
+        campaignId: campaign.value.campaignId,
+        campaignRevision: campaign.value.campaignRevision,
+        packet,
+        projectionReader: createCampaignLoreProjectionReaderV1({ repository: request.repository, campaignId: request.campaignId })
+      });
+      if (!brief.ok) return failure("narrative.dynamic-place.lore-brief-invalid", { issues: brief.issues });
+      const arbitration = await arbitrateDestinationPlausibilityV1({
+        campaignId: request.campaignId,
+        operationId: request.operation.operationId,
+        mention,
+        sourceSceneId: request.activeScene.sceneId,
+        sourceLocationRef,
+        allowedParentLocationRefs: [deterministic.allowedParentLocationRef ?? `location:${parentEntityId}`],
+        knownPlaces,
+        brief: brief.brief,
+        config: input.destinationArbiterConfig
+      });
+      if (!arbitration.ok) return failure("narrative.dynamic-place.destination-arbitration-rejected", { issues: arbitration.issues });
+      return { ok: true as const, value: { decision: arbitration.decision, aiTelemetry: arbitration.telemetry } };
+    }
+  };
 }
 
 export async function buildCampaignDynamicPlaceTransitionIdsV1(
@@ -268,6 +393,26 @@ function resolvedTargetLabel(interpretation: {
   return typeof target?.label === "string" && target.label.trim()
     ? target.label.trim()
     : null;
+}
+
+function resolvedKnownTargetRef(interpretation: {
+  referentResolution?: { resolvedTarget: { ref: string | null } | null } | null;
+  semanticIntent: { target: { ref: string | null } | null };
+}): string | null {
+  return (interpretation.referentResolution?.resolvedTarget ?? interpretation.semanticIntent.target ?? null)?.ref ?? null;
+}
+
+function fallbackClarificationDecision(source: DestinationPlausibilityDecisionV1): DestinationPlausibilityDecisionV1 {
+  return {
+    ...source,
+    outcome: "CLARIFY",
+    code: "DESTINATION_SCOPE_UNCLEAR",
+    allowedParentLocationRef: null,
+    reason: "La plausibilité de cette destination libre doit être précisée avant toute création.",
+    accessHint: null,
+    sourceRefs: [],
+    commitAuthority: false
+  };
 }
 
 function slugRequestedDestination(value: string): string {

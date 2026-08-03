@@ -36,7 +36,8 @@ import {
   buildOpenAiIntentInterpreterConfigV1,
   buildOpenAiMjPlannerConfigV1,
   buildOpenAiNpcPerformerConfigV1,
-  buildOpenAiSceneCreatorConfigV2
+  buildOpenAiSceneCreatorConfigV2,
+  buildOpenAiDestinationPlausibilityArbiterConfigV1
 } from "./openAiNarrativeRuntimeConfig";
 import {
   readActiveCharacterSheetV1,
@@ -372,12 +373,15 @@ export async function createPlayableCampaignControllerV1(
             runtimeBindings,
             resolveLorePacket: sceneId =>
               archivePilot.lorePacketBySceneId.get(sceneId) ?? null,
+            resolveLorePacketByAnchor: anchorEntityId =>
+              archivePilot.packetByEntityId.get(anchorEntityId) ?? null,
             resolveAuthoredSceneLocationRef: sceneId =>
               archivePilot.locationRefBySceneId.get(sceneId) ?? null,
             knownAuthoredSceneIds:
               archivePilot.scenes.map(scene => scene.sceneId),
             knownAuthoredPlaces: archivePilot.authoredPlaces,
-            generatorConfig: buildOpenAiSceneCreatorConfigV2()
+            generatorConfig: buildOpenAiSceneCreatorConfigV2(),
+            destinationArbiterConfig: buildOpenAiDestinationPlausibilityArbiterConfigV1()
           })
         : null,
       restRuntime: createCommittedBastionRestRuntimeV1({
@@ -388,11 +392,29 @@ export async function createPlayableCampaignControllerV1(
           const authored =
             archivePilot.authoredSceneSourceBySceneId.get(scene.sceneId);
           if (authored === undefined) {
-            const locationRef =
-              archivePilot.locationRefBySceneId.get(scene.sceneId);
-            return locationRef === undefined
-              ? []
-              : [locationRef, `place:${locationRef.slice("location:".length)}`];
+            const authoredLocationRef = archivePilot.locationRefBySceneId.get(scene.sceneId);
+            if (authoredLocationRef !== undefined) {
+              return [authoredLocationRef, `place:${authoredLocationRef.slice("location:".length)}`];
+            }
+            const registry = await repository.getAggregate(
+              campaignId,
+              "world.place-registry",
+              DYNAMIC_PLACE_REGISTRY_AGGREGATE_ID_V1
+            );
+            if (!registry.ok) return [];
+            const place = (registry.value.payload.places as Array<{
+              placeRef: string;
+              arrivalSceneId: string;
+              parentLocationRef: string;
+              loreGeographicChain?: string[];
+            }>).find(candidate => candidate.arrivalSceneId === scene.sceneId);
+            if (place === undefined) return [];
+            return [...new Set([
+              place.placeRef,
+              `place:${place.placeRef.replace(/^location:/u, "")}`,
+              place.parentLocationRef,
+              ...(place.loreGeographicChain ?? []).map(entityId => `location:${entityId}`)
+            ])];
           }
           const entityTypeById = new Map(
             archivePilot.entities.map(entity =>

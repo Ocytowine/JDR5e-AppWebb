@@ -11,6 +11,7 @@ import {
   type NpcPerformerConfigV1
 } from "../../narration-module/src/application";
 import type { LoreGuidedPlaceCandidateGeneratorConfigV2 } from "../../narration-module/src/application";
+import type { DestinationPlausibilityArbiterConfigV1 } from "../../narration-module/src/application";
 import { ServerOpenAiEnhancementProviderV1 } from "./serverOpenAiEnhancementClient";
 
 export function buildOpenAiIntentInterpreterConfigV1(endpoint?: string): AiIntentInterpreterConfigV1 {
@@ -127,5 +128,34 @@ export function buildOpenAiSceneCreatorConfigV2(endpoint?: string): LoreGuidedPl
       timeoutMs: 55_000, fallbackRouteIds: []
     },
     retryPolicy: { schemaVersion: 1, role: "scene_creator", maxTechnicalRetries: 0, maxTargetedCorrections: 0, maxFullRegenerations: 0, allowFallback: false }
+  };
+}
+
+export function buildOpenAiDestinationPlausibilityArbiterConfigV1(endpoint?: string): DestinationPlausibilityArbiterConfigV1 {
+  return {
+    provider: new ServerOpenAiEnhancementProviderV1(endpoint),
+    route: {
+      schemaVersion: 1,
+      routeId: "campaign-ui-openai-destination-arbiter",
+      role: "destination_arbiter",
+      providerKind: "FAKE_CONTRACT",
+      providerId: "server-openai-route",
+      modelId: "server-selected-openai-destination-arbiter-model",
+      modelConfigVersion: "destination-plausibility-v1",
+      certified: true,
+      allowedContractVersions: ["destination-plausibility-arbitration/1"],
+      inputTokenLimit: 8_000,
+      outputTokenLimit: 800,
+      timeoutMs: 30_000,
+      fallbackRouteIds: []
+    },
+    retryPolicy: {
+      schemaVersion: 1,
+      role: "destination_arbiter",
+      maxTechnicalRetries: 0,
+      maxTargetedCorrections: 0,
+      maxFullRegenerations: 0,
+      allowFallback: false
+    }
   };
 }

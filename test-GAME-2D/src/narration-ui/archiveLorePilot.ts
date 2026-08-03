@@ -54,6 +54,7 @@ export async function buildArchiveLorePilotV1() {
     fragments: catalog.fragments,
     influencePacket,
     lorePacketBySceneId,
+    packetByEntityId,
     authoredSceneSourceBySceneId,
     authoredPlaces,
     locationRefBySceneId,

@@ -67,7 +67,7 @@ export interface SuspendedIntentRecordV1 {
   operationId: string;
   rawInput: string;
   knownInterpretation: NarrativeIntentInterpretationV1;
-  missingField: "commitment" | "target" | "meaning";
+  missingField: "commitment" | "target" | "meaning" | "destination";
   question: string;
   noGameTime: true;
   createdAt: string;
@@ -92,7 +92,7 @@ export function interpretNarrativeInputV1(input: {
   const mentionsRules = /\b(règle|regle|mécanique|mecanique|jet|bonus|action bonus|mj|interface|comment ça marche|comment ca marche)\b/u.test(text);
   const riskyAction = /\b(voler|attaque|attaquer|frapper|forcer|crocheter|menacer|mentir|fouiller|prendre|ouvrir|entrer)\b/u.test(text);
   const socialPossibility = /\b(parler|discuter|questionner|interroger|adresser|demander)\b/u.test(text);
-  const explicitAttempt = /\b(je tente|j'essaie|j essaie|je fais|je vole|j'attaque|j attaque|je frappe|je force|je crochete|je prends|j'ouvre|j ouvre)\b/u.test(text);
+  const explicitAttempt = /\b(je tente|j'essaie|j essaie|je fais|je vole|j'attaque|j attaque|je frappe|je force|je crochete|je prends|je presente|je montre|j'utilise|j utilise|j'ouvre|j ouvre)\b/u.test(text);
   const socialSpeechStatement = /\b(j'aimerais|j aimerais|j'aimerai|j aimerai|je voudrais|je souhaite)\b.*\b(parler|discuter|questionner|interroger|demander)\b/u.test(text);
   const speechLike = /["«»]/u.test(input.rawInput) || /\b(je dis|je réponds|je reponds|je lui dis|je demande à|je demande a|je demande au|je demande aux)\b/u.test(text);
   const actionLike = explicitAttempt || /\b(je vais|je me dirige|j'avance|j avance|je regarde|j'observe|j observe)\b/u.test(text);
@@ -162,6 +162,8 @@ export function createSuspendedIntentRecordV1(input: {
   rawInput: string;
   interpretation: NarrativeIntentInterpretationV1;
   createdAt: string;
+  missingField?: SuspendedIntentRecordV1["missingField"];
+  question?: string;
 }): SuspendedIntentRecordV1 {
   return {
     schemaVersion: 1,
@@ -170,8 +172,8 @@ export function createSuspendedIntentRecordV1(input: {
     operationId: input.operationId,
     rawInput: input.rawInput,
     knownInterpretation: input.interpretation,
-    missingField: "commitment",
-    question: input.interpretation.clarificationQuestion ?? buildCommitmentQuestion(input.rawInput),
+    missingField: input.missingField ?? "commitment",
+    question: input.question ?? input.interpretation.clarificationQuestion ?? buildCommitmentQuestion(input.rawInput),
     noGameTime: true,
     createdAt: input.createdAt
   };

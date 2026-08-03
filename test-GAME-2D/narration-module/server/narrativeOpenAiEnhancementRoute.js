@@ -1,6 +1,6 @@
 "use strict";
 
-const ALLOWED_ROLES = new Set(["player_expression_adapter", "scene_writer", "scene_creator", "coherence_critic", "player_intent_interpreter", "mj_planner", "npc_performer"]);
+const ALLOWED_ROLES = new Set(["player_expression_adapter", "scene_writer", "scene_creator", "destination_arbiter", "coherence_critic", "player_intent_interpreter", "mj_planner", "npc_performer"]);
 const CONTRACT_VERSION = "narrative-ai-resolution/1";
 const INTENT_CONTRACT_VERSION = "ai-intent-interpretation/1";
 const SEMANTIC_INTENT_CONTRACT_VERSION_V2 = "ai-intent-semantic/2";
@@ -11,6 +11,7 @@ const MJ_PLANNER_CONTRACT_VERSION = "mj-planner/1";
 const NPC_PERFORMER_CONTRACT_VERSION = "npc-performer/1";
 const SCENE_CREATOR_CONTRACT_VERSION_V1 = "lore-guided-place-candidate/1";
 const SCENE_CREATOR_CONTRACT_VERSION_V2 = "lore-guided-place-candidate/2";
+const DESTINATION_ARBITER_CONTRACT_VERSION = "destination-plausibility-arbitration/1";
 const DEFAULT_MODEL = "gpt-4.1-mini";
 const DEFAULT_SCENE_CREATOR_MODEL = "gpt-5.6-luna";
 
@@ -121,6 +122,41 @@ const STRICT_AI_OUTPUT_SCHEMA = {
 
 function buildRolePayloadSchema(requestOrRole) {
   const role = typeof requestOrRole === "string" ? requestOrRole : requestOrRole.role;
+  if (role === "destination_arbiter") {
+    const allowedParentLocationRefs = Array.isArray(requestOrRole?.input?.roleContextPack?.allowedParentLocationRefs)
+      ? requestOrRole.input.roleContextPack.allowedParentLocationRefs.filter(ref => typeof ref === "string" && ref.trim().length > 0)
+      : [];
+    const allowedSourceRefs = Array.isArray(requestOrRole?.input?.roleContextPack?.allowedSourceRefs)
+      ? requestOrRole.input.roleContextPack.allowedSourceRefs.filter(ref => typeof ref === "string" && ref.trim().length > 0)
+      : [];
+    return {
+      type: "object",
+      additionalProperties: false,
+      required: ["outcome", "allowedParentLocationRef", "reason", "accessHint", "sourceRefs"],
+      properties: {
+        outcome: { enum: ["CREATE_LOCAL", "CLARIFY", "TRAVEL_REQUIRED", "REJECT_CONTRADICTION"] },
+        allowedParentLocationRef: { type: ["string", "null"], ...(allowedParentLocationRefs.length > 0 ? { enum: [...allowedParentLocationRefs, null] } : {}) },
+        reason: { type: "string" },
+        accessHint: {
+          anyOf: [{
+            type: "object",
+            additionalProperties: false,
+            required: ["schemaVersion", "state", "ownerDomain", "reason", "requirements", "sourceRefs", "authority"],
+            properties: {
+              schemaVersion: { enum: [1] },
+              state: { enum: ["CONTROLLED", "BLOCKED", "UNKNOWN"] },
+              ownerDomain: { type: "string" },
+              reason: { type: "string" },
+              requirements: { type: "array", items: { type: "string" } },
+              sourceRefs: { type: "array", items: allowedSourceRefs.length > 0 ? { type: "string", enum: allowedSourceRefs } : { type: "string" } },
+              authority: { enum: ["NON_COMMITTABLE_ACCESS_HINT"] }
+            }
+          }, { type: "null" }]
+        },
+        sourceRefs: { type: "array", items: allowedSourceRefs.length > 0 ? { type: "string", enum: allowedSourceRefs } : { type: "string" } }
+      }
+    };
+  }
   if (role === "scene_creator") {
     const stringArray = { type: "array", items: { type: "string" } };
     const allowedParentLocationRefs = Array.isArray(requestOrRole?.input?.roleContextPack?.allowedParentLocationRefs)
@@ -139,9 +175,9 @@ function buildRolePayloadSchema(requestOrRole) {
       proposalId: { type: "string" },
       requestedDepth: { enum: allowedPersistenceDepths.length > 0 ? allowedPersistenceDepths : ["LIGHT_REFERENCE", "FULL_ENTITY"] },
       displayName: { type: "string" }, summary: { type: "string" }, initialTension: { type: "string" },
-      perceptibleFeatures: { ...stringArray, minItems: 1 }, populationRoles: { ...stringArray, minItems: 1 }, localNorms: { ...stringArray, minItems: 1 },
+      perceptibleFeatures: { ...stringArray, minItems: 1 }, populationRoles: stringArray, localNorms: stringArray,
       proposedPlaceRef: { type: "string", pattern: "^[a-z][a-z0-9_-]*:.+" }, arrivalSceneId: { type: "string", pattern: "^[a-z][a-z0-9_-]*:.+" }, parentLocationRef: parentLocationRefSchema,
-      reason: { type: "string" }, expectedEffects: stringArray, narrativeCommitments: { ...stringArray, minItems: 1 },
+      reason: { type: "string" }, expectedEffects: stringArray, narrativeCommitments: stringArray,
       duplicatePolicy: { enum: ["REUSE", "ENRICH", "CREATE_DISTINCT", "POSSIBLE_SAME_AS", "REJECT_IF_SIMILAR"] }
     };
     if (!v2) properties.connectionIntents = { type: "array", minItems: 1, maxItems: 4, items: { type: "object", additionalProperties: false,
@@ -505,7 +541,7 @@ function buildRolePayloadSchema(requestOrRole) {
             additionalProperties: false,
             required: ["role", "actorId", "reason"],
             properties: {
-              role: { enum: ["intent_interpreter", "player_intent_interpreter", "mj_planner", "player_expression_adapter", "npc_performer", "rules_adjudicator", "coherence_critic", "scene_writer", "scene_creator", "clarification_writer"] },
+              role: { enum: ["intent_interpreter", "player_intent_interpreter", "mj_planner", "player_expression_adapter", "npc_performer", "rules_adjudicator", "coherence_critic", "scene_writer", "scene_creator", "destination_arbiter", "clarification_writer"] },
               actorId: { type: ["string", "null"] },
               reason: { type: "string" }
             }
@@ -572,6 +608,7 @@ function buildRolePayloadSchema(requestOrRole) {
         "durableCommitments",
         "revealedRefs",
         "knowledgeUsed",
+        "knowledgeClaims",
         "safetyConstraints"
       ],
       properties: {
@@ -673,6 +710,30 @@ function buildRolePayloadSchema(requestOrRole) {
         durableCommitments: { type: "array", maxItems: 0, items: { type: "string" } },
         revealedRefs: { type: "array", maxItems: 0, items: { type: "string" } },
         knowledgeUsed: { type: "array", items: sourceRefItems },
+        knowledgeClaims: {
+          type: "array",
+          maxItems: 4,
+          items: {
+            type: "object",
+            additionalProperties: false,
+            required: ["utteranceId", "speechActIndex", "subject"],
+            properties: {
+              utteranceId: { type: "string" },
+              speechActIndex: { type: "integer", minimum: 0 },
+              subject: {
+                type: "object",
+                additionalProperties: false,
+                required: ["mode", "ref", "kind", "label"],
+                properties: {
+                  mode: { enum: ["KNOWN_REF", "HYPOTHETICAL_MENTION", "UNRESOLVED"] },
+                  ref: { type: ["string", "null"] },
+                  kind: { enum: ["PLACE", "ACTOR", "EVENT", "HISTORY", "PLOT", "OBJECT", "OTHER"] },
+                  label: { type: ["string", "null"] }
+                }
+              }
+            }
+          }
+        },
         safetyConstraints: {
           type: "object",
           additionalProperties: false,
@@ -1210,8 +1271,9 @@ function normalizeAiCallRequest(value) {
   if (!request.limits || typeof request.limits !== "object") {
     issues.push("limits must be an object.");
   } else {
-    if (!Number.isInteger(request.limits.inputTokenBudget) || request.limits.inputTokenBudget <= 0 || request.limits.inputTokenBudget > 2_000) {
-      issues.push("limits.inputTokenBudget must be between 1 and 2000.");
+    const maxInputTokenBudget = request.role === "destination_arbiter" ? 8_000 : 2_000;
+    if (!Number.isInteger(request.limits.inputTokenBudget) || request.limits.inputTokenBudget <= 0 || request.limits.inputTokenBudget > maxInputTokenBudget) {
+      issues.push(`limits.inputTokenBudget must be between 1 and ${maxInputTokenBudget}.`);
     }
     const maxOutputTokenBudget = request.role === "player_intent_interpreter"
       ? 2_000
@@ -1240,6 +1302,8 @@ function buildServerRoute(request, env) {
     ? normalizeReasoningEffort(env.NARRATION_OPENAI_INTENT_REASONING_EFFORT)
     : request.role === "scene_creator"
       ? normalizeReasoningEffort(env.NARRATION_OPENAI_SCENE_CREATOR_REASONING_EFFORT) || "none"
+      : request.role === "destination_arbiter"
+        ? normalizeReasoningEffort(env.NARRATION_OPENAI_DESTINATION_ARBITER_REASONING_EFFORT) || "none"
       : null;
   return {
     modelId: request.role === "player_intent_interpreter"
@@ -1250,9 +1314,13 @@ function buildServerRoute(request, env) {
           ? env.NARRATION_OPENAI_NPC_PERFORMER_MODEL || env.NARRATION_OPENAI_MODEL || DEFAULT_MODEL
           : request.role === "scene_creator"
             ? env.NARRATION_OPENAI_SCENE_CREATOR_MODEL || env.NARRATION_OPENAI_MODEL || DEFAULT_SCENE_CREATOR_MODEL
+          : request.role === "destination_arbiter"
+            ? env.NARRATION_OPENAI_DESTINATION_ARBITER_MODEL || env.NARRATION_OPENAI_MODEL || DEFAULT_SCENE_CREATOR_MODEL
             : env.NARRATION_OPENAI_MODEL || DEFAULT_MODEL,
     routeId: request.role === "scene_creator"
       ? "server-openai-narrative-scene-creator"
+      : request.role === "destination_arbiter"
+        ? "server-openai-destination-arbiter"
       : request.role === "scene_writer"
       ? "server-openai-narrative-scene-writer"
       : request.role === "coherence_critic"
@@ -1277,6 +1345,7 @@ function contractVersionForRole(role) {
   if (role === "mj_planner") return MJ_PLANNER_CONTRACT_VERSION;
   if (role === "npc_performer") return NPC_PERFORMER_CONTRACT_VERSION;
   if (role === "scene_creator") return SCENE_CREATOR_CONTRACT_VERSION_V2;
+  if (role === "destination_arbiter") return DESTINATION_ARBITER_CONTRACT_VERSION;
   return CONTRACT_VERSION;
 }
 
@@ -1342,13 +1411,32 @@ function buildRoleInstructions(request) {
       "Tu proposes un lieu de jeu nouveau à partir du brief de lore fourni.",
       "Tu n'as aucune autorité de commit, de vérité durable, de création de PNJ présent ni de révélation de secret.",
       "Respecte strictConstraints comme canon, localGuidance comme guide local et regionalGuidance comme inspiration souple.",
-      "requestedDestinationDescription désigne la destination elle-même. displayName doit reprendre cette identité sans la remplacer par son passage, son entrée, son seuil, sa route ou un autre lieu intermédiaire; le cheminement sera raconté séparément après le commit.",
+      "roleContextPack.epistemicContext sépare trois autorités. authoritativeTruths peut être traité comme vrai. campaignCommitments doit être préservé comme état déjà engagé. attributedTestimonies décrit seulement ce que des PNJ ont dit au personnage et ne prouve jamais la proposition.",
+      "Une rumeur ou une incertitude peut guider une création cohérente, mais ne devient pas rétroactivement vraie. Si ta proposition matérialise un élément évoqué, il s'agit d'un nouveau choix de création encore soumis au runtime, jamais d'une confirmation automatique du témoignage.",
+      "Ne révèle ni perspective privée, ni mensonge, ni degré de vérité caché. Si deux témoignages se contredisent, préserve leur attribution et construis seulement ce que les vérités et engagements autorisent.",
+      "requestedDestinationName est un nom propre imposé seulement lorsqu'il n'est pas null: displayName doit alors conserver cette identité sans la remplacer par son passage, son entrée, son seuil ou sa route. Lorsqu'il est null, requestedDestinationDescription est une contrainte descriptive et tu choisis un nom propre naturel qui la satisfait; ne nomme pas littéralement le lieu 'une rue calme non loin'.",
       v2
         ? "Produis des identifiants canoniques stables. Ne propose aucune connexion ni topologie : le runtime les construit après validation."
         : "Produis des identifiants canoniques stables et des connexions explicites; chaque connexion déclare au moins une sourceRef fournie par le brief.",
       "parentLocationRef doit recopier exactement une valeur de allowedParentLocationRefs; n'utilise pas une référence wiki à sa place.",
       "requestedDepth doit recopier une valeur de allowedPersistenceDepths; ce parcours crée toujours un lieu persistant revisitable.",
       "populationRoles contient uniquement des intitulés de rôles courts et ciblables, au singulier, sans action ni description (par exemple: archiviste, copiste, garde). Le runtime peut les projeter en présences locales, jamais en PNJ durables.",
+      "populationRoles, localNorms et narrativeCommitments peuvent être vides lorsqu'aucun élément n'est soutenu par le lore ou nécessaire au lieu; n'invente pas une population dans un lieu désert.",
+      ...shared
+    ].join("\n");
+  }
+
+  if (request.role === "destination_arbiter") {
+    return [
+      "Tu arbitres uniquement la plausibilité d'une destination proposée dans un jeu de rôle.",
+      "Tu ne crées pas le lieu, ne racontes pas la scène, ne modifies aucun fait et n'as aucune autorité de commit.",
+      "CREATE_LOCAL signifie seulement que scene_creator pourra ensuite proposer le lieu sous l'un des allowedParentLocationRefs.",
+      "Une destination distante ou hors du parent local est TRAVEL_REQUIRED. Une ambiguïté est CLARIFY.",
+      "Compare la demande aux knownPlaces. Si elle peut désigner un lieu connu, réponds CLARIFY au lieu d'autoriser un doublon.",
+      "Une restriction d'accès ne change jamais la décision d'existence. Retourne CREATE_LOCAL si le lieu est plausible et place séparément la restriction sourcée dans accessHint.",
+      "accessHint reste null sans preuve directe dans le lore. Lorsqu'il est fourni, il est NON_COMMITTABLE_ACCESS_HINT : il ne déplace pas le joueur, n'accorde aucun accès et n'impose jamais une solution unique.",
+      "REJECT_CONTRADICTION doit citer uniquement des sourceRefs effectivement fournis et directement probants.",
+      "Si le lore ne prouve pas une contradiction, n'invente pas d'interdiction: préfère CREATE_LOCAL ou CLARIFY selon la précision de la demande.",
       ...shared
     ].join("\n");
   }
@@ -1543,6 +1631,12 @@ function buildRoleInstructions(request) {
       "Évite de répéter mot pour mot une formulation de priorNpcUtterances. Ne répète pas mécaniquement le nom ou la position d'un acteur déjà établi, par exemple 'près du garde', sauf si cette précision change réellement le sens.",
       "N'affirme jamais que le PNJ a déjà dit, promis, interdit, couvert ou expliqué quelque chose sauf si la réplique exacte apparaît dans task.knowledgeEnvelope.priorNpcUtterances.",
       "knowledgeUsed et chaque speechActs[].sourceRefs doivent contenir uniquement des valeurs recopiées exactement depuis task.knowledgeEnvelope.allowedSourceRefs. N'invente aucun préfixe task.*, aucun suffixe et aucune nouvelle référence.",
+      "task.knowledgeEnvelope.authorizedActorKnowledge est la seule projection privée durable autorisée pour ce PNJ. Elle ne vaut que pour task.actorId et ne doit jamais être récitée comme une fiche système.",
+      "Une claimPerspective citée impose exactement son epistemicBasis: known peut être affirmé comme connu, believed comme croyance du PNJ, uncertain avec une formulation explicitement incertaine. Une legacyBelief impose believed. Un knownFactRef impose known, mais sa référence seule n'autorise aucun détail absent du reste du contexte.",
+      "resolvedClaims contient les résolutions effectivement apprises par ce PNJ. CONFIRMED autorise la proposition comme connue; REFUTED signifie que le PNJ sait que cette proposition est fausse et doit la nier ou la corriger, jamais la répéter comme vraie. Cite resolutionRef avec epistemicBasis=known.",
+      "mayBeFalse est une précaution privée: ne révèle jamais au joueur qu'une croyance est fausse ou potentiellement fausse. intentionalDeceptionAllowed=false interdit tout mensonge volontaire; n'invente ni vérité cachée ni motif de tromperie.",
+      "Pour chaque speechAct de type assertion, ajoute exactement une entrée knowledgeClaims qui pointe vers utteranceId et son index. Cette entrée classe seulement le sujet de la parole; elle ne confirme jamais son existence ni sa vérité.",
+      "Utilise KNOWN_REF seulement si la référence exacte est fournie dans task.knowledgeEnvelope.allowedSubjectRefs. Utilise HYPOTHETICAL_MENTION pour un sujet nommé ou décrit sans référence connue, et UNRESOLVED si le sujet reste ambigu. N'invente jamais de ref pour ces deux derniers modes.",
       "Si priorNpcUtterances est vide, n'écris jamais 'je vous l'ai déjà dit', 'ma réponse ne change pas', 'encore une fois' ni aucun faux rappel équivalent.",
       "N'utilise que les faits publics et la mémoire fournis; une réponse générique provenant d'un autre sujet de conversation est inutilisable.",
       "Ne decide jamais un succes social, un echec social, une consequence durable, un changement d'etat, un combat, un gain, une perte, une avance de temps ou une revelation de secret.",
@@ -1676,6 +1770,9 @@ function validateRolePayload(payload, role, request = null) {
   const issues = [];
   if (role === "scene_creator") {
     return validateSceneCreatorPayload(payload, request);
+  }
+  if (role === "destination_arbiter") {
+    return validateDestinationArbiterPayload(payload, request);
   }
   if (role === "player_intent_interpreter") {
     if (request?.contractVersion === SEMANTIC_INTENT_CONTRACT_VERSION_V5) return validateSemanticIntentPayloadV5(payload);
@@ -1995,6 +2092,35 @@ function validateSceneCreatorPayload(payload, request) {
   return issues;
 }
 
+function validateDestinationArbiterPayload(payload, request) {
+  const issues = [];
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) return ["payload must be an object."];
+  const expectedKeys = ["accessHint", "allowedParentLocationRef", "outcome", "reason", "sourceRefs"];
+  if (Object.keys(payload).sort().join("|") !== expectedKeys.sort().join("|")) issues.push("payload keys do not match destination arbitration contract.");
+  if (!["CREATE_LOCAL", "CLARIFY", "TRAVEL_REQUIRED", "REJECT_CONTRADICTION"].includes(payload.outcome)) issues.push("payload.outcome is invalid.");
+  if (typeof payload.reason !== "string" || payload.reason.trim().length === 0) issues.push("payload.reason must be non-empty.");
+  if (!(payload.allowedParentLocationRef === null || typeof payload.allowedParentLocationRef === "string" && payload.allowedParentLocationRef.trim().length > 0)) issues.push("payload.allowedParentLocationRef must be null or non-empty.");
+  if (!Array.isArray(payload.sourceRefs) || payload.sourceRefs.some(ref => typeof ref !== "string")) issues.push("payload.sourceRefs must be a string array.");
+  const allowedParents = Array.isArray(request?.input?.roleContextPack?.allowedParentLocationRefs) ? request.input.roleContextPack.allowedParentLocationRefs : [];
+  const allowedSources = Array.isArray(request?.input?.roleContextPack?.allowedSourceRefs) ? request.input.roleContextPack.allowedSourceRefs : [];
+  if (payload.outcome === "CREATE_LOCAL" && !allowedParents.includes(payload.allowedParentLocationRef)) issues.push("CREATE_LOCAL requires an allowed parent.");
+  if (payload.outcome !== "CREATE_LOCAL" && payload.allowedParentLocationRef !== null) issues.push("Only CREATE_LOCAL may select a parent.");
+  if (payload.outcome === "REJECT_CONTRADICTION" && payload.sourceRefs.length === 0) issues.push("A contradiction requires sourceRefs.");
+  if (payload.accessHint !== null) {
+    const hint = payload.accessHint;
+    if (!hint || typeof hint !== "object" || Array.isArray(hint)) issues.push("payload.accessHint must be an object or null.");
+    else {
+      if (hint.schemaVersion !== 1 || hint.authority !== "NON_COMMITTABLE_ACCESS_HINT") issues.push("payload.accessHint contract is invalid.");
+      if (!["CONTROLLED", "BLOCKED", "UNKNOWN"].includes(hint.state)) issues.push("payload.accessHint.state is invalid.");
+      if (typeof hint.ownerDomain !== "string" || hint.ownerDomain.trim().length === 0 || typeof hint.reason !== "string" || hint.reason.trim().length === 0) issues.push("payload.accessHint ownerDomain and reason are required.");
+      if (!Array.isArray(hint.requirements) || hint.requirements.some(item => typeof item !== "string" || item.trim().length === 0)) issues.push("payload.accessHint.requirements is invalid.");
+      if (!Array.isArray(hint.sourceRefs) || hint.sourceRefs.length === 0 || hint.sourceRefs.some(ref => !allowedSources.includes(ref))) issues.push("payload.accessHint.sourceRefs must be supplied lore refs.");
+    }
+  }
+  if (Array.isArray(payload.sourceRefs) && payload.sourceRefs.some(ref => !allowedSources.includes(ref))) issues.push("payload.sourceRefs contains an unprovided source.");
+  return issues;
+}
+
 function validateCommittedActionReferent(intent, index) {
   const issues = [];
   const referent = intent.referentResolution || null;
@@ -2020,7 +2146,7 @@ function validateMjPlannerPayload(payload, request) {
   const allowedBeatKinds = new Set(["CONTEXT_RESPONSE", "LOCAL_ACTION_ATTEMPT", "ACTOR_REACTION_EXPECTED", "DOMAIN_BLOCKED", "CLARIFICATION"]);
   const allowedDomains = new Set(["scene_resolution", "social", "perception", "inventory", "tactical", "rest", "world"]);
   const allowedRuntimeStatuses = new Set(["SUPPORTED_BY_CURRENT_RUNTIME", "UNSUPPORTED_DOMAIN", "NEEDS_CLARIFICATION", "AI_INTERPRETATION_FAILED"]);
-  const allowedActorRoles = new Set(["intent_interpreter", "player_intent_interpreter", "mj_planner", "player_expression_adapter", "npc_performer", "rules_adjudicator", "coherence_critic", "scene_writer", "scene_creator", "clarification_writer"]);
+  const allowedActorRoles = new Set(["intent_interpreter", "player_intent_interpreter", "mj_planner", "player_expression_adapter", "npc_performer", "rules_adjudicator", "coherence_critic", "scene_writer", "scene_creator", "destination_arbiter", "clarification_writer"]);
   const allowedHandoffs = new Set(["ASK_PLAYER", "CONTINUE_AUTOMATICALLY", "CLARIFY", "END_TURN"]);
   const sourceIntent = request?.input?.task?.interpretation || null;
   if (payload.schemaVersion !== 1) issues.push("payload.schemaVersion must be 1.");
@@ -2210,6 +2336,11 @@ function validateNpcPerformerPayload(payload, request) {
           if (typeof act.content !== "string" || act.content.trim().length === 0) issues.push(`${path}.content must be a non-empty string.`);
           if (!["known", "believed", "uncertain"].includes(act.epistemicBasis)) issues.push(`${path}.epistemicBasis is invalid for npc_performer mini.`);
           if (!Array.isArray(act.sourceRefs) || act.sourceRefs.some(item => typeof item !== "string")) issues.push(`${path}.sourceRefs must be a string array.`);
+          const requiredBasisByRef = npcPerformerAuthorizedEpistemicBasis(request);
+          for (const ref of Array.isArray(act.sourceRefs) ? act.sourceRefs : []) {
+            const requiredBasis = requiredBasisByRef.get(ref);
+            if (requiredBasis && act.epistemicBasis !== requiredBasis) issues.push(`${path}.epistemicBasis must be ${requiredBasis} for ${ref}.`);
+          }
         }
       }
     }
@@ -2226,6 +2357,45 @@ function validateNpcPerformerPayload(payload, request) {
     issues.push("payload.revealedRefs must be empty for npc_performer mini.");
   }
   if (!Array.isArray(payload.knowledgeUsed) || payload.knowledgeUsed.some(item => typeof item !== "string")) issues.push("payload.knowledgeUsed must be a string array.");
+  const allowedSubjectRefs = new Set(Array.isArray(request?.input?.task?.knowledgeEnvelope?.allowedSubjectRefs)
+    ? request.input.task.knowledgeEnvelope.allowedSubjectRefs.filter(item => typeof item === "string")
+    : []);
+  const assertionKeys = new Set();
+  for (const utterance of Array.isArray(payload.utterances) ? payload.utterances : []) {
+    for (const [speechActIndex, speechAct] of (Array.isArray(utterance?.speechActs) ? utterance.speechActs : []).entries()) {
+      if (speechAct?.type === "assertion") assertionKeys.add(`${utterance.utteranceId}:${speechActIndex}`);
+    }
+  }
+  const candidateKeys = new Set();
+  if (!Array.isArray(payload.knowledgeClaims) || payload.knowledgeClaims.length > 4) {
+    issues.push("payload.knowledgeClaims must contain at most four structured claims.");
+  } else {
+    for (const [index, candidate] of payload.knowledgeClaims.entries()) {
+      const path = `payload.knowledgeClaims[${index}]`;
+      if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) {
+        issues.push(`${path} must be an object.`);
+        continue;
+      }
+      const key = `${candidate.utteranceId}:${candidate.speechActIndex}`;
+      if (!assertionKeys.has(key)) issues.push(`${path} must reference an assertion.`);
+      if (candidateKeys.has(key)) issues.push(`${path} duplicates an assertion link.`);
+      candidateKeys.add(key);
+      const subject = candidate.subject;
+      if (!subject || typeof subject !== "object" || Array.isArray(subject)) {
+        issues.push(`${path}.subject must be an object.`);
+        continue;
+      }
+      if (!["KNOWN_REF", "HYPOTHETICAL_MENTION", "UNRESOLVED"].includes(subject.mode)) issues.push(`${path}.subject.mode is invalid.`);
+      if (!["PLACE", "ACTOR", "EVENT", "HISTORY", "PLOT", "OBJECT", "OTHER"].includes(subject.kind)) issues.push(`${path}.subject.kind is invalid.`);
+      if (subject.mode === "KNOWN_REF" && (typeof subject.ref !== "string" || !allowedSubjectRefs.has(subject.ref))) issues.push(`${path}.subject.ref is not an allowed known subject.`);
+      if (subject.mode !== "KNOWN_REF" && subject.ref !== null) issues.push(`${path}.subject.ref must be null outside KNOWN_REF.`);
+      if (subject.mode === "HYPOTHETICAL_MENTION" && (typeof subject.label !== "string" || subject.label.trim().length === 0)) issues.push(`${path}.subject.label is required for a hypothetical mention.`);
+      if (subject.label !== null && typeof subject.label !== "string") issues.push(`${path}.subject.label must be a string or null.`);
+    }
+  }
+  for (const key of assertionKeys) {
+    if (!candidateKeys.has(key)) issues.push(`payload.knowledgeClaims must classify assertion ${key}.`);
+  }
   if (!payload.safetyConstraints || typeof payload.safetyConstraints !== "object" || Array.isArray(payload.safetyConstraints)) {
     issues.push("payload.safetyConstraints must be an object.");
   } else {
@@ -2235,6 +2405,27 @@ function validateNpcPerformerPayload(payload, request) {
     if (payload.safetyConstraints.noStateMutation !== true) issues.push("payload.safetyConstraints.noStateMutation must be true.");
   }
   return issues;
+}
+
+function npcPerformerAuthorizedEpistemicBasis(request) {
+  const result = new Map();
+  const knowledge = request?.input?.task?.knowledgeEnvelope?.authorizedActorKnowledge;
+  if (!knowledge || typeof knowledge !== "object" || Array.isArray(knowledge)) return result;
+  for (const ref of Array.isArray(knowledge.knownFactRefs) ? knowledge.knownFactRefs : []) {
+    if (typeof ref === "string") result.set(ref, "known");
+  }
+  for (const item of Array.isArray(knowledge.resolvedClaims) ? knowledge.resolvedClaims : []) {
+    if (item && typeof item === "object" && typeof item.resolutionRef === "string") result.set(item.resolutionRef, "known");
+  }
+  for (const item of Array.isArray(knowledge.claimPerspectives) ? knowledge.claimPerspectives : []) {
+    if (item && typeof item === "object" && typeof item.claimRef === "string" && ["known", "believed", "uncertain"].includes(item.epistemicBasis)) {
+      result.set(item.claimRef, item.epistemicBasis);
+    }
+  }
+  for (const item of Array.isArray(knowledge.legacyBeliefs) ? knowledge.legacyBeliefs : []) {
+    if (item && typeof item === "object" && typeof item.beliefRef === "string") result.set(item.beliefRef, "believed");
+  }
+  return result;
 }
 
 function validateCoherenceCriticPayload(payload) {

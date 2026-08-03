@@ -241,7 +241,9 @@ export function buildDynamicPlaceCreationProposalV1(input: {
   ] as const) {
     if (field === "connectionIntents") {
       if (values.length === 0 && input.allowRuntimeTopology !== true) issues.push("connectionIntents must not be empty.");
-    } else if ((values as string[]).length === 0 || (values as string[]).some(value => !value.trim())) {
+    } else if (field === "perceptibleFeatures" && (values as string[]).length === 0) {
+      issues.push("perceptibleFeatures must contain at least one visible feature.");
+    } else if ((values as string[]).some(value => !value.trim())) {
       issues.push(`${field} must contain non-empty values.`);
     }
   }
@@ -254,9 +256,7 @@ export function buildDynamicPlaceCreationProposalV1(input: {
     if (!isCanonicalRef(connection.destinationRef)) issues.push("connection destinationRef must be canonical.");
     if (connection.sourceRefs.length === 0 || connection.sourceRefs.some(ref => !ref.trim())) issues.push("connection sourceRefs are required.");
   }
-  if (input.candidate.requestedDepth !== "SCENE_EPHEMERAL" && input.candidate.narrativeCommitments.length === 0) {
-    issues.push("a persistent place candidate requires at least one narrative commitment.");
-  }
+  if (input.candidate.narrativeCommitments.some(value => !value.trim())) issues.push("narrativeCommitments must contain only non-empty values.");
   if (input.brief.sourceRefs.length === 0) issues.push("the source brief must retain grounding refs.");
   if (issues.length > 0) return { ok: false, code: "PLACE_CANDIDATE_INVALID", issues };
 

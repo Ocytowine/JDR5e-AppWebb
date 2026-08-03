@@ -1,4 +1,5 @@
 import type { JsonObject } from "../core";
+import { decideAccessTraversalV1, type AccessControlRecordV1, type AccessTraversalDecisionV1 } from "./accessControl";
 
 export const SCENE_TRANSITION_CONTRACT_VERSION_V1 = "scene-transition/1" as const;
 
@@ -59,6 +60,7 @@ export interface SceneTransitionDecisionV1 extends JsonObject {
   connectionId: string | null;
   destinationRef: string | null;
   requiredDomain: "world";
+  access: AccessTraversalDecisionV1 | null;
   commitAuthority: false;
   reason: string;
 }
@@ -105,6 +107,7 @@ export function decideSceneTransitionV1(input: {
   request: SceneTransitionRequestV1;
   topology: SceneTransitionTopologyV1;
   currentSceneVersion: number;
+  accessControls?: AccessControlRecordV1[];
 }): SceneTransitionDecisionV1 {
   const requestValidation = validateSceneTransitionRequestV1(input.request);
   if (!requestValidation.ok) return decision("REJECT", "INVALID_REQUEST", null, null, requestValidation.issues.join(" | "));
@@ -125,6 +128,20 @@ export function decideSceneTransitionV1(input: {
   if (connection.state !== "OPEN") {
     return decision("HANDOFF", "BOUNDARY_STATE_REQUIRES_RESOLUTION", connection.connectionId, connection.destinationRef, "L'état du passage doit être résolu par son domaine propriétaire avant tout déplacement.");
   }
+  const access = decideAccessTraversalV1({
+    connectionId: connection.connectionId,
+    control: input.accessControls?.find(control => control.connectionId === connection.connectionId) ?? null
+  });
+  if (access.disposition === "HANDOFF") {
+    return decision(
+      "HANDOFF",
+      "BOUNDARY_STATE_REQUIRES_RESOLUTION",
+      connection.connectionId,
+      connection.destinationRef,
+      access.reason,
+      access
+    );
+  }
   if (connection.scale === "TRAVEL") {
     return decision("HANDOFF", "TRAVEL_HANDOFF_REQUIRED", connection.connectionId, connection.destinationRef, "La connexion exige un TravelProcess validé.");
   }
@@ -136,9 +153,10 @@ function decision(
   code: SceneTransitionDecisionCodeV1,
   connectionId: string | null,
   destinationRef: string | null,
-  reason: string
+  reason: string,
+  access: AccessTraversalDecisionV1 | null = null
 ): SceneTransitionDecisionV1 {
-  return { schemaVersion: 1, contractVersion: SCENE_TRANSITION_CONTRACT_VERSION_V1, disposition, code, connectionId, destinationRef, requiredDomain: "world", commitAuthority: false, reason };
+  return { schemaVersion: 1, contractVersion: SCENE_TRANSITION_CONTRACT_VERSION_V1, disposition, code, connectionId, destinationRef, requiredDomain: "world", access, commitAuthority: false, reason };
 }
 
 function isCanonicalRef(value: string): boolean {

@@ -23,6 +23,10 @@ import { buildNpcDialogueFallbackV1, type NpcDialogueActKindV1 } from "./npcDial
 import type { PlayableSceneStateV1 } from "./playableScene";
 import { narrativeDesignationOfV1 } from "./narrativeDesignation";
 import { normalizeNpcActorIdV1, npcSpeakerIdForActorV1 } from "./npcActorIdentity";
+import {
+  loadNpcAuthorizedKnowledgeContextV1,
+  npcAuthorizedKnowledgeSourceRefsV1
+} from "./npcKnowledgeContext";
 
 export const NPC_PERFORMER_CONTRACT_VERSION_V1 = "npc-performer/1" as const;
 
@@ -511,6 +515,16 @@ function buildLocalNpcPerformancePayload(
         ]
       }]
     }],
+    knowledgeClaims: [{
+      utteranceId: `${intentId}:npc-utterance:1`,
+      speechActIndex: 0,
+      subject: {
+        mode: "UNRESOLVED",
+        ref: null,
+        kind: "OTHER",
+        label: null
+      }
+    }],
     nonVerbalReactions: [fallback.nonVerbalReaction],
     durableCommitments: [],
     revealedRefs: [],
@@ -703,10 +717,16 @@ async function buildNpcPerformerRequestV1(input: {
     authority: "EPHEMERAL_PRESENTATION_ONLY",
     durablePromotionAllowed: false
   };
+  const authorizedActorKnowledge = await loadNpcAuthorizedKnowledgeContextV1({
+    repository: input.repository,
+    campaignId: input.campaignId,
+    actorId: input.actorId
+  });
   const allowedSourceRefs = [
     `playable-scene:${input.activeScene.sceneId}`,
     `intent:${input.interpretation.intentId}`,
     outputProfileRef,
+    ...npcAuthorizedKnowledgeSourceRefsV1(authorizedActorKnowledge),
     ...renderedNpcUtterances.flatMap(utterance => [
       `operation:${utterance.sourceOperationId}`,
       `render-projection:${utterance.renderOperationId}`
@@ -727,6 +747,12 @@ async function buildNpcPerformerRequestV1(input: {
     conversationProfileContract,
     knowledgeEnvelope: {
       allowedSourceRefs: [...new Set(allowedSourceRefs)],
+      authorizedActorKnowledge,
+      allowedSubjectRefs: [...new Set([
+        `playable-scene:${input.activeScene.sceneId}`,
+        ...input.activeScene.presentNpc.map(actor => `actor:${actor.actorId}`),
+        ...(input.activeScene.ambientPopulation ?? []).map(actor => `actor:${actor.actorId}`)
+      ])],
       publicFactRefs: [`playable-scene:${input.activeScene.sceneId}`],
       priorPlayerSpeech,
       priorNpcUtterances: renderedNpcUtterances,

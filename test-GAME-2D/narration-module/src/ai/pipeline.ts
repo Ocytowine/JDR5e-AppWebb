@@ -16,6 +16,7 @@ import type {
   AiRetryPolicyV1,
   AiRoleOutputEnvelopeV1
 } from "./types";
+import { consumeAiCallBudgetV1 } from "./callBudget";
 
 export interface AiPipelineRunInputV1 {
   request: AiCallRequestV1;
@@ -98,6 +99,41 @@ export async function runAiPipelineCallV1(input: AiPipelineRunInputV1): Promise<
   for (let index = 0; index < maxAttempts; index += 1) {
     const kind = attemptKind(index, input.retryPolicy);
     const request = attemptRequest(input.request, index === 0 ? input.request.attemptId : `${input.request.attemptId}:retry-${index}`, kind);
+    const budget = consumeAiCallBudgetV1({
+      operationId: request.operationId,
+      attemptId: request.attemptId,
+      route: input.route
+    });
+    if (!budget.allowed) {
+      lastValidation = {
+        schemaVersion: 1,
+        outputId: null,
+        accepted: false,
+        failureCategory: "BUDGET_EXCEEDED",
+        issues: [
+          `billable AI call budget exhausted: ${budget.snapshot.consumedAttemptIds.length}/${budget.snapshot.maxBillableCalls}`
+        ]
+      };
+      incidents.push(createAiIncidentRecordV1({
+        incidentId: `incident:${request.operationId}:${request.attemptId}:budget`,
+        campaignId: request.campaignId,
+        operationId: request.operationId,
+        callId: request.callId,
+        attemptIds: [request.attemptId],
+        role: request.role,
+        category: "BUDGET_EXCEEDED",
+        severity: "BLOCKING",
+        stage: "PROVIDER_CALL",
+        commitState: "NO_COMMIT",
+        outcome: "SUSPENDED",
+        unsafeDetails: {
+          maxBillableCalls: budget.snapshot.maxBillableCalls,
+          consumedAttemptIds: budget.snapshot.consumedAttemptIds,
+          deniedAttemptId: request.attemptId
+        }
+      }));
+      break;
+    }
     const rawOutput = await input.provider.generate(request);
     const callTelemetry = input.provider.takeTelemetry?.(request.attemptId) ?? null;
     if (callTelemetry !== null) telemetry.push(callTelemetry);

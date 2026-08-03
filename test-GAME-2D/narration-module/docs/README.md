@@ -38,6 +38,12 @@ avec un ancien plan de travail.
 - [`Contrat-resolution-perceptive.md`](Contrat-resolution-perceptive.md)
 - [`Contrat-resolution-tests-competence.md`](Contrat-resolution-tests-competence.md)
 - [`Contrat-controleur-tour-narratif.md`](Contrat-controleur-tour-narratif.md)
+- [`Contrat-affirmations-temoignages-et-connaissances.md`](Contrat-affirmations-temoignages-et-connaissances.md)
+- [`Contrat-acces-par-inventaire.md`](Contrat-acces-par-inventaire.md)
+- [`Contrat-acces-social.md`](Contrat-acces-social.md)
+- [`Contrat-budget-appels-ia-par-tour.md`](Contrat-budget-appels-ia-par-tour.md)
+  sépare vérité, perspective privée, témoignage attribué et connaissance
+  acquise avant leur raccord au dialogue et aux créations.
 
 ### Lore, scènes et populations
 
@@ -84,6 +90,10 @@ avec un ancien plan de travail.
 
 ## Guides en français
 
+- [`Guide-personnel-scenario-fonctionnement-global.md`](Guide-personnel-scenario-fonctionnement-global.md)
+- [`Recette-transverse-temoignages-lieu-acces.md`](Recette-transverse-temoignages-lieu-acces.md)
+  est le document vivant destiné au propriétaire du projet : un scénario
+  continu y explique les fonctionnalités disponibles, partielles et prévues.
 - [`Guide-bastion-fonctionnement-et-tests.md`](Guide-bastion-fonctionnement-et-tests.md)
   explique les lots 6F-B à 6F-E, leurs exemples, les commandes de vérification
   et la frontière entre preuve automatisée et parcours jouable dans le build
@@ -115,6 +125,9 @@ avec un ancien plan de travail.
 
 ## Scénarios et preuves
 
+- [`Benchmark-destination-arbiter-V1.md`](Benchmark-destination-arbiter-V1.md)
+  certifie la matrice OpenAI de plausibilité et le parcours persistant de
+  création puis retour.
 - [`Matrice-certification-gate-6V-monde-vivant.md`](Matrice-certification-gate-6V-monde-vivant.md)
   certifie la verticale transverse PNJ, intrigue, monde et temps.
 - [`Scenarios-acceptation.md`](Scenarios-acceptation.md) décrit les comportements

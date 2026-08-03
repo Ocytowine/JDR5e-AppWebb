@@ -19,6 +19,9 @@ import {
 } from "./placeCreationValidation";
 import type { PlayableSceneStateV1 } from "./playableScene";
 import type { SceneTransitionTopologyV1 } from "./sceneTransition";
+import type { DestinationPlausibilityDecisionV1 } from "./destinationPlausibility";
+import { buildSceneCreatorEpistemicContextV1 } from "./sceneCreatorEpistemicContext";
+import { loadActiveCampaignCharacterProfileV1 } from "../bootstrap";
 
 export interface LoreGuidedDynamicPlaceCreativeContextV1 {
   brief: LoreGuidedSceneCreationBriefV1;
@@ -30,6 +33,7 @@ export interface LoreGuidedDynamicPlaceCreativeContextV1 {
   sourceBoundaryRef: string;
   requestedDestinationDescription: string;
   requestedDestinationName?: string | null;
+  destinationDecision?: DestinationPlausibilityDecisionV1;
   generatorConfig: LoreGuidedPlaceCandidateGeneratorConfigV2;
 }
 
@@ -46,6 +50,7 @@ export interface LoreGuidedDynamicPlaceContextPortV1 {
     interpretation: NarrativeIntentInterpretationV1;
     domainCommand: NarrativeDomainCommandV1 | null;
     activeScene: PlayableSceneStateV1;
+    destinationDecision?: DestinationPlausibilityDecisionV1;
   }): Promise<boolean> | boolean;
   buildContext(input: {
     repository: CampaignRepository;
@@ -55,6 +60,7 @@ export interface LoreGuidedDynamicPlaceContextPortV1 {
     interpretation: NarrativeIntentInterpretationV1;
     domainCommand: NarrativeDomainCommandV1 | null;
     activeScene: PlayableSceneStateV1;
+    destinationDecision?: DestinationPlausibilityDecisionV1;
   }): Promise<Result<LoreGuidedDynamicPlaceCreativeContextV1>>;
 }
 
@@ -82,6 +88,20 @@ export function createLoreGuidedDynamicPlacePreparationPortV1(input: {
     async prepareCreative(request) {
       const context = await input.contextPort.buildContext(request);
       if (!context.ok) return context;
+      const canLoadActiveProfile = typeof (request.repository as unknown as { getCampaign?: unknown }).getCampaign === "function";
+      const activeProfile = canLoadActiveProfile
+        ? await loadActiveCampaignCharacterProfileV1({
+            repository: request.repository,
+            campaignId: request.campaign.campaignId
+          })
+        : null;
+      if (activeProfile !== null && !activeProfile.ok && activeProfile.error.code !== "NOT_FOUND") return activeProfile;
+      const epistemicContext = await buildSceneCreatorEpistemicContextV1({
+        repository: request.repository,
+        campaignId: request.campaign.campaignId,
+        brief: context.value.brief,
+        audienceActorRef: activeProfile?.ok ? `actor:${activeProfile.value.actorId}` : null
+      });
       const generated = await generateLoreGuidedPlaceCandidateV2({
         campaignId: request.campaign.campaignId,
         operationId: request.operation.operationId,
@@ -91,6 +111,8 @@ export function createLoreGuidedDynamicPlacePreparationPortV1(input: {
         allowedParentLocationRefs: context.value.placeValidationPolicy.allowedParentLocationRefs,
         allowedPersistenceDepths: context.value.placeValidationPolicy.allowedPersistenceDepths.filter((depth): depth is "LIGHT_REFERENCE" | "FULL_ENTITY" => depth !== "SCENE_EPHEMERAL"),
         requestedDestinationDescription: context.value.requestedDestinationDescription,
+        requestedDestinationName: context.value.requestedDestinationName ?? null,
+        epistemicContext,
         config: context.value.generatorConfig
       });
       if (!generated.ok) return failure("narrative.dynamic-place.ai-candidate-rejected", generated.issues, {
@@ -120,7 +142,9 @@ export function createLoreGuidedDynamicPlacePreparationPortV1(input: {
         proposal: generated.proposal,
         sourceSceneId: context.value.sourceSceneId,
         sourceLocationRef: context.value.sourceLocationRef,
-        sourceBoundaryRef: context.value.sourceBoundaryRef
+        sourceBoundaryRef: context.value.sourceBoundaryRef,
+        loreAnchorEntityId: context.value.brief.anchorEntityId,
+        loreGeographicChain: context.value.brief.geographicChain
       });
       const genericValidation = validateDynamicCreationProposalV1(proposal, context.value.dynamicCreationPolicy);
       if (!genericValidation.ok) return failure("narrative.dynamic-place.generic-gate-rejected", genericValidation.issues);
@@ -150,6 +174,8 @@ function completeRequiredPlaceConnectionsV1(input: {
   sourceSceneId: string;
   sourceLocationRef: string;
   sourceBoundaryRef: string;
+  loreAnchorEntityId: string;
+  loreGeographicChain: string[];
 }): import("../ai/types").DynamicCreationProposalV1 {
   const properties = structuredClone(input.proposal.proposedProperties);
   const proposedPlaceRef = typeof properties.proposedPlaceRef === "string" ? properties.proposedPlaceRef : "";
@@ -161,7 +187,15 @@ function completeRequiredPlaceConnectionsV1(input: {
     { sourceSceneId: input.sourceSceneId, boundaryRef: input.sourceBoundaryRef, destinationRef: proposedPlaceRef, scale: "LOCAL", sourceRefs },
     { sourceSceneId: arrivalSceneId, boundaryRef: "poi:return-to-source", destinationRef: input.sourceLocationRef, scale: "LOCAL", sourceRefs }
   ];
-  return { ...structuredClone(input.proposal), proposedProperties: { ...properties, connectionIntents: connections } };
+  return {
+    ...structuredClone(input.proposal),
+    proposedProperties: {
+      ...properties,
+      loreAnchorEntityId: input.loreAnchorEntityId,
+      loreGeographicChain: [...input.loreGeographicChain],
+      connectionIntents: connections
+    }
+  };
 }
 
 function normalizeDestinationName(value: string): string {

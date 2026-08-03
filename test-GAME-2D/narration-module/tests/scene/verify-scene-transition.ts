@@ -10,6 +10,7 @@ import {
   type SceneTransitionWorldCommandV1
 } from "../../src/application/sceneTransitionAdapter";
 import type { SceneReferentRegistryV1 } from "../../src/application/sceneReferentRegistry";
+import type { AccessControlRecordV1 } from "../../src/application/accessControl";
 import {
   augmentTemporalCommitWithSceneTransitionV1,
   type WorldPreparedSceneTransitionV1
@@ -73,6 +74,50 @@ assert.equal(ready.code, "READY_FOR_LOCAL_COMMIT");
 assert.equal(ready.destinationRef, "location:service-room");
 assert.equal(ready.commitAuthority, false);
 
+const controlledAccess: AccessControlRecordV1 = {
+  schemaVersion: 1,
+  contractVersion: "access-control/1",
+  accessControlRef: "access:service-door",
+  connectionId: "connection-service-door",
+  sourceSceneId: "scene-common-room",
+  boundaryRef: "poi:service-door",
+  destinationRef: "location:service-room",
+  state: "CONTROLLED",
+  ownerDomain: "WorldDomain",
+  thresholdDescription: "Un garde contrôle le passage.",
+  requirements: [{
+    schemaVersion: 1,
+    requirementRef: "access-requirement:guard-permission",
+    kind: "SOCIAL_PERMISSION",
+    description: "Obtenir l'autorisation du garde.",
+    status: "ACTIVE",
+    visibility: "PUBLIC",
+    ownerDomain: "SocialDomain",
+    sourceRefs: ["lore-location:inn-1"],
+    version: 1
+  }, {
+    schemaVersion: 1,
+    requirementRef: "access-requirement:secret-mandate",
+    kind: "AUTHORIZATION",
+    description: "Présenter le mandat confidentiel.",
+    status: "ACTIVE",
+    visibility: "SYSTEM_PRIVATE",
+    ownerDomain: "InventoryDomain",
+    sourceRefs: ["lore-secret:mandate"],
+    version: 1
+  }],
+  approachDomains: ["social", "inventory"],
+  approachesAreNonExhaustive: true,
+  sourceRefs: ["lore-location:inn-1"],
+  version: 1
+};
+const threshold = decideSceneTransitionV1({ request, topology, currentSceneVersion: 3, accessControls: [controlledAccess] });
+assert.equal(threshold.disposition, "HANDOFF");
+assert.equal(threshold.code, "BOUNDARY_STATE_REQUIRES_RESOLUTION");
+assert.equal(threshold.access?.accessControlRef, "access:service-door");
+assert.deepEqual(threshold.access?.playerKnownRequirements.map(item => item.requirementRef), ["access-requirement:guard-permission"]);
+assert.equal(JSON.stringify(threshold).includes("mandat confidentiel"), false, "une condition privée ne doit pas être divulguée au seuil");
+
 const registry: SceneReferentRegistryV1 = {
   schemaVersion: 1,
   contractVersion: "scene-referent-registry/1",
@@ -100,6 +145,9 @@ assert.equal(prepared.command.destinationRef, "location:service-room");
 assert.equal(prepared.command.timePolicy, "WORLD_VALIDATED");
 assert.equal(prepared.command.commitAuthority, false);
 assert.equal(validateSceneTransitionWorldCommandV1(prepared.command).ok, true);
+const controlledPreparation = prepareSceneTransitionWorldRequestV1({ request, registry, topology, currentSceneVersion: 3, accessControls: [controlledAccess] });
+assert.equal(controlledPreparation.command, null, "aucune commande de déplacement ne doit être préparée devant un contrôle actif");
+assert.equal(controlledPreparation.decision.access?.ownerDomain, "WorldDomain");
 
 const campaignId = opaqueId<CampaignId>("campaign-1");
 const operationId = opaqueId<OperationId>("operation-1");

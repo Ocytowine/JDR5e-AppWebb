@@ -11,6 +11,7 @@ export type AiRoleV1 =
   | "coherence_critic"
   | "scene_writer"
   | "scene_creator"
+  | "destination_arbiter"
   | "clarification_writer";
 
 export interface AiModelRouteV1 {
@@ -397,6 +398,7 @@ export interface NpcPerformerPayloadV1 {
   reactionFrame: NpcDialogueReactionFrameV1;
   conversationProfile: NpcEphemeralConversationProfileV1;
   utterances: NpcUtteranceV1[];
+  knowledgeClaims?: NpcKnowledgeClaimCandidateV1[];
   nonVerbalReactions: string[];
   durableCommitments: string[];
   revealedRefs: string[];
@@ -406,6 +408,17 @@ export interface NpcPerformerPayloadV1 {
     noSecretReveal: true;
     noDurableCommitment: true;
     noStateMutation: true;
+  };
+}
+
+export interface NpcKnowledgeClaimCandidateV1 {
+  utteranceId: string;
+  speechActIndex: number;
+  subject: {
+    mode: "KNOWN_REF" | "HYPOTHETICAL_MENTION" | "UNRESOLVED";
+    ref: string | null;
+    kind: "PLACE" | "ACTOR" | "EVENT" | "HISTORY" | "PLOT" | "OBJECT" | "OTHER";
+    label: string | null;
   };
 }
 

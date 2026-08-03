@@ -32,28 +32,31 @@ long utilise un processus distinct.
 
 ## Lieu créé dynamiquement
 
-Lorsqu'un besoin ne correspond à aucun lieu existant, un lieu peut être proposé
-depuis le profil local : monde, territoire, région, ville et quartier.
+Lorsqu'un besoin ne correspond à aucun lieu existant, il passe d'abord par une
+décision de destination. Une sortie déjà déclarée peut être matérialisée
+directement. Un lieu librement proposé est classé comme création locale,
+clarification, voyage, contradiction sourcée ou possibilité sous condition.
 
-Le générateur peut choisir ambiance, nom et détails compatibles. Il ne peut pas
-contredire la géographie, les autorités ou les connexions établies.
+Le générateur n'est appelé qu'après une autorisation `CREATE_LOCAL`. Il peut
+choisir ambiance, nom et détails compatibles, mais ne décide ni de la distance,
+ni du parent, ni du droit de créer. Un nom propre demandé est conservé ; une
+description libre peut recevoir un nom naturel différent.
 
 Avant le commit, le système vérifie notamment :
 
 - existence d'un lieu réutilisable ;
 - parent et ancrage topologique ;
 - doublons ;
-- fonction et densité locale ;
-- mode d'existence ;
+- similarité lexicale avec un lieu connu ;
+- décision sémantique bornée par le lore lorsque les règles locales ne
+  suffisent pas ;
 - connexions ;
 - faits déjà engagés par une intrigue ou une interaction.
 
-Modes d'existence possibles :
-
-- `preexisting_undiscovered` : le lieu existait mais n'avait pas été découvert ;
-- `newly_established` : une cause et une durée expliquent sa création ;
-- `temporary` : campement, marché ou chantier ;
-- `hidden` : lieu préexistant qui n'était pas publiquement connu.
+Le runtime actif matérialise un lieu local persistant et revisitable. Il ne
+prétend pas encore gérer des modes d'existence distincts comme un marché
+temporaire ou un bâtiment nouvellement construit : ces cas exigent leur cause
+et leur processus temporel propriétaires.
 
 ## Ce que connaît le personnage
 
@@ -88,5 +91,7 @@ les tests de transition, de catalogue lore et d'IndexedDB. `npm run build`
 regénère le catalogue narratif avant compilation.
 
 En mode local, la création guidée par OpenAI n'est pas disponible. En mode
-OpenAI, une proposition distante reste soumise aux mêmes validateurs et ne peut
-pas s'afficher avant validation.
+OpenAI, une proposition distante produit un handoff de voyage sans création
+locale. Un refus ou une condition ne consomme aucun temps de jeu. Après commit,
+le contexte géographique est conservé pour pouvoir repartir d'une scène
+dynamique ; un échec de présentation peut être restauré sans rejouer le commit.

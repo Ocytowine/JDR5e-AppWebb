@@ -1643,8 +1643,8 @@
         "entityType": "batiment",
         "payloadSchemaVersion": 1,
         "sourcePath": "wiki/lore/territoire/region/Ylsséa/Lysenthe/batiments/archives_de_lysenthe",
-        "sourceFingerprint": "sha256:38df5f45c8d12eb688fecf361bb3d763a0592d314bc2ee94246f647d9dfb8979",
-        "payloadFingerprint": "sha256:f7a3c2b50e85ce427916c9dd0655b133c6fb80d4ca9997cd7e41f91be59b65a9",
+        "sourceFingerprint": "sha256:86c48122db48bdf32f76e1b141534506b0790cdbfb3c8a68cd8db500dbd6b35c",
+        "payloadFingerprint": "sha256:fac7bec42cec80a2901ec1af19e9a3ba655e6b1a9a900e95b9cfe43b4a7e5c8e",
         "references": [
           {
             "targetId": "archivistes_de_lysenthe",
@@ -1694,8 +1694,8 @@
         "entityType": "batiment",
         "payloadSchemaVersion": 1,
         "sourcePath": "wiki/lore/territoire/region/Ylsséa/Lysenthe/batiments/caserne_centrale",
-        "sourceFingerprint": "sha256:86430f96f516167f6a717bb221d9bee67fa34ab490b50b15968af0801fd44861",
-        "payloadFingerprint": "sha256:f185936c1bbbd90d849d3743e3ed7291a766072ce2de44c1c18ad97b334c92ee",
+        "sourceFingerprint": "sha256:674a56e1f7fdfc30dde4415751a6d011104d8cadb5ae93dbb9757716e2fd66b3",
+        "payloadFingerprint": "sha256:315a4e1f39dd45038698b2cb22b39a52e8be88b82098c2fefa7b0e07e22c509a",
         "references": [
           {
             "targetId": "garnison_de_lysenthe",
@@ -1745,8 +1745,8 @@
         "entityType": "batiment",
         "payloadSchemaVersion": 1,
         "sourcePath": "wiki/lore/territoire/region/Ylsséa/Lysenthe/batiments/chantier_de_la_basse_baie",
-        "sourceFingerprint": "sha256:2693e474d8937ca91782a3b981748be7af37133021c3c63a519e9a0d6af27698",
-        "payloadFingerprint": "sha256:1b27ecd00d43d85624c41b74468d48cb012624e8021c304a3fc4e17e2b8011a7",
+        "sourceFingerprint": "sha256:1aaf1d7a70f184b08882356677af6a91270e716752a7ebcadf9c700086cef31b",
+        "payloadFingerprint": "sha256:f840f4b44dcf64c186d3fa3886dd4e908addb3441c7d1900312d0f22b5d2a295",
         "references": [
           {
             "targetId": "basse_baie",
@@ -1791,8 +1791,8 @@
         "entityType": "batiment",
         "payloadSchemaVersion": 1,
         "sourcePath": "wiki/lore/territoire/region/Ylsséa/Lysenthe/batiments/chateau_tharqual",
-        "sourceFingerprint": "sha256:6703fd9e50b69147f32374de7ce4b2e873ced7f089ed2b2d5f1fb9e226d4d7de",
-        "payloadFingerprint": "sha256:5e219c03068f185483e21402e271e79a0b485475800934ae7a298b8996aecf68",
+        "sourceFingerprint": "sha256:ee6d1399bd2eb38695c5bcd141a11b4fae0b82bcec23caa1c43db11dad59df9c",
+        "payloadFingerprint": "sha256:7a24aee571c245a703b3c5462c4a4ed5881683eaf03f08c9df929ec4271b4152",
         "references": [
           {
             "targetId": "caserne_centrale",
@@ -1837,8 +1837,8 @@
         "entityType": "batiment",
         "payloadSchemaVersion": 1,
         "sourcePath": "wiki/lore/territoire/region/Ylsséa/Lysenthe/batiments/halles_des_commerces",
-        "sourceFingerprint": "sha256:2ab4910416ef8131918165538a0855aaec1c7d78b275ff89c01b88d7d2bd2e9a",
-        "payloadFingerprint": "sha256:4ac980eb3c89188fdee4f531efea0b28f6182f110cdfb44715dc6a3047f3effe",
+        "sourceFingerprint": "sha256:8b3fac700d6cc3ad830351facb64db40605355e73405f4ad062fab9f7a08f365",
+        "payloadFingerprint": "sha256:0f1469a8ecf2f7bff35009f911e04f5e76806727b7ee2bc8c863767d1f519acc",
         "references": [
           {
             "targetId": "cercle_du_commerce_maritime",
@@ -1888,8 +1888,8 @@
         "entityType": "batiment",
         "payloadSchemaVersion": 1,
         "sourcePath": "wiki/lore/territoire/region/Ylsséa/Lysenthe/batiments/maison_des_registres",
-        "sourceFingerprint": "sha256:a42631c9ed47add31916c163c90350694758e50af286b463c1f54a92a2381161",
-        "payloadFingerprint": "sha256:4af64d834b482f2854921eccfff04fdaaeef9bedf91dddf22a2d3f6f3210ebd0",
+        "sourceFingerprint": "sha256:00aa88ca9b381c96b5c5afb27ec2ee8f55dd84f6eb22d6405cd4711a9bccd475",
+        "payloadFingerprint": "sha256:ddd264c576368feacafec527158e2f0091b1db3026a3fc2374b6cd4d83323863",
         "references": [
           {
             "targetId": "archives_de_lysenthe",
@@ -1934,8 +1934,8 @@
         "entityType": "batiment",
         "payloadSchemaVersion": 1,
         "sourcePath": "wiki/lore/territoire/region/Ylsséa/Lysenthe/batiments/tour_du_primarque",
-        "sourceFingerprint": "sha256:219a8adbe4fab5221626fbd5d06d2a0fe1c27d6cd1fd7b9e7c06adb4e976ee94",
-        "payloadFingerprint": "sha256:0dd6d065495fa814eb2418c2f15c1cd4125ed9715929f4c49a6696e32cb95214",
+        "sourceFingerprint": "sha256:1cbb815c86780f45f12bf1fdce4e8b47db943898137ae088c7da0be7f6dc3dd5",
+        "payloadFingerprint": "sha256:ee454dff0c65aad89c606a08c4328447c9b3b982518914c71ce064da3f038fb7",
         "references": [
           {
             "targetId": "chateau_tharqual",
@@ -1980,8 +1980,8 @@
         "entityType": "culture",
         "payloadSchemaVersion": 1,
         "sourcePath": "wiki/lore/populations/cultures/culture_cotiere_ylssea.md",
-        "sourceFingerprint": "sha256:4f9f0e5c79f1f393719df3907d534f49c515d818f1f8180a3413a273fefa9a66",
-        "payloadFingerprint": "sha256:e133e9125e31102839dfd1e73dccfa28cdd695fe84d0266dc847820de58430ae",
+        "sourceFingerprint": "sha256:75471e6094386eddff4b6480bc53e9df1cb7bdeb14c4ad301ad57a417216cf63",
+        "payloadFingerprint": "sha256:30566aebe5c001c0f05405da7a5f94a80a65331d5cba3e75bb59ddc1827999f4",
         "references": [
           {
             "targetId": "elfes",
@@ -2016,8 +2016,8 @@
         "entityType": "espece",
         "payloadSchemaVersion": 1,
         "sourcePath": "wiki/lore/populations/especes/elfes.md",
-        "sourceFingerprint": "sha256:380f473f1af9b6e01af25e4cb3de59ed7fc02f445cec37ff0f04deeac4c347c1",
-        "payloadFingerprint": "sha256:c39d8b57fc24dcd4136918072bc64a551ac7cc7ff544483c56940d5f94337630",
+        "sourceFingerprint": "sha256:0e0d69116cccc30fc1cd167181d6cfe4893820022f91e656c06cf875107603f2",
+        "payloadFingerprint": "sha256:7a9e537c469be17162f442f66602f2847bc660a801f426f784bcc0c8ebedae20",
         "references": [
           {
             "targetId": "elf",
@@ -2047,8 +2047,8 @@
         "entityType": "espece",
         "payloadSchemaVersion": 1,
         "sourcePath": "wiki/lore/populations/especes/humains.md",
-        "sourceFingerprint": "sha256:93690f493c6c1285e51c3c89344c60e264bde05a1c4b3ce15ac409e0c5cdad8d",
-        "payloadFingerprint": "sha256:1f024bd5f441c84dcd799673e7f992d62ed4e4823631cbfd8a84252041a15eab",
+        "sourceFingerprint": "sha256:4688973a7bbcfff35177e4dda6a3acda2bb99032d5e454fd811c903b19ad0ca9",
+        "payloadFingerprint": "sha256:3065674251c7d6620e8b5370b6ab7856c3e3ff9a647823c859cc0924ba53a4ff",
         "references": [
           {
             "targetId": "human",
@@ -2078,8 +2078,8 @@
         "entityType": "faction",
         "payloadSchemaVersion": 1,
         "sourcePath": "wiki/lore/factions/archivistes_de_lysenthe",
-        "sourceFingerprint": "sha256:af6ae30b913403492565326b9bcd3ff37d25bc8d9b4d123417a981970dd66bf5",
-        "payloadFingerprint": "sha256:7802ad0b027e59c29c10ef5f4dcce924ca4c85bcbb2804c2ff4f80d688d2fe43",
+        "sourceFingerprint": "sha256:1a0e3733384f77afe86925173d433bf959012d3e429dc6df8919c197db8c42f0",
+        "payloadFingerprint": "sha256:ba672593e06c3f023d75ad79b7c1ba2f573afd11d673617241f099cf010d6299",
         "references": [
           {
             "targetId": "external:collegium_des_archivistes",
@@ -2114,8 +2114,8 @@
         "entityType": "faction",
         "payloadSchemaVersion": 1,
         "sourcePath": "wiki/lore/factions/cercle_du_commerce_maritime",
-        "sourceFingerprint": "sha256:047bf1f0886a11862878cdd6b0cf4a49fa7761d7eb42c9f707e39f7e9fe3bdaa",
-        "payloadFingerprint": "sha256:4e357c6a0aad5c87d7277b33bfb600751b1a21ace3f8fce7c18cf81252a2f77c",
+        "sourceFingerprint": "sha256:45366349136a72df9fc01e2790ba318b673e5a26a33a02313014669a8f302943",
+        "payloadFingerprint": "sha256:cdc606691424178863c7c94a9fdf2171e1338921d618f5d060d9f464b42b93c4",
         "references": [
           {
             "targetId": "external:chambre_des_courtiers_de_lysenthe",
@@ -2150,8 +2150,8 @@
         "entityType": "faction",
         "payloadSchemaVersion": 1,
         "sourcePath": "wiki/lore/factions/garnison_de_lysenthe",
-        "sourceFingerprint": "sha256:5e3feadf52c3677eff92ea1270371a9ea394d46238c939da017308bacf920866",
-        "payloadFingerprint": "sha256:7cccbdd754061081ea69fa66fc4c4f9524970b8c4f599baf2615d4ebb50ef8ff",
+        "sourceFingerprint": "sha256:f867d7b9979ea0b3a915e4c6c73ae390addb9c714a4850ed8bd97ec5e8830da8",
+        "payloadFingerprint": "sha256:5c3fbfc102265503f0716e8efc835de6882c98db0f502be023b081e17c4ab8a7",
         "references": [
           {
             "targetId": "external:maison_tharqual",
@@ -2186,8 +2186,8 @@
         "entityType": "quartier",
         "payloadSchemaVersion": 1,
         "sourcePath": "wiki/lore/territoire/region/Ylsséa/Lysenthe/quartiers/basse_baie",
-        "sourceFingerprint": "sha256:372bef3bf353847ee05bf7e28932d2c3811764c34347806664ecb4820506604c",
-        "payloadFingerprint": "sha256:660118b1bec3c5104be795b34b9b0a8148b90c48753aa4a361fab72b65f7f776",
+        "sourceFingerprint": "sha256:6f37da2ad4ab52d70f3848f4bc2b61eb47855df0eae91bb73ea8c8b369f03aa7",
+        "payloadFingerprint": "sha256:604a0c3ecba01e37bd0e7f7b01cd5b2a2c5885e4ffde9afe6eaa698df8ebcf55",
         "references": [
           {
             "targetId": "ylssea",
@@ -2212,8 +2212,8 @@
         "entityType": "quartier",
         "payloadSchemaVersion": 1,
         "sourcePath": "wiki/lore/territoire/region/Ylsséa/Lysenthe/quartiers/pierre_des_sables",
-        "sourceFingerprint": "sha256:15d9e162d0f821f891831a71961704b381221da81bd57413dc923dce07ee3907",
-        "payloadFingerprint": "sha256:e1c58a1498ac444fbb586e8b49ee9c6011547c7bd7ca2fa7cd8b463e6f241594",
+        "sourceFingerprint": "sha256:97e3fd712aa4cef0cc264df2d3eb2cb6cec1667b15a877af05699f19639b73c8",
+        "payloadFingerprint": "sha256:9c63bb89180e0e487f9ccdf005b70f5623c08d3c7532eed687fbf7c62374e18b",
         "references": [
           {
             "targetId": "ylssea",
@@ -2238,8 +2238,8 @@
         "entityType": "quartier",
         "payloadSchemaVersion": 1,
         "sourcePath": "wiki/lore/territoire/region/Ylsséa/Lysenthe/quartiers/port_des_xantars",
-        "sourceFingerprint": "sha256:b46e1e49d65bf48d58e2879ce2aa1f4f978db625688651fa84cb299a1a54d896",
-        "payloadFingerprint": "sha256:d07a23e40c2818957cc04c2737f528536fa1ee173e89255961bd36ee35ecb0c1",
+        "sourceFingerprint": "sha256:4aa78592fb1b8fe763e66e889a14580736b50154dc9f695a1d0e38463c453009",
+        "payloadFingerprint": "sha256:ef3195bb8fc731db0efc809c001532e7ad64c76077d151d64fbcd4d4b67f26dd",
         "references": [
           {
             "targetId": "ylssea",
@@ -2264,8 +2264,8 @@
         "entityType": "quartier",
         "payloadSchemaVersion": 1,
         "sourcePath": "wiki/lore/territoire/region/Ylsséa/Lysenthe/quartiers/quartier_de_la_tour",
-        "sourceFingerprint": "sha256:850c7b3c32adbfe90499928b241276c337543a6c5707c4c4f452c7e3626f5961",
-        "payloadFingerprint": "sha256:bc89a021ee89490c8971aeb3f8e5bb40401dc8a1397d8712941d9a3cec2a92d8",
+        "sourceFingerprint": "sha256:0650b31e273ece456258f50ca984fd745424e28844b9fd5506a6fa384295ddcb",
+        "payloadFingerprint": "sha256:5e69098b07e2e617fd0828d324c0b29e57a738bb898f6208cf0e596bf57a85ca",
         "references": [
           {
             "targetId": "ylssea",
@@ -2290,8 +2290,8 @@
         "entityType": "quartier",
         "payloadSchemaVersion": 1,
         "sourcePath": "wiki/lore/territoire/region/Ylsséa/Lysenthe/quartiers/quartier_des_archives",
-        "sourceFingerprint": "sha256:c134c40914eeb76cbd3e5bf8004b04028e2cb0afbe685e0161e7995a24e9415d",
-        "payloadFingerprint": "sha256:7cd8e8093fb46fdaf7b36427c567427a9390255460fb634d7fbda41aa04deb15",
+        "sourceFingerprint": "sha256:551413ce9202dd0a16aad52ca4a46d5e5c0203662ac95def3d4aa40695a69b27",
+        "payloadFingerprint": "sha256:6e485a0f1951c68061b660868b342e694e39f34b438c0f8b98c4eaee1a5173b1",
         "references": [
           {
             "targetId": "ylssea",
@@ -2316,8 +2316,8 @@
         "entityType": "quartier",
         "payloadSchemaVersion": 1,
         "sourcePath": "wiki/lore/territoire/region/Ylsséa/Lysenthe/quartiers/quartier_des_remparts",
-        "sourceFingerprint": "sha256:24465230263414f899649b7d548e43167868cf185f294aa187616a65e3aefc62",
-        "payloadFingerprint": "sha256:212712f6baf0a5f1a1aff8136f14b8d37f7012bb149d61b8104ec1ad0673138f",
+        "sourceFingerprint": "sha256:54fdcdea0d6b64d377be4274ec0555ad94fe1989d374c47dc8a781e0142ea580",
+        "payloadFingerprint": "sha256:e87e2385dc788d926f2a611b0e4c4e9364122debef141ba14a42e40436b70061",
         "references": [
           {
             "targetId": "ylssea",
@@ -2342,8 +2342,8 @@
         "entityType": "quartier",
         "payloadSchemaVersion": 1,
         "sourcePath": "wiki/lore/territoire/region/Ylsséa/Lysenthe/quartiers/rue_des_maisons_hautes",
-        "sourceFingerprint": "sha256:c7d88195b3d85bc88eac28cbcf627667f3c3594d9921b7de3576abbfe423bd49",
-        "payloadFingerprint": "sha256:8cfb349feac834f0b3a5e22c306d9c6323da058f11b3b35e05d4f394219172ca",
+        "sourceFingerprint": "sha256:8afb4e1e73a954532d4f94427e808d101dc8a956e5c12e9f59e29421441c1bcd",
+        "payloadFingerprint": "sha256:012b9fce64ad227b8361778d0f914f4a2e69fe42a76b7a5f4298a37443907f25",
         "references": [
           {
             "targetId": "ylssea",
@@ -2368,8 +2368,8 @@
         "entityType": "region",
         "payloadSchemaVersion": 1,
         "sourcePath": "wiki/lore/territoire/region/Ylsséa/index",
-        "sourceFingerprint": "sha256:b5d4e3aa35efc0076ec63367520e0af2dcb94ab1332156b289c6e444d34f9227",
-        "payloadFingerprint": "sha256:3870496fe9891ccddccca3d6bc92e597fb42c80693909087f350756800ce32d1",
+        "sourceFingerprint": "sha256:94c4bf8aa92fe971f366e1db59bf751f9e10abeb51808f0d7e456d09ea76cb31",
+        "payloadFingerprint": "sha256:391c5dcfeb2a8139c7714e4a8da263a76d2633c547e85274899e43f87e88ebb3",
         "references": [
           {
             "targetId": "astryade",
@@ -2389,8 +2389,8 @@
         "entityType": "royaume",
         "payloadSchemaVersion": 1,
         "sourcePath": "wiki/lore/territoire/astryade",
-        "sourceFingerprint": "sha256:66c3173e22a4f5785ae09e9809c0264c1c420e186513153ecd6750779e0de499",
-        "payloadFingerprint": "sha256:5a841b101869d2ae638b7ff26eb3991ac96a68a6b1eee28db559fde6947c89b5",
+        "sourceFingerprint": "sha256:d381eb4b82510f224c58ff036402778fc6ba54e3df323710ef63f98b8c78ac27",
+        "payloadFingerprint": "sha256:9005a2117d311c8fb4995588b74de332a908770c71f6f1dccad138525ae15e32",
         "references": []
       },
       {
@@ -2399,8 +2399,8 @@
         "entityType": "ville",
         "payloadSchemaVersion": 1,
         "sourcePath": "wiki/lore/territoire/region/Ylsséa/Lysenthe/index",
-        "sourceFingerprint": "sha256:c9c43a8e89382facbf2f4a325d2b2a02bbe1d988a745391b32f106d193a41de0",
-        "payloadFingerprint": "sha256:32bf1bb7ac9eb2aed49e8a90fe26d0e14c433cdd8ac3f6680a353769652cdaa5",
+        "sourceFingerprint": "sha256:6e63baf0537ee00f9436f127f132f6e1954d9f74e0abd98cba33ddd877b4e739",
+        "payloadFingerprint": "sha256:24024da3a731ffb0d2a95a78b0942681563732ace23179bdea917ec527f528a5",
         "references": [
           {
             "targetId": "archives_de_lysenthe",
@@ -2525,7 +2525,7 @@
         ]
       }
     ],
-    "rootFingerprint": "sha256:57036afff98a0e422d8c1a89a6245ebbefec237a5120d2ed8d72016fd0bfa172"
+    "rootFingerprint": "sha256:386f2625f699cb0b3df66d20e11a5f6cad55084f51bb80ce5db7aa67079980d1"
   },
   "entries": [
     {
@@ -4132,7 +4132,7 @@
       "entryKind": "LORE_ENTITY",
       "entryId": "archives_de_lysenthe",
       "sourceText": null,
-      "installedSourceFingerprint": "sha256:38df5f45c8d12eb688fecf361bb3d763a0592d314bc2ee94246f647d9dfb8979",
+      "installedSourceFingerprint": "sha256:86c48122db48bdf32f76e1b141534506b0790cdbfb3c8a68cd8db500dbd6b35c",
       "payload": {
         "schemaVersion": 1,
         "entityId": "archives_de_lysenthe",
@@ -4275,7 +4275,7 @@
           "packageId": "jdr5e.production-lore",
           "packageVersion": 1,
           "sourcePath": "wiki/lore/territoire/region/Ylsséa/Lysenthe/batiments/archives_de_lysenthe",
-          "sourceFingerprint": "sha256:38df5f45c8d12eb688fecf361bb3d763a0592d314bc2ee94246f647d9dfb8979"
+          "sourceFingerprint": "sha256:86c48122db48bdf32f76e1b141534506b0790cdbfb3c8a68cd8db500dbd6b35c"
         }
       }
     },
@@ -4283,7 +4283,7 @@
       "entryKind": "LORE_ENTITY",
       "entryId": "caserne_centrale",
       "sourceText": null,
-      "installedSourceFingerprint": "sha256:86430f96f516167f6a717bb221d9bee67fa34ab490b50b15968af0801fd44861",
+      "installedSourceFingerprint": "sha256:674a56e1f7fdfc30dde4415751a6d011104d8cadb5ae93dbb9757716e2fd66b3",
       "payload": {
         "schemaVersion": 1,
         "entityId": "caserne_centrale",
@@ -4472,7 +4472,7 @@
           "packageId": "jdr5e.production-lore",
           "packageVersion": 1,
           "sourcePath": "wiki/lore/territoire/region/Ylsséa/Lysenthe/batiments/caserne_centrale",
-          "sourceFingerprint": "sha256:86430f96f516167f6a717bb221d9bee67fa34ab490b50b15968af0801fd44861"
+          "sourceFingerprint": "sha256:674a56e1f7fdfc30dde4415751a6d011104d8cadb5ae93dbb9757716e2fd66b3"
         }
       }
     },
@@ -4480,7 +4480,7 @@
       "entryKind": "LORE_ENTITY",
       "entryId": "chantier_de_la_basse_baie",
       "sourceText": null,
-      "installedSourceFingerprint": "sha256:2693e474d8937ca91782a3b981748be7af37133021c3c63a519e9a0d6af27698",
+      "installedSourceFingerprint": "sha256:1aaf1d7a70f184b08882356677af6a91270e716752a7ebcadf9c700086cef31b",
       "payload": {
         "schemaVersion": 1,
         "entityId": "chantier_de_la_basse_baie",
@@ -4614,7 +4614,7 @@
           "packageId": "jdr5e.production-lore",
           "packageVersion": 1,
           "sourcePath": "wiki/lore/territoire/region/Ylsséa/Lysenthe/batiments/chantier_de_la_basse_baie",
-          "sourceFingerprint": "sha256:2693e474d8937ca91782a3b981748be7af37133021c3c63a519e9a0d6af27698"
+          "sourceFingerprint": "sha256:1aaf1d7a70f184b08882356677af6a91270e716752a7ebcadf9c700086cef31b"
         }
       }
     },
@@ -4622,7 +4622,7 @@
       "entryKind": "LORE_ENTITY",
       "entryId": "chateau_tharqual",
       "sourceText": null,
-      "installedSourceFingerprint": "sha256:6703fd9e50b69147f32374de7ce4b2e873ced7f089ed2b2d5f1fb9e226d4d7de",
+      "installedSourceFingerprint": "sha256:ee6d1399bd2eb38695c5bcd141a11b4fae0b82bcec23caa1c43db11dad59df9c",
       "payload": {
         "schemaVersion": 1,
         "entityId": "chateau_tharqual",
@@ -4763,7 +4763,7 @@
           "packageId": "jdr5e.production-lore",
           "packageVersion": 1,
           "sourcePath": "wiki/lore/territoire/region/Ylsséa/Lysenthe/batiments/chateau_tharqual",
-          "sourceFingerprint": "sha256:6703fd9e50b69147f32374de7ce4b2e873ced7f089ed2b2d5f1fb9e226d4d7de"
+          "sourceFingerprint": "sha256:ee6d1399bd2eb38695c5bcd141a11b4fae0b82bcec23caa1c43db11dad59df9c"
         }
       }
     },
@@ -4771,7 +4771,7 @@
       "entryKind": "LORE_ENTITY",
       "entryId": "halles_des_commerces",
       "sourceText": null,
-      "installedSourceFingerprint": "sha256:2ab4910416ef8131918165538a0855aaec1c7d78b275ff89c01b88d7d2bd2e9a",
+      "installedSourceFingerprint": "sha256:8b3fac700d6cc3ad830351facb64db40605355e73405f4ad062fab9f7a08f365",
       "payload": {
         "schemaVersion": 1,
         "entityId": "halles_des_commerces",
@@ -4918,7 +4918,7 @@
           "packageId": "jdr5e.production-lore",
           "packageVersion": 1,
           "sourcePath": "wiki/lore/territoire/region/Ylsséa/Lysenthe/batiments/halles_des_commerces",
-          "sourceFingerprint": "sha256:2ab4910416ef8131918165538a0855aaec1c7d78b275ff89c01b88d7d2bd2e9a"
+          "sourceFingerprint": "sha256:8b3fac700d6cc3ad830351facb64db40605355e73405f4ad062fab9f7a08f365"
         }
       }
     },
@@ -4926,7 +4926,7 @@
       "entryKind": "LORE_ENTITY",
       "entryId": "maison_des_registres",
       "sourceText": null,
-      "installedSourceFingerprint": "sha256:a42631c9ed47add31916c163c90350694758e50af286b463c1f54a92a2381161",
+      "installedSourceFingerprint": "sha256:00aa88ca9b381c96b5c5afb27ec2ee8f55dd84f6eb22d6405cd4711a9bccd475",
       "payload": {
         "schemaVersion": 1,
         "entityId": "maison_des_registres",
@@ -5060,7 +5060,7 @@
           "packageId": "jdr5e.production-lore",
           "packageVersion": 1,
           "sourcePath": "wiki/lore/territoire/region/Ylsséa/Lysenthe/batiments/maison_des_registres",
-          "sourceFingerprint": "sha256:a42631c9ed47add31916c163c90350694758e50af286b463c1f54a92a2381161"
+          "sourceFingerprint": "sha256:00aa88ca9b381c96b5c5afb27ec2ee8f55dd84f6eb22d6405cd4711a9bccd475"
         }
       }
     },
@@ -5068,7 +5068,7 @@
       "entryKind": "LORE_ENTITY",
       "entryId": "tour_du_primarque",
       "sourceText": null,
-      "installedSourceFingerprint": "sha256:219a8adbe4fab5221626fbd5d06d2a0fe1c27d6cd1fd7b9e7c06adb4e976ee94",
+      "installedSourceFingerprint": "sha256:1cbb815c86780f45f12bf1fdce4e8b47db943898137ae088c7da0be7f6dc3dd5",
       "payload": {
         "schemaVersion": 1,
         "entityId": "tour_du_primarque",
@@ -5202,7 +5202,7 @@
           "packageId": "jdr5e.production-lore",
           "packageVersion": 1,
           "sourcePath": "wiki/lore/territoire/region/Ylsséa/Lysenthe/batiments/tour_du_primarque",
-          "sourceFingerprint": "sha256:219a8adbe4fab5221626fbd5d06d2a0fe1c27d6cd1fd7b9e7c06adb4e976ee94"
+          "sourceFingerprint": "sha256:1cbb815c86780f45f12bf1fdce4e8b47db943898137ae088c7da0be7f6dc3dd5"
         }
       }
     },
@@ -5210,7 +5210,7 @@
       "entryKind": "LORE_ENTITY",
       "entryId": "culture_cotiere_ylssea",
       "sourceText": null,
-      "installedSourceFingerprint": "sha256:4f9f0e5c79f1f393719df3907d534f49c515d818f1f8180a3413a273fefa9a66",
+      "installedSourceFingerprint": "sha256:75471e6094386eddff4b6480bc53e9df1cb7bdeb14c4ad301ad57a417216cf63",
       "payload": {
         "schemaVersion": 1,
         "entityId": "culture_cotiere_ylssea",
@@ -5296,12 +5296,12 @@
           "mer",
           "ports"
         ],
-        "body": "## [LOCAL] Portée et variations\n\nCes usages fournissent un guide régional pour les scènes d'Ylsséa. Ils ne sont ni obligatoires dans chaque localité, ni propres à une seule espèce, et peuvent être remplacés par une tradition locale plus précise.\n\n## [LOCAL] Cuisine maritime\n\nLes poissons, fruits de mer, soupes de poisson, ragoûts de fruits de mer et pains de seigle sont courants dans la cuisine régionale documentée.",
+        "body": "## [LOCAL] Portée et variations\r\n\r\nCes usages fournissent un guide régional pour les scènes d'Ylsséa. Ils ne sont ni obligatoires dans chaque localité, ni propres à une seule espèce, et peuvent être remplacés par une tradition locale plus précise.\r\n\r\n## [LOCAL] Cuisine maritime\r\n\r\nLes poissons, fruits de mer, soupes de poisson, ragoûts de fruits de mer et pains de seigle sont courants dans la cuisine régionale documentée.",
         "provenance": {
           "packageId": "jdr5e.production-lore",
           "packageVersion": 1,
           "sourcePath": "wiki/lore/populations/cultures/culture_cotiere_ylssea.md",
-          "sourceFingerprint": "sha256:4f9f0e5c79f1f393719df3907d534f49c515d818f1f8180a3413a273fefa9a66"
+          "sourceFingerprint": "sha256:75471e6094386eddff4b6480bc53e9df1cb7bdeb14c4ad301ad57a417216cf63"
         }
       }
     },
@@ -5309,7 +5309,7 @@
       "entryKind": "LORE_ENTITY",
       "entryId": "elfes",
       "sourceText": null,
-      "installedSourceFingerprint": "sha256:380f473f1af9b6e01af25e4cb3de59ed7fc02f445cec37ff0f04deeac4c347c1",
+      "installedSourceFingerprint": "sha256:0e0d69116cccc30fc1cd167181d6cfe4893820022f91e656c06cf875107603f2",
       "payload": {
         "schemaVersion": 1,
         "entityId": "elfes",
@@ -5385,12 +5385,12 @@
           "peuple elfique",
           "ylssea"
         ],
-        "body": "## [LOCAL] Présence en Ylsséa\n\nLes elfes forment une minorité documentée d'Ylsséa et une part importante de la population de Lysenthe. L'influence elfique mentionnée dans la ville ne définit pas à elle seule une culture elfique uniforme.",
+        "body": "## [LOCAL] Présence en Ylsséa\r\n\r\nLes elfes forment une minorité documentée d'Ylsséa et une part importante de la population de Lysenthe. L'influence elfique mentionnée dans la ville ne définit pas à elle seule une culture elfique uniforme.",
         "provenance": {
           "packageId": "jdr5e.production-lore",
           "packageVersion": 1,
           "sourcePath": "wiki/lore/populations/especes/elfes.md",
-          "sourceFingerprint": "sha256:380f473f1af9b6e01af25e4cb3de59ed7fc02f445cec37ff0f04deeac4c347c1"
+          "sourceFingerprint": "sha256:0e0d69116cccc30fc1cd167181d6cfe4893820022f91e656c06cf875107603f2"
         }
       }
     },
@@ -5398,7 +5398,7 @@
       "entryKind": "LORE_ENTITY",
       "entryId": "humains",
       "sourceText": null,
-      "installedSourceFingerprint": "sha256:93690f493c6c1285e51c3c89344c60e264bde05a1c4b3ce15ac409e0c5cdad8d",
+      "installedSourceFingerprint": "sha256:4688973a7bbcfff35177e4dda6a3acda2bb99032d5e454fd811c903b19ad0ca9",
       "payload": {
         "schemaVersion": 1,
         "entityId": "humains",
@@ -5474,12 +5474,12 @@
           "peuple humain",
           "ylssea"
         ],
-        "body": "## [LOCAL] Présence en Ylsséa\n\nLes humains constituent la population majoritaire documentée d'Ylsséa et de Lysenthe. Cette présence démographique ne leur attribue pas automatiquement une coutume ou un comportement individuel.",
+        "body": "## [LOCAL] Présence en Ylsséa\r\n\r\nLes humains constituent la population majoritaire documentée d'Ylsséa et de Lysenthe. Cette présence démographique ne leur attribue pas automatiquement une coutume ou un comportement individuel.",
         "provenance": {
           "packageId": "jdr5e.production-lore",
           "packageVersion": 1,
           "sourcePath": "wiki/lore/populations/especes/humains.md",
-          "sourceFingerprint": "sha256:93690f493c6c1285e51c3c89344c60e264bde05a1c4b3ce15ac409e0c5cdad8d"
+          "sourceFingerprint": "sha256:4688973a7bbcfff35177e4dda6a3acda2bb99032d5e454fd811c903b19ad0ca9"
         }
       }
     },
@@ -5487,7 +5487,7 @@
       "entryKind": "LORE_ENTITY",
       "entryId": "archivistes_de_lysenthe",
       "sourceText": null,
-      "installedSourceFingerprint": "sha256:af6ae30b913403492565326b9bcd3ff37d25bc8d9b4d123417a981970dd66bf5",
+      "installedSourceFingerprint": "sha256:1a0e3733384f77afe86925173d433bf959012d3e429dc6df8919c197db8c42f0",
       "payload": {
         "schemaVersion": 1,
         "entityId": "archivistes_de_lysenthe",
@@ -5615,12 +5615,12 @@
           "savoir administratif",
           "sceaux"
         ],
-        "body": "## [LOCAL] Rôle dans la ville\n\nLes Archivistes de Lysenthe ne forment pas seulement une administration du papier: ils sont la memoire active de la ville. Contrats, decrets, litiges de quai, copies de chartes et precedents commerciaux passent un jour ou l'autre sous leurs mains.\n\n## [LOCAL] Présence observable\n\nLeur originalite tient a leur neutralite affichee. Ils ne gouvernent pas directement, mais ils encadrent ce que le pouvoir peut prouver, revendiquer ou oublier. A Lysenthe, on reconnait leur ordre au gris propre de leurs manches, a l'odeur de cire et a la lenteur presque insolente avec laquelle ils exigent le bon sceau.",
+        "body": "## [LOCAL] Rôle dans la ville\r\n\r\nLes Archivistes de Lysenthe ne forment pas seulement une administration du papier: ils sont la memoire active de la ville. Contrats, decrets, litiges de quai, copies de chartes et precedents commerciaux passent un jour ou l'autre sous leurs mains.\r\n\r\n## [LOCAL] Présence observable\r\n\r\nLeur originalite tient a leur neutralite affichee. Ils ne gouvernent pas directement, mais ils encadrent ce que le pouvoir peut prouver, revendiquer ou oublier. A Lysenthe, on reconnait leur ordre au gris propre de leurs manches, a l'odeur de cire et a la lenteur presque insolente avec laquelle ils exigent le bon sceau.",
         "provenance": {
           "packageId": "jdr5e.production-lore",
           "packageVersion": 1,
           "sourcePath": "wiki/lore/factions/archivistes_de_lysenthe",
-          "sourceFingerprint": "sha256:af6ae30b913403492565326b9bcd3ff37d25bc8d9b4d123417a981970dd66bf5"
+          "sourceFingerprint": "sha256:1a0e3733384f77afe86925173d433bf959012d3e429dc6df8919c197db8c42f0"
         }
       }
     },
@@ -5628,7 +5628,7 @@
       "entryKind": "LORE_ENTITY",
       "entryId": "cercle_du_commerce_maritime",
       "sourceText": null,
-      "installedSourceFingerprint": "sha256:047bf1f0886a11862878cdd6b0cf4a49fa7761d7eb42c9f707e39f7e9fe3bdaa",
+      "installedSourceFingerprint": "sha256:45366349136a72df9fc01e2790ba318b673e5a26a33a02313014669a8f302943",
       "payload": {
         "schemaVersion": 1,
         "entityId": "cercle_du_commerce_maritime",
@@ -5761,7 +5761,7 @@
           "packageId": "jdr5e.production-lore",
           "packageVersion": 1,
           "sourcePath": "wiki/lore/factions/cercle_du_commerce_maritime",
-          "sourceFingerprint": "sha256:047bf1f0886a11862878cdd6b0cf4a49fa7761d7eb42c9f707e39f7e9fe3bdaa"
+          "sourceFingerprint": "sha256:45366349136a72df9fc01e2790ba318b673e5a26a33a02313014669a8f302943"
         }
       }
     },
@@ -5769,7 +5769,7 @@
       "entryKind": "LORE_ENTITY",
       "entryId": "garnison_de_lysenthe",
       "sourceText": null,
-      "installedSourceFingerprint": "sha256:5e3feadf52c3677eff92ea1270371a9ea394d46238c939da017308bacf920866",
+      "installedSourceFingerprint": "sha256:f867d7b9979ea0b3a915e4c6c73ae390addb9c714a4850ed8bd97ec5e8830da8",
       "payload": {
         "schemaVersion": 1,
         "entityId": "garnison_de_lysenthe",
@@ -5901,7 +5901,7 @@
           "packageId": "jdr5e.production-lore",
           "packageVersion": 1,
           "sourcePath": "wiki/lore/factions/garnison_de_lysenthe",
-          "sourceFingerprint": "sha256:5e3feadf52c3677eff92ea1270371a9ea394d46238c939da017308bacf920866"
+          "sourceFingerprint": "sha256:f867d7b9979ea0b3a915e4c6c73ae390addb9c714a4850ed8bd97ec5e8830da8"
         }
       }
     },
@@ -5909,7 +5909,7 @@
       "entryKind": "LORE_ENTITY",
       "entryId": "basse_baie",
       "sourceText": null,
-      "installedSourceFingerprint": "sha256:372bef3bf353847ee05bf7e28932d2c3811764c34347806664ecb4820506604c",
+      "installedSourceFingerprint": "sha256:6f37da2ad4ab52d70f3848f4bc2b61eb47855df0eae91bb73ea8c8b369f03aa7",
       "payload": {
         "schemaVersion": 1,
         "entityId": "basse_baie",
@@ -5997,7 +5997,7 @@
           "packageId": "jdr5e.production-lore",
           "packageVersion": 1,
           "sourcePath": "wiki/lore/territoire/region/Ylsséa/Lysenthe/quartiers/basse_baie",
-          "sourceFingerprint": "sha256:372bef3bf353847ee05bf7e28932d2c3811764c34347806664ecb4820506604c"
+          "sourceFingerprint": "sha256:6f37da2ad4ab52d70f3848f4bc2b61eb47855df0eae91bb73ea8c8b369f03aa7"
         }
       }
     },
@@ -6005,7 +6005,7 @@
       "entryKind": "LORE_ENTITY",
       "entryId": "pierre_des_sables",
       "sourceText": null,
-      "installedSourceFingerprint": "sha256:15d9e162d0f821f891831a71961704b381221da81bd57413dc923dce07ee3907",
+      "installedSourceFingerprint": "sha256:97e3fd712aa4cef0cc264df2d3eb2cb6cec1667b15a877af05699f19639b73c8",
       "payload": {
         "schemaVersion": 1,
         "entityId": "pierre_des_sables",
@@ -6093,7 +6093,7 @@
           "packageId": "jdr5e.production-lore",
           "packageVersion": 1,
           "sourcePath": "wiki/lore/territoire/region/Ylsséa/Lysenthe/quartiers/pierre_des_sables",
-          "sourceFingerprint": "sha256:15d9e162d0f821f891831a71961704b381221da81bd57413dc923dce07ee3907"
+          "sourceFingerprint": "sha256:97e3fd712aa4cef0cc264df2d3eb2cb6cec1667b15a877af05699f19639b73c8"
         }
       }
     },
@@ -6101,7 +6101,7 @@
       "entryKind": "LORE_ENTITY",
       "entryId": "port_des_xantars",
       "sourceText": null,
-      "installedSourceFingerprint": "sha256:b46e1e49d65bf48d58e2879ce2aa1f4f978db625688651fa84cb299a1a54d896",
+      "installedSourceFingerprint": "sha256:4aa78592fb1b8fe763e66e889a14580736b50154dc9f695a1d0e38463c453009",
       "payload": {
         "schemaVersion": 1,
         "entityId": "port_des_xantars",
@@ -6242,7 +6242,7 @@
           "packageId": "jdr5e.production-lore",
           "packageVersion": 1,
           "sourcePath": "wiki/lore/territoire/region/Ylsséa/Lysenthe/quartiers/port_des_xantars",
-          "sourceFingerprint": "sha256:b46e1e49d65bf48d58e2879ce2aa1f4f978db625688651fa84cb299a1a54d896"
+          "sourceFingerprint": "sha256:4aa78592fb1b8fe763e66e889a14580736b50154dc9f695a1d0e38463c453009"
         }
       }
     },
@@ -6250,7 +6250,7 @@
       "entryKind": "LORE_ENTITY",
       "entryId": "quartier_de_la_tour",
       "sourceText": null,
-      "installedSourceFingerprint": "sha256:850c7b3c32adbfe90499928b241276c337543a6c5707c4c4f452c7e3626f5961",
+      "installedSourceFingerprint": "sha256:0650b31e273ece456258f50ca984fd745424e28844b9fd5506a6fa384295ddcb",
       "payload": {
         "schemaVersion": 1,
         "entityId": "quartier_de_la_tour",
@@ -6338,7 +6338,7 @@
           "packageId": "jdr5e.production-lore",
           "packageVersion": 1,
           "sourcePath": "wiki/lore/territoire/region/Ylsséa/Lysenthe/quartiers/quartier_de_la_tour",
-          "sourceFingerprint": "sha256:850c7b3c32adbfe90499928b241276c337543a6c5707c4c4f452c7e3626f5961"
+          "sourceFingerprint": "sha256:0650b31e273ece456258f50ca984fd745424e28844b9fd5506a6fa384295ddcb"
         }
       }
     },
@@ -6346,7 +6346,7 @@
       "entryKind": "LORE_ENTITY",
       "entryId": "quartier_des_archives",
       "sourceText": null,
-      "installedSourceFingerprint": "sha256:c134c40914eeb76cbd3e5bf8004b04028e2cb0afbe685e0161e7995a24e9415d",
+      "installedSourceFingerprint": "sha256:551413ce9202dd0a16aad52ca4a46d5e5c0203662ac95def3d4aa40695a69b27",
       "payload": {
         "schemaVersion": 1,
         "entityId": "quartier_des_archives",
@@ -6445,12 +6445,12 @@
           "administration",
           "archives"
         ],
-        "body": "## [COMMUN] Cadre et architecture\n\nBatiments de pierre monumentaux, colonnades civiles, places pavees et parvis de temples des Douze.\n\n## [LOCAL] Population et activités\n\nArchivistes, copistes, juristes, libraires, marchands de valeur et pelerins des sanctuaires voisins. Le quartier assure la conservation des actes, la circulation d'information, le commerce de centre-ville et une fonction de reference religieuse.\n\n## [COMMUN] Lieux clés\n\n- archives_de_lysenthe\n- place_des_archives\n\n## [LOCAL] Sécurité visible\n\nLe niveau de securite est eleve autour des depots documentaires et moyen sur la place.\n\n## [LOCAL] Rumeurs locales\n\n- Certains fonds ne sont consultables qu'avec mandat de haut rang.\n- Les archives religieuses et civiles seraient recoupees pour verifier les lignages.",
+        "body": "## [COMMUN] Cadre et architecture\r\n\r\nBatiments de pierre monumentaux, colonnades civiles, places pavees et parvis de temples des Douze.\r\n\r\n## [LOCAL] Population et activités\r\n\r\nArchivistes, copistes, juristes, libraires, marchands de valeur et pelerins des sanctuaires voisins. Le quartier assure la conservation des actes, la circulation d'information, le commerce de centre-ville et une fonction de reference religieuse.\r\n\r\n## [COMMUN] Lieux clés\r\n\r\n- archives_de_lysenthe\r\n- place_des_archives\r\n\r\n## [LOCAL] Sécurité visible\r\n\r\nLe niveau de securite est eleve autour des depots documentaires et moyen sur la place.\r\n\r\n## [LOCAL] Rumeurs locales\r\n\r\n- Certains fonds ne sont consultables qu'avec mandat de haut rang.\r\n- Les archives religieuses et civiles seraient recoupees pour verifier les lignages.",
         "provenance": {
           "packageId": "jdr5e.production-lore",
           "packageVersion": 1,
           "sourcePath": "wiki/lore/territoire/region/Ylsséa/Lysenthe/quartiers/quartier_des_archives",
-          "sourceFingerprint": "sha256:c134c40914eeb76cbd3e5bf8004b04028e2cb0afbe685e0161e7995a24e9415d"
+          "sourceFingerprint": "sha256:551413ce9202dd0a16aad52ca4a46d5e5c0203662ac95def3d4aa40695a69b27"
         }
       }
     },
@@ -6458,7 +6458,7 @@
       "entryKind": "LORE_ENTITY",
       "entryId": "quartier_des_remparts",
       "sourceText": null,
-      "installedSourceFingerprint": "sha256:24465230263414f899649b7d548e43167868cf185f294aa187616a65e3aefc62",
+      "installedSourceFingerprint": "sha256:54fdcdea0d6b64d377be4274ec0555ad94fe1989d374c47dc8a781e0142ea580",
       "payload": {
         "schemaVersion": 1,
         "entityId": "quartier_des_remparts",
@@ -6556,7 +6556,7 @@
           "packageId": "jdr5e.production-lore",
           "packageVersion": 1,
           "sourcePath": "wiki/lore/territoire/region/Ylsséa/Lysenthe/quartiers/quartier_des_remparts",
-          "sourceFingerprint": "sha256:24465230263414f899649b7d548e43167868cf185f294aa187616a65e3aefc62"
+          "sourceFingerprint": "sha256:54fdcdea0d6b64d377be4274ec0555ad94fe1989d374c47dc8a781e0142ea580"
         }
       }
     },
@@ -6564,7 +6564,7 @@
       "entryKind": "LORE_ENTITY",
       "entryId": "rue_des_maisons_hautes",
       "sourceText": null,
-      "installedSourceFingerprint": "sha256:c7d88195b3d85bc88eac28cbcf627667f3c3594d9921b7de3576abbfe423bd49",
+      "installedSourceFingerprint": "sha256:8afb4e1e73a954532d4f94427e808d101dc8a956e5c12e9f59e29421441c1bcd",
       "payload": {
         "schemaVersion": 1,
         "entityId": "rue_des_maisons_hautes",
@@ -6652,7 +6652,7 @@
           "packageId": "jdr5e.production-lore",
           "packageVersion": 1,
           "sourcePath": "wiki/lore/territoire/region/Ylsséa/Lysenthe/quartiers/rue_des_maisons_hautes",
-          "sourceFingerprint": "sha256:c7d88195b3d85bc88eac28cbcf627667f3c3594d9921b7de3576abbfe423bd49"
+          "sourceFingerprint": "sha256:8afb4e1e73a954532d4f94427e808d101dc8a956e5c12e9f59e29421441c1bcd"
         }
       }
     },
@@ -6660,7 +6660,7 @@
       "entryKind": "LORE_ENTITY",
       "entryId": "ylssea",
       "sourceText": null,
-      "installedSourceFingerprint": "sha256:b5d4e3aa35efc0076ec63367520e0af2dcb94ab1332156b289c6e444d34f9227",
+      "installedSourceFingerprint": "sha256:94c4bf8aa92fe971f366e1db59bf751f9e10abeb51808f0d7e456d09ea76cb31",
       "payload": {
         "schemaVersion": 1,
         "entityId": "ylssea",
@@ -6738,12 +6738,12 @@
           "festivals maritimes",
           "ports"
         ],
-        "body": "## [COMMUN] Identité régionale\n\nRégion côtière connue pour ses paysages pittoresques et sa culture riche. Lysenthe est la capitale du royaume d'Atryade.\n\n## [COMMUN] Paysages observables\n\nYlsséa est une région côtière réputée pour ses plages de sable fin, ses falaises escarpées et un mélange harmonieux de nature sauvage et de villages charmants.\n\n## [LOCAL] Vie culturelle et traditions\n\nLa culture locale s'exprime à travers des festivals, des marchés artisanaux et une cuisine qui met en valeur les produits de la mer. Les traditions comprennent des fêtes maritimes annuelles, des marchés artisanaux hebdomadaires et des festivals de musique folklorique.\n\n## [LOCAL] Langues et architecture\n\nLe commun représente 80 % des langues parlées ; d'autres langues, dont l'elfique et l'orque, représentent 20 %. L'architecture côtière traditionnelle emploie des maisons en pierre et des toits de tuiles.\n\n## [LOCAL] Habits, musique et cuisine\n\nLes vêtements légers sont souvent agrémentés de tissus colorés portés en écharpe ou en ceinture. La musique folklorique et les danses en plein air accompagnent les festivals de la mer. La cuisine repose sur les poissons et fruits de mer, notamment les soupes de poisson, les ragoûts de fruits de mer et le pain de seigle.\n\n## [COMMUN] Rythme saisonnier\n\nLe climat est océanique ; les températures moyennes sont de 6 en Natar, 12 en Odrinar, 20 en Selar et 15 en Falar.",
+        "body": "## [COMMUN] Identité régionale\r\n\r\nRégion côtière connue pour ses paysages pittoresques et sa culture riche. Lysenthe est la capitale du royaume d'Atryade.\r\n\r\n## [COMMUN] Paysages observables\r\n\r\nYlsséa est une région côtière réputée pour ses plages de sable fin, ses falaises escarpées et un mélange harmonieux de nature sauvage et de villages charmants.\r\n\r\n## [LOCAL] Vie culturelle et traditions\r\n\r\nLa culture locale s'exprime à travers des festivals, des marchés artisanaux et une cuisine qui met en valeur les produits de la mer. Les traditions comprennent des fêtes maritimes annuelles, des marchés artisanaux hebdomadaires et des festivals de musique folklorique.\r\n\r\n## [LOCAL] Langues et architecture\r\n\r\nLe commun représente 80 % des langues parlées ; d'autres langues, dont l'elfique et l'orque, représentent 20 %. L'architecture côtière traditionnelle emploie des maisons en pierre et des toits de tuiles.\r\n\r\n## [LOCAL] Habits, musique et cuisine\r\n\r\nLes vêtements légers sont souvent agrémentés de tissus colorés portés en écharpe ou en ceinture. La musique folklorique et les danses en plein air accompagnent les festivals de la mer. La cuisine repose sur les poissons et fruits de mer, notamment les soupes de poisson, les ragoûts de fruits de mer et le pain de seigle.\r\n\r\n## [COMMUN] Rythme saisonnier\r\n\r\nLe climat est océanique ; les températures moyennes sont de 6 en Natar, 12 en Odrinar, 20 en Selar et 15 en Falar.",
         "provenance": {
           "packageId": "jdr5e.production-lore",
           "packageVersion": 1,
           "sourcePath": "wiki/lore/territoire/region/Ylsséa/index",
-          "sourceFingerprint": "sha256:b5d4e3aa35efc0076ec63367520e0af2dcb94ab1332156b289c6e444d34f9227"
+          "sourceFingerprint": "sha256:94c4bf8aa92fe971f366e1db59bf751f9e10abeb51808f0d7e456d09ea76cb31"
         }
       }
     },
@@ -6751,7 +6751,7 @@
       "entryKind": "LORE_ENTITY",
       "entryId": "astryade",
       "sourceText": null,
-      "installedSourceFingerprint": "sha256:66c3173e22a4f5785ae09e9809c0264c1c420e186513153ecd6750779e0de499",
+      "installedSourceFingerprint": "sha256:d381eb4b82510f224c58ff036402778fc6ba54e3df323710ef63f98b8c78ac27",
       "payload": {
         "schemaVersion": 1,
         "entityId": "astryade",
@@ -6777,7 +6777,7 @@
           "packageId": "jdr5e.production-lore",
           "packageVersion": 1,
           "sourcePath": "wiki/lore/territoire/astryade",
-          "sourceFingerprint": "sha256:66c3173e22a4f5785ae09e9809c0264c1c420e186513153ecd6750779e0de499"
+          "sourceFingerprint": "sha256:d381eb4b82510f224c58ff036402778fc6ba54e3df323710ef63f98b8c78ac27"
         }
       }
     },
@@ -6785,7 +6785,7 @@
       "entryKind": "LORE_ENTITY",
       "entryId": "lysenthe",
       "sourceText": null,
-      "installedSourceFingerprint": "sha256:c9c43a8e89382facbf2f4a325d2b2a02bbe1d988a745391b32f106d193a41de0",
+      "installedSourceFingerprint": "sha256:6e63baf0537ee00f9436f127f132f6e1954d9f74e0abd98cba33ddd877b4e739",
       "payload": {
         "schemaVersion": 1,
         "entityId": "lysenthe",
@@ -7097,12 +7097,12 @@
           "commerce maritime",
           "port"
         ],
-        "body": "## [COMMUN] Identité urbaine\n\nCite portuaire fortifiee, Lysenthe est un carrefour commercial majeur pour les echanges entre les regions cotieres de Dunia. Fondee par des colons humains, la ville conserve une forte influence humaine dans son architecture et sa culture, tout en integrant des elements elfiques.\n\n## [COMMUN] Façade portuaire\n\nLe Port des Xantars forme la facade la plus active de la ville. Les quais militaires, bordes de remparts et de tours, restent fermes aux citoyens et accueillent les navires proteges d'Astryade. Dans le prolongement de la baie, les quais marchands absorbent l'essentiel des marchandises du monde connu.\n\n## [LOCAL] Halles et activité marchande\n\nLes Halles des Commerces constituent le centre nerveux de cette activite. Baties par ajouts successifs, elles forment un ensemble ramifie de galeries, cours couvertes, entrepots et comptoirs. L'endroit ne ferme jamais vraiment et concentre negociation, stockage et redistribution.\n\n## [LOCAL] Ville haute et institutions\n\nPierre des Sables domine la ville haute. Le chateau Tharqual y siege comme autorite locale et verrouille l'acces du quartier. Au coeur de Lysenthe, le Quartier des Archives s'articule autour des Archives de Lysenthe et de la Place des Archives, principale zone de negoce interieur, bordee de temples dedies aux Douze. Le Quartier de la Tour est domine par la Tour du Primarque, residence officielle et siege de la cour lors des sejours du pouvoir central.",
+        "body": "## [COMMUN] Identité urbaine\r\n\r\nCite portuaire fortifiee, Lysenthe est un carrefour commercial majeur pour les echanges entre les regions cotieres de Dunia. Fondee par des colons humains, la ville conserve une forte influence humaine dans son architecture et sa culture, tout en integrant des elements elfiques.\r\n\r\n## [COMMUN] Façade portuaire\r\n\r\nLe Port des Xantars forme la facade la plus active de la ville. Les quais militaires, bordes de remparts et de tours, restent fermes aux citoyens et accueillent les navires proteges d'Astryade. Dans le prolongement de la baie, les quais marchands absorbent l'essentiel des marchandises du monde connu.\r\n\r\n## [LOCAL] Halles et activité marchande\r\n\r\nLes Halles des Commerces constituent le centre nerveux de cette activite. Baties par ajouts successifs, elles forment un ensemble ramifie de galeries, cours couvertes, entrepots et comptoirs. L'endroit ne ferme jamais vraiment et concentre negociation, stockage et redistribution.\r\n\r\n## [LOCAL] Ville haute et institutions\r\n\r\nPierre des Sables domine la ville haute. Le chateau Tharqual y siege comme autorite locale et verrouille l'acces du quartier. Au coeur de Lysenthe, le Quartier des Archives s'articule autour des Archives de Lysenthe et de la Place des Archives, principale zone de negoce interieur, bordee de temples dedies aux Douze. Le Quartier de la Tour est domine par la Tour du Primarque, residence officielle et siege de la cour lors des sejours du pouvoir central.",
         "provenance": {
           "packageId": "jdr5e.production-lore",
           "packageVersion": 1,
           "sourcePath": "wiki/lore/territoire/region/Ylsséa/Lysenthe/index",
-          "sourceFingerprint": "sha256:c9c43a8e89382facbf2f4a325d2b2a02bbe1d988a745391b32f106d193a41de0"
+          "sourceFingerprint": "sha256:6e63baf0537ee00f9436f127f132f6e1954d9f74e0abd98cba33ddd877b4e739"
         }
       }
     }
@@ -7250,7 +7250,7 @@
         "packageId": "jdr5e.production-lore",
         "packageVersion": 1,
         "sourcePath": "wiki/lore/territoire/region/Ylsséa/Lysenthe/batiments/archives_de_lysenthe",
-        "sourceFingerprint": "sha256:38df5f45c8d12eb688fecf361bb3d763a0592d314bc2ee94246f647d9dfb8979"
+        "sourceFingerprint": "sha256:86c48122db48bdf32f76e1b141534506b0790cdbfb3c8a68cd8db500dbd6b35c"
       }
     },
     {
@@ -7380,12 +7380,12 @@
         "savoir administratif",
         "sceaux"
       ],
-      "body": "## [LOCAL] Rôle dans la ville\n\nLes Archivistes de Lysenthe ne forment pas seulement une administration du papier: ils sont la memoire active de la ville. Contrats, decrets, litiges de quai, copies de chartes et precedents commerciaux passent un jour ou l'autre sous leurs mains.\n\n## [LOCAL] Présence observable\n\nLeur originalite tient a leur neutralite affichee. Ils ne gouvernent pas directement, mais ils encadrent ce que le pouvoir peut prouver, revendiquer ou oublier. A Lysenthe, on reconnait leur ordre au gris propre de leurs manches, a l'odeur de cire et a la lenteur presque insolente avec laquelle ils exigent le bon sceau.",
+      "body": "## [LOCAL] Rôle dans la ville\r\n\r\nLes Archivistes de Lysenthe ne forment pas seulement une administration du papier: ils sont la memoire active de la ville. Contrats, decrets, litiges de quai, copies de chartes et precedents commerciaux passent un jour ou l'autre sous leurs mains.\r\n\r\n## [LOCAL] Présence observable\r\n\r\nLeur originalite tient a leur neutralite affichee. Ils ne gouvernent pas directement, mais ils encadrent ce que le pouvoir peut prouver, revendiquer ou oublier. A Lysenthe, on reconnait leur ordre au gris propre de leurs manches, a l'odeur de cire et a la lenteur presque insolente avec laquelle ils exigent le bon sceau.",
       "provenance": {
         "packageId": "jdr5e.production-lore",
         "packageVersion": 1,
         "sourcePath": "wiki/lore/factions/archivistes_de_lysenthe",
-        "sourceFingerprint": "sha256:af6ae30b913403492565326b9bcd3ff37d25bc8d9b4d123417a981970dd66bf5"
+        "sourceFingerprint": "sha256:1a0e3733384f77afe86925173d433bf959012d3e429dc6df8919c197db8c42f0"
       }
     },
     {
@@ -7413,7 +7413,7 @@
         "packageId": "jdr5e.production-lore",
         "packageVersion": 1,
         "sourcePath": "wiki/lore/territoire/astryade",
-        "sourceFingerprint": "sha256:66c3173e22a4f5785ae09e9809c0264c1c420e186513153ecd6750779e0de499"
+        "sourceFingerprint": "sha256:d381eb4b82510f224c58ff036402778fc6ba54e3df323710ef63f98b8c78ac27"
       }
     },
     {
@@ -7503,7 +7503,7 @@
         "packageId": "jdr5e.production-lore",
         "packageVersion": 1,
         "sourcePath": "wiki/lore/territoire/region/Ylsséa/Lysenthe/quartiers/basse_baie",
-        "sourceFingerprint": "sha256:372bef3bf353847ee05bf7e28932d2c3811764c34347806664ecb4820506604c"
+        "sourceFingerprint": "sha256:6f37da2ad4ab52d70f3848f4bc2b61eb47855df0eae91bb73ea8c8b369f03aa7"
       }
     },
     {
@@ -7694,7 +7694,7 @@
         "packageId": "jdr5e.production-lore",
         "packageVersion": 1,
         "sourcePath": "wiki/lore/territoire/region/Ylsséa/Lysenthe/batiments/caserne_centrale",
-        "sourceFingerprint": "sha256:86430f96f516167f6a717bb221d9bee67fa34ab490b50b15968af0801fd44861"
+        "sourceFingerprint": "sha256:674a56e1f7fdfc30dde4415751a6d011104d8cadb5ae93dbb9757716e2fd66b3"
       }
     },
     {
@@ -7829,7 +7829,7 @@
         "packageId": "jdr5e.production-lore",
         "packageVersion": 1,
         "sourcePath": "wiki/lore/factions/cercle_du_commerce_maritime",
-        "sourceFingerprint": "sha256:047bf1f0886a11862878cdd6b0cf4a49fa7761d7eb42c9f707e39f7e9fe3bdaa"
+        "sourceFingerprint": "sha256:45366349136a72df9fc01e2790ba318b673e5a26a33a02313014669a8f302943"
       }
     },
     {
@@ -7965,7 +7965,7 @@
         "packageId": "jdr5e.production-lore",
         "packageVersion": 1,
         "sourcePath": "wiki/lore/territoire/region/Ylsséa/Lysenthe/batiments/chantier_de_la_basse_baie",
-        "sourceFingerprint": "sha256:2693e474d8937ca91782a3b981748be7af37133021c3c63a519e9a0d6af27698"
+        "sourceFingerprint": "sha256:1aaf1d7a70f184b08882356677af6a91270e716752a7ebcadf9c700086cef31b"
       }
     },
     {
@@ -8108,7 +8108,7 @@
         "packageId": "jdr5e.production-lore",
         "packageVersion": 1,
         "sourcePath": "wiki/lore/territoire/region/Ylsséa/Lysenthe/batiments/chateau_tharqual",
-        "sourceFingerprint": "sha256:6703fd9e50b69147f32374de7ce4b2e873ced7f089ed2b2d5f1fb9e226d4d7de"
+        "sourceFingerprint": "sha256:ee6d1399bd2eb38695c5bcd141a11b4fae0b82bcec23caa1c43db11dad59df9c"
       }
     },
     {
@@ -8196,12 +8196,12 @@
         "mer",
         "ports"
       ],
-      "body": "## [LOCAL] Portée et variations\n\nCes usages fournissent un guide régional pour les scènes d'Ylsséa. Ils ne sont ni obligatoires dans chaque localité, ni propres à une seule espèce, et peuvent être remplacés par une tradition locale plus précise.\n\n## [LOCAL] Cuisine maritime\n\nLes poissons, fruits de mer, soupes de poisson, ragoûts de fruits de mer et pains de seigle sont courants dans la cuisine régionale documentée.",
+      "body": "## [LOCAL] Portée et variations\r\n\r\nCes usages fournissent un guide régional pour les scènes d'Ylsséa. Ils ne sont ni obligatoires dans chaque localité, ni propres à une seule espèce, et peuvent être remplacés par une tradition locale plus précise.\r\n\r\n## [LOCAL] Cuisine maritime\r\n\r\nLes poissons, fruits de mer, soupes de poisson, ragoûts de fruits de mer et pains de seigle sont courants dans la cuisine régionale documentée.",
       "provenance": {
         "packageId": "jdr5e.production-lore",
         "packageVersion": 1,
         "sourcePath": "wiki/lore/populations/cultures/culture_cotiere_ylssea.md",
-        "sourceFingerprint": "sha256:4f9f0e5c79f1f393719df3907d534f49c515d818f1f8180a3413a273fefa9a66"
+        "sourceFingerprint": "sha256:75471e6094386eddff4b6480bc53e9df1cb7bdeb14c4ad301ad57a417216cf63"
       }
     },
     {
@@ -8279,12 +8279,12 @@
         "peuple elfique",
         "ylssea"
       ],
-      "body": "## [LOCAL] Présence en Ylsséa\n\nLes elfes forment une minorité documentée d'Ylsséa et une part importante de la population de Lysenthe. L'influence elfique mentionnée dans la ville ne définit pas à elle seule une culture elfique uniforme.",
+      "body": "## [LOCAL] Présence en Ylsséa\r\n\r\nLes elfes forment une minorité documentée d'Ylsséa et une part importante de la population de Lysenthe. L'influence elfique mentionnée dans la ville ne définit pas à elle seule une culture elfique uniforme.",
       "provenance": {
         "packageId": "jdr5e.production-lore",
         "packageVersion": 1,
         "sourcePath": "wiki/lore/populations/especes/elfes.md",
-        "sourceFingerprint": "sha256:380f473f1af9b6e01af25e4cb3de59ed7fc02f445cec37ff0f04deeac4c347c1"
+        "sourceFingerprint": "sha256:0e0d69116cccc30fc1cd167181d6cfe4893820022f91e656c06cf875107603f2"
       }
     },
     {
@@ -8418,7 +8418,7 @@
         "packageId": "jdr5e.production-lore",
         "packageVersion": 1,
         "sourcePath": "wiki/lore/factions/garnison_de_lysenthe",
-        "sourceFingerprint": "sha256:5e3feadf52c3677eff92ea1270371a9ea394d46238c939da017308bacf920866"
+        "sourceFingerprint": "sha256:f867d7b9979ea0b3a915e4c6c73ae390addb9c714a4850ed8bd97ec5e8830da8"
       }
     },
     {
@@ -8567,7 +8567,7 @@
         "packageId": "jdr5e.production-lore",
         "packageVersion": 1,
         "sourcePath": "wiki/lore/territoire/region/Ylsséa/Lysenthe/batiments/halles_des_commerces",
-        "sourceFingerprint": "sha256:2ab4910416ef8131918165538a0855aaec1c7d78b275ff89c01b88d7d2bd2e9a"
+        "sourceFingerprint": "sha256:8b3fac700d6cc3ad830351facb64db40605355e73405f4ad062fab9f7a08f365"
       }
     },
     {
@@ -8645,12 +8645,12 @@
         "peuple humain",
         "ylssea"
       ],
-      "body": "## [LOCAL] Présence en Ylsséa\n\nLes humains constituent la population majoritaire documentée d'Ylsséa et de Lysenthe. Cette présence démographique ne leur attribue pas automatiquement une coutume ou un comportement individuel.",
+      "body": "## [LOCAL] Présence en Ylsséa\r\n\r\nLes humains constituent la population majoritaire documentée d'Ylsséa et de Lysenthe. Cette présence démographique ne leur attribue pas automatiquement une coutume ou un comportement individuel.",
       "provenance": {
         "packageId": "jdr5e.production-lore",
         "packageVersion": 1,
         "sourcePath": "wiki/lore/populations/especes/humains.md",
-        "sourceFingerprint": "sha256:93690f493c6c1285e51c3c89344c60e264bde05a1c4b3ce15ac409e0c5cdad8d"
+        "sourceFingerprint": "sha256:4688973a7bbcfff35177e4dda6a3acda2bb99032d5e454fd811c903b19ad0ca9"
       }
     },
     {
@@ -8964,12 +8964,12 @@
         "commerce maritime",
         "port"
       ],
-      "body": "## [COMMUN] Identité urbaine\n\nCite portuaire fortifiee, Lysenthe est un carrefour commercial majeur pour les echanges entre les regions cotieres de Dunia. Fondee par des colons humains, la ville conserve une forte influence humaine dans son architecture et sa culture, tout en integrant des elements elfiques.\n\n## [COMMUN] Façade portuaire\n\nLe Port des Xantars forme la facade la plus active de la ville. Les quais militaires, bordes de remparts et de tours, restent fermes aux citoyens et accueillent les navires proteges d'Astryade. Dans le prolongement de la baie, les quais marchands absorbent l'essentiel des marchandises du monde connu.\n\n## [LOCAL] Halles et activité marchande\n\nLes Halles des Commerces constituent le centre nerveux de cette activite. Baties par ajouts successifs, elles forment un ensemble ramifie de galeries, cours couvertes, entrepots et comptoirs. L'endroit ne ferme jamais vraiment et concentre negociation, stockage et redistribution.\n\n## [LOCAL] Ville haute et institutions\n\nPierre des Sables domine la ville haute. Le chateau Tharqual y siege comme autorite locale et verrouille l'acces du quartier. Au coeur de Lysenthe, le Quartier des Archives s'articule autour des Archives de Lysenthe et de la Place des Archives, principale zone de negoce interieur, bordee de temples dedies aux Douze. Le Quartier de la Tour est domine par la Tour du Primarque, residence officielle et siege de la cour lors des sejours du pouvoir central.",
+      "body": "## [COMMUN] Identité urbaine\r\n\r\nCite portuaire fortifiee, Lysenthe est un carrefour commercial majeur pour les echanges entre les regions cotieres de Dunia. Fondee par des colons humains, la ville conserve une forte influence humaine dans son architecture et sa culture, tout en integrant des elements elfiques.\r\n\r\n## [COMMUN] Façade portuaire\r\n\r\nLe Port des Xantars forme la facade la plus active de la ville. Les quais militaires, bordes de remparts et de tours, restent fermes aux citoyens et accueillent les navires proteges d'Astryade. Dans le prolongement de la baie, les quais marchands absorbent l'essentiel des marchandises du monde connu.\r\n\r\n## [LOCAL] Halles et activité marchande\r\n\r\nLes Halles des Commerces constituent le centre nerveux de cette activite. Baties par ajouts successifs, elles forment un ensemble ramifie de galeries, cours couvertes, entrepots et comptoirs. L'endroit ne ferme jamais vraiment et concentre negociation, stockage et redistribution.\r\n\r\n## [LOCAL] Ville haute et institutions\r\n\r\nPierre des Sables domine la ville haute. Le chateau Tharqual y siege comme autorite locale et verrouille l'acces du quartier. Au coeur de Lysenthe, le Quartier des Archives s'articule autour des Archives de Lysenthe et de la Place des Archives, principale zone de negoce interieur, bordee de temples dedies aux Douze. Le Quartier de la Tour est domine par la Tour du Primarque, residence officielle et siege de la cour lors des sejours du pouvoir central.",
       "provenance": {
         "packageId": "jdr5e.production-lore",
         "packageVersion": 1,
         "sourcePath": "wiki/lore/territoire/region/Ylsséa/Lysenthe/index",
-        "sourceFingerprint": "sha256:c9c43a8e89382facbf2f4a325d2b2a02bbe1d988a745391b32f106d193a41de0"
+        "sourceFingerprint": "sha256:6e63baf0537ee00f9436f127f132f6e1954d9f74e0abd98cba33ddd877b4e739"
       }
     },
     {
@@ -9105,7 +9105,7 @@
         "packageId": "jdr5e.production-lore",
         "packageVersion": 1,
         "sourcePath": "wiki/lore/territoire/region/Ylsséa/Lysenthe/batiments/maison_des_registres",
-        "sourceFingerprint": "sha256:a42631c9ed47add31916c163c90350694758e50af286b463c1f54a92a2381161"
+        "sourceFingerprint": "sha256:00aa88ca9b381c96b5c5afb27ec2ee8f55dd84f6eb22d6405cd4711a9bccd475"
       }
     },
     {
@@ -9195,7 +9195,7 @@
         "packageId": "jdr5e.production-lore",
         "packageVersion": 1,
         "sourcePath": "wiki/lore/territoire/region/Ylsséa/Lysenthe/quartiers/pierre_des_sables",
-        "sourceFingerprint": "sha256:15d9e162d0f821f891831a71961704b381221da81bd57413dc923dce07ee3907"
+        "sourceFingerprint": "sha256:97e3fd712aa4cef0cc264df2d3eb2cb6cec1667b15a877af05699f19639b73c8"
       }
     },
     {
@@ -9338,7 +9338,7 @@
         "packageId": "jdr5e.production-lore",
         "packageVersion": 1,
         "sourcePath": "wiki/lore/territoire/region/Ylsséa/Lysenthe/quartiers/port_des_xantars",
-        "sourceFingerprint": "sha256:b46e1e49d65bf48d58e2879ce2aa1f4f978db625688651fa84cb299a1a54d896"
+        "sourceFingerprint": "sha256:4aa78592fb1b8fe763e66e889a14580736b50154dc9f695a1d0e38463c453009"
       }
     },
     {
@@ -9428,7 +9428,7 @@
         "packageId": "jdr5e.production-lore",
         "packageVersion": 1,
         "sourcePath": "wiki/lore/territoire/region/Ylsséa/Lysenthe/quartiers/quartier_de_la_tour",
-        "sourceFingerprint": "sha256:850c7b3c32adbfe90499928b241276c337543a6c5707c4c4f452c7e3626f5961"
+        "sourceFingerprint": "sha256:0650b31e273ece456258f50ca984fd745424e28844b9fd5506a6fa384295ddcb"
       }
     },
     {
@@ -9529,12 +9529,12 @@
         "administration",
         "archives"
       ],
-      "body": "## [COMMUN] Cadre et architecture\n\nBatiments de pierre monumentaux, colonnades civiles, places pavees et parvis de temples des Douze.\n\n## [LOCAL] Population et activités\n\nArchivistes, copistes, juristes, libraires, marchands de valeur et pelerins des sanctuaires voisins. Le quartier assure la conservation des actes, la circulation d'information, le commerce de centre-ville et une fonction de reference religieuse.\n\n## [COMMUN] Lieux clés\n\n- archives_de_lysenthe\n- place_des_archives\n\n## [LOCAL] Sécurité visible\n\nLe niveau de securite est eleve autour des depots documentaires et moyen sur la place.\n\n## [LOCAL] Rumeurs locales\n\n- Certains fonds ne sont consultables qu'avec mandat de haut rang.\n- Les archives religieuses et civiles seraient recoupees pour verifier les lignages.",
+      "body": "## [COMMUN] Cadre et architecture\r\n\r\nBatiments de pierre monumentaux, colonnades civiles, places pavees et parvis de temples des Douze.\r\n\r\n## [LOCAL] Population et activités\r\n\r\nArchivistes, copistes, juristes, libraires, marchands de valeur et pelerins des sanctuaires voisins. Le quartier assure la conservation des actes, la circulation d'information, le commerce de centre-ville et une fonction de reference religieuse.\r\n\r\n## [COMMUN] Lieux clés\r\n\r\n- archives_de_lysenthe\r\n- place_des_archives\r\n\r\n## [LOCAL] Sécurité visible\r\n\r\nLe niveau de securite est eleve autour des depots documentaires et moyen sur la place.\r\n\r\n## [LOCAL] Rumeurs locales\r\n\r\n- Certains fonds ne sont consultables qu'avec mandat de haut rang.\r\n- Les archives religieuses et civiles seraient recoupees pour verifier les lignages.",
       "provenance": {
         "packageId": "jdr5e.production-lore",
         "packageVersion": 1,
         "sourcePath": "wiki/lore/territoire/region/Ylsséa/Lysenthe/quartiers/quartier_des_archives",
-        "sourceFingerprint": "sha256:c134c40914eeb76cbd3e5bf8004b04028e2cb0afbe685e0161e7995a24e9415d"
+        "sourceFingerprint": "sha256:551413ce9202dd0a16aad52ca4a46d5e5c0203662ac95def3d4aa40695a69b27"
       }
     },
     {
@@ -9634,7 +9634,7 @@
         "packageId": "jdr5e.production-lore",
         "packageVersion": 1,
         "sourcePath": "wiki/lore/territoire/region/Ylsséa/Lysenthe/quartiers/quartier_des_remparts",
-        "sourceFingerprint": "sha256:24465230263414f899649b7d548e43167868cf185f294aa187616a65e3aefc62"
+        "sourceFingerprint": "sha256:54fdcdea0d6b64d377be4274ec0555ad94fe1989d374c47dc8a781e0142ea580"
       }
     },
     {
@@ -9724,7 +9724,7 @@
         "packageId": "jdr5e.production-lore",
         "packageVersion": 1,
         "sourcePath": "wiki/lore/territoire/region/Ylsséa/Lysenthe/quartiers/rue_des_maisons_hautes",
-        "sourceFingerprint": "sha256:c7d88195b3d85bc88eac28cbcf627667f3c3594d9921b7de3576abbfe423bd49"
+        "sourceFingerprint": "sha256:8afb4e1e73a954532d4f94427e808d101dc8a956e5c12e9f59e29421441c1bcd"
       }
     },
     {
@@ -9860,7 +9860,7 @@
         "packageId": "jdr5e.production-lore",
         "packageVersion": 1,
         "sourcePath": "wiki/lore/territoire/region/Ylsséa/Lysenthe/batiments/tour_du_primarque",
-        "sourceFingerprint": "sha256:219a8adbe4fab5221626fbd5d06d2a0fe1c27d6cd1fd7b9e7c06adb4e976ee94"
+        "sourceFingerprint": "sha256:1cbb815c86780f45f12bf1fdce4e8b47db943898137ae088c7da0be7f6dc3dd5"
       }
     },
     {
@@ -9940,12 +9940,12 @@
         "festivals maritimes",
         "ports"
       ],
-      "body": "## [COMMUN] Identité régionale\n\nRégion côtière connue pour ses paysages pittoresques et sa culture riche. Lysenthe est la capitale du royaume d'Atryade.\n\n## [COMMUN] Paysages observables\n\nYlsséa est une région côtière réputée pour ses plages de sable fin, ses falaises escarpées et un mélange harmonieux de nature sauvage et de villages charmants.\n\n## [LOCAL] Vie culturelle et traditions\n\nLa culture locale s'exprime à travers des festivals, des marchés artisanaux et une cuisine qui met en valeur les produits de la mer. Les traditions comprennent des fêtes maritimes annuelles, des marchés artisanaux hebdomadaires et des festivals de musique folklorique.\n\n## [LOCAL] Langues et architecture\n\nLe commun représente 80 % des langues parlées ; d'autres langues, dont l'elfique et l'orque, représentent 20 %. L'architecture côtière traditionnelle emploie des maisons en pierre et des toits de tuiles.\n\n## [LOCAL] Habits, musique et cuisine\n\nLes vêtements légers sont souvent agrémentés de tissus colorés portés en écharpe ou en ceinture. La musique folklorique et les danses en plein air accompagnent les festivals de la mer. La cuisine repose sur les poissons et fruits de mer, notamment les soupes de poisson, les ragoûts de fruits de mer et le pain de seigle.\n\n## [COMMUN] Rythme saisonnier\n\nLe climat est océanique ; les températures moyennes sont de 6 en Natar, 12 en Odrinar, 20 en Selar et 15 en Falar.",
+      "body": "## [COMMUN] Identité régionale\r\n\r\nRégion côtière connue pour ses paysages pittoresques et sa culture riche. Lysenthe est la capitale du royaume d'Atryade.\r\n\r\n## [COMMUN] Paysages observables\r\n\r\nYlsséa est une région côtière réputée pour ses plages de sable fin, ses falaises escarpées et un mélange harmonieux de nature sauvage et de villages charmants.\r\n\r\n## [LOCAL] Vie culturelle et traditions\r\n\r\nLa culture locale s'exprime à travers des festivals, des marchés artisanaux et une cuisine qui met en valeur les produits de la mer. Les traditions comprennent des fêtes maritimes annuelles, des marchés artisanaux hebdomadaires et des festivals de musique folklorique.\r\n\r\n## [LOCAL] Langues et architecture\r\n\r\nLe commun représente 80 % des langues parlées ; d'autres langues, dont l'elfique et l'orque, représentent 20 %. L'architecture côtière traditionnelle emploie des maisons en pierre et des toits de tuiles.\r\n\r\n## [LOCAL] Habits, musique et cuisine\r\n\r\nLes vêtements légers sont souvent agrémentés de tissus colorés portés en écharpe ou en ceinture. La musique folklorique et les danses en plein air accompagnent les festivals de la mer. La cuisine repose sur les poissons et fruits de mer, notamment les soupes de poisson, les ragoûts de fruits de mer et le pain de seigle.\r\n\r\n## [COMMUN] Rythme saisonnier\r\n\r\nLe climat est océanique ; les températures moyennes sont de 6 en Natar, 12 en Odrinar, 20 en Selar et 15 en Falar.",
       "provenance": {
         "packageId": "jdr5e.production-lore",
         "packageVersion": 1,
         "sourcePath": "wiki/lore/territoire/region/Ylsséa/index",
-        "sourceFingerprint": "sha256:b5d4e3aa35efc0076ec63367520e0af2dcb94ab1332156b289c6e444d34f9227"
+        "sourceFingerprint": "sha256:94c4bf8aa92fe971f366e1db59bf751f9e10abeb51808f0d7e456d09ea76cb31"
       }
     }
   ],

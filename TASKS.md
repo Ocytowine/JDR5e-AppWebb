@@ -185,7 +185,47 @@ Référence :
 
 ## Autres chantiers
 
+- [x] Raccorder vérité, perspectives, témoignages et connaissances aux
+  dialogues et aux créations dynamiques :
+  - [x] figer les contrats neutres de vérité pour un sujet générique, une
+    perspective privée, un témoignage attribué, une acquisition et une
+    résolution par domaine propriétaire ;
+  - [x] prouver qu'un témoignage produit `HEARD`, jamais `CONFIRMED`, et qu'un
+    mensonge intentionnel exige vérité privée et cause ;
+  - [x] persister atomiquement affirmations, perspectives privées, témoignages
+    et acquisitions `HEARD`, puis projeter la connaissance d'un acteur sans
+    exposer la perspective du locuteur ;
+  - [x] extraire dans le `npc_performer` existant les affirmations et leur sujet
+    connu, hypothétique ou ambigu, puis capturer seulement la phrase réellement
+    affichée sans nouvel appel IA ;
+  - [x] raccorder les confirmations et réfutations émises par leurs domaines
+    propriétaires à la connaissance de l'acteur ;
+  - [x] injecter faits, croyances et incertitudes autorisés dans le performer
+    PNJ avant d'ouvrir le mensonge intentionnel ;
+  - [x] créer ou réutiliser les dossiers de sujets hypothétiques sans affirmer
+    leur existence ;
+  - [x] fournir séparément vérités, engagements et témoignages au créateur de
+    lieu ;
+  - [x] remplacer `CONDITION_REQUIRED` comme décision d'existence par un
+    contrôle d'accès distinct, ouvert aux approches libres du joueur ;
+  - [x] certifier le scénario transverse des trois témoins jusqu'à la
+    matérialisation, l'accès, la confirmation ou la réfutation et la reprise.
+- [ ] Raccorder les approches jouables aux contrôles d'accès persistants :
+  - [x] implémenter l'approche inventaire autoritaire : possession réelle,
+    accessibilité, justificatif actif, conservation ou consommation atomique,
+    ouverture et rejeu dans l'opération narrative ;
+  - [ ] fournir aux campagnes concernées les catalogues concrets de politiques,
+    alias d'objets, justificatifs et mappings seuil/interlocuteur ;
+  - [x] raccorder la négociation sociale sans transformer une parole en succès :
+    accord, refus, condition ou test requis persistants, cible autoritaire,
+    ouverture atomique et rendu dans l'opération narrative ;
+  - [ ] raccorder automatiquement un résultat de test social à la reprise de
+    la négociation qui l'a demandé ;
+  - [ ] raccorder perception, tests de règles et résultats tactiques à leur
+    autorité propriétaire respective.
 - [ ] Audit transverse du pipeline narratif et de la qualité MJ :
+  - [x] imposer un plafond transversal de trois appels OpenAI facturés par tour,
+    reprises et rôles confondus, avec refus local du quatrième ;
   - [x] raccorder la route OpenAI du `mj_planner` dans le pilote Archives et la
     campagne jouable ;
   - [x] transmettre le plan MJ accepté au `scene_writer` et l'inclure dans
@@ -229,9 +269,14 @@ Référence :
       complète de l'ancienne scène ;
     - [x] empêcher le `scene_creator` de remplacer une destination publique
       demandée par un seuil, un passage ou un lieu intermédiaire ;
-    - [ ] introduire avant création une décision structurée de plausibilité
+    - [x] introduire avant création une décision structurée de plausibilité
       pour les destinations entièrement proposées par le joueur : création
-      locale, clarification, voyage ou contradiction sourcée.
+      locale, clarification, voyage ou contradiction sourcée, avec arbitre IA
+      séparé, validation locale, contexte dynamique hérité et reprise
+      post-commit sans recréation ;
+    - [x] certifier cet arbitre en live à 5/5 sur `gpt-5.5/none`, puis valider
+      le parcours navigateur Archives → Cour des Copistes → rechargement →
+      Archives sans second appel au créateur.
 - [ ] Poursuivre la passe de validation manuelle du build principal :
   - [x] raccorder l’accueil sans fiche au créateur existant et revenir aux
     campagnes avec relecture automatique de la fiche active ;

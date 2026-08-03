@@ -1,4 +1,5 @@
 import type { JsonObject } from "../core";
+import type { AccessControlRecordV1 } from "./accessControl";
 import { findSceneReferentByRefV1, type SceneReferentRegistryV1 } from "./sceneReferentRegistry";
 import {
   decideSceneTransitionV1,
@@ -46,11 +47,13 @@ export function prepareSceneTransitionWorldRequestV1(input: {
   registry: SceneReferentRegistryV1;
   topology: SceneTransitionTopologyV1;
   currentSceneVersion: number;
+  accessControls?: AccessControlRecordV1[];
 }): PreparedSceneTransitionWorldRequestV1 {
   const preliminaryDecision = decideSceneTransitionV1({
     request: input.request,
     topology: input.topology,
-    currentSceneVersion: input.currentSceneVersion
+    currentSceneVersion: input.currentSceneVersion,
+    accessControls: input.accessControls
   });
   if (["INVALID_REQUEST", "INVALID_TOPOLOGY", "STALE_SCENE_VERSION"].includes(preliminaryDecision.code)) {
     return { schemaVersion: 1, decision: preliminaryDecision, command: null };
@@ -125,6 +128,7 @@ function rejected(code: "STALE_SCENE_VERSION" | "CONNECTION_NOT_FOUND", reason: 
       connectionId: null,
       destinationRef: null,
       requiredDomain: "world",
+      access: null,
       commitAuthority: false,
       reason
     },

@@ -330,6 +330,7 @@ function npcPerformerRequest(overrides = {}) {
             `intent:${plannerReq.input.task.interpretation.intentId}`,
             "npc-conversation-profile:npc:npc-garde-blesse:conversation:revision:1"
           ],
+          allowedSubjectRefs: ["reference-scene:reference-inn-rain-001"],
           publicFactRefs: ["reference-scene:reference-inn-rain-001"],
           priorPlayerSpeech: [],
           priorNpcUtterances: [],
@@ -397,6 +398,16 @@ function npcPerformerOutputFor(req, overrides = {}) {
       durableCommitments: [],
       revealedRefs: [],
       knowledgeUsed: ["reference-scene:reference-inn-rain-001"],
+      knowledgeClaims: [{
+        utteranceId: "utterance-route-npc-001",
+        speechActIndex: 0,
+        subject: {
+          mode: "KNOWN_REF",
+          ref: "reference-scene:reference-inn-rain-001",
+          kind: "PLACE",
+          label: "Auberge du Seuil"
+        }
+      }],
       safetyConstraints: {
         noMechanicalSuccess: true,
         noSecretReveal: true,
@@ -546,6 +557,49 @@ function sceneCreatorRequestV2(overrides = {}) {
   });
 }
 
+function destinationArbiterRequest(overrides = {}) {
+  return request({
+    role: "destination_arbiter",
+    contractVersion: "destination-plausibility-arbitration/1",
+    input: {
+      instructionsRef: "destination-arbiter/plausibility/v1",
+      roleContextPack: {
+        allowedParentLocationRefs: ["location:quartier_des_archives"],
+        allowedSourceRefs: ["wiki:quartier_des_archives"],
+        knownPlaces: []
+      },
+      task: { requiredOutput: "destination-plausibility-arbitration/1" }
+    },
+    limits: { inputTokenBudget: 2_000, outputTokenBudget: 800, timeoutMs: 30_000 },
+    ...overrides
+  });
+}
+
+function destinationArbiterOutput(overrides = {}) {
+  const req = destinationArbiterRequest();
+  return {
+    schemaVersion: 1,
+    contractVersion: req.contractVersion,
+    outputId: "output-destination-arbiter",
+    callId: req.callId,
+    attemptId: req.attemptId,
+    packId: req.packId,
+    snapshotId: req.snapshotId,
+    role: req.role,
+    status: "OK",
+    payload: {
+      outcome: "CREATE_LOCAL",
+      allowedParentLocationRef: "location:quartier_des_archives",
+      reason: "La destination est compatible avec le quartier.",
+      accessHint: null,
+      sourceRefs: ["wiki:quartier_des_archives"]
+    },
+    diagnostics: [],
+    supersedesOutputId: null,
+    ...overrides
+  };
+}
+
 function semanticIntentRequest(overrides = {}) {
   return intentRequest({
     contractVersion: "ai-intent-semantic/2",
@@ -649,7 +703,7 @@ async function main() {
   assert.equal(normalizedContact.payload.intent.dialogueAct.act, "INITIATE_CONVERSATION");
   assert.equal(validateEnvelope(normalizedContact, semanticRequest).ok, true);
 
-  [request(), intentRequest(), semanticIntentRequestV3(), semanticIntentRequestV4(), semanticIntentRequestV5(), mjPlannerRequest(), npcPerformerRequest(), sceneCreatorRequest(), sceneCreatorRequestV2()].forEach(roleRequest => {
+  [request(), intentRequest(), semanticIntentRequestV3(), semanticIntentRequestV4(), semanticIntentRequestV5(), mjPlannerRequest(), npcPerformerRequest(), sceneCreatorRequest(), sceneCreatorRequestV2(), destinationArbiterRequest()].forEach(roleRequest => {
     const schema = buildStrictAiOutputSchema(roleRequest).schema;
     assertEveryArraySchemaHasItems(schema);
     assertOpenAiStrictObjectShape(schema);
@@ -660,6 +714,24 @@ async function main() {
   assert.equal(normalizedMjPlanner.ok, true);
   const normalizedNpcPerformer = normalizeAiCallRequest(npcPerformerRequest());
   assert.equal(normalizedNpcPerformer.ok, true);
+  const npcPerformerInstructions = buildRoleInstructions(npcPerformerRequest());
+  assert.equal(npcPerformerInstructions.includes("resolvedClaims"), true);
+  assert.equal(npcPerformerInstructions.includes("REFUTED"), true);
+  assert.equal(normalizeAiCallRequest(destinationArbiterRequest()).ok, true);
+  assert.equal(normalizeAiCallRequest(destinationArbiterRequest({
+    limits: { inputTokenBudget: 8_000, outputTokenBudget: 800, timeoutMs: 30_000 }
+  })).ok, true);
+  const rejectedDestinationArbiterBudget = normalizeAiCallRequest(destinationArbiterRequest({
+    limits: { inputTokenBudget: 8_001, outputTokenBudget: 800, timeoutMs: 30_000 }
+  }));
+  assert.equal(rejectedDestinationArbiterBudget.ok, false);
+  assert.equal(rejectedDestinationArbiterBudget.issues.includes("limits.inputTokenBudget must be between 1 and 8000."), true);
+  assert.equal(buildRoleInstructions(destinationArbiterRequest()).includes("aucune autorité de commit"), true);
+  assert.equal(validateEnvelope(destinationArbiterOutput(), destinationArbiterRequest()).ok, true);
+  assert.equal(validateEnvelope(destinationArbiterOutput({ payload: {
+    outcome: "REJECT_CONTRADICTION", allowedParentLocationRef: null, reason: "Contradiction.", accessHint: null,
+    sourceRefs: ["wiki:source-interdite"]
+  } }), destinationArbiterRequest()).ok, false, "l'arbitre ne doit pas citer une source absente du brief");
   const normalizedIntent = normalizeAiCallRequest(intentRequest());
   assert.equal(normalizedIntent.ok, true);
   const normalizedComposedIntent = normalizeAiCallRequest(semanticIntentRequestV3());
@@ -750,9 +822,16 @@ async function main() {
   assert.deepEqual(sceneCreatorSchema.properties.payload.properties.parentLocationRef.enum, ["location:quartier_des_archives"]);
   assert.deepEqual(sceneCreatorSchema.properties.payload.properties.requestedDepth.enum, ["LIGHT_REFERENCE", "FULL_ENTITY"]);
   assert.equal(sceneCreatorSchema.properties.payload.properties.perceptibleFeatures.minItems, 1);
-  assert.equal(sceneCreatorSchema.properties.payload.properties.narrativeCommitments.minItems, 1);
+  assert.equal(sceneCreatorSchema.properties.payload.properties.narrativeCommitments.minItems, undefined);
+  assert.equal(sceneCreatorSchema.properties.payload.properties.populationRoles.minItems, undefined);
+  assert.equal(sceneCreatorSchema.properties.payload.properties.localNorms.minItems, undefined);
   const normalizedSceneCreatorV2 = normalizeAiCallRequest(sceneCreatorRequestV2());
   assert.equal(normalizedSceneCreatorV2.ok, true);
+  const sceneCreatorInstructions = buildRoleInstructions(sceneCreatorRequestV2());
+  assert.equal(sceneCreatorInstructions.includes("authoritativeTruths"), true);
+  assert.equal(sceneCreatorInstructions.includes("campaignCommitments"), true);
+  assert.equal(sceneCreatorInstructions.includes("attributedTestimonies"), true);
+  assert.equal(sceneCreatorInstructions.includes("ne prouve jamais la proposition"), true);
   const sceneCreatorSchemaV2 = buildStrictAiOutputSchema(sceneCreatorRequestV2()).schema;
   assert.equal(Object.hasOwn(sceneCreatorSchemaV2.properties.payload.properties, "connectionIntents"), false);
   assert.equal(sceneCreatorSchemaV2.properties.payload.required.includes("connectionIntents"), false);
@@ -1361,6 +1440,36 @@ async function main() {
   assert.equal(revealingMjPlan.issues.includes("payload.revealPlan.reveal must be empty for mj_planner mini."), true);
   const validNpcPerformance = validateEnvelope(npcPerformerOutputFor(npcPerformerRequest()), npcPerformerRequest());
   assert.equal(validNpcPerformance.ok, true);
+  const epistemicNpcRequest = npcPerformerRequest();
+  epistemicNpcRequest.input.task.knowledgeEnvelope.allowedSourceRefs.push("claim:mandat-officiel");
+  epistemicNpcRequest.input.task.knowledgeEnvelope.authorizedActorKnowledge = {
+    schemaVersion: 1,
+    actorRef: "actor:npc:npc-garde-blesse",
+    knownFactRefs: [],
+    claimPerspectives: [{
+      claimRef: "claim:mandat-officiel",
+      proposition: "Un mandat officiel serait requis pour franchir cette porte.",
+      epistemicBasis: "believed",
+      confidence: "MEDIUM",
+      mayBeFalse: true
+    }],
+    legacyBeliefs: [],
+    intentionalDeceptionAllowed: false,
+    authority: "PRIVATE_ACTOR_KNOWLEDGE_FOR_PERFORMANCE_ONLY"
+  };
+  const epistemicNpcOutput = npcPerformerOutputFor(epistemicNpcRequest);
+  epistemicNpcOutput.payload.utterances[0].speechActs[0].sourceRefs = ["claim:mandat-officiel"];
+  epistemicNpcOutput.payload.utterances[0].speechActs[0].epistemicBasis = "believed";
+  epistemicNpcOutput.payload.knowledgeUsed = ["claim:mandat-officiel"];
+  assert.equal(validateEnvelope(epistemicNpcOutput, epistemicNpcRequest).ok, true);
+  const overstatedNpcOutput = structuredClone(epistemicNpcOutput);
+  overstatedNpcOutput.payload.utterances[0].speechActs[0].epistemicBasis = "known";
+  const overstatedNpcPerformance = validateEnvelope(overstatedNpcOutput, epistemicNpcRequest);
+  assert.equal(overstatedNpcPerformance.ok, false);
+  assert.equal(
+    overstatedNpcPerformance.issues.includes("payload.utterances[0].speechActs[0].epistemicBasis must be believed for claim:mandat-officiel."),
+    true
+  );
   const revealingNpcPerformance = validateEnvelope(
     npcPerformerOutputFor(npcPerformerRequest(), { payload: { revealedRefs: ["secret:back-room"] } }),
     npcPerformerRequest()

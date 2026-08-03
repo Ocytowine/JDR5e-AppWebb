@@ -376,6 +376,16 @@ async function run(): Promise<void> {
     durableCommitments: [],
     revealedRefs: [],
     knowledgeUsed: ["reference-scene:reference-inn-rain-001"],
+    knowledgeClaims: [{
+      utteranceId: "utterance-npc-001",
+      speechActIndex: 0,
+      subject: {
+        mode: "KNOWN_REF",
+        ref: "reference-scene:reference-inn-rain-001",
+        kind: "PLACE",
+        label: "Auberge du Seuil"
+      }
+    }],
     safetyConstraints: {
       noMechanicalSuccess: true,
       noSecretReveal: true,
@@ -410,6 +420,7 @@ async function run(): Promise<void> {
       task: {
         knowledgeEnvelope: {
           publicFactRefs: ["reference-scene:reference-inn-rain-001"],
+          allowedSubjectRefs: ["reference-scene:reference-inn-rain-001"],
           priorNpcUtterances: []
         }
       }

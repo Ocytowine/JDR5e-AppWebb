@@ -50,6 +50,9 @@ import {
   type NpcPerformerConfigV1
 } from "./npcPerforming";
 import type { AiCallTelemetryV1, MjPlannerPayloadV1, NpcPerformerPayloadV1 } from "../ai/types";
+import { activateAiCallBudgetV1, closeAiCallBudgetV1 } from "../ai/callBudget";
+import { loadActiveCampaignCharacterProfileV1 } from "../bootstrap";
+import { captureNpcTestimonyV1 } from "./npcTestimonyCapture";
 import {
   resolveNarrativeTurnV1,
   type NarrativeResolutionResultV1
@@ -72,7 +75,10 @@ import {
 import { createInitialReferenceSceneStateV1, type ReferenceSceneStateV1 } from "./referenceSceneState";
 import { applyPersistedSceneActorsV1 } from "./sceneActorRegistry";
 import { buildNarrativeDomainCommandV1, type NarrativeDomainCommandV1 } from "./domainCommands";
-import type { SceneArrivalStateV1 } from "./sceneArrival";
+import { buildSceneArrivalAfterCommitV1, type SceneArrivalStateV1 } from "./sceneArrival";
+import type { DestinationPlausibilityDecisionV1 } from "./destinationPlausibility";
+import type { InventoryAccessResolutionResultV1 } from "./inventoryAccessAuthority";
+import type { SocialAccessResolutionResultV1 } from "./socialAccessAuthority";
 import {
   createPrototypeInnSceneTransitionRuntimeV1,
   ensurePrototypeInnSceneTransitionStateV1,
@@ -227,6 +233,15 @@ export interface NarrativeSceneTransitionRuntimeV1 {
 }
 
 export interface NarrativeDynamicPlaceRuntimeV1 {
+  evaluateDestination?(input: {
+    repository: CampaignRepository;
+    campaignId: CampaignId;
+    operation: OperationRecord;
+    rawInput: string;
+    interpretation: NarrativeIntentInterpretationV1;
+    domainCommand: NarrativeDomainCommandV1 | null;
+    activeScene: PlayableSceneStateV1;
+  }): Promise<Result<{ decision: DestinationPlausibilityDecisionV1; aiTelemetry: AiCallTelemetryV1[] }>>;
   canHandle(input: {
     repository: CampaignRepository;
     campaignId: CampaignId;
@@ -242,7 +257,62 @@ export interface NarrativeDynamicPlaceRuntimeV1 {
     interpretation: NarrativeIntentInterpretationV1;
     domainCommand: NarrativeDomainCommandV1 | null;
     activeScene: PlayableSceneStateV1;
+    destinationDecision?: DestinationPlausibilityDecisionV1;
   }): Promise<Result<Awaited<ReturnType<NarrativeSceneTransitionRuntimeV1["execute"]>> extends Result<infer T> ? T : never>>;
+}
+
+export interface NarrativeInventoryAccessRuntimeV1 {
+  canHandle?(input: {
+    repository: CampaignRepository;
+    campaignId: CampaignId;
+    rawInput: string;
+    interpretation: NarrativeIntentInterpretationV1;
+    domainCommand: NarrativeDomainCommandV1 | null;
+    activeScene: PlayableSceneStateV1;
+  }): Promise<boolean> | boolean;
+  execute(input: {
+    repository: CampaignRepository;
+    campaignId: CampaignId;
+    operation: OperationRecord;
+    rawInput: string;
+    interpretation: NarrativeIntentInterpretationV1;
+    domainCommand: NarrativeDomainCommandV1 | null;
+    activeScene: PlayableSceneStateV1;
+  }): Promise<Result<{
+    commit: CommitRecord;
+    resolution: InventoryAccessResolutionResultV1;
+    characterExpression: string;
+    playerFacingText: string;
+    sourceRefs: string[];
+  }>>;
+}
+
+export interface NarrativeSocialAccessRuntimeV1 {
+  canHandle?(input: {
+    repository: CampaignRepository;
+    campaignId: CampaignId;
+    rawInput: string;
+    interpretation: NarrativeIntentInterpretationV1;
+    domainCommand: NarrativeDomainCommandV1 | null;
+    activeScene: PlayableSceneStateV1;
+  }): Promise<boolean> | boolean;
+  execute(input: {
+    repository: CampaignRepository;
+    campaignId: CampaignId;
+    operation: OperationRecord;
+    rawInput: string;
+    interpretation: NarrativeIntentInterpretationV1;
+    domainCommand: NarrativeDomainCommandV1 | null;
+    activeScene: PlayableSceneStateV1;
+  }): Promise<Result<{
+    commit: CommitRecord;
+    resolution: SocialAccessResolutionResultV1;
+    characterExpression: string;
+    respondingActorRef: string;
+    respondingActorName: string;
+    playerFacingText: string;
+    sourceRefs: string[];
+  }>>;
 }
 
 export interface NarrativeTurnInputV1 {
@@ -353,6 +423,8 @@ export interface NarrativeTurnControllerOptions {
   npcPerformerConfig?: NpcPerformerConfigV1 | null;
   sceneTransitionRuntime?: NarrativeSceneTransitionRuntimeV1 | null;
   dynamicPlaceRuntime?: NarrativeDynamicPlaceRuntimeV1 | null;
+  inventoryAccessRuntime?: NarrativeInventoryAccessRuntimeV1 | null;
+  socialAccessRuntime?: NarrativeSocialAccessRuntimeV1 | null;
   restRuntime?: NarrativeRestRuntimeV1 | null;
   socialInitiativePerformer?: SocialInitiativePerformerV1 | null;
   worldSceneLocationResolver?: NarrativeWorldSceneLocationResolverV1 | null;
@@ -394,6 +466,8 @@ export class NarrativeTurnControllerV1 {
   private readonly npcPerformerConfig: NpcPerformerConfigV1 | null;
   private readonly sceneTransitionRuntime: NarrativeSceneTransitionRuntimeV1 | null;
   private readonly dynamicPlaceRuntime: NarrativeDynamicPlaceRuntimeV1 | null;
+  private readonly inventoryAccessRuntime: NarrativeInventoryAccessRuntimeV1 | null;
+  private readonly socialAccessRuntime: NarrativeSocialAccessRuntimeV1 | null;
   private readonly restRuntime: NarrativeRestRuntimeV1 | null;
   private readonly socialInitiativePerformer: SocialInitiativePerformerV1 | null;
   private readonly worldSceneLocationResolver: NarrativeWorldSceneLocationResolverV1 | null;
@@ -425,6 +499,8 @@ export class NarrativeTurnControllerV1 {
       : options.npcPerformerConfig;
     this.sceneTransitionRuntime = options.sceneTransitionRuntime ?? null;
     this.dynamicPlaceRuntime = options.dynamicPlaceRuntime ?? null;
+    this.inventoryAccessRuntime = options.inventoryAccessRuntime ?? null;
+    this.socialAccessRuntime = options.socialAccessRuntime ?? null;
     this.restRuntime = options.restRuntime ?? null;
     this.socialInitiativePerformer = options.socialInitiativePerformer === undefined
       ? new LocalSocialInitiativePerformerV1()
@@ -896,6 +972,25 @@ export class NarrativeTurnControllerV1 {
         }
       };
     }
+    if (received.value.phase === "COMMITTED_PENDING_RENDER" && received.value.commitId !== null) {
+      const recovered = await recoverCommittedPendingRenderV1({
+        repository: this.repository,
+        operation: received.value,
+        input,
+        activeScene
+      });
+      if (!recovered.ok) return recovered;
+      const completed = await this.repository.completePresentation(
+        received.value.operationId,
+        "COMMITTED_DEGRADED",
+        1,
+        recovered.value
+      );
+      if (!completed.ok) return completed;
+      this.rememberLocalReferent(recovered.value, activeScene);
+      this.rememberSemanticTurn(recovered.value);
+      return { ok: true, value: { operation: completed.value, output: recovered.value } };
+    }
     const hydratedSceneResult = await applyPersistedSceneActorsV1({
       repository: this.repository,
       campaignId: this.campaignId,
@@ -906,6 +1001,8 @@ export class NarrativeTurnControllerV1 {
       return hydratedSceneResult;
     }
     activeScene = hydratedSceneResult.value;
+
+    activateAiCallBudgetV1(received.value.operationId);
 
     const output = await buildResolvedOutput({
       repository: this.repository,
@@ -922,6 +1019,8 @@ export class NarrativeTurnControllerV1 {
         this.interpreterCharacterContextResolver,
       sceneTransitionRuntime: this.sceneTransitionRuntime,
       dynamicPlaceRuntime: this.dynamicPlaceRuntime,
+      inventoryAccessRuntime: this.inventoryAccessRuntime,
+      socialAccessRuntime: this.socialAccessRuntime,
       restRuntime: this.restRuntime,
       activeScene
     });
@@ -949,13 +1048,49 @@ export class NarrativeTurnControllerV1 {
   async recordRenderedProjection(
     request: NarrativeRenderProjectionInputV1
   ): Promise<Result<NarrativeRenderProjectionRecordResultV1>> {
-    return recordNarrativeRenderedProjectionV1({
+    const recorded = await recordNarrativeRenderedProjectionV1({
       repository: this.repository,
       campaignId: this.campaignId,
       clock: this.clock,
       idPrefix: this.idPrefix,
       request
     });
+    if (recorded.ok) {
+      closeAiCallBudgetV1(request.sourceOutput.operationId);
+      const performance = request.sourceOutput.npcPerformance;
+      if (performance !== null) {
+        const profile = await loadActiveCampaignCharacterProfileV1({
+          repository: this.repository,
+          campaignId: this.campaignId
+        });
+        if (profile.ok) {
+          const campaign = await this.repository.getCampaign(this.campaignId);
+          if (!campaign.ok) return campaign;
+          const clock = await this.repository.getAggregate(
+            this.campaignId,
+            "world.clock",
+            campaign.value.clockAggregateId
+          );
+          if (!clock.ok) return clock;
+          const displayPacket = recorded.value.projection.displayPacket as unknown as DisplayPacketV1;
+          const finalNpcSpeechText = displayPacket.displayBlocks.find(block => block.kind === "NPC_SPEECH")?.text ?? null;
+          const captured = await captureNpcTestimonyV1({
+            repository: this.repository,
+            campaignId: this.campaignId,
+            performance,
+            finalNpcSpeechText,
+            sourceOperationId: recorded.value.operation.operationId,
+            sceneRef: `scene:${request.sourceOutput.activeScene.sceneId}`,
+            playerActorRef: `actor:${profile.value.actorId}`,
+            occurredAtGameSecond: Number((clock.value.payload as CampaignClockPayload).elapsedGameSeconds ?? 0)
+          });
+          if (!captured.ok) return captured;
+        } else if (profile.error.code !== "NOT_FOUND") {
+          return profile;
+        }
+      }
+    }
+    return recorded;
   }
 
   async rollPendingSkillCheck(
@@ -1590,6 +1725,8 @@ export async function createPrototypeNarrativeTurnControllerV1(options: {
   npcPerformerConfig?: NpcPerformerConfigV1 | null;
   sceneTransitionRuntime?: NarrativeSceneTransitionRuntimeV1 | null;
   dynamicPlaceRuntime?: NarrativeDynamicPlaceRuntimeV1 | null;
+  inventoryAccessRuntime?: NarrativeInventoryAccessRuntimeV1 | null;
+  socialAccessRuntime?: NarrativeSocialAccessRuntimeV1 | null;
   restRuntime?: NarrativeRestRuntimeV1 | null;
   worldSceneLocationResolver?: NarrativeWorldSceneLocationResolverV1 | null;
   activeSceneResolver?: NarrativeActiveSceneResolverV1 | null;
@@ -1616,6 +1753,8 @@ export async function createPrototypeNarrativeTurnControllerV1(options: {
       ? createPrototypeInnSceneTransitionRuntimeV1()
       : options.sceneTransitionRuntime,
     dynamicPlaceRuntime: options.dynamicPlaceRuntime,
+    inventoryAccessRuntime: options.inventoryAccessRuntime,
+    socialAccessRuntime: options.socialAccessRuntime,
     restRuntime: options.restRuntime,
     worldSceneLocationResolver: options.worldSceneLocationResolver,
     activeSceneResolver: options.activeSceneResolver === undefined
@@ -1636,6 +1775,8 @@ export async function createBrowserPersistentNarrativeTurnControllerV1(options: 
   npcPerformerConfig?: NpcPerformerConfigV1 | null;
   sceneTransitionRuntime?: NarrativeSceneTransitionRuntimeV1 | null;
   dynamicPlaceRuntime?: NarrativeDynamicPlaceRuntimeV1 | null;
+  inventoryAccessRuntime?: NarrativeInventoryAccessRuntimeV1 | null;
+  socialAccessRuntime?: NarrativeSocialAccessRuntimeV1 | null;
   restRuntime?: NarrativeRestRuntimeV1 | null;
   worldSceneLocationResolver?: NarrativeWorldSceneLocationResolverV1 | null;
   activeSceneResolver?: NarrativeActiveSceneResolverV1 | null;
@@ -1654,6 +1795,8 @@ export async function createBrowserPersistentNarrativeTurnControllerV1(options: 
     npcPerformerConfig: options.npcPerformerConfig,
     sceneTransitionRuntime: options.sceneTransitionRuntime,
     dynamicPlaceRuntime: options.dynamicPlaceRuntime,
+    inventoryAccessRuntime: options.inventoryAccessRuntime,
+    socialAccessRuntime: options.socialAccessRuntime,
     restRuntime: options.restRuntime,
     worldSceneLocationResolver: options.worldSceneLocationResolver,
     activeSceneResolver: options.activeSceneResolver,
@@ -1682,6 +1825,8 @@ export async function createBrowserPersistentNarrativeTurnControllerV1(options: 
       ? createPrototypeInnSceneTransitionRuntimeV1()
       : options.sceneTransitionRuntime,
     dynamicPlaceRuntime: options.dynamicPlaceRuntime,
+    inventoryAccessRuntime: options.inventoryAccessRuntime,
+    socialAccessRuntime: options.socialAccessRuntime,
     restRuntime: options.restRuntime,
     worldSceneLocationResolver: options.worldSceneLocationResolver,
     activeSceneResolver: options.activeSceneResolver === undefined
@@ -1859,6 +2004,8 @@ async function buildResolvedOutput(input: {
     InterpreterCharacterContextResolverV1 | null;
   sceneTransitionRuntime: NarrativeSceneTransitionRuntimeV1 | null;
   dynamicPlaceRuntime: NarrativeDynamicPlaceRuntimeV1 | null;
+  inventoryAccessRuntime: NarrativeInventoryAccessRuntimeV1 | null;
+  socialAccessRuntime: NarrativeSocialAccessRuntimeV1 | null;
   restRuntime: NarrativeRestRuntimeV1 | null;
   activeScene: PlayableSceneStateV1;
 }): Promise<Result<{ output: NarrativeTurnControllerOutputV1; commit: unknown | null }>> {
@@ -1899,15 +2046,47 @@ async function buildResolvedOutput(input: {
     }) as NarrativeIntentInterpretationV1 & JsonObject
     : interpretationResult.interpretation as NarrativeIntentInterpretationV1 & JsonObject;
   const interpretationMs = Date.now() - interpretationStartedAt;
+  const domainCommand = buildNarrativeDomainCommandV1(interpretation);
+  const dynamicPlaceCanHandle = input.dynamicPlaceRuntime !== null && await input.dynamicPlaceRuntime.canHandle({
+    repository: input.repository,
+    campaignId: input.campaignId,
+    interpretation,
+    domainCommand,
+    activeScene: input.activeScene
+  });
+  const inventoryAccessCanHandle = input.inventoryAccessRuntime !== null && (
+    input.inventoryAccessRuntime.canHandle === undefined
+      ? interpretation.runtimeDecision.requiredDomain === "inventory"
+      : await input.inventoryAccessRuntime.canHandle({
+          repository: input.repository,
+          campaignId: input.campaignId,
+          rawInput: input.input.rawInput,
+          interpretation,
+          domainCommand,
+          activeScene: input.activeScene
+        })
+  );
+  const socialAccessCanHandle = input.socialAccessRuntime !== null && (
+    input.socialAccessRuntime.canHandle === undefined
+      ? interpretation.runtimeDecision.requiredDomain === "social"
+      : await input.socialAccessRuntime.canHandle({
+          repository: input.repository,
+          campaignId: input.campaignId,
+          rawInput: input.input.rawInput,
+          interpretation,
+          domainCommand,
+          activeScene: input.activeScene
+        })
+  );
   const planningStartedAt = Date.now();
-  const planning = input.mjPlannerConfig === null
+  const planning = input.mjPlannerConfig === null || dynamicPlaceCanHandle || inventoryAccessCanHandle || socialAccessCanHandle
     ? null
     : await planNarrativeTurnWithMjV1({
       campaignId: input.campaignId,
       operationId: input.operation.operationId,
       rawInput: input.input.rawInput,
       interpretation,
-      domainCommand: buildNarrativeDomainCommandV1(interpretation),
+      domainCommand,
       config: input.mjPlannerConfig
     });
   const planningMs = Date.now() - planningStartedAt;
@@ -1920,7 +2099,6 @@ async function buildResolvedOutput(input: {
       createdAt: input.createdAt
     }) as SuspendedIntentRecordV1 & JsonObject
     : null;
-  const domainCommand = buildNarrativeDomainCommandV1(interpretation);
   const resolutionStartedAt = Date.now();
   const runtimeRoute = routeNarrativeSemanticIntentV2({
     semanticIntent: interpretation.semanticIntent,
@@ -1941,10 +2119,10 @@ async function buildResolvedOutput(input: {
     });
   }
   if (
-    input.dynamicPlaceRuntime !== null &&
-    await input.dynamicPlaceRuntime.canHandle({ repository: input.repository, campaignId: input.campaignId, interpretation, domainCommand, activeScene: input.activeScene })
+    input.socialAccessRuntime !== null && socialAccessCanHandle &&
+    interpretation.semanticIntent.commitment === "committed"
   ) {
-    const creation = await input.dynamicPlaceRuntime.execute({
+    const social = await input.socialAccessRuntime.execute({
       repository: input.repository,
       campaignId: input.campaignId,
       operation: input.operation,
@@ -1952,6 +2130,200 @@ async function buildResolvedOutput(input: {
       interpretation,
       domainCommand,
       activeScene: input.activeScene
+    });
+    if (!social.ok) return social;
+    const socialResolution: NarrativeResolutionResultV1 = {
+      schemaVersion: 1,
+      contractVersion: "narrative-resolution/1",
+      resolutionId: `${input.operation.operationId}:resolution:social-access`,
+      operationId: input.operation.operationId,
+      resultKind: "COMMIT_APPLIED",
+      interpretation,
+      domainCommand,
+      characterExpression: { schemaVersion: 1, rawPlayerText: input.input.rawInput, interpretedIntentId: interpretation.intentId, expressionText: social.value.characterExpression, fidelity: "RAW_EQUIVALENT", addedCommitments: [], preservedMeaning: true },
+      preparedEffects: [],
+      handoff: null,
+      commitId: social.value.commit.commitId,
+      noGameTime: true,
+      safetyNotes: ["La parole est conservée comme tentative ; seul SOCIAL_ACCESS_DOMAIN peut accorder l'accès."],
+      actionAdjudication: null,
+      perception: null
+    };
+    const sourceRefs = [...new Set([`commit:${social.value.commit.commitId}`, ...social.value.sourceRefs])];
+    const displayPacket: DisplayPacketV1 & JsonObject = {
+      schemaVersion: 1,
+      contractVersion: SCENE_SOCIAL_UI_CONTRACT_VERSION_V1,
+      operationId: input.operation.operationId,
+      sceneId: input.activeScene.sceneId,
+      displayBlocks: [{
+        blockId: `${input.operation.operationId}:social-access-response`,
+        kind: "NPC_SPEECH",
+        speaker: { speakerId: social.value.respondingActorRef, kind: "NPC", displayName: social.value.respondingActorName, roleLabel: "Interlocuteur", ariaLabel: social.value.respondingActorName, visualToken: "speaker-npc" },
+        text: social.value.playerFacingText,
+        ariaLabel: `Réponse de ${social.value.respondingActorName}`,
+        roleLabel: "Réponse sociale d'accès",
+        visualStyleToken: "speaker-npc",
+        sourceRefs,
+        isDegradedFallback: false
+      }],
+      rawInputAccess: { available: true, operationId: input.operation.operationId },
+      rhythmDiagnostics: `social-access:${social.value.resolution.outcome}`,
+      reconstructionRefs: sourceRefs,
+      version: 1
+    };
+    return { ok: true, value: { commit: social.value.commit, output: {
+      schemaVersion: 1, contractVersion: "narrative-turn-controller/1", operationId: input.operation.operationId, clientRequestId: input.input.clientRequestId,
+      noCommit: false, noGameTime: true, interpretation, domainCommand, mjPlan: planning?.plan ?? null,
+      mjPlannerFailure: planning?.planningFailure as (MjPlanningFailureV1 & JsonObject) | null ?? null,
+      npcPerformance: null, npcPerformanceFailure: null, suspendedIntent: null, pendingSkillCheck: null,
+      resolution: socialResolution, sceneState: createInitialReferenceSceneStateV1(), sceneArrival: null, activeScene: input.activeScene, displayPacket,
+      stageTimings: { interpretationMs, planningMs, resolutionMs: Date.now() - resolutionStartedAt, npcPerformanceMs: 0, resolvedOutputMs: Date.now() - resolvedOutputStartedAt },
+      aiTelemetry: [...(interpretationResult?.telemetry ?? [])]
+    } } };
+  }
+  if (
+    input.inventoryAccessRuntime !== null && inventoryAccessCanHandle &&
+    interpretation.semanticIntent.commitment === "committed"
+  ) {
+    const inventory = await input.inventoryAccessRuntime.execute({
+      repository: input.repository,
+      campaignId: input.campaignId,
+      operation: input.operation,
+      rawInput: input.input.rawInput,
+      interpretation,
+      domainCommand,
+      activeScene: input.activeScene
+    });
+    if (!inventory.ok) return inventory;
+    const inventoryResolution: NarrativeResolutionResultV1 = {
+      schemaVersion: 1,
+      contractVersion: "narrative-resolution/1",
+      resolutionId: `${input.operation.operationId}:resolution:inventory-access`,
+      operationId: input.operation.operationId,
+      resultKind: "COMMIT_APPLIED",
+      interpretation,
+      domainCommand,
+      characterExpression: {
+        schemaVersion: 1,
+        rawPlayerText: input.input.rawInput,
+        interpretedIntentId: interpretation.intentId,
+        expressionText: inventory.value.characterExpression,
+        fidelity: "STYLE_NORMALIZED",
+        addedCommitments: [],
+        preservedMeaning: true
+      },
+      preparedEffects: [],
+      handoff: null,
+      commitId: inventory.value.commit.commitId,
+      noGameTime: true,
+      safetyNotes: ["Accès résolu depuis une instance d'inventaire autoritaire ; aucune possession n'est déduite de la prose."],
+      actionAdjudication: null,
+      perception: null
+    };
+    const sourceRefs = [...new Set([`commit:${inventory.value.commit.commitId}`, ...inventory.value.sourceRefs])];
+    const displayPacket: DisplayPacketV1 & JsonObject = {
+      schemaVersion: 1,
+      contractVersion: SCENE_SOCIAL_UI_CONTRACT_VERSION_V1,
+      operationId: input.operation.operationId,
+      sceneId: input.activeScene.sceneId,
+      displayBlocks: [{
+        blockId: `${input.operation.operationId}:inventory-access`,
+        kind: "SYSTEM_NOTICE",
+        speaker: { speakerId: "speaker-system", kind: "SYSTEM", displayName: "Système", roleLabel: "Inventaire et accès", ariaLabel: "Inventaire et accès", visualToken: "speaker-system" },
+        text: inventory.value.playerFacingText,
+        ariaLabel: "Résolution autoritaire d'un accès par inventaire",
+        roleLabel: "Inventaire et accès",
+        visualStyleToken: "speaker-system",
+        sourceRefs,
+        isDegradedFallback: false
+      }],
+      rawInputAccess: { available: true, operationId: input.operation.operationId },
+      rhythmDiagnostics: `inventory-access:${inventory.value.resolution.resultingAccessState}`,
+      reconstructionRefs: sourceRefs,
+      version: 1
+    };
+    return { ok: true, value: { commit: inventory.value.commit, output: {
+      schemaVersion: 1,
+      contractVersion: "narrative-turn-controller/1",
+      operationId: input.operation.operationId,
+      clientRequestId: input.input.clientRequestId,
+      noCommit: false,
+      noGameTime: true,
+      interpretation,
+      domainCommand,
+      mjPlan: planning?.plan ?? null,
+      mjPlannerFailure: planning?.planningFailure as (MjPlanningFailureV1 & JsonObject) | null ?? null,
+      npcPerformance: null,
+      npcPerformanceFailure: null,
+      suspendedIntent: null,
+      pendingSkillCheck: null,
+      resolution: inventoryResolution,
+      sceneState: createInitialReferenceSceneStateV1(),
+      sceneArrival: null,
+      activeScene: input.activeScene,
+      displayPacket,
+      stageTimings: { interpretationMs, planningMs, resolutionMs: Date.now() - resolutionStartedAt, npcPerformanceMs: 0, resolvedOutputMs: Date.now() - resolvedOutputStartedAt },
+      aiTelemetry: [...(interpretationResult?.telemetry ?? [])]
+    } } };
+  }
+  if (
+    input.dynamicPlaceRuntime !== null &&
+    dynamicPlaceCanHandle
+  ) {
+    const destinationEvaluation = input.dynamicPlaceRuntime.evaluateDestination === undefined
+      ? null
+      : await input.dynamicPlaceRuntime.evaluateDestination({
+          repository: input.repository,
+          campaignId: input.campaignId,
+          operation: input.operation,
+          rawInput: input.input.rawInput,
+          interpretation,
+          domainCommand,
+          activeScene: input.activeScene
+        });
+    if (destinationEvaluation !== null && !destinationEvaluation.ok) return destinationEvaluation;
+    if (destinationEvaluation !== null && destinationEvaluation.value.decision.outcome !== "CREATE_LOCAL") {
+      return buildDestinationDecisionControllerResult({
+        input,
+        interpretation,
+        domainCommand,
+        planning,
+        interpretationResult,
+        interpretationMs,
+        planningMs,
+        resolutionStartedAt,
+        resolvedOutputStartedAt,
+        decision: destinationEvaluation.value.decision,
+        aiTelemetry: destinationEvaluation.value.aiTelemetry
+      });
+    }
+    if (destinationEvaluation?.value.decision.accessHint !== null && destinationEvaluation?.value.decision.accessHint !== undefined) {
+      return buildDestinationDecisionControllerResult({
+        input,
+        interpretation,
+        domainCommand,
+        planning,
+        interpretationResult,
+        interpretationMs,
+        planningMs,
+        resolutionStartedAt,
+        resolvedOutputStartedAt,
+        decision: {
+          ...destinationEvaluation.value.decision,
+          reason: "Le lieu paraît plausible, mais son contrôle d'accès doit être établi par le domaine propriétaire avant toute création suivie d'une entrée."
+        },
+        aiTelemetry: destinationEvaluation.value.aiTelemetry
+      });
+    }
+    const creation = await input.dynamicPlaceRuntime.execute({
+      repository: input.repository,
+      campaignId: input.campaignId,
+      operation: input.operation,
+      rawInput: input.input.rawInput,
+      interpretation,
+      domainCommand,
+      activeScene: input.activeScene,
+      destinationDecision: destinationEvaluation?.value.decision
     });
     if (!creation.ok) return creation;
     return buildSceneChangeControllerResult({
@@ -1964,7 +2336,10 @@ async function buildResolvedOutput(input: {
       planningMs,
       resolutionStartedAt,
       resolvedOutputStartedAt,
-      change: creation.value,
+      change: {
+        ...creation.value,
+        aiTelemetry: [...(destinationEvaluation?.value.aiTelemetry ?? []), ...(creation.value.aiTelemetry ?? [])]
+      },
       safetyNote: "Lieu dynamique créé par la capacité dédiée et rendu après commit confirmé."
     });
   }
@@ -2118,6 +2493,234 @@ async function buildResolvedOutput(input: {
         },
         aiTelemetry: [...(interpretationResult?.telemetry ?? []), ...(npcPerformance?.telemetry ?? [])]
       }
+    }
+  };
+}
+
+function buildDestinationDecisionControllerResult(input: {
+  input: Parameters<typeof buildResolvedOutput>[0];
+  interpretation: NarrativeIntentInterpretationV1 & JsonObject;
+  domainCommand: NarrativeDomainCommandV1 | null;
+  planning: { plan: (MjPlannerPayloadV1 & JsonObject) | null; planningFailure: MjPlanningFailureV1 | null } | null;
+  interpretationResult: { telemetry: AiCallTelemetryV1[] } | null;
+  interpretationMs: number;
+  planningMs: number;
+  resolutionStartedAt: number;
+  resolvedOutputStartedAt: number;
+  decision: DestinationPlausibilityDecisionV1;
+  aiTelemetry: AiCallTelemetryV1[];
+}): Result<{ output: NarrativeTurnControllerOutputV1; commit: null }> {
+  const operationId = input.input.operation.operationId;
+  const clarify = input.decision.outcome === "CLARIFY";
+  const suspendedIntent = clarify
+    ? createSuspendedIntentRecordV1({
+        suspendedIntentId: `${operationId}:suspended:destination`,
+        operationId,
+        rawInput: input.input.input.rawInput,
+        interpretation: input.interpretation,
+        createdAt: input.input.createdAt,
+        missingField: "destination",
+        question: input.decision.reason
+      }) as SuspendedIntentRecordV1 & JsonObject
+    : null;
+  const handoff = input.decision.outcome === "TRAVEL_REQUIRED" || input.decision.outcome === "USE_KNOWN_DESTINATION"
+    ? { target: "WORLD" as const, reason: input.decision.reason, blockedCommit: true as const }
+    : null;
+  const resolution: NarrativeResolutionResultV1 = {
+    schemaVersion: 1,
+    contractVersion: "narrative-resolution/1",
+    resolutionId: `${operationId}:resolution:destination-decision`,
+    operationId,
+    resultKind: clarify ? "CLARIFICATION_REQUIRED" : handoff === null ? "NO_COMMIT_RESPONSE" : "HANDOFF_REQUIRED",
+    interpretation: input.interpretation,
+    domainCommand: input.domainCommand,
+    characterExpression: null,
+    preparedEffects: [],
+    handoff,
+    commitId: null,
+    noGameTime: true,
+    safetyNotes: [`Destination ${input.decision.outcome}; aucune création ni dépense de temps.`],
+    actionAdjudication: null,
+    perception: null
+  };
+  const sourceRefs = input.decision.sourceRefs.length > 0
+    ? input.decision.sourceRefs
+    : [`operation:${operationId}:destination-decision`];
+  const displayPacket: DisplayPacketV1 & JsonObject = {
+    schemaVersion: 1,
+    contractVersion: SCENE_SOCIAL_UI_CONTRACT_VERSION_V1,
+    operationId,
+    sceneId: input.input.activeScene.sceneId,
+    displayBlocks: [{
+      blockId: `${operationId}:destination-decision`,
+      kind: clarify ? "CLARIFICATION" : "SYSTEM_NOTICE",
+      speaker: {
+        speakerId: "speaker-gm",
+        kind: "GM",
+        displayName: "MJ",
+        roleLabel: "Décision de destination",
+        ariaLabel: "Décision de destination",
+        visualToken: "speaker-gm"
+      },
+      text: input.decision.reason,
+      ariaLabel: `Décision de destination: ${input.decision.outcome}`,
+      roleLabel: "Décision de destination",
+      visualStyleToken: "speaker-gm",
+      sourceRefs,
+      isDegradedFallback: false
+    }],
+    rawInputAccess: { available: true, operationId },
+    rhythmDiagnostics: `destination-decision:${input.decision.code}`,
+    reconstructionRefs: sourceRefs,
+    version: 1
+  };
+  return {
+    ok: true,
+    value: {
+      commit: null,
+      output: {
+        schemaVersion: 1,
+        contractVersion: "narrative-turn-controller/1",
+        operationId,
+        clientRequestId: input.input.input.clientRequestId,
+        noCommit: true,
+        noGameTime: true,
+        interpretation: input.interpretation,
+        domainCommand: input.domainCommand,
+        mjPlan: input.planning?.plan ?? null,
+        mjPlannerFailure: input.planning?.planningFailure as (MjPlanningFailureV1 & JsonObject) | null ?? null,
+        npcPerformance: null,
+        npcPerformanceFailure: null,
+        suspendedIntent,
+        pendingSkillCheck: null,
+        resolution,
+        sceneState: createInitialReferenceSceneStateV1(),
+        sceneArrival: null,
+        activeScene: input.input.activeScene,
+        displayPacket,
+        stageTimings: {
+          interpretationMs: input.interpretationMs,
+          planningMs: input.planningMs,
+          resolutionMs: Date.now() - input.resolutionStartedAt,
+          npcPerformanceMs: 0,
+          resolvedOutputMs: Date.now() - input.resolvedOutputStartedAt
+        },
+        aiTelemetry: [...(input.interpretationResult?.telemetry ?? []), ...input.aiTelemetry]
+      }
+    }
+  };
+}
+
+async function recoverCommittedPendingRenderV1(input: {
+  repository: CampaignRepository;
+  operation: OperationRecord;
+  input: NarrativeTurnInputV1;
+  activeScene: PlayableSceneStateV1;
+}): Promise<Result<NarrativeTurnControllerOutputV1>> {
+  if (input.operation.commitId === null) {
+    return { ok: false, error: coreError("CAMPAIGN_INTEGRITY_FAILURE", "narrative.recovery.commit-id-missing") };
+  }
+  const commit = await input.repository.getCommit(input.operation.commitId);
+  if (!commit.ok) return commit;
+  const positionWrite = commit.value.aggregateWrites.find(write => write.aggregateType === "world.position");
+  const lifecycleWrite = commit.value.aggregateWrites.find(write => write.aggregateType === "scene.lifecycle");
+  if (positionWrite === undefined || lifecycleWrite === undefined) {
+    return { ok: false, error: coreError("CAMPAIGN_INTEGRITY_FAILURE", "narrative.recovery.arrival-writes-missing", { commitId: commit.value.commitId }) };
+  }
+  const [position, lifecycle] = await Promise.all([
+    input.repository.getAggregate(commit.value.campaignId, "world.position", positionWrite.aggregateId),
+    input.repository.getAggregate(commit.value.campaignId, "scene.lifecycle", lifecycleWrite.aggregateId)
+  ]);
+  if (!position.ok) return position;
+  if (!lifecycle.ok) return lifecycle;
+  const authoritySourceRefs = input.activeScene.aiSceneWriterPolicy.mayReference.length > 0
+    ? input.activeScene.aiSceneWriterPolicy.mayReference
+    : [`commit:${commit.value.commitId}`];
+  const arrival = buildSceneArrivalAfterCommitV1({
+    commit: commit.value,
+    positionAggregate: position.value,
+    sceneLifecycleAggregate: lifecycle.value,
+    destinationScene: input.activeScene,
+    authoritySourceRefs
+  });
+  if (!arrival.ok) {
+    return { ok: false, error: coreError("CAMPAIGN_INTEGRITY_FAILURE", "narrative.recovery.arrival-invalid", { commitId: commit.value.commitId, issues: arrival.issues }) };
+  }
+  const interpretation = interpretNarrativeInputV1({
+    intentId: `${input.operation.operationId}:intent:recovered`,
+    rawInput: input.input.rawInput
+  }) as NarrativeIntentInterpretationV1 & JsonObject;
+  const domainCommand = buildNarrativeDomainCommandV1(interpretation);
+  const resolution: NarrativeResolutionResultV1 = {
+    schemaVersion: 1,
+    contractVersion: "narrative-resolution/1",
+    resolutionId: `${input.operation.operationId}:resolution:recovered-presentation`,
+    operationId: input.operation.operationId,
+    resultKind: "COMMIT_APPLIED",
+    interpretation,
+    domainCommand,
+    characterExpression: null,
+    preparedEffects: [],
+    handoff: null,
+    commitId: commit.value.commitId,
+    noGameTime: false,
+    safetyNotes: ["Le commit avait déjà réussi; seule une présentation sobre a été reconstruite."],
+    actionAdjudication: null,
+    perception: null
+  };
+  const sourceRefs = arrival.value.reconstructionRefs;
+  const displayPacket: DisplayPacketV1 & JsonObject = {
+    schemaVersion: 1,
+    contractVersion: SCENE_SOCIAL_UI_CONTRACT_VERSION_V1,
+    operationId: input.operation.operationId,
+    sceneId: input.activeScene.sceneId,
+    displayBlocks: [{
+      blockId: `${input.operation.operationId}:recovered-arrival`,
+      kind: "GM_NARRATION",
+      speaker: {
+        speakerId: "speaker-gm",
+        kind: "GM",
+        displayName: "MJ",
+        roleLabel: "Maître du jeu",
+        ariaLabel: "Maître du jeu",
+        visualToken: "speaker-gm"
+      },
+      text: `La transition déjà validée est restaurée. Tu te trouves désormais à ${input.activeScene.locationName}.`,
+      ariaLabel: "Arrivée restaurée après commit",
+      roleLabel: "Arrivée restaurée",
+      visualStyleToken: "speaker-gm",
+      sourceRefs,
+      isDegradedFallback: true
+    }],
+    rawInputAccess: { available: true, operationId: input.operation.operationId },
+    rhythmDiagnostics: "committed-pending-render-recovered",
+    reconstructionRefs: sourceRefs,
+    version: 1
+  };
+  return {
+    ok: true,
+    value: {
+      schemaVersion: 1,
+      contractVersion: "narrative-turn-controller/1",
+      operationId: input.operation.operationId,
+      clientRequestId: input.input.clientRequestId,
+      noCommit: false,
+      noGameTime: false,
+      interpretation,
+      domainCommand,
+      mjPlan: null,
+      mjPlannerFailure: null,
+      npcPerformance: null,
+      npcPerformanceFailure: null,
+      suspendedIntent: null,
+      pendingSkillCheck: null,
+      resolution,
+      sceneState: createInitialReferenceSceneStateV1(),
+      sceneArrival: arrival.value,
+      activeScene: input.activeScene,
+      displayPacket,
+      stageTimings: { interpretationMs: 0, planningMs: 0, resolutionMs: 0, npcPerformanceMs: 0, resolvedOutputMs: 0 },
+      aiTelemetry: []
     }
   };
 }

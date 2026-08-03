@@ -9,6 +9,7 @@ import {
   type LoreGuidedPlaceCandidateV2,
   type LoreGuidedSceneCreationBriefV1
 } from "./loreGuidedSceneCreation";
+import type { SceneCreatorEpistemicContextV1 } from "./sceneCreatorEpistemicContext";
 
 export const LORE_GUIDED_PLACE_CANDIDATE_CONTRACT_V1 = "lore-guided-place-candidate/1" as const;
 export const LORE_GUIDED_PLACE_CANDIDATE_CONTRACT_V2 = "lore-guided-place-candidate/2" as const;
@@ -39,6 +40,8 @@ export async function generateLoreGuidedPlaceCandidateV1(input: {
   allowedParentLocationRefs: string[];
   allowedPersistenceDepths: Array<"LIGHT_REFERENCE" | "FULL_ENTITY">;
   requestedDestinationDescription: string;
+  requestedDestinationName?: string | null;
+  epistemicContext?: SceneCreatorEpistemicContextV1;
   config: LoreGuidedPlaceCandidateGeneratorConfigV1;
 }): Promise<LoreGuidedPlaceCandidateGenerationResultV1> {
   const request = await buildRequest(input);
@@ -66,6 +69,8 @@ export async function generateLoreGuidedPlaceCandidateV2(input: {
   allowedParentLocationRefs: string[];
   allowedPersistenceDepths: Array<"LIGHT_REFERENCE" | "FULL_ENTITY">;
   requestedDestinationDescription: string;
+  requestedDestinationName?: string | null;
+  epistemicContext?: SceneCreatorEpistemicContextV1;
   config: LoreGuidedPlaceCandidateGeneratorConfigV2;
 }): Promise<
   | { ok: true; candidate: LoreGuidedPlaceCandidateV2; proposal: DynamicCreationProposalV1; telemetry: AiCallTelemetryV1[] }
@@ -115,22 +120,33 @@ async function buildRequest(input: {
   allowedParentLocationRefs: string[];
   allowedPersistenceDepths: Array<"LIGHT_REFERENCE" | "FULL_ENTITY">;
   requestedDestinationDescription: string;
+  requestedDestinationName?: string | null;
+  epistemicContext?: SceneCreatorEpistemicContextV1;
   config: LoreGuidedPlaceCandidateGeneratorConfigV1 | LoreGuidedPlaceCandidateGeneratorConfigV2;
 }, contractVersion: typeof LORE_GUIDED_PLACE_CANDIDATE_CONTRACT_V1 | typeof LORE_GUIDED_PLACE_CANDIDATE_CONTRACT_V2 = LORE_GUIDED_PLACE_CANDIDATE_CONTRACT_V1): Promise<AiCallRequestV1> {
   const roleContextPack = {
     schemaVersion: 1,
     authority: "PROPOSE_ONLY",
     brief: buildSceneCreatorBriefViewV1(input.brief),
+    epistemicContext: input.epistemicContext ?? {
+      schemaVersion: 1,
+      authoritativeTruths: [],
+      campaignCommitments: [],
+      attributedTestimonies: [],
+      testimonyPolicy: "ATTRIBUTED_SPEECH_NEVER_OBJECTIVE_TRUTH",
+      authority: "SEPARATED_SCENE_CREATION_CONTEXT"
+    },
     sourceSceneId: input.sourceSceneId,
     sourceBoundaryRef: input.sourceBoundaryRef,
     allowedParentLocationRefs: [...input.allowedParentLocationRefs],
     allowedPersistenceDepths: [...input.allowedPersistenceDepths],
     requestedDestinationDescription: input.requestedDestinationDescription,
+    requestedDestinationName: input.requestedDestinationName ?? null,
     constraints: contractVersion === LORE_GUIDED_PLACE_CANDIDATE_CONTRACT_V2
       ? ["no commit", "no secret reveal", "populationRoles must be short singular role labels without actions or descriptions", "no durable NPC materialization", "no topology proposal", "requestedDepth must be one of allowedPersistenceDepths", "parentLocationRef must be one of allowedParentLocationRefs"]
       : ["no commit", "no secret reveal", "populationRoles must be short singular role labels without actions or descriptions", "no durable NPC materialization", "sourceRefs required on topology", "requestedDepth must be one of allowedPersistenceDepths", "parentLocationRef must be one of allowedParentLocationRefs", "the incoming connection must use sourceSceneId and sourceBoundaryRef exactly"]
   };
-  const task = { requiredOutput: LORE_GUIDED_PLACE_CANDIDATE_CONTRACT_V1 };
+  const task = { requiredOutput: contractVersion };
   return {
     schemaVersion: 1,
     callId: `${input.operationId}:ai:scene-creator:call`,

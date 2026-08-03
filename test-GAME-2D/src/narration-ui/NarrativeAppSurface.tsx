@@ -60,7 +60,8 @@ import {
   buildOpenAiIntentInterpreterConfigV1,
   buildOpenAiMjPlannerConfigV1,
   buildOpenAiNpcPerformerConfigV1,
-  buildOpenAiSceneCreatorConfigV2
+  buildOpenAiSceneCreatorConfigV2,
+  buildOpenAiDestinationPlausibilityArbiterConfigV1
 } from "./openAiNarrativeRuntimeConfig";
 import { ServerOpenAiEnhancementProviderV1 } from "./serverOpenAiEnhancementClient";
 import type {
@@ -387,10 +388,12 @@ export function NarrativeAppSurface(props: {
       setCurrentScene(archivePilot.scene);
       const dynamicPlaceRuntime = enhancementMode === "openai" ? createCampaignLoreGuidedDynamicPlaceRuntimeV1({
         resolveLorePacket: sceneId => archivePilot.lorePacketBySceneId.get(sceneId) ?? null,
+        resolveLorePacketByAnchor: anchorEntityId => archivePilot.packetByEntityId.get(anchorEntityId) ?? null,
         resolveAuthoredSceneLocationRef: sceneId => archivePilot.locationRefBySceneId.get(sceneId) ?? null,
         knownAuthoredSceneIds: archivePilot.scenes.map(scene => scene.sceneId),
         knownAuthoredPlaces: archivePilot.authoredPlaces,
-        generatorConfig: buildOpenAiSceneCreatorConfigV2()
+        generatorConfig: buildOpenAiSceneCreatorConfigV2(),
+        destinationArbiterConfig: buildOpenAiDestinationPlausibilityArbiterConfigV1()
       }) : null;
       const sceneTransitionRuntime = createCatalogSceneTransitionRuntimeV1({
         async resolveSource(sceneId, context) {

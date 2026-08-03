@@ -117,38 +117,49 @@ La gate rejette :
 
 Une acceptation produit uniquement `READY_FOR_PLACE_COMMAND`, des additions topologiques proposées et `commitAuthority=false`. Les validateurs déclarés sont `WorldDomain`, `SceneDomain` et `CampaignFactDomain`.
 
-## Portée réelle de la plausibilité d'une destination joueur
+## Décision de plausibilité d'une destination joueur
 
-Le runtime actif distingue deux situations :
+`destination-plausibility/1` intervient désormais avant `scene_creator`. Il
+distingue une sortie visible déclarée, un lieu connu, un nom propre inconnu et
+une demande descriptive. La décision locale consulte l'index commun des lieux
+auteurs et dynamiques, leur parent et la topologie. Elle rend sans commit :
 
-- une sortie visible expose une destination publique encore absente de la
-  topologie : le `scene_creator` peut matérialiser cette destination ;
-- l'interpréteur propose une destination locale non encore référencée sous la
-  forme `requested-destination:*` : le même pipeline créatif peut actuellement
-  être ouvert.
+- `USE_KNOWN_DESTINATION` pour un lieu identifié localement ;
+- `CREATE_LOCAL` pour une sortie publique à matérialiser ;
+- `CLARIFY` pour une identité, une échelle ou un doublon probable ambigu ;
+- `TRAVEL_REQUIRED` pour une destination distante ;
+- `REJECT_CONTRADICTION` avec ses sources ;
+- `ARBITRATION_REQUIRED` uniquement lorsqu'une appréciation sémantique reste
+  nécessaire.
 
-Les gates actives prouvent la compatibilité avec les contraintes de lore
-transmises, le parent géographique autorisé, la profondeur de persistance, les
-doublons, les identités connues, les connexions et le commit atomique. Pour une
-destination déjà nommée par une sortie visible ou proposée explicitement par le
-joueur, la candidate acceptée doit désormais conserver exactement cette
-identité : demander la « Place des Archives » ne peut plus produire un lieu
-distinct appelé « Passage de la Place des Archives ». Le passage appartient au
-cheminement, pas à l'identité de la destination. Cette fidélité nominale
-n'établit toutefois pas à elle seule que le lieu proposé est plausible.
+Une restriction d'accès ne constitue plus une décision d'existence. Elle est
+transportée séparément sous forme d'`accessHint`, sourcé et explicitement
+`NON_COMMITTABLE_ACCESS_HINT`. Le résultat d'existence peut donc rester
+`CREATE_LOCAL`, mais le contrôleur interdit la création suivie d'une entrée
+automatique tant que le domaine propriétaire n'a pas établi le contrôle.
 
-En revanche, la version actuelle ne produit pas encore de décision structurée
-et indépendante sur la plausibilité sémantique d'un lieu entièrement proposé
-par le joueur. Elle ne classe pas explicitement une demande comme locale,
-lointaine, contradictoire avec le lore, ambiguë ou plausible sous condition. Le
-`scene_creator` reçoit les contraintes et peut refuser une sortie incompatible,
-mais son champ `reason` n'est pas une autorité de plausibilité.
+Le rôle séparé `destination_arbiter` traite ce dernier cas avec le brief de lore
+borné. Sa réponse repasse par un validateur local : parent choisi dans la liste
+autorisée, sources limitées au brief, indice d'accès obligatoirement sourcé et
+source obligatoire pour un refus. Il ne crée rien et n'a pas
+d'autorité de commit. Seul un résultat `CREATE_LOCAL` peut atteindre
+`scene_creator`, et seulement sans indice d'accès encore non autorisé.
 
-Cette limite est importante : les protections topologiques actives ne doivent
-pas être présentées comme une validation complète de la cohérence fictionnelle.
-Un futur contrat devra rendre cette décision explicite avant tout appel de
-création et choisir entre création locale, clarification, handoff de voyage ou
-refus sourcé.
+La route serveur utilise `NARRATION_OPENAI_DESTINATION_ARBITER_MODEL` et
+`NARRATION_OPENAI_DESTINATION_ARBITER_REASONING_EFFORT` lorsqu'ils sont définis,
+puis les réglages OpenAI généraux en repli.
+
+Le budget d'entrée déclaré pour ce rôle est de 8 000 tokens, schéma structuré
+et instructions serveur inclus. La certification live du 2026-08-03 a mesuré
+environ 6 800 tokens d'entrée par décision avec le brief Archives courant. La
+valeur historique de 2 000 ne décrivait que le contexte métier visé, alors que
+la télémétrie fournisseur compte aussi le prompt système et le schéma ; elle ne
+doit plus être utilisée comme budget total du rôle.
+
+Un nom public comme « Place des Archives » reste une identité exacte. Une
+description comme « une rue calme non loin » est conservée séparément : le
+créateur choisit alors un nom propre naturel au lieu d'utiliser la description
+comme nom littéral.
 
 ## Commande `PLACE`
 
@@ -215,16 +226,14 @@ Le `scene_writer` peut référencer les sources committées, mais ne peut ajoute
 
 La rue du test reste une candidate contractuelle et n'est pas ajoutée au wiki ou à IndexedDB.
 
-## Limites avant branchement au contrôleur
+## Limites opérationnelles restantes
 
-- aucun adaptateur concret IndexedDB de `CampaignLoreProjectionReaderV1` n'est encore branché ;
-- la détection de doublon textuel est exacte après normalisation, sans rapprochement sémantique ;
-- les adaptateurs de préparation production doivent encore relier le corpus wiki et le domaine monde du prototype à l'assembleur transactionnel ;
-- la candidate IA est couverte par contrat et faux provider, mais sa recette OpenAI live reste à exécuter.
-
-## Prochaine étape
-
-Fournir les adaptateurs de préparation du prototype, puis tester le parcours OpenAI live complet vers un lieu absent de la topologie.
+- la recette OpenAI live reste opt-in et dépend de la configuration locale ;
+- le rapprochement de doublon local est lexical et conservateur ; un cas
+  sémantique incertain est clarifié au lieu de fusionner automatiquement deux
+  lieux ;
+- un handoff `TRAVEL_REQUIRED` n'invente ni trajet ni durée : le processus de
+  voyage propriétaire doit encore accepter et résoudre ce déplacement.
 
 ## Branchement runtime transactionnel
 
@@ -239,6 +248,16 @@ Le contrat est désormais exécuté par `placeCreationRuntime.ts` après validat
 Le contrôleur expose `NarrativeDynamicPlaceRuntimeV1`. Sa méthode `canHandle` reçoit l'intention structurée, la commande de domaine et la scène active : la détection appartient donc au domaine monde, sans analyse lexicale ajoutée au contrôleur. La suite Chromium confirme également qu'un lieu dynamique committé dans IndexedDB est reconstruit par le catalogue sans stockage parallèle ni PNJ implicite.
 
 `dynamicPlaceEntryRuntime.ts` fournit l'assembleur transactionnel de cette capacité. Il fusionne le commit de création avec le segment temporel préparé par le domaine monde, puis ajoute position et cycle de scène. Horloge, lieu, topologie, faits, position et scène active sont ainsi publiés dans un seul commit. Après écriture, les cinq agrégats métier concernés sont relus et la narration d'arrivée n'est construite que si la création et l'entrée portent le même `commitId` confirmé.
+
+Chaque lieu persiste aussi son ancre et sa chaîne géographique de lore. Une scène
+dynamique peut donc demander une nouvelle destination sans perdre le contexte
+qui avait autorisé sa création. Le résolveur de simulation mondiale relit le
+registre pour associer la scène dynamique à son lieu, son parent et sa chaîne.
+
+Si le commit est déjà confirmé mais que la présentation a échoué, un rejeu de
+l'opération en `COMMITTED_PENDING_RENDER` relit le commit, la position et le
+cycle de scène. Il termine en `COMMITTED_DEGRADED` avec une arrivée sobre, sans
+réexécuter `scene_creator` ni recommitter le lieu.
 
 Les `requestId` et `commandId` de cette transition sont dérivés d'une empreinte
 déterministe de l'`operationId`. Ils restent ainsi sous la limite des identifiants

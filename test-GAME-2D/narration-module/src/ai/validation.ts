@@ -486,7 +486,7 @@ function validatePlannerPayload(payload: unknown): string[] {
         issues.push(`${path}: expected object`);
         return;
       }
-      if (!["intent_interpreter", "player_intent_interpreter", "mj_planner", "player_expression_adapter", "npc_performer", "rules_adjudicator", "coherence_critic", "scene_writer", "scene_creator", "clarification_writer"].includes(String(assignment.role))) issues.push(`${path}.role: invalid role`);
+      if (!["intent_interpreter", "player_intent_interpreter", "mj_planner", "player_expression_adapter", "npc_performer", "rules_adjudicator", "coherence_critic", "scene_writer", "scene_creator", "destination_arbiter", "clarification_writer"].includes(String(assignment.role))) issues.push(`${path}.role: invalid role`);
       if (!(assignment.actorId === null || typeof assignment.actorId === "string")) issues.push(`${path}.actorId: expected string or null`);
       issues.push(...validateNonEmptyString(assignment.reason, `${path}.reason`));
     });
@@ -532,6 +532,7 @@ function validateNpcPerformerPayload(payload: unknown, request: AiCallRequestV1)
     "conversationProfile",
     "durableCommitments",
     "knowledgeUsed",
+    "knowledgeClaims",
     "nonVerbalReactions",
     "performanceId",
     "reactionFrame",
@@ -625,6 +626,57 @@ function validateNpcPerformerPayload(payload: unknown, request: AiCallRequestV1)
   if (!isStringArray(typed.durableCommitments) || typed.durableCommitments.length > 0) issues.push("payload.durableCommitments: must be empty");
   if (!isStringArray(typed.revealedRefs) || typed.revealedRefs.length > 0) issues.push("payload.revealedRefs: must be empty");
   if (!isStringArray(typed.knowledgeUsed)) issues.push("payload.knowledgeUsed: expected string array");
+  if (typed.knowledgeClaims !== undefined) {
+    if (!Array.isArray(typed.knowledgeClaims) || typed.knowledgeClaims.length > 4) {
+      issues.push("payload.knowledgeClaims: expected at most four structured claims");
+    } else {
+      const assertionKeys = new Set<string>();
+      const validAssertionKeys = new Set((typed.utterances ?? []).flatMap(utterance =>
+        (utterance.speechActs ?? []).flatMap((speechAct, speechActIndex) =>
+          speechAct.type === "assertion" ? [`${utterance.utteranceId}:${speechActIndex}`] : []
+        )
+      ));
+      const knowledgeEnvelope = isObject(request.input.task)
+        ? (request.input.task as { knowledgeEnvelope?: unknown }).knowledgeEnvelope
+        : null;
+      const allowedSubjectRefs = isObject(knowledgeEnvelope) && Array.isArray(knowledgeEnvelope.allowedSubjectRefs)
+        ? new Set(knowledgeEnvelope.allowedSubjectRefs.filter((ref): ref is string => typeof ref === "string"))
+        : new Set<string>();
+      for (const [index, candidate] of typed.knowledgeClaims.entries()) {
+        const path = `payload.knowledgeClaims[${index}]`;
+        if (!isObject(candidate)) {
+          issues.push(`${path}: expected object`);
+          continue;
+        }
+        issues.push(...exactKeys(candidate, ["speechActIndex", "subject", "utteranceId"], path));
+        issues.push(...validateNonEmptyString(candidate.utteranceId, `${path}.utteranceId`));
+        if (!Number.isInteger(candidate.speechActIndex) || Number(candidate.speechActIndex) < 0) issues.push(`${path}.speechActIndex: expected non-negative integer`);
+        if (!isObject(candidate.subject)) {
+          issues.push(`${path}.subject: expected object`);
+          continue;
+        }
+        issues.push(...exactKeys(candidate.subject, ["kind", "label", "mode", "ref"], `${path}.subject`));
+        if (!["KNOWN_REF", "HYPOTHETICAL_MENTION", "UNRESOLVED"].includes(String(candidate.subject.mode))) issues.push(`${path}.subject.mode: invalid`);
+        if (!["PLACE", "ACTOR", "EVENT", "HISTORY", "PLOT", "OBJECT", "OTHER"].includes(String(candidate.subject.kind))) issues.push(`${path}.subject.kind: invalid`);
+        if (candidate.subject.mode === "KNOWN_REF") {
+          if (typeof candidate.subject.ref !== "string" || candidate.subject.ref.trim().length === 0) issues.push(`${path}.subject.ref: KNOWN_REF requires a ref`);
+        } else if (candidate.subject.ref !== null) issues.push(`${path}.subject.ref: non-known subjects require null`);
+        if (candidate.subject.mode === "HYPOTHETICAL_MENTION" && (typeof candidate.subject.label !== "string" || candidate.subject.label.trim().length === 0)) issues.push(`${path}.subject.label: hypothetical mention requires a label`);
+        if (candidate.subject.label !== null && typeof candidate.subject.label !== "string") issues.push(`${path}.subject.label: expected string or null`);
+        const key = `${candidate.utteranceId}:${candidate.speechActIndex}`;
+        if (assertionKeys.has(key)) issues.push(`${path}: duplicate utterance/speech-act link`);
+        if (!validAssertionKeys.has(key)) issues.push(`${path}: does not reference an assertion`);
+        if (candidate.subject.mode === "KNOWN_REF" && typeof candidate.subject.ref === "string" && !allowedSubjectRefs.has(candidate.subject.ref)) issues.push(`${path}.subject.ref: unsupported known subject ref`);
+        assertionKeys.add(key);
+      }
+      for (const utterance of typed.utterances ?? []) {
+        for (const [speechActIndex, speechAct] of (utterance.speechActs ?? []).entries()) {
+          const key = `${utterance.utteranceId}:${speechActIndex}`;
+          if (speechAct.type === "assertion" && !assertionKeys.has(key)) issues.push(`payload.knowledgeClaims: assertion ${key} requires a subject candidate`);
+        }
+      }
+    }
+  }
   if (!isObject(typed.safetyConstraints)) {
     issues.push("payload.safetyConstraints: expected object");
   } else {
@@ -671,6 +723,13 @@ function validateNpcPerformerPayload(payload: unknown, request: AiCallRequestV1)
       for (const [actIndex, speechAct] of (utterance.speechActs ?? []).entries()) {
         for (const ref of speechAct.sourceRefs ?? []) {
           if (!allowedKnowledgeRefs.has(ref)) issues.push(`payload.utterances[${utteranceIndex}].speechActs[${actIndex}].sourceRefs: unsupported knowledge ref ${ref}`);
+        }
+        const requiredBasisByRef = npcPerformerAuthorizedEpistemicBasis(request);
+        for (const ref of speechAct.sourceRefs ?? []) {
+          const requiredBasis = requiredBasisByRef.get(ref);
+          if (requiredBasis !== undefined && speechAct.epistemicBasis !== requiredBasis) {
+            issues.push(`payload.utterances[${utteranceIndex}].speechActs[${actIndex}].epistemicBasis: ${ref} requires ${requiredBasis}`);
+          }
         }
       }
     }
@@ -927,6 +986,7 @@ export function validateAiRoleOutputEnvelopeV1(output: unknown, request: AiCallR
     if (request.role === "coherence_critic") issues.push(...validateCoherenceCriticPayload(envelope.payload));
     if (request.role === "scene_writer") issues.push(...validateSceneWriterPayload(envelope.payload));
     if (request.role === "scene_creator") issues.push(...validateSceneCreatorPayload(envelope.payload, request));
+    if (request.role === "destination_arbiter") issues.push(...validateDestinationArbiterPayload(envelope.payload, request));
   }
 
   return {
@@ -936,6 +996,58 @@ export function validateAiRoleOutputEnvelopeV1(output: unknown, request: AiCallR
     failureCategory: issues.length === 0 ? null : "SCHEMA_VIOLATION",
     issues
   };
+}
+
+function npcPerformerAuthorizedEpistemicBasis(request: AiCallRequestV1): Map<string, "known" | "believed" | "uncertain"> {
+  const result = new Map<string, "known" | "believed" | "uncertain">();
+  if (!isObject(request.input.task) || !isObject(request.input.task.knowledgeEnvelope)) return result;
+  const knowledge = request.input.task.knowledgeEnvelope.authorizedActorKnowledge;
+  if (!isObject(knowledge)) return result;
+  if (isStringArray(knowledge.knownFactRefs)) knowledge.knownFactRefs.forEach(ref => result.set(ref, "known"));
+  for (const item of Array.isArray(knowledge.resolvedClaims) ? knowledge.resolvedClaims : []) {
+    if (isObject(item) && typeof item.resolutionRef === "string") result.set(item.resolutionRef, "known");
+  }
+  for (const item of Array.isArray(knowledge.claimPerspectives) ? knowledge.claimPerspectives : []) {
+    if (!isObject(item) || typeof item.claimRef !== "string") continue;
+    if (["known", "believed", "uncertain"].includes(String(item.epistemicBasis))) {
+      result.set(item.claimRef, item.epistemicBasis as "known" | "believed" | "uncertain");
+    }
+  }
+  for (const item of Array.isArray(knowledge.legacyBeliefs) ? knowledge.legacyBeliefs : []) {
+    if (isObject(item) && typeof item.beliefRef === "string") result.set(item.beliefRef, "believed");
+  }
+  return result;
+}
+
+function validateDestinationArbiterPayload(payload: unknown, request: AiCallRequestV1): string[] {
+  if (!isObject(payload)) return ["payload: expected object"];
+  const issues = exactKeys(payload, ["accessHint", "allowedParentLocationRef", "outcome", "reason", "sourceRefs"], "payload");
+  const outcomes = ["CREATE_LOCAL", "CLARIFY", "TRAVEL_REQUIRED", "REJECT_CONTRADICTION"];
+  if (!outcomes.includes(String(payload.outcome))) issues.push("payload.outcome: invalid destination decision");
+  issues.push(...validateNonEmptyString(payload.reason, "payload.reason"));
+  if (!(payload.allowedParentLocationRef === null || typeof payload.allowedParentLocationRef === "string" && payload.allowedParentLocationRef.trim().length > 0)) issues.push("payload.allowedParentLocationRef: expected null or non-empty string");
+  if (!isStringArray(payload.sourceRefs)) issues.push("payload.sourceRefs: expected string array");
+  const roleContextPack = isObject(request.input.roleContextPack) ? request.input.roleContextPack : null;
+  const allowedParents = roleContextPack && isStringArray(roleContextPack.allowedParentLocationRefs) ? roleContextPack.allowedParentLocationRefs : [];
+  const allowedSources = roleContextPack && isStringArray(roleContextPack.allowedSourceRefs) ? roleContextPack.allowedSourceRefs : [];
+  if (payload.outcome === "CREATE_LOCAL" && !allowedParents.includes(String(payload.allowedParentLocationRef))) issues.push("payload.allowedParentLocationRef: not allowed by destination context");
+  if (payload.outcome !== "CREATE_LOCAL" && payload.allowedParentLocationRef !== null) issues.push("payload.allowedParentLocationRef: must be null unless outcome is CREATE_LOCAL");
+  if (payload.outcome === "REJECT_CONTRADICTION" && (!isStringArray(payload.sourceRefs) || payload.sourceRefs.length === 0)) issues.push("payload.sourceRefs: sourced refusal required");
+  if (payload.accessHint !== null) {
+    if (!isObject(payload.accessHint)) issues.push("payload.accessHint: expected object or null");
+    else {
+      issues.push(...exactKeys(payload.accessHint, ["authority", "ownerDomain", "reason", "requirements", "schemaVersion", "sourceRefs", "state"], "payload.accessHint"));
+      if (payload.accessHint.schemaVersion !== 1 || payload.accessHint.authority !== "NON_COMMITTABLE_ACCESS_HINT") issues.push("payload.accessHint: invalid contract");
+      if (!["CONTROLLED", "BLOCKED", "UNKNOWN"].includes(String(payload.accessHint.state))) issues.push("payload.accessHint.state: invalid access state");
+      issues.push(...validateNonEmptyString(payload.accessHint.ownerDomain, "payload.accessHint.ownerDomain"));
+      issues.push(...validateNonEmptyString(payload.accessHint.reason, "payload.accessHint.reason"));
+      if (!isStringArray(payload.accessHint.requirements) || payload.accessHint.requirements.some(value => value.trim().length === 0)) issues.push("payload.accessHint.requirements: expected non-empty string array values");
+      if (!isStringArray(payload.accessHint.sourceRefs) || payload.accessHint.sourceRefs.length === 0) issues.push("payload.accessHint.sourceRefs: supplied lore refs required");
+      if (isStringArray(payload.accessHint.sourceRefs) && payload.accessHint.sourceRefs.some(ref => !allowedSources.includes(ref))) issues.push("payload.accessHint.sourceRefs: contains a source outside the supplied lore brief");
+    }
+  }
+  if (isStringArray(payload.sourceRefs) && payload.sourceRefs.some(ref => !allowedSources.includes(ref))) issues.push("payload.sourceRefs: contains a source outside the supplied lore brief");
+  return issues;
 }
 
 function validateSceneCreatorPayload(payload: unknown, request: AiCallRequestV1): string[] {
