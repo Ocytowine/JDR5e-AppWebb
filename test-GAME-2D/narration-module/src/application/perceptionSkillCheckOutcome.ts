@@ -165,6 +165,7 @@ export function buildPerceptionSkillCheckOwnerResultV1(input: {
         expectedAggregateRevision: input.currentAggregate?.aggregateRevision ?? null
       },
       nextPayload: payload,
+      additionalTargets: [],
       publicSourceRefs: [...input.prepared.narrativeResume.allowedSourceRefs],
       ownerAuthority: true
     }

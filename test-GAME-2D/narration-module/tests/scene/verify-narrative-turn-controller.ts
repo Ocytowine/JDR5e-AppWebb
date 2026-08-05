@@ -513,7 +513,7 @@ async function main(): Promise<void> {
         if (!committed.ok) return committed;
         return { ok: true as const, value: {
           commit: committed.value,
-          resolution: { schemaVersion: 1 as const, accessControlRef: "access-control:test-social", resolutionRef: "social-resolution:test", outcome: "GRANTED" as const, resultingAccessState: "OPEN" as const, playerFacingResponse: "Très bien. Vous pouvez passer.", conditionRef: null, checkProposalRef: null, commitId: committed.value.commitId, replayed: false },
+          resolution: { schemaVersion: 1 as const, accessControlRef: "access-control:test-social", resolutionRef: "social-resolution:test", playerActorRef: "actor:hero", respondingActorRef: "actor:guard", outcome: "GRANTED" as const, resultingAccessState: "OPEN" as const, playerFacingResponse: "Très bien. Vous pouvez passer.", conditionRef: null, checkProposalRef: null, checkPolicy: null, commitId: committed.value.commitId, replayed: false },
           characterExpression: input.rawInput,
           respondingActorRef: "actor:guard",
           respondingActorName: "Le garde",

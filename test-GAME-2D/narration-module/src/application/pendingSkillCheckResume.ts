@@ -2,6 +2,7 @@ import {
   computeRequestFingerprint,
   coreError,
   opaqueId,
+  type AggregateRecord,
   type AggregateId,
   type CampaignId,
   type CampaignRepository,
@@ -44,6 +45,17 @@ import {
   PROTOTYPE_CAMPAIGN_RUNTIME_BINDINGS_V1,
   type CampaignRuntimeBindingsV1
 } from "./campaignRuntimeBindings";
+import { loadAccessControlRegistryV1 } from "./accessControlAuthority";
+import { loadSocialAccessAttemptRegistryV1 } from "./socialAccessAuthority";
+import {
+  buildSocialAccessSkillCheckOutcomePolicyV1,
+  buildSocialAccessSkillCheckOwnerResultV1
+} from "./socialAccessSkillCheckOutcome";
+import { loadRulesAccessAttemptRegistryV1 } from "./rulesAccessAuthority";
+import {
+  buildRulesAccessSkillCheckOutcomePolicyV1,
+  buildRulesAccessSkillCheckOwnerResultV1
+} from "./rulesAccessSkillCheckOutcome";
 
 export interface ResumePendingSkillCheckCommandV1 {
   schemaVersion: 1;
@@ -60,7 +72,7 @@ export interface ResumePendingSkillCheckResultV1 {
   replayed: boolean;
 }
 
-export async function resumePendingPerceptionSkillCheckV1(input: {
+export async function resumePendingSkillCheckV1(input: {
   repository: CampaignRepository;
   campaignId: CampaignId;
   command: ResumePendingSkillCheckCommandV1;
@@ -70,6 +82,8 @@ export async function resumePendingPerceptionSkillCheckV1(input: {
   runtimeBindings?: CampaignRuntimeBindingsV1;
 }): Promise<Result<ResumePendingSkillCheckResultV1>> {
   const { command, pending } = input;
+  const socialContext = pending.ownerContext?.owner === "SOCIAL_ACCESS" ? pending.ownerContext : null;
+  const rulesContext = pending.ownerContext?.owner === "RULES_ACCESS" ? pending.ownerContext : null;
   const bindings =
     input.runtimeBindings ?? PROTOTYPE_CAMPAIGN_RUNTIME_BINDINGS_V1;
   if (
@@ -123,11 +137,12 @@ export async function resumePendingPerceptionSkillCheckV1(input: {
   );
   if (!clock.ok) return clock;
   const currentGameSecond = Number(clock.value.payload.elapsedGameSeconds);
-  const policy = buildPerceptionSkillCheckOutcomePolicyV1({
-    proposal: pending.proposal,
-    scene: input.scene
-  });
-  if (!policy.ok) return failure("narrative.skill-check.perception-policy-invalid", { issues: policy.issues });
+  const policy = socialContext !== null
+    ? buildSocialAccessSkillCheckOutcomePolicyV1({ context: socialContext })
+    : rulesContext !== null
+      ? buildRulesAccessSkillCheckOutcomePolicyV1({ context: rulesContext })
+      : buildPerceptionSkillCheckOutcomePolicyV1({ proposal: pending.proposal, scene: input.scene });
+  if (!policy.ok) return failure("narrative.skill-check.owner-policy-invalid", { issues: policy.issues });
   const prepared = await prepareSkillCheckOutcomeV1({
     campaignId: input.campaignId,
     proposal: pending.proposal,
@@ -139,21 +154,6 @@ export async function resumePendingPerceptionSkillCheckV1(input: {
     code: prepared.code,
     issues: prepared.issues
   });
-  const ownerAggregateId = opaqueId<AggregateId>(`perception-outcome:${pending.proposal.checkId}`);
-  const ownerAggregate = await optionalAggregate(
-    input.repository,
-    input.campaignId,
-    "perception.check-outcome",
-    ownerAggregateId
-  );
-  if (!ownerAggregate.ok) return ownerAggregate;
-  const ownerResult = buildPerceptionSkillCheckOwnerResultV1({
-    prepared: prepared.value,
-    scene: input.scene,
-    currentAggregate: ownerAggregate.value
-  });
-  if (!ownerResult.ok) return failure("narrative.skill-check.owner-result-invalid", { issues: ownerResult.issues });
-
   const outcomeOperation = await receiveOperation(input.repository, input.campaignId, {
     operationId: `skill-outcome:${normalize(command.clientRequestId)}`,
     clientRequestId: `${normalize(command.clientRequestId)}:outcome`,
@@ -193,6 +193,55 @@ export async function resumePendingPerceptionSkillCheckV1(input: {
       }
     };
   }
+  let ownerAggregate: AggregateRecord | null;
+  let additionalCurrentAggregates: AggregateRecord[] = [];
+  let ownerResult;
+  if (socialContext !== null) {
+    const [accessRegistry, attemptRegistry] = await Promise.all([
+      loadAccessControlRegistryV1(input.repository, input.campaignId),
+      loadSocialAccessAttemptRegistryV1(input.repository, input.campaignId)
+    ]);
+    if (!accessRegistry.ok) return accessRegistry;
+    if (!attemptRegistry.ok) return attemptRegistry;
+    ownerAggregate = attemptRegistry.value.aggregate;
+    const built = buildSocialAccessSkillCheckOwnerResultV1({
+      campaignId: input.campaignId,
+      prepared: prepared.value,
+      context: socialContext,
+      accessRegistryAggregate: accessRegistry.value.aggregate,
+      accessRegistry: accessRegistry.value.state,
+      attemptRegistryAggregate: attemptRegistry.value.aggregate,
+      attemptRegistry: attemptRegistry.value.state
+    });
+    ownerResult = built;
+    if (built.ok) additionalCurrentAggregates = built.additionalCurrentAggregates;
+  } else if (rulesContext !== null) {
+    const [accessRegistry, attemptRegistry] = await Promise.all([
+      loadAccessControlRegistryV1(input.repository, input.campaignId),
+      loadRulesAccessAttemptRegistryV1(input.repository, input.campaignId)
+    ]);
+    if (!accessRegistry.ok) return accessRegistry;
+    if (!attemptRegistry.ok) return attemptRegistry;
+    ownerAggregate = attemptRegistry.value.aggregate;
+    const built = buildRulesAccessSkillCheckOwnerResultV1({
+      campaignId: input.campaignId,
+      prepared: prepared.value,
+      context: rulesContext,
+      accessRegistryAggregate: accessRegistry.value.aggregate,
+      accessRegistry: accessRegistry.value.state,
+      attemptRegistryAggregate: attemptRegistry.value.aggregate,
+      attemptRegistry: attemptRegistry.value.state
+    });
+    ownerResult = built;
+    if (built.ok) additionalCurrentAggregates = built.additionalCurrentAggregates;
+  } else {
+    const loaded = await optionalAggregate(input.repository, input.campaignId, "perception.check-outcome", opaqueId<AggregateId>(`perception-outcome:${pending.proposal.checkId}`));
+    if (!loaded.ok) return loaded;
+    ownerAggregate = loaded.value;
+    ownerResult = buildPerceptionSkillCheckOwnerResultV1({ prepared: prepared.value, scene: input.scene, currentAggregate: ownerAggregate });
+  }
+  if (!ownerResult.ok) return failure("narrative.skill-check.owner-result-invalid", { issues: ownerResult.issues });
+
   let operation = outcomeOperation.value;
   if (operation.phase === "RECEIVED") {
     const preparing = await input.repository.transitionOperation(operation.operationId, "RECEIVED", "PREPARING");
@@ -286,7 +335,8 @@ export async function resumePendingPerceptionSkillCheckV1(input: {
       temporalCommit: temporal.value,
       prepared: prepared.value,
       ownerResult: ownerResult.value,
-      currentTargetAggregate: ownerAggregate.value
+      currentTargetAggregate: ownerAggregate,
+      currentAdditionalTargetAggregates: additionalCurrentAggregates
     });
     if (!atomic.ok) return failure("narrative.skill-check.atomic-commit-invalid", { issues: atomic.issues });
     const committed = await input.repository.commit(atomic.value);
@@ -439,7 +489,18 @@ async function optionalAggregate(
 }
 
 function normalize(value: string): string {
-  return value.toLowerCase().replace(/[^a-z0-9.:-]/gu, "-").slice(0, 96);
+  const normalized = value.toLowerCase().replace(/[^a-z0-9.:-]/gu, "-");
+  if (normalized.length <= 64) return normalized;
+  return `${normalized.slice(0, 55)}:${fnv1a32(normalized)}`;
+}
+
+function fnv1a32(value: string): string {
+  let hash = 0x811c9dc5;
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return (hash >>> 0).toString(16).padStart(8, "0");
 }
 
 function formatSigned(value: number): string {

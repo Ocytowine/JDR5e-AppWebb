@@ -158,7 +158,8 @@ async function findResolutionEvent(
     const page = await repository.listEvents(campaignId, cursor, 1_024);
     if (!page.ok) return page;
     const found = page.value.find(event =>
-      event.eventType === "bastion_defense_resolved"
+      (event.eventType === "bastion_defense_resolved"
+        || event.eventType === "access_tactical_resolved")
       && integrationResult(event.payload)?.processId === processId
     );
     if (found !== undefined) return { ok: true, value: found };

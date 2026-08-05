@@ -6,6 +6,7 @@ import { buildSceneReferentRegistryV1, findSceneReferentByRefV1 } from "./sceneR
 import { buildUnresolvedSkillCheckProposalV1, type SkillCheckProposalV1 } from "./skillCheckProposal";
 import { attachMechanicalCharacterContextV1, type RelevantMechanicalCharacterContextV1 } from "./skillCheckProposal";
 import { assessPerceptionSearchDifficultyV1 } from "./difficultyAssessment";
+import { buildPerceptionCheckIdV1 } from "./perceptionResolution";
 import { selectSkillCheckDifficultyBandV1 } from "./skillCheckProposal";
 
 export const CONTEXTUAL_ACTION_ADJUDICATION_CONTRACT_VERSION_V1 = "contextual-action-adjudication/1" as const;
@@ -60,7 +61,7 @@ export function adjudicateContextualActionV1(input: {
     semantic.perception.informationKind !== "VISIBLE_TRAIT"
   ) {
     const proposal = selectSkillCheckDifficultyBandV1(buildUnresolvedSkillCheckProposalV1({
-      checkId: `${input.interpretation.intentId}:skill-check:1`,
+      checkId: buildPerceptionCheckIdV1(input.scene.sceneId, targetRef ?? "scene"),
       domain: "perception",
       goal: semantic.perception.soughtInformation ?? semantic.perception.focus,
       targetRef,

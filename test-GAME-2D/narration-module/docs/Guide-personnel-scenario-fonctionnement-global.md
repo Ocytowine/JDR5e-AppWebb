@@ -4,7 +4,7 @@ Destinataire : propriétaire du projet
 
 Statut : `DOCUMENT_PERSONNEL_VIVANT_NON_CONTRACTUEL`
 
-Dernière mise à jour : 2026-08-03
+Dernière mise à jour : 2026-08-04
 
 ## Comment lire ce document
 
@@ -241,25 +241,49 @@ Avec une autre approche, le système change de domaine : social pour convaincre,
 perception pour chercher une entrée, règles pour forcer, tactique si un conflit
 est réellement déclenché.
 
-**État : approche inventaire disponible dans le runtime, autres approches en
-résolution progressive.** Devant un seuil compatible, « je tente de présenter
+**État : approche inventaire disponible dans le runtime et premier seuil de
+campagne raccordé.** Devant un seuil compatible, « je tente de présenter
 mon mandat » est envoyé au domaine inventaire sans nouvel appel IA. Le système
 relit le personnage actif, retrouve l'exemplaire réel, vérifie sa quantité,
 son accessibilité, son détenteur, sa validité à l'heure de campagne et son
 périmètre. Le mandat est conservé ; un sceau à usage unique pourrait au
 contraire être consommé. L'objet et l'accès sont mis à jour atomiquement, puis
 le joueur doit encore demander le franchissement. Une campagne doit fournir
-les politiques et justificatifs concrets correspondant à ses objets.
+les politiques et justificatifs concrets correspondant à ses objets. La
+campagne installée fournit maintenant le passage Caserne centrale → Château
+Tharqual, un ordre de passage défini mais non accordé au personnage, ses alias
+et un registre d'émission initialement vide.
 
 Pour une négociation, le garde peut maintenant accorder, refuser, proposer une
 condition ou demander un test. La parole exacte et sa décision sont conservées.
 Seul un accord autoritaire ouvre le passage ; « revenez avec l'accord de ma
 supérieure » n'accomplit pas automatiquement cette condition. Si un test est
-requis, son résultat ne sera raccordé automatiquement à la négociation que
-dans un prochain lot.
+requis, le bouton de jet reprend maintenant la même tentative après un
+éventuel rechargement. Le domaine social transforme la réussite ou l'échec
+mécanique en accord ou refus, puis sauvegarde atomiquement le résultat, le
+temps et l'ouverture éventuelle. Le joueur ne reformule pas sa demande et
+aucun nouvel appel IA n'est ajouté.
 
-La perception, les règles et la tactique restent routées vers leurs
-propriétaires sans succès inventé. La liste des approches demeure non exhaustive.
+À la Caserne centrale, la perception est maintenant jouable sur le passage du
+Château Tharqual. Un regard montre le contrôle, un examen peut contredire
+l'hypothèse d'une porte latérale, et une recherche active demande un jet. Une
+réussite révèle seulement que les gardes répondent au signal de l'officier de
+quart : elle suggère une approche sociale, sans ouvrir le passage. Le résultat
+du jet est restauré après rechargement.
+
+La force brute est aussi jouable sur ce seuil : le domaine relit la Force et
+l'Athlétisme du personnage, propose un DD 20, puis conserve six secondes et le
+fracas produit. Une réussite ouvre le dispositif ; un échec le laisse
+contrôlé. « Je crochète » est refusé tant qu'aucun véritable outil de voleur
+n'est détenu.
+
+L'approche tactique est également jouable. « J'attaque le garde » committe une
+rencontre, sans ouvrir le passage ni faire avancer le temps. Le plateau relit
+le personnage et le garde catalogué, conserve ses checkpoints après
+rechargement et produit seul sa condition terminale. Une victoire validée
+neutralise le contrôle et ouvre le passage ; une défaite le maintient. Les PV,
+le registre d'accès et l'horloge sont intégrés ensemble une seule fois. La
+liste des approches demeure non exhaustive.
 
 ### 10. Le personnage découvre la vérité
 
@@ -298,10 +322,13 @@ produire cette résolution au moment où leur gameplay établit le fait.
   canon ; confirmations, réfutations et reprise sont certifiées localement ;
 - le mensonge volontaire reste interdit dans le performer actif ;
 - existence et accès sont séparés et leur création atomique est certifiée ; le
-  moteurs d'autorisation par inventaire et négociation sont certifiés, mais
-  leurs catalogues concrets restent à fournir par campagne et un test social
-  doit encore reprendre automatiquement la négociation ; perception, règles
-  et tactique doivent encore produire leurs autorisations ;
+  moteurs d'autorisation par inventaire et négociation sont certifiés, y
+  compris la reprise automatique d'un test social ; un premier catalogue
+  concret Caserne centrale → Château Tharqual couvre contrôle, interlocuteur,
+  objet et justificatifs ; la perception du même seuil est certifiée sans
+  mutation arbitraire ; la force par règles est certifiée avec équipement,
+  jet, temps et bruit ; le handoff tactique du seuil est certifié avec
+  checkpoint, outcome propriétaire, temps, ouverture et reprise ;
 - le voyage lointain est reconnu, mais son processus joueur complet reste à
   construire.
 

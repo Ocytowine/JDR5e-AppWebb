@@ -1,6 +1,6 @@
 # Passation : prochains lots des contrôles d'accès
 
-Statut : `PASSATION_ACTIVE_2026-08-03`
+Statut : `LOTS_A_A_F_TERMINES_2026-08-04`
 
 Ce document est destiné à la prochaine conversation de travail. Il complète
 `TASKS.md` sans le remplacer : `TASKS.md` reste le tableau de bord synthétique,
@@ -82,7 +82,7 @@ autorité propriétaire.
 
 ## Ordre recommandé des prochains lots
 
-### Lot A — reprendre automatiquement un test social
+### Lot A — reprendre automatiquement un test social — LIVRÉ LE 2026-08-04
 
 Objectif : lorsqu'une négociation retourne `CHECK_REQUIRED`, proposer le jet,
 conserver le lien avec la tentative sociale puis appliquer son résultat sans
@@ -116,7 +116,13 @@ Critères de fermeture :
 - l'ouverture et la tentative sociale sont causalement traçables ;
 - test navigateur local du bouton de jet si cette surface est modifiée.
 
-### Lot B — fournir les catalogues concrets de campagne
+Résultat : le contexte en attente est propriétaire, le d20 reste unique et
+persistant, puis le domaine social applique `GRANTED` ou `DENIED` dans le même
+commit que le temps et l'ouverture éventuelle. Réussite, échec, rechargement
+et rejeu sont couverts sans reformulation ni appel IA. La surface du bouton
+n'a pas changé.
+
+### Lot B — fournir les catalogues concrets de campagne — TERMINÉ
 
 Objectif : permettre à une vraie campagne d'injecter les politiques et
 résolveurs actuellement abstraits.
@@ -139,7 +145,20 @@ Critères de fermeture : création ou reprise de campagne, résolution réelle,
 rechargement, puis franchissement dans une opération séparée. Ajouter une
 recette navigateur déterministe avant toute certification OpenAI facturée.
 
-### Lot C — approche par perception
+Résultat : la campagne installe le contrôle stable de la connexion
+`lore:caserne_centrale:connection:2`. L'officier de quart est l'acteur social
+habilité ; une persuasion difficile peut accorder une audience sous sa
+responsabilité. L'autre voie accepte uniquement l'ordre
+`obj_ordre_passage_tharqual`, réellement présent et couvert par un justificatif
+actif du bon détenteur et du bon périmètre. Le registre installé commence vide
+et aucune possession n'est ajoutée au personnage.
+
+La recette `npm run narration-module:test:campaign-access-lot-b` couvre
+création, positionnement explicite au seuil lore, objet annoncé mais absent,
+test social déterministe, ouverture atomique, rechargement puis traversée dans
+un tour séparé. Aucun appel OpenAI facturé n'est utilisé.
+
+### Lot C — approche par perception — TERMINÉ
 
 Objectif : permettre de chercher une autre entrée, observer le dispositif ou
 découvrir une propriété pertinente sans décider arbitrairement du succès.
@@ -153,7 +172,19 @@ la seule prose de perception.
 Prévoir au minimum : rien trouvé, information directe, test requis, nouvelle
 approche révélée et contradiction avec l'hypothèse du joueur.
 
-### Lot D — approche par règles
+Résultat : la scène installée de la Caserne centrale porte maintenant des
+indices sourcés sur le seuil vers le Château Tharqual. Le runtime local
+distingue regard, examen attentif et recherche active. La réussite du jet peut
+révéler que l'officier de quart constitue une approche possible ; elle ne crée
+aucune entrée et laisse le contrôle `CONTROLLED`. Les identités de perception
+et de reprise ont été compactées de manière déterministe pour respecter les
+limites des commits de campagne réels.
+
+Les tests `narration-module:test:access-perception` et
+`narration-module:test:campaign-access-lot-c` couvrent les cinq issues, le jet,
+le rechargement et l'absence d'ouverture arbitraire, sans appel OpenAI facturé.
+
+### Lot D — approche par règles — TERMINÉ
 
 Objectif : traiter crochetage, force, outil, sort ou autre action mécanique.
 
@@ -167,7 +198,19 @@ Ne jamais déduire « serrure crochetée » du verbe *crocheter*. Ne pas coder u
 liste fermée de solutions : les règles choisissent le domaine compétent à
 partir de l'intention structurée et de l'état de scène.
 
-### Lot E — approche tactique
+Résultat : `rules` est maintenant un domaine sémantique et un propriétaire de
+résultat de test. La campagne installée propose Force (Athlétisme), DD 20, sur
+le dispositif réel de la Caserne. La tentative est persistée avant le jet ; le
+résultat committé porte six secondes, un bruit fort et l'ouverture ou le
+maintien du contrôle. Le crochetage sans définition concrète d'outils de
+voleur est refusé sans tentative, temps ni possession inventée.
+
+Les tests `narration-module:test:rules-access` et
+`narration-module:test:campaign-access-lot-d` couvrent échec, équipement
+absent, rechargement avant jet, réussite, bruit, temps et restauration, sans
+appel OpenAI facturé.
+
+### Lot E — approche tactique — TERMINÉ
 
 Objectif : appliquer à l'accès un résultat terminal déjà committé par le
 plateau tactique.
@@ -177,13 +220,39 @@ outcome tactique restauré et validé peut modifier les acteurs, le contrôle, l
 temps et la scène. Réutiliser les autorités de checkpoint et de retour tactique
 existantes ; ne pas créer un second mini-moteur de combat dans la narration.
 
-### Lot F — certification transverse multi-régions
+Résultat : le seuil réel Caserne centrale → Château Tharqual accepte maintenant
+le domaine `tactical`. L'intention hostile committe uniquement une graine et un
+processus de handoff. Le plateau existant produit et restaure son checkpoint,
+puis son outcome brut propose séparément les conséquences personnage et accès.
+L'autorité du seuil confronte la condition terminale à la politique installée :
+la victoire ouvre le passage et lève ses exigences ; la défaite maintient le
+contrôle. L'intégration avance le temps, applique les deltas une seule fois et
+rend la conséquence dans le fil narratif.
 
-Après les raccords locaux : certifier au moins deux régions et plusieurs types
-de seuils. La recette doit couvrir refus, solution alternative, condition,
-rechargement, réussite, ouverture puis transition. Une recette OpenAI live ne
-vient qu'après les tests déterministes et ne sert qu'à certifier compréhension
-et qualité de rendu, jamais les autorités.
+Les tests `narration-module:test:tactical-access` et
+`narration-module:test:campaign-access-lot-e` couvrent défaite, absence de
+mutation avant outcome, handoff, ouverture réelle de `GameBoard`, checkpoint,
+rechargement, victoire, temps, ouverture, projection et rejeu.
+
+### Lot F — certification transverse multi-régions — TERMINÉ
+
+Le catalogue jouable installe désormais le seuil militaire de Tharqual en
+Ylsséa et un obstacle naturel canonique en Ardherne. La recette
+`narration-module:test:campaign-access-lot-f` couvre l'objet réellement détenu
+mais refusé par sa politique, l'alternative Force/Athlétisme, l'exigence
+physique et le test en attente, le rechargement, la réussite, l'ouverture sans
+téléportation, la traversée séparée et la restauration de la destination. Elle
+prouve aussi que l'ouverture d'Ardherne ne modifie pas le contrôle de Tharqual.
+
+La matrice détaillée est
+[`Matrice-certification-controles-acces-multi-regions.md`](Matrice-certification-controles-acces-multi-regions.md).
+Les lots A à F sont clos localement et de manière déterministe. La recette
+navigateur OpenAI suivante est également certifiée en live : ordre, unicité et
+plafond des rôles sur action, dialogue, observation, transition et
+clarification. Elle reste une preuve de compréhension et de rendu, jamais une
+autorité métier. La prochaine étape concrète de `TASKS.md` est de définir avec
+chaque propriétaire les commandes joueur encore absentes de l'ontologie
+sémantique : inventaire, progression, bastion et tactique générique.
 
 ## Méthode commune pour chaque lot
 

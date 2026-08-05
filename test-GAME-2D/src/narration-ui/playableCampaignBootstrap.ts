@@ -2,6 +2,7 @@ import {
   buildCampaignProjectedPlayableLoreSceneV1,
   createCampaignLoreGuidedDynamicPlaceRuntimeV1,
   createCatalogSceneTransitionRuntimeV1,
+  createDefaultAiIntentInterpreterConfigV1,
   DYNAMIC_PLACE_FACTS_AGGREGATE_ID_V1,
   DYNAMIC_PLACE_REGISTRY_AGGREGATE_ID_V1,
   DYNAMIC_PLACE_TOPOLOGY_AGGREGATE_ID_V1,
@@ -64,6 +65,11 @@ import { buildInstalledInterpreterCharacterReferenceCatalogV1 } from
 import {
   createInstalledBastionTacticalRuntimeFactoryV1
 } from "./playableCampaignBastionTactical";
+import {
+  applyInstalledAccessPerceptionCatalogV1,
+  createInstalledPlayableAccessRuntimesV1,
+  ensureInstalledPlayableAccessControlsV1
+} from "./playableCampaignAccessCatalog";
 import { WORLD_MAP_LAYOUT } from "../../map-module/data/worldMapLayout";
 import { createWorldStateFromMapLayout } from
   "../../map-module/world-simulation/mapAdapter";
@@ -204,6 +210,20 @@ export async function createPlayableCampaignControllerV1(
       clock,
       topology: archivePilot.topology
     });
+    const bootstrapEvents = await repository.listEvents(campaignId, null, 100);
+    if (!bootstrapEvents.ok) throw new Error(bootstrapEvents.error.messageKey);
+    const bootstrapEvent = bootstrapEvents.value.find(
+      event => event.eventType === "campaign.bootstrapped"
+    );
+    if (bootstrapEvent === undefined) {
+      throw new Error("campaign.bootstrapped-event-missing");
+    }
+    await ensureInstalledPlayableAccessControlsV1({
+      repository,
+      campaignId,
+      sourceOperationId: bootstrapEvent.operationId,
+      occurredAtGameSecond: bootstrapEvent.occurredAtGameSecond
+    });
 
     const resolveSceneById = async (sceneId: string) => {
       const authoredSource =
@@ -225,7 +245,7 @@ export async function createPlayableCampaignControllerV1(
         if (!projected.ok) return projected;
         authoredScene = projected.value.scene;
       }
-      return resolveSceneV1({
+      const resolvedScene = await resolveSceneV1({
         sceneId,
         sources: [{
           sourceKind: "WIKI" as const,
@@ -239,6 +259,17 @@ export async function createPlayableCampaignControllerV1(
           factRegistryAggregateId: DYNAMIC_PLACE_FACTS_AGGREGATE_ID_V1
         }
       });
+      return resolvedScene.ok
+        ? {
+            ok: true as const,
+            value: {
+              ...resolvedScene.value,
+              scene: applyInstalledAccessPerceptionCatalogV1(
+                resolvedScene.value.scene
+              )
+            }
+          }
+        : resolvedScene;
     };
     const activeSceneResolver = {
       async resolve() {
@@ -351,6 +382,9 @@ export async function createPlayableCampaignControllerV1(
         campaign: campaign.value,
         content: installedContent
       });
+    const accessRuntimes = createInstalledPlayableAccessRuntimesV1({
+      repository
+    });
     const controller = new NarrativeTurnControllerV1({
       repository,
       campaignId,
@@ -358,7 +392,9 @@ export async function createPlayableCampaignControllerV1(
       idPrefix: `nar:${campaignId}`,
       runtimeBindings,
       intentInterpreterConfig:
-        mode === "openai" ? buildOpenAiIntentInterpreterConfigV1() : null,
+        mode === "openai"
+          ? buildOpenAiIntentInterpreterConfigV1()
+          : createDefaultAiIntentInterpreterConfigV1(),
       mjPlannerConfig:
         mode === "openai" ? buildOpenAiMjPlannerConfigV1() : undefined,
       npcPerformerConfig:
@@ -367,6 +403,10 @@ export async function createPlayableCampaignControllerV1(
         createInterpreterCharacterContextResolverV1(
           buildInstalledInterpreterCharacterReferenceCatalogV1()
         ),
+      inventoryAccessRuntime: accessRuntimes.inventoryAccessRuntime,
+      socialAccessRuntime: accessRuntimes.socialAccessRuntime,
+      rulesAccessRuntime: accessRuntimes.rulesAccessRuntime,
+      tacticalAccessRuntime: accessRuntimes.tacticalAccessRuntime,
       sceneTransitionRuntime,
       dynamicPlaceRuntime: mode === "openai"
         ? createCampaignLoreGuidedDynamicPlaceRuntimeV1({

@@ -64,6 +64,7 @@ export function buildActiveSceneNarrativeBriefV1(input: {
   const isNoCommitSceneContext = input.resolution.resultKind === "NO_COMMIT_RESPONSE" &&
     (input.interpretation.semanticIntent.kind === "meta_request" ||
       input.interpretation.semanticIntent.kind === "context_question");
+  const asksVisiblePopulation = asksAboutVisiblePopulation(input.rawInput);
   const transitionNarrativeRequired =
     input.interpretation.semanticIntent.kind === "traverse_visible_boundary"
     && input.resolution.commitId !== null;
@@ -72,8 +73,10 @@ export function buildActiveSceneNarrativeBriefV1(input: {
       .find(block => block.kind === "GM_NARRATION")
       ?.text.trim() || null
     : null;
-  const requiredNarrativeGroundingAnyOf = isNoCommitSceneContext
-    ? [sceneRef]
+  const requiredNarrativeGroundingAnyOf = asksVisiblePopulation && actorRefs.length > 0
+    ? actorRefs
+    : isNoCommitSceneContext
+      ? [sceneRef]
     : input.interpretation.semanticIntent.kind === "observe_environment" && targetRef === null
       ? actorRefs.length > 0
           ? actorRefs
@@ -81,11 +84,11 @@ export function buildActiveSceneNarrativeBriefV1(input: {
             ? otherVisibleRefs
             : [sceneRef]
       : [];
-  const requiredNarrativeMentionAnyOf = isNoCommitSceneContext
-    ? [input.activeScene.locationName]
-    : requiredNarrativeGroundingAnyOf.some(ref => ref.startsWith("npc:"))
+  const requiredNarrativeMentionAnyOf = requiredNarrativeGroundingAnyOf.some(ref => ref.startsWith("npc:"))
       ? actorMentions
-      : [];
+      : isNoCommitSceneContext
+        ? [input.activeScene.locationName]
+        : [];
   return {
     schemaVersion: 1,
     contractVersion: "reference-scene-writer-context/1",
@@ -107,6 +110,15 @@ export function buildActiveSceneNarrativeBriefV1(input: {
     transitionNarrativeRequired,
     version: 1
   };
+}
+
+function asksAboutVisiblePopulation(rawInput: string): boolean {
+  const normalized = rawInput
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/gu, "")
+    .toLowerCase();
+  return /\b(vois|voir|observe|regarde|remarque|distingue)\b.*\b(gens|personnes|monde|presences?|silhouettes?|pnj)\b/u.test(normalized)
+    || /\b(qui|quelqu'un|quelqu un)\b.*\b(autour|present|visible)\b/u.test(normalized);
 }
 
 export async function buildActiveSceneContextPackV1(input: {

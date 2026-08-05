@@ -30,7 +30,7 @@ import {
   type TacticalOutcomeV1
 } from "../handoff";
 import {
-  bastionTacticalHandoffAggregateIdV1
+  tacticalHandoffAggregateIdV1
 } from "./bastionIncidentAuthority";
 import type { CampaignRuntimeBindingsV1 } from
   "./campaignRuntimeBindings";
@@ -123,7 +123,7 @@ export async function integratePendingTacticalOutcomeV1(input: {
     input.repository.getAggregate(
       input.campaignId,
       "process.handoff",
-      bastionTacticalHandoffAggregateIdV1(input.processId)
+      tacticalHandoffAggregateIdV1(input.processId)
     ),
     restorePendingTacticalOutcomeV1({
       repository: input.repository,
@@ -200,7 +200,9 @@ export async function integratePendingTacticalOutcomeV1(input: {
     ...cloneJson(rawOutcome),
     domainDeltas: cloneJson(deltas),
     eventDrafts: [{
-      eventType: "bastion_defense_resolved",
+      eventType: candidateResult.value.some(value => value.ownerDomain === "access")
+        ? "access_tactical_resolved"
+        : "bastion_defense_resolved",
       origin: "RULE",
       visibility: "PLAYER_VISIBLE",
       occurredAtGameSecond: integratedAtGameSecond,

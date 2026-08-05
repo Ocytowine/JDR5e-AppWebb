@@ -153,6 +153,7 @@ async function run(): Promise<void> {
       positionRef: "scene:wet-wall:ground",
       lastCheckId: prepared.checkId
     },
+    additionalTargets: [],
     publicSourceRefs: ["scene:wet-wall"],
     ownerAuthority: true
   };

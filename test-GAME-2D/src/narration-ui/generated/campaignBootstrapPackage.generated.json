@@ -1108,6 +1108,16 @@
         "references": []
       },
       {
+        "entryId": "obj_ordre_passage_tharqual",
+        "entryKind": "GAME_CATALOG_ENTRY",
+        "entityType": "game-catalog-entry",
+        "payloadSchemaVersion": 1,
+        "sourcePath": "catalog/obj_ordre_passage_tharqual.json",
+        "sourceFingerprint": "sha256:dafb42a4ffb37b71d5fda9da09defb47c831d0d847bc83ebfccae73c8c0d2266",
+        "payloadFingerprint": "sha256:8a9eb3de987a6f315e5c572dbb521d79a48491372f7d79c77c08da323b6c2a7a",
+        "references": []
+      },
+      {
         "entryId": "obj_petit_couteau",
         "entryKind": "GAME_CATALOG_ENTRY",
         "entityType": "game-catalog-entry",
@@ -1929,6 +1939,52 @@
         ]
       },
       {
+        "entryId": "passage_eboule_du_torrent",
+        "entryKind": "LORE_ENTITY",
+        "entityType": "batiment",
+        "payloadSchemaVersion": 1,
+        "sourcePath": "wiki/lore/territoire/region/Ardherne/bourg_des_forges/batiments/passage_eboule_du_torrent",
+        "sourceFingerprint": "sha256:3b3c454b6977031926e5da4281c6e437bc4350d7e25d5bdc149c43830c123740",
+        "payloadFingerprint": "sha256:2d42c81da10ebfba6dbd660df4324192ae18f6761e55d2d0f63f7c90fbd9f6ff",
+        "references": [
+          {
+            "targetId": "bourg_des_forges",
+            "relation": "lieu_connecte",
+            "strength": "REQUIRED"
+          },
+          {
+            "targetId": "hameau_du_torrent_froid",
+            "relation": "lieu_connecte",
+            "strength": "REQUIRED"
+          },
+          {
+            "targetId": "external:communaute_du_bourg",
+            "relation": "proprietaire_faction",
+            "strength": "OPTIONAL"
+          },
+          {
+            "targetId": "external:abords_du_bourg",
+            "relation": "quartier",
+            "strength": "OPTIONAL"
+          },
+          {
+            "targetId": "ardherne",
+            "relation": "region",
+            "strength": "REQUIRED"
+          },
+          {
+            "targetId": "astryade",
+            "relation": "territoire",
+            "strength": "REQUIRED"
+          },
+          {
+            "targetId": "bourg_des_forges",
+            "relation": "ville",
+            "strength": "REQUIRED"
+          }
+        ]
+      },
+      {
         "entryId": "tour_du_primarque",
         "entryKind": "LORE_ENTITY",
         "entityType": "batiment",
@@ -2363,6 +2419,32 @@
         ]
       },
       {
+        "entryId": "ardherne",
+        "entryKind": "LORE_ENTITY",
+        "entityType": "region",
+        "payloadSchemaVersion": 1,
+        "sourcePath": "wiki/lore/territoire/region/Ardherne/index",
+        "sourceFingerprint": "sha256:a509bed204044c452f4356f1f0c1488f5435844242589d878021a71088da5158",
+        "payloadFingerprint": "sha256:083bfa60a06d7814c1a2ff01e5a281994fda16fe4f58aa244d9125591aed06db",
+        "references": [
+          {
+            "targetId": "astryade",
+            "relation": "territoire",
+            "strength": "REQUIRED"
+          },
+          {
+            "targetId": "bourg_des_forges",
+            "relation": "ville_principale",
+            "strength": "REQUIRED"
+          },
+          {
+            "targetId": "hameau_du_torrent_froid",
+            "relation": "ville_principale",
+            "strength": "REQUIRED"
+          }
+        ]
+      },
+      {
         "entryId": "ylssea",
         "entryKind": "LORE_ENTITY",
         "entityType": "region",
@@ -2392,6 +2474,83 @@
         "sourceFingerprint": "sha256:d381eb4b82510f224c58ff036402778fc6ba54e3df323710ef63f98b8c78ac27",
         "payloadFingerprint": "sha256:9005a2117d311c8fb4995588b74de332a908770c71f6f1dccad138525ae15e32",
         "references": []
+      },
+      {
+        "entryId": "bourg_des_forges",
+        "entryKind": "LORE_ENTITY",
+        "entityType": "ville",
+        "payloadSchemaVersion": 1,
+        "sourcePath": "wiki/lore/territoire/region/Ardherne/bourg_des_forges/index",
+        "sourceFingerprint": "sha256:0037088ec3dbc10b02720f18e50fc076abb6c18cbf03907bff48822b808343db",
+        "payloadFingerprint": "sha256:b03a0a64bf61d54490dfb1e8484f5823db4e1510734cc0c01d39b7039c791411",
+        "references": [
+          {
+            "targetId": "passage_eboule_du_torrent",
+            "relation": "batiment_important",
+            "strength": "REQUIRED"
+          },
+          {
+            "targetId": "ardherne",
+            "relation": "liaison",
+            "strength": "REQUIRED"
+          },
+          {
+            "targetId": "hameau_du_torrent_froid",
+            "relation": "liaison",
+            "strength": "REQUIRED"
+          },
+          {
+            "targetId": "ardherne",
+            "relation": "region",
+            "strength": "REQUIRED"
+          },
+          {
+            "targetId": "external:non_documente",
+            "relation": "siege_pouvoir",
+            "strength": "OPTIONAL"
+          },
+          {
+            "targetId": "astryade",
+            "relation": "territoire",
+            "strength": "REQUIRED"
+          }
+        ]
+      },
+      {
+        "entryId": "hameau_du_torrent_froid",
+        "entryKind": "LORE_ENTITY",
+        "entityType": "ville",
+        "payloadSchemaVersion": 1,
+        "sourcePath": "wiki/lore/territoire/region/Ardherne/hameau_du_torrent_froid/index",
+        "sourceFingerprint": "sha256:a7e9c2352a49c2dc55a5678e2499374829d7c35dbd7437c156fc67006181bbd1",
+        "payloadFingerprint": "sha256:612ced58be7106b4e72dc6c92f9902f171ccaa738c3dce5789f6827aa7c97b79",
+        "references": [
+          {
+            "targetId": "ardherne",
+            "relation": "liaison",
+            "strength": "REQUIRED"
+          },
+          {
+            "targetId": "bourg_des_forges",
+            "relation": "liaison",
+            "strength": "REQUIRED"
+          },
+          {
+            "targetId": "ardherne",
+            "relation": "region",
+            "strength": "REQUIRED"
+          },
+          {
+            "targetId": "external:non_documente",
+            "relation": "siege_pouvoir",
+            "strength": "OPTIONAL"
+          },
+          {
+            "targetId": "astryade",
+            "relation": "territoire",
+            "strength": "REQUIRED"
+          }
+        ]
       },
       {
         "entryId": "lysenthe",
@@ -2525,7 +2684,7 @@
         ]
       }
     ],
-    "rootFingerprint": "sha256:386f2625f699cb0b3df66d20e11a5f6cad55084f51bb80ce5db7aa67079980d1"
+    "rootFingerprint": "sha256:e4c61a26afeb84683a991deb6cb57cd47e2582579eead172f99e132e173790b8"
   },
   "entries": [
     {
@@ -3649,6 +3808,15 @@
       "payload": {
         "schemaVersion": 1,
         "entryId": "obj_insigne_unite"
+      }
+    },
+    {
+      "entryKind": "GAME_CATALOG_ENTRY",
+      "entryId": "obj_ordre_passage_tharqual",
+      "sourceText": "catalog:obj_ordre_passage_tharqual",
+      "payload": {
+        "schemaVersion": 1,
+        "entryId": "obj_ordre_passage_tharqual"
       }
     },
     {
@@ -5061,6 +5229,143 @@
           "packageVersion": 1,
           "sourcePath": "wiki/lore/territoire/region/Ylsséa/Lysenthe/batiments/maison_des_registres",
           "sourceFingerprint": "sha256:00aa88ca9b381c96b5c5afb27ec2ee8f55dd84f6eb22d6405cd4711a9bccd475"
+        }
+      }
+    },
+    {
+      "entryKind": "LORE_ENTITY",
+      "entryId": "passage_eboule_du_torrent",
+      "sourceText": null,
+      "installedSourceFingerprint": "sha256:3b3c454b6977031926e5da4281c6e437bc4350d7e25d5bdc149c43830c123740",
+      "payload": {
+        "schemaVersion": 1,
+        "entityId": "passage_eboule_du_torrent",
+        "entityType": "batiment",
+        "displayName": "Passage éboulé du Torrent-Froid",
+        "attributes": {
+          "acces": "public mais temporairement obstrue",
+          "aliases": [
+            "route du Torrent-Froid",
+            "passage du Torrent-Froid"
+          ],
+          "etat_general": "obstrue par un eboulement recent",
+          "factions_residentes": [],
+          "fonction_principale": [
+            "relier le Bourg des Forges au Hameau du Torrent-Froid"
+          ],
+          "importance_strategique": 45,
+          "informations": [],
+          "lieux_connectes": [
+            "bourg_des_forges",
+            "hameau_du_torrent_froid"
+          ],
+          "mots_cles": [
+            "eboulement",
+            "tronc",
+            "route",
+            "torrent"
+          ],
+          "niveau_securite": 15,
+          "profil_presence": {
+            "ponderation_especes": [
+              {
+                "espece": "humains",
+                "poids": 6
+              },
+              {
+                "espece": "autre",
+                "poids": 3
+              },
+              {
+                "espece": "elfes",
+                "poids": 1
+              }
+            ],
+            "roles_probables": [
+              {
+                "poids": 3,
+                "role": "charretier"
+              },
+              {
+                "poids": 2,
+                "role": "bucheron"
+              },
+              {
+                "poids": 2,
+                "role": "pnj_lambda"
+              }
+            ],
+            "roles_rares": []
+          },
+          "proprietaire_faction": "external:communaute_du_bourg",
+          "proprietaire_principal": "Communauté du Bourg des Forges",
+          "quartier": "external:abords_du_bourg",
+          "region": "ardherne",
+          "resume": "Tronçon de route forestière d'Ardherne où un éboulement a couché un tronc et des blocs entre le Bourg des Forges et le Hameau du Torrent-Froid.",
+          "rumeurs": [],
+          "territoire": "astryade",
+          "type_batiment": "passage routier de montagne",
+          "ville": "bourg_des_forges"
+        },
+        "relations": [
+          {
+            "relation": "lieu_connecte",
+            "targetId": "bourg_des_forges",
+            "targetType": null,
+            "strength": "REQUIRED"
+          },
+          {
+            "relation": "lieu_connecte",
+            "targetId": "hameau_du_torrent_froid",
+            "targetType": null,
+            "strength": "REQUIRED"
+          },
+          {
+            "relation": "proprietaire_faction",
+            "targetId": "external:communaute_du_bourg",
+            "targetType": "faction",
+            "strength": "OPTIONAL"
+          },
+          {
+            "relation": "quartier",
+            "targetId": "external:abords_du_bourg",
+            "targetType": "quartier",
+            "strength": "OPTIONAL"
+          },
+          {
+            "relation": "region",
+            "targetId": "ardherne",
+            "targetType": "region",
+            "strength": "REQUIRED"
+          },
+          {
+            "relation": "territoire",
+            "targetId": "astryade",
+            "targetType": null,
+            "strength": "REQUIRED"
+          },
+          {
+            "relation": "ville",
+            "targetId": "bourg_des_forges",
+            "targetType": "ville",
+            "strength": "REQUIRED"
+          }
+        ],
+        "searchTerms": [
+          "Passage éboulé du Torrent-Froid",
+          "eboulement",
+          "passage du Torrent-Froid",
+          "route",
+          "route du Torrent-Froid",
+          "torrent",
+          "tronc"
+        ],
+        "body": "## [COMMUN] Obstacle visible\r\n\r\nUn tronc lourd et plusieurs blocs ferment la route. Le passage peut être\r\ndégagé par un effort physique adapté, mais une arme ordinaire n'est pas un\r\noutil approprié pour couper ou déplacer l'ensemble sans risque.",
+        "provenance": {
+          "packageId": "jdr5e.production-lore",
+          "packageVersion": 1,
+          "sourcePath": "wiki/lore/territoire/region/Ardherne/bourg_des_forges/batiments/passage_eboule_du_torrent",
+          "sourceFingerprint": "sha256:3b3c454b6977031926e5da4281c6e437bc4350d7e25d5bdc149c43830c123740"
         }
       }
     },
@@ -6658,6 +6963,99 @@
     },
     {
       "entryKind": "LORE_ENTITY",
+      "entryId": "ardherne",
+      "sourceText": null,
+      "installedSourceFingerprint": "sha256:a509bed204044c452f4356f1f0c1488f5435844242589d878021a71088da5158",
+      "payload": {
+        "schemaVersion": 1,
+        "entityId": "ardherne",
+        "entityType": "region",
+        "displayName": "Ardherne",
+        "attributes": {
+          "activites": [
+            "forge",
+            "sculpture sur bois",
+            "artisanat traditionnel"
+          ],
+          "aliases": [],
+          "autorite_locale": null,
+          "climat": "montagneux, forêts denses, rivières froides",
+          "factions_actives": [],
+          "habitats_principaux": [
+            "villages humains et nains"
+          ],
+          "informations": [],
+          "lieux_remarquables": [],
+          "mots_cles": [
+            "montagnes",
+            "artisanat"
+          ],
+          "niveau_controle": "non documente",
+          "peuples_present": [
+            "Humains 50%",
+            "Nains 30%",
+            "Elfes 10%",
+            "Autres 10%"
+          ],
+          "population_estimee": "inconnue",
+          "relief": [
+            "crêtes escarpées",
+            "vallées boisées"
+          ],
+          "ressources": [
+            "bois",
+            "minerai",
+            "artisanat (forge, sculpture)"
+          ],
+          "resume": "Région montagneuse et forestière d'Astryade, connue pour ses communautés humaines et naines et son artisanat.",
+          "risques_naturels": [
+            "éboulements",
+            "avalanches"
+          ],
+          "territoire": "astryade",
+          "type_region": "Montagnes forestières",
+          "villes_principales": [
+            "bourg_des_forges",
+            "hameau_du_torrent_froid"
+          ],
+          "zones_de_loi_faible": []
+        },
+        "relations": [
+          {
+            "relation": "territoire",
+            "targetId": "astryade",
+            "targetType": null,
+            "strength": "REQUIRED"
+          },
+          {
+            "relation": "ville_principale",
+            "targetId": "bourg_des_forges",
+            "targetType": "ville",
+            "strength": "REQUIRED"
+          },
+          {
+            "relation": "ville_principale",
+            "targetId": "hameau_du_torrent_froid",
+            "targetType": "ville",
+            "strength": "REQUIRED"
+          }
+        ],
+        "searchTerms": [
+          "Ardherne",
+          "artisanat",
+          "montagnes"
+        ],
+        "body": "Ardherne est une rǸgion montagneuse, caractǸrisǸe par ses paysages pittoresques, ses forǦts denses et ses rivi��res cristallines. La rǸgion est habitǸe principalement par des communautǸs humaines et naines, qui vivent en harmonie avec la nature environnante. Les habitants d'Ardherne sont connus pour leurs compǸtences artisanales, notamment dans la forge et la sculpture sur bois, perpǸtuant des traditions ancestrales transmises de gǸnǸration en gǸnǸration.",
+        "provenance": {
+          "packageId": "jdr5e.production-lore",
+          "packageVersion": 1,
+          "sourcePath": "wiki/lore/territoire/region/Ardherne/index",
+          "sourceFingerprint": "sha256:a509bed204044c452f4356f1f0c1488f5435844242589d878021a71088da5158"
+        }
+      }
+    },
+    {
+      "entryKind": "LORE_ENTITY",
       "entryId": "ylssea",
       "sourceText": null,
       "installedSourceFingerprint": "sha256:94c4bf8aa92fe971f366e1db59bf751f9e10abeb51808f0d7e456d09ea76cb31",
@@ -6778,6 +7176,317 @@
           "packageVersion": 1,
           "sourcePath": "wiki/lore/territoire/astryade",
           "sourceFingerprint": "sha256:d381eb4b82510f224c58ff036402778fc6ba54e3df323710ef63f98b8c78ac27"
+        }
+      }
+    },
+    {
+      "entryKind": "LORE_ENTITY",
+      "entryId": "bourg_des_forges",
+      "sourceText": null,
+      "installedSourceFingerprint": "sha256:0037088ec3dbc10b02720f18e50fc076abb6c18cbf03907bff48822b808343db",
+      "payload": {
+        "schemaVersion": 1,
+        "entityId": "bourg_des_forges",
+        "entityType": "ville",
+        "displayName": "Bourg des Forges",
+        "attributes": {
+          "aliases": [],
+          "batiments_importants": [
+            "passage_eboule_du_torrent"
+          ],
+          "climat": "montagneux et froid",
+          "composition_population": [
+            "humains et nains majoritaires"
+          ],
+          "corruption": 0,
+          "factions_presentes": [],
+          "informations": [],
+          "liaisons": [
+            "hameau_du_torrent_froid",
+            "ardherne"
+          ],
+          "mots_cles": [
+            "forge",
+            "montagne"
+          ],
+          "niveau_criminalite": 10,
+          "niveau_vie": "modeste",
+          "origine": "communautés humaines et naines d'Ardherne",
+          "particularites_env": [
+            "routes forestières exposées aux éboulements"
+          ],
+          "population_totale": 1800,
+          "profil_langues": {
+            "langues_communes": [
+              "commun"
+            ]
+          },
+          "profil_population": {
+            "especes_dominantes": [
+              "humains",
+              "autre"
+            ],
+            "especes_minoritaires": [
+              "elfes"
+            ],
+            "presence_etrangere": "faible",
+            "roles_communs": [
+              "forgeron",
+              "mineur",
+              "charretier"
+            ]
+          },
+          "profil_presence": {
+            "ponderation_especes": [
+              {
+                "espece": "humains",
+                "poids": 5
+              },
+              {
+                "espece": "autre",
+                "poids": 4
+              },
+              {
+                "espece": "elfes",
+                "poids": 1
+              }
+            ],
+            "roles_probables": [
+              {
+                "poids": 4,
+                "role": "forgeron"
+              },
+              {
+                "poids": 3,
+                "role": "mineur"
+              },
+              {
+                "poids": 2,
+                "role": "charretier"
+              },
+              {
+                "poids": 3,
+                "role": "pnj_lambda"
+              }
+            ],
+            "roles_rares": []
+          },
+          "profil_social": {
+            "culture_autorite": "locale",
+            "hospitalite_envers_etrangers": "prudente",
+            "visibilite_violence": "faible"
+          },
+          "quartiers": [],
+          "region": "ardherne",
+          "religions_principales": [],
+          "resume": "Petite localité d'Ardherne établie au débouché des vallées minières et tournée vers le travail du métal.",
+          "siege_pouvoir": "external:non_documente",
+          "stabilite_sociale": "stable",
+          "tension_ethnique": 0,
+          "territoire": "astryade",
+          "type_gouvernance": "conseil local non documenté",
+          "type_ville": "bourg artisanal de montagne"
+        },
+        "relations": [
+          {
+            "relation": "batiment_important",
+            "targetId": "passage_eboule_du_torrent",
+            "targetType": "batiment",
+            "strength": "REQUIRED"
+          },
+          {
+            "relation": "liaison",
+            "targetId": "ardherne",
+            "targetType": null,
+            "strength": "REQUIRED"
+          },
+          {
+            "relation": "liaison",
+            "targetId": "hameau_du_torrent_froid",
+            "targetType": null,
+            "strength": "REQUIRED"
+          },
+          {
+            "relation": "region",
+            "targetId": "ardherne",
+            "targetType": "region",
+            "strength": "REQUIRED"
+          },
+          {
+            "relation": "siege_pouvoir",
+            "targetId": "external:non_documente",
+            "targetType": "batiment",
+            "strength": "OPTIONAL"
+          },
+          {
+            "relation": "territoire",
+            "targetId": "astryade",
+            "targetType": null,
+            "strength": "REQUIRED"
+          }
+        ],
+        "searchTerms": [
+          "Bourg des Forges",
+          "forge",
+          "montagne"
+        ],
+        "body": "## [COMMUN] Route du Torrent Froid\r\n\r\nLa route forestière qui rejoint le Hameau du Torrent-Froid traverse des pentes\r\ninstables. Après un éboulement, des troncs et des blocs peuvent couper le\r\npassage jusqu'à leur dégagement.",
+        "provenance": {
+          "packageId": "jdr5e.production-lore",
+          "packageVersion": 1,
+          "sourcePath": "wiki/lore/territoire/region/Ardherne/bourg_des_forges/index",
+          "sourceFingerprint": "sha256:0037088ec3dbc10b02720f18e50fc076abb6c18cbf03907bff48822b808343db"
+        }
+      }
+    },
+    {
+      "entryKind": "LORE_ENTITY",
+      "entryId": "hameau_du_torrent_froid",
+      "sourceText": null,
+      "installedSourceFingerprint": "sha256:a7e9c2352a49c2dc55a5678e2499374829d7c35dbd7437c156fc67006181bbd1",
+      "payload": {
+        "schemaVersion": 1,
+        "entityId": "hameau_du_torrent_froid",
+        "entityType": "ville",
+        "displayName": "Hameau du Torrent-Froid",
+        "attributes": {
+          "aliases": [
+            "Torrent-Froid"
+          ],
+          "batiments_importants": [],
+          "climat": "montagneux et froid",
+          "composition_population": [
+            "humains et nains majoritaires"
+          ],
+          "corruption": 0,
+          "factions_presentes": [],
+          "informations": [],
+          "liaisons": [
+            "bourg_des_forges",
+            "ardherne"
+          ],
+          "mots_cles": [
+            "forêt",
+            "torrent"
+          ],
+          "niveau_criminalite": 5,
+          "niveau_vie": "modeste",
+          "origine": "communautés d'Ardherne",
+          "particularites_env": [
+            "rivière froide et forêt dense"
+          ],
+          "population_totale": 420,
+          "profil_langues": {
+            "langues_communes": [
+              "commun"
+            ]
+          },
+          "profil_population": {
+            "especes_dominantes": [
+              "humains",
+              "autre"
+            ],
+            "especes_minoritaires": [
+              "elfes"
+            ],
+            "presence_etrangere": "faible",
+            "roles_communs": [
+              "bûcheron",
+              "artisan",
+              "pnj_lambda"
+            ]
+          },
+          "profil_presence": {
+            "ponderation_especes": [
+              {
+                "espece": "humains",
+                "poids": 5
+              },
+              {
+                "espece": "autre",
+                "poids": 4
+              },
+              {
+                "espece": "elfes",
+                "poids": 1
+              }
+            ],
+            "roles_probables": [
+              {
+                "poids": 4,
+                "role": "bûcheron"
+              },
+              {
+                "poids": 3,
+                "role": "artisan"
+              },
+              {
+                "poids": 3,
+                "role": "pnj_lambda"
+              }
+            ],
+            "roles_rares": []
+          },
+          "profil_social": {
+            "culture_autorite": "locale",
+            "hospitalite_envers_etrangers": "prudente",
+            "visibilite_violence": "faible"
+          },
+          "quartiers": [],
+          "region": "ardherne",
+          "religions_principales": [],
+          "resume": "Hameau forestier d'Ardherne situé en amont du Bourg des Forges, près d'une rivière froide.",
+          "siege_pouvoir": "external:non_documente",
+          "stabilite_sociale": "stable",
+          "tension_ethnique": 0,
+          "territoire": "astryade",
+          "type_gouvernance": "conseil local non documenté",
+          "type_ville": "hameau forestier de montagne"
+        },
+        "relations": [
+          {
+            "relation": "liaison",
+            "targetId": "ardherne",
+            "targetType": null,
+            "strength": "REQUIRED"
+          },
+          {
+            "relation": "liaison",
+            "targetId": "bourg_des_forges",
+            "targetType": null,
+            "strength": "REQUIRED"
+          },
+          {
+            "relation": "region",
+            "targetId": "ardherne",
+            "targetType": "region",
+            "strength": "REQUIRED"
+          },
+          {
+            "relation": "siege_pouvoir",
+            "targetId": "external:non_documente",
+            "targetType": "batiment",
+            "strength": "OPTIONAL"
+          },
+          {
+            "relation": "territoire",
+            "targetId": "astryade",
+            "targetType": null,
+            "strength": "REQUIRED"
+          }
+        ],
+        "searchTerms": [
+          "Hameau du Torrent-Froid",
+          "Torrent-Froid",
+          "forêt",
+          "torrent"
+        ],
+        "body": "## [COMMUN] Liaison avec le Bourg des Forges\r\n\r\nUn chemin de montagne relie le hameau au Bourg des Forges. Il suit le torrent\r\net reste vulnérable aux chutes de pierres et d'arbres.",
+        "provenance": {
+          "packageId": "jdr5e.production-lore",
+          "packageVersion": 1,
+          "sourcePath": "wiki/lore/territoire/region/Ardherne/hameau_du_torrent_froid/index",
+          "sourceFingerprint": "sha256:a7e9c2352a49c2dc55a5678e2499374829d7c35dbd7437c156fc67006181bbd1"
         }
       }
     },
@@ -7390,6 +8099,93 @@
     },
     {
       "schemaVersion": 1,
+      "entityId": "ardherne",
+      "entityType": "region",
+      "displayName": "Ardherne",
+      "attributes": {
+        "activites": [
+          "forge",
+          "sculpture sur bois",
+          "artisanat traditionnel"
+        ],
+        "aliases": [],
+        "autorite_locale": null,
+        "climat": "montagneux, forêts denses, rivières froides",
+        "factions_actives": [],
+        "habitats_principaux": [
+          "villages humains et nains"
+        ],
+        "informations": [],
+        "lieux_remarquables": [],
+        "mots_cles": [
+          "montagnes",
+          "artisanat"
+        ],
+        "niveau_controle": "non documente",
+        "peuples_present": [
+          "Humains 50%",
+          "Nains 30%",
+          "Elfes 10%",
+          "Autres 10%"
+        ],
+        "population_estimee": "inconnue",
+        "relief": [
+          "crêtes escarpées",
+          "vallées boisées"
+        ],
+        "ressources": [
+          "bois",
+          "minerai",
+          "artisanat (forge, sculpture)"
+        ],
+        "resume": "Région montagneuse et forestière d'Astryade, connue pour ses communautés humaines et naines et son artisanat.",
+        "risques_naturels": [
+          "éboulements",
+          "avalanches"
+        ],
+        "territoire": "astryade",
+        "type_region": "Montagnes forestières",
+        "villes_principales": [
+          "bourg_des_forges",
+          "hameau_du_torrent_froid"
+        ],
+        "zones_de_loi_faible": []
+      },
+      "relations": [
+        {
+          "relation": "territoire",
+          "targetId": "astryade",
+          "targetType": null,
+          "strength": "REQUIRED"
+        },
+        {
+          "relation": "ville_principale",
+          "targetId": "bourg_des_forges",
+          "targetType": "ville",
+          "strength": "REQUIRED"
+        },
+        {
+          "relation": "ville_principale",
+          "targetId": "hameau_du_torrent_froid",
+          "targetType": "ville",
+          "strength": "REQUIRED"
+        }
+      ],
+      "searchTerms": [
+        "Ardherne",
+        "artisanat",
+        "montagnes"
+      ],
+      "body": "Ardherne est une rǸgion montagneuse, caractǸrisǸe par ses paysages pittoresques, ses forǦts denses et ses rivi��res cristallines. La rǸgion est habitǸe principalement par des communautǸs humaines et naines, qui vivent en harmonie avec la nature environnante. Les habitants d'Ardherne sont connus pour leurs compǸtences artisanales, notamment dans la forge et la sculpture sur bois, perpǸtuant des traditions ancestrales transmises de gǸnǸration en gǸnǸration.",
+      "provenance": {
+        "packageId": "jdr5e.production-lore",
+        "packageVersion": 1,
+        "sourcePath": "wiki/lore/territoire/region/Ardherne/index",
+        "sourceFingerprint": "sha256:a509bed204044c452f4356f1f0c1488f5435844242589d878021a71088da5158"
+      }
+    },
+    {
+      "schemaVersion": 1,
       "entityId": "astryade",
       "entityType": "royaume",
       "displayName": "Primauté d'Astryade",
@@ -7504,6 +8300,160 @@
         "packageVersion": 1,
         "sourcePath": "wiki/lore/territoire/region/Ylsséa/Lysenthe/quartiers/basse_baie",
         "sourceFingerprint": "sha256:6f37da2ad4ab52d70f3848f4bc2b61eb47855df0eae91bb73ea8c8b369f03aa7"
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "entityId": "bourg_des_forges",
+      "entityType": "ville",
+      "displayName": "Bourg des Forges",
+      "attributes": {
+        "aliases": [],
+        "batiments_importants": [
+          "passage_eboule_du_torrent"
+        ],
+        "climat": "montagneux et froid",
+        "composition_population": [
+          "humains et nains majoritaires"
+        ],
+        "corruption": 0,
+        "factions_presentes": [],
+        "informations": [],
+        "liaisons": [
+          "hameau_du_torrent_froid",
+          "ardherne"
+        ],
+        "mots_cles": [
+          "forge",
+          "montagne"
+        ],
+        "niveau_criminalite": 10,
+        "niveau_vie": "modeste",
+        "origine": "communautés humaines et naines d'Ardherne",
+        "particularites_env": [
+          "routes forestières exposées aux éboulements"
+        ],
+        "population_totale": 1800,
+        "profil_langues": {
+          "langues_communes": [
+            "commun"
+          ]
+        },
+        "profil_population": {
+          "especes_dominantes": [
+            "humains",
+            "autre"
+          ],
+          "especes_minoritaires": [
+            "elfes"
+          ],
+          "presence_etrangere": "faible",
+          "roles_communs": [
+            "forgeron",
+            "mineur",
+            "charretier"
+          ]
+        },
+        "profil_presence": {
+          "ponderation_especes": [
+            {
+              "espece": "humains",
+              "poids": 5
+            },
+            {
+              "espece": "autre",
+              "poids": 4
+            },
+            {
+              "espece": "elfes",
+              "poids": 1
+            }
+          ],
+          "roles_probables": [
+            {
+              "poids": 4,
+              "role": "forgeron"
+            },
+            {
+              "poids": 3,
+              "role": "mineur"
+            },
+            {
+              "poids": 2,
+              "role": "charretier"
+            },
+            {
+              "poids": 3,
+              "role": "pnj_lambda"
+            }
+          ],
+          "roles_rares": []
+        },
+        "profil_social": {
+          "culture_autorite": "locale",
+          "hospitalite_envers_etrangers": "prudente",
+          "visibilite_violence": "faible"
+        },
+        "quartiers": [],
+        "region": "ardherne",
+        "religions_principales": [],
+        "resume": "Petite localité d'Ardherne établie au débouché des vallées minières et tournée vers le travail du métal.",
+        "siege_pouvoir": "external:non_documente",
+        "stabilite_sociale": "stable",
+        "tension_ethnique": 0,
+        "territoire": "astryade",
+        "type_gouvernance": "conseil local non documenté",
+        "type_ville": "bourg artisanal de montagne"
+      },
+      "relations": [
+        {
+          "relation": "batiment_important",
+          "targetId": "passage_eboule_du_torrent",
+          "targetType": "batiment",
+          "strength": "REQUIRED"
+        },
+        {
+          "relation": "liaison",
+          "targetId": "ardherne",
+          "targetType": null,
+          "strength": "REQUIRED"
+        },
+        {
+          "relation": "liaison",
+          "targetId": "hameau_du_torrent_froid",
+          "targetType": null,
+          "strength": "REQUIRED"
+        },
+        {
+          "relation": "region",
+          "targetId": "ardherne",
+          "targetType": "region",
+          "strength": "REQUIRED"
+        },
+        {
+          "relation": "siege_pouvoir",
+          "targetId": "external:non_documente",
+          "targetType": "batiment",
+          "strength": "OPTIONAL"
+        },
+        {
+          "relation": "territoire",
+          "targetId": "astryade",
+          "targetType": null,
+          "strength": "REQUIRED"
+        }
+      ],
+      "searchTerms": [
+        "Bourg des Forges",
+        "forge",
+        "montagne"
+      ],
+      "body": "## [COMMUN] Route du Torrent Froid\r\n\r\nLa route forestière qui rejoint le Hameau du Torrent-Froid traverse des pentes\r\ninstables. Après un éboulement, des troncs et des blocs peuvent couper le\r\npassage jusqu'à leur dégagement.",
+      "provenance": {
+        "packageId": "jdr5e.production-lore",
+        "packageVersion": 1,
+        "sourcePath": "wiki/lore/territoire/region/Ardherne/bourg_des_forges/index",
+        "sourceFingerprint": "sha256:0037088ec3dbc10b02720f18e50fc076abb6c18cbf03907bff48822b808343db"
       }
     },
     {
@@ -8572,6 +9522,151 @@
     },
     {
       "schemaVersion": 1,
+      "entityId": "hameau_du_torrent_froid",
+      "entityType": "ville",
+      "displayName": "Hameau du Torrent-Froid",
+      "attributes": {
+        "aliases": [
+          "Torrent-Froid"
+        ],
+        "batiments_importants": [],
+        "climat": "montagneux et froid",
+        "composition_population": [
+          "humains et nains majoritaires"
+        ],
+        "corruption": 0,
+        "factions_presentes": [],
+        "informations": [],
+        "liaisons": [
+          "bourg_des_forges",
+          "ardherne"
+        ],
+        "mots_cles": [
+          "forêt",
+          "torrent"
+        ],
+        "niveau_criminalite": 5,
+        "niveau_vie": "modeste",
+        "origine": "communautés d'Ardherne",
+        "particularites_env": [
+          "rivière froide et forêt dense"
+        ],
+        "population_totale": 420,
+        "profil_langues": {
+          "langues_communes": [
+            "commun"
+          ]
+        },
+        "profil_population": {
+          "especes_dominantes": [
+            "humains",
+            "autre"
+          ],
+          "especes_minoritaires": [
+            "elfes"
+          ],
+          "presence_etrangere": "faible",
+          "roles_communs": [
+            "bûcheron",
+            "artisan",
+            "pnj_lambda"
+          ]
+        },
+        "profil_presence": {
+          "ponderation_especes": [
+            {
+              "espece": "humains",
+              "poids": 5
+            },
+            {
+              "espece": "autre",
+              "poids": 4
+            },
+            {
+              "espece": "elfes",
+              "poids": 1
+            }
+          ],
+          "roles_probables": [
+            {
+              "poids": 4,
+              "role": "bûcheron"
+            },
+            {
+              "poids": 3,
+              "role": "artisan"
+            },
+            {
+              "poids": 3,
+              "role": "pnj_lambda"
+            }
+          ],
+          "roles_rares": []
+        },
+        "profil_social": {
+          "culture_autorite": "locale",
+          "hospitalite_envers_etrangers": "prudente",
+          "visibilite_violence": "faible"
+        },
+        "quartiers": [],
+        "region": "ardherne",
+        "religions_principales": [],
+        "resume": "Hameau forestier d'Ardherne situé en amont du Bourg des Forges, près d'une rivière froide.",
+        "siege_pouvoir": "external:non_documente",
+        "stabilite_sociale": "stable",
+        "tension_ethnique": 0,
+        "territoire": "astryade",
+        "type_gouvernance": "conseil local non documenté",
+        "type_ville": "hameau forestier de montagne"
+      },
+      "relations": [
+        {
+          "relation": "liaison",
+          "targetId": "ardherne",
+          "targetType": null,
+          "strength": "REQUIRED"
+        },
+        {
+          "relation": "liaison",
+          "targetId": "bourg_des_forges",
+          "targetType": null,
+          "strength": "REQUIRED"
+        },
+        {
+          "relation": "region",
+          "targetId": "ardherne",
+          "targetType": "region",
+          "strength": "REQUIRED"
+        },
+        {
+          "relation": "siege_pouvoir",
+          "targetId": "external:non_documente",
+          "targetType": "batiment",
+          "strength": "OPTIONAL"
+        },
+        {
+          "relation": "territoire",
+          "targetId": "astryade",
+          "targetType": null,
+          "strength": "REQUIRED"
+        }
+      ],
+      "searchTerms": [
+        "Hameau du Torrent-Froid",
+        "Torrent-Froid",
+        "forêt",
+        "torrent"
+      ],
+      "body": "## [COMMUN] Liaison avec le Bourg des Forges\r\n\r\nUn chemin de montagne relie le hameau au Bourg des Forges. Il suit le torrent\r\net reste vulnérable aux chutes de pierres et d'arbres.",
+      "provenance": {
+        "packageId": "jdr5e.production-lore",
+        "packageVersion": 1,
+        "sourcePath": "wiki/lore/territoire/region/Ardherne/hameau_du_torrent_froid/index",
+        "sourceFingerprint": "sha256:a7e9c2352a49c2dc55a5678e2499374829d7c35dbd7437c156fc67006181bbd1"
+      }
+    },
+    {
+      "schemaVersion": 1,
       "entityId": "humains",
       "entityType": "espece",
       "displayName": "Humains",
@@ -9106,6 +10201,137 @@
         "packageVersion": 1,
         "sourcePath": "wiki/lore/territoire/region/Ylsséa/Lysenthe/batiments/maison_des_registres",
         "sourceFingerprint": "sha256:00aa88ca9b381c96b5c5afb27ec2ee8f55dd84f6eb22d6405cd4711a9bccd475"
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "entityId": "passage_eboule_du_torrent",
+      "entityType": "batiment",
+      "displayName": "Passage éboulé du Torrent-Froid",
+      "attributes": {
+        "acces": "public mais temporairement obstrue",
+        "aliases": [
+          "route du Torrent-Froid",
+          "passage du Torrent-Froid"
+        ],
+        "etat_general": "obstrue par un eboulement recent",
+        "factions_residentes": [],
+        "fonction_principale": [
+          "relier le Bourg des Forges au Hameau du Torrent-Froid"
+        ],
+        "importance_strategique": 45,
+        "informations": [],
+        "lieux_connectes": [
+          "bourg_des_forges",
+          "hameau_du_torrent_froid"
+        ],
+        "mots_cles": [
+          "eboulement",
+          "tronc",
+          "route",
+          "torrent"
+        ],
+        "niveau_securite": 15,
+        "profil_presence": {
+          "ponderation_especes": [
+            {
+              "espece": "humains",
+              "poids": 6
+            },
+            {
+              "espece": "autre",
+              "poids": 3
+            },
+            {
+              "espece": "elfes",
+              "poids": 1
+            }
+          ],
+          "roles_probables": [
+            {
+              "poids": 3,
+              "role": "charretier"
+            },
+            {
+              "poids": 2,
+              "role": "bucheron"
+            },
+            {
+              "poids": 2,
+              "role": "pnj_lambda"
+            }
+          ],
+          "roles_rares": []
+        },
+        "proprietaire_faction": "external:communaute_du_bourg",
+        "proprietaire_principal": "Communauté du Bourg des Forges",
+        "quartier": "external:abords_du_bourg",
+        "region": "ardherne",
+        "resume": "Tronçon de route forestière d'Ardherne où un éboulement a couché un tronc et des blocs entre le Bourg des Forges et le Hameau du Torrent-Froid.",
+        "rumeurs": [],
+        "territoire": "astryade",
+        "type_batiment": "passage routier de montagne",
+        "ville": "bourg_des_forges"
+      },
+      "relations": [
+        {
+          "relation": "lieu_connecte",
+          "targetId": "bourg_des_forges",
+          "targetType": null,
+          "strength": "REQUIRED"
+        },
+        {
+          "relation": "lieu_connecte",
+          "targetId": "hameau_du_torrent_froid",
+          "targetType": null,
+          "strength": "REQUIRED"
+        },
+        {
+          "relation": "proprietaire_faction",
+          "targetId": "external:communaute_du_bourg",
+          "targetType": "faction",
+          "strength": "OPTIONAL"
+        },
+        {
+          "relation": "quartier",
+          "targetId": "external:abords_du_bourg",
+          "targetType": "quartier",
+          "strength": "OPTIONAL"
+        },
+        {
+          "relation": "region",
+          "targetId": "ardherne",
+          "targetType": "region",
+          "strength": "REQUIRED"
+        },
+        {
+          "relation": "territoire",
+          "targetId": "astryade",
+          "targetType": null,
+          "strength": "REQUIRED"
+        },
+        {
+          "relation": "ville",
+          "targetId": "bourg_des_forges",
+          "targetType": "ville",
+          "strength": "REQUIRED"
+        }
+      ],
+      "searchTerms": [
+        "Passage éboulé du Torrent-Froid",
+        "eboulement",
+        "passage du Torrent-Froid",
+        "route",
+        "route du Torrent-Froid",
+        "torrent",
+        "tronc"
+      ],
+      "body": "## [COMMUN] Obstacle visible\r\n\r\nUn tronc lourd et plusieurs blocs ferment la route. Le passage peut être\r\ndégagé par un effort physique adapté, mais une arme ordinaire n'est pas un\r\noutil approprié pour couper ou déplacer l'ensemble sans risque.",
+      "provenance": {
+        "packageId": "jdr5e.production-lore",
+        "packageVersion": 1,
+        "sourcePath": "wiki/lore/territoire/region/Ardherne/bourg_des_forges/batiments/passage_eboule_du_torrent",
+        "sourceFingerprint": "sha256:3b3c454b6977031926e5da4281c6e437bc4350d7e25d5bdc149c43830c123740"
       }
     },
     {

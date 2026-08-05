@@ -60,10 +60,12 @@ import {
 import type { SkillCheckProposalV1 } from "./skillCheckProposal";
 import type { D20SourceV1 } from "./diceRollRecord";
 import {
-  resumePendingPerceptionSkillCheckV1,
+  resumePendingSkillCheckV1,
   type ResumePendingSkillCheckCommandV1,
   type ResumePendingSkillCheckResultV1
 } from "./pendingSkillCheckResume";
+import type { PendingSocialAccessSkillCheckContextV1 } from "./socialAccessSkillCheckOutcome";
+import type { PendingRulesAccessSkillCheckContextV1 } from "./rulesAccessSkillCheckOutcome";
 import { adjudicateContextualActionV1 } from "./contextualActionAdjudication";
 import {
   recordNarrativeRenderedProjectionV1,
@@ -79,6 +81,7 @@ import { buildSceneArrivalAfterCommitV1, type SceneArrivalStateV1 } from "./scen
 import type { DestinationPlausibilityDecisionV1 } from "./destinationPlausibility";
 import type { InventoryAccessResolutionResultV1 } from "./inventoryAccessAuthority";
 import type { SocialAccessResolutionResultV1 } from "./socialAccessAuthority";
+import type { BeginRulesAccessCheckResultV1 } from "./rulesAccessAuthority";
 import {
   createPrototypeInnSceneTransitionRuntimeV1,
   ensurePrototypeInnSceneTransitionStateV1,
@@ -208,6 +211,7 @@ import {
   projectAndRecordTacticalOutcomeIntegrationV1
 } from "./tacticalOutcomeIntegrationProjection";
 import type { TacticalOutcomeV1 } from "../handoff";
+import type { StartTacticalAccessHandoffResultV1 } from "./tacticalAccessAuthority";
 
 export interface NarrativeActiveSceneResolverV1 {
   resolve(input: { repository: CampaignRepository; campaignId: CampaignId }): Promise<Result<PlayableSceneStateV1>>;
@@ -315,6 +319,57 @@ export interface NarrativeSocialAccessRuntimeV1 {
   }>>;
 }
 
+export interface NarrativeRulesAccessRuntimeV1 {
+  canHandle?(input: {
+    repository: CampaignRepository;
+    campaignId: CampaignId;
+    rawInput: string;
+    interpretation: NarrativeIntentInterpretationV1;
+    domainCommand: NarrativeDomainCommandV1 | null;
+    activeScene: PlayableSceneStateV1;
+  }): Promise<boolean> | boolean;
+  execute(input: {
+    repository: CampaignRepository;
+    campaignId: CampaignId;
+    operation: OperationRecord;
+    rawInput: string;
+    interpretation: NarrativeIntentInterpretationV1;
+    domainCommand: NarrativeDomainCommandV1 | null;
+    activeScene: PlayableSceneStateV1;
+  }): Promise<Result<{
+    commit: CommitRecord;
+    resolution: BeginRulesAccessCheckResultV1;
+    characterExpression: string;
+    playerFacingText: string;
+    sourceRefs: string[];
+  }>>;
+}
+
+export interface NarrativeTacticalAccessRuntimeV1 {
+  readonly consequenceAuthorities: readonly TacticalConsequenceAuthorityV1[];
+  canHandle?(input: {
+    repository: CampaignRepository;
+    campaignId: CampaignId;
+    rawInput: string;
+    interpretation: NarrativeIntentInterpretationV1;
+    domainCommand: NarrativeDomainCommandV1 | null;
+    activeScene: PlayableSceneStateV1;
+  }): Promise<boolean> | boolean;
+  execute(input: {
+    repository: CampaignRepository;
+    campaignId: CampaignId;
+    operation: OperationRecord;
+    rawInput: string;
+    interpretation: NarrativeIntentInterpretationV1;
+    domainCommand: NarrativeDomainCommandV1 | null;
+    activeScene: PlayableSceneStateV1;
+  }): Promise<Result<StartTacticalAccessHandoffResultV1 & {
+    characterExpression: string;
+    playerFacingText: string;
+    sourceRefs: string[];
+  }>>;
+}
+
 export interface NarrativeTurnInputV1 {
   schemaVersion: 1;
   clientRequestId: string;
@@ -365,6 +420,7 @@ export interface PendingNarrativeSkillCheckV1 extends JsonObject {
   sceneId: string;
   status: "AWAITING_SKILL_ROLL";
   proposal: SkillCheckProposalV1;
+  ownerContext: { owner: "PERCEPTION" } | PendingSocialAccessSkillCheckContextV1 | PendingRulesAccessSkillCheckContextV1;
   createdAt: string;
   commitAuthority: false;
 }
@@ -425,6 +481,8 @@ export interface NarrativeTurnControllerOptions {
   dynamicPlaceRuntime?: NarrativeDynamicPlaceRuntimeV1 | null;
   inventoryAccessRuntime?: NarrativeInventoryAccessRuntimeV1 | null;
   socialAccessRuntime?: NarrativeSocialAccessRuntimeV1 | null;
+  rulesAccessRuntime?: NarrativeRulesAccessRuntimeV1 | null;
+  tacticalAccessRuntime?: NarrativeTacticalAccessRuntimeV1 | null;
   restRuntime?: NarrativeRestRuntimeV1 | null;
   socialInitiativePerformer?: SocialInitiativePerformerV1 | null;
   worldSceneLocationResolver?: NarrativeWorldSceneLocationResolverV1 | null;
@@ -468,6 +526,8 @@ export class NarrativeTurnControllerV1 {
   private readonly dynamicPlaceRuntime: NarrativeDynamicPlaceRuntimeV1 | null;
   private readonly inventoryAccessRuntime: NarrativeInventoryAccessRuntimeV1 | null;
   private readonly socialAccessRuntime: NarrativeSocialAccessRuntimeV1 | null;
+  private readonly rulesAccessRuntime: NarrativeRulesAccessRuntimeV1 | null;
+  private readonly tacticalAccessRuntime: NarrativeTacticalAccessRuntimeV1 | null;
   private readonly restRuntime: NarrativeRestRuntimeV1 | null;
   private readonly socialInitiativePerformer: SocialInitiativePerformerV1 | null;
   private readonly worldSceneLocationResolver: NarrativeWorldSceneLocationResolverV1 | null;
@@ -501,6 +561,8 @@ export class NarrativeTurnControllerV1 {
     this.dynamicPlaceRuntime = options.dynamicPlaceRuntime ?? null;
     this.inventoryAccessRuntime = options.inventoryAccessRuntime ?? null;
     this.socialAccessRuntime = options.socialAccessRuntime ?? null;
+    this.rulesAccessRuntime = options.rulesAccessRuntime ?? null;
+    this.tacticalAccessRuntime = options.tacticalAccessRuntime ?? null;
     this.restRuntime = options.restRuntime ?? null;
     this.socialInitiativePerformer = options.socialInitiativePerformer === undefined
       ? new LocalSocialInitiativePerformerV1()
@@ -516,10 +578,11 @@ export class NarrativeTurnControllerV1 {
         repository: options.repository,
         campaignId: options.campaignId
       }) ?? null;
-    this.tacticalConsequenceAuthorities =
-      options.tacticalConsequenceAuthorities
-      ?? this.bastionTacticalRuntime?.consequenceAuthorities
-      ?? [];
+    this.tacticalConsequenceAuthorities = [
+      ...(options.tacticalConsequenceAuthorities ?? []),
+      ...(this.bastionTacticalRuntime?.consequenceAuthorities ?? []),
+      ...(this.tacticalAccessRuntime?.consequenceAuthorities ?? [])
+    ];
     this.d20Source = options.d20Source;
     this.runtimeBindings =
       options.runtimeBindings ?? PROTOTYPE_CAMPAIGN_RUNTIME_BINDINGS_V1;
@@ -1021,6 +1084,8 @@ export class NarrativeTurnControllerV1 {
       dynamicPlaceRuntime: this.dynamicPlaceRuntime,
       inventoryAccessRuntime: this.inventoryAccessRuntime,
       socialAccessRuntime: this.socialAccessRuntime,
+      rulesAccessRuntime: this.rulesAccessRuntime,
+      tacticalAccessRuntime: this.tacticalAccessRuntime,
       restRuntime: this.restRuntime,
       activeScene
     });
@@ -1108,7 +1173,7 @@ export class NarrativeTurnControllerV1 {
       ? { ok: true as const, value: REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1 }
       : await this.activeSceneResolver.resolve({ repository: this.repository, campaignId: this.campaignId });
     if (!activeScene.ok) return activeScene;
-    return resumePendingPerceptionSkillCheckV1({
+    return resumePendingSkillCheckV1({
       repository: this.repository,
       campaignId: this.campaignId,
       command,
@@ -1562,8 +1627,16 @@ export class NarrativeTurnControllerV1 {
   }
 
   async restorePendingSkillCheck(): Promise<Result<PendingNarrativeSkillCheckV1 | null>> {
-    const operations = await this.repository.listOperations(this.campaignId, "narrative.turn.input", 100);
+    const [operations, outcomes] = await Promise.all([
+      this.repository.listOperations(this.campaignId, "narrative.turn.input", 100),
+      this.repository.listOperations(this.campaignId, "rules.skill-check.commit-outcome", 100)
+    ]);
     if (!operations.ok) return operations;
+    if (!outcomes.ok) return outcomes;
+    const completedCheckIds = new Set(outcomes.value
+      .filter(operation => operation.phase === "COMPLETED")
+      .map(operation => (operation.resultPayload as { checkId?: string } | null)?.checkId)
+      .filter((checkId): checkId is string => typeof checkId === "string"));
     const candidates = [...operations.value]
       .filter(operation => operation.phase === "COMPLETED" && operation.resultPayload !== null)
       .sort((left, right) => right.receivedAt.localeCompare(left.receivedAt));
@@ -1572,13 +1645,7 @@ export class NarrativeTurnControllerV1 {
         pendingSkillCheck?: PendingNarrativeSkillCheckV1 | null;
       }).pendingSkillCheck ?? null;
       if (pending === null) continue;
-      const outcome = await this.repository.getAggregate(
-        this.campaignId,
-        "perception.check-outcome",
-        opaqueId<AggregateId>(`perception-outcome:${pending.proposal.checkId}`)
-      );
-      if (!outcome.ok && outcome.error.code === "NOT_FOUND") return { ok: true, value: pending };
-      if (!outcome.ok) return outcome;
+      if (!completedCheckIds.has(pending.proposal.checkId)) return { ok: true, value: pending };
     }
     return { ok: true, value: null };
   }
@@ -1727,6 +1794,8 @@ export async function createPrototypeNarrativeTurnControllerV1(options: {
   dynamicPlaceRuntime?: NarrativeDynamicPlaceRuntimeV1 | null;
   inventoryAccessRuntime?: NarrativeInventoryAccessRuntimeV1 | null;
   socialAccessRuntime?: NarrativeSocialAccessRuntimeV1 | null;
+  rulesAccessRuntime?: NarrativeRulesAccessRuntimeV1 | null;
+  tacticalAccessRuntime?: NarrativeTacticalAccessRuntimeV1 | null;
   restRuntime?: NarrativeRestRuntimeV1 | null;
   worldSceneLocationResolver?: NarrativeWorldSceneLocationResolverV1 | null;
   activeSceneResolver?: NarrativeActiveSceneResolverV1 | null;
@@ -1755,6 +1824,8 @@ export async function createPrototypeNarrativeTurnControllerV1(options: {
     dynamicPlaceRuntime: options.dynamicPlaceRuntime,
     inventoryAccessRuntime: options.inventoryAccessRuntime,
     socialAccessRuntime: options.socialAccessRuntime,
+    rulesAccessRuntime: options.rulesAccessRuntime,
+    tacticalAccessRuntime: options.tacticalAccessRuntime,
     restRuntime: options.restRuntime,
     worldSceneLocationResolver: options.worldSceneLocationResolver,
     activeSceneResolver: options.activeSceneResolver === undefined
@@ -1777,6 +1848,8 @@ export async function createBrowserPersistentNarrativeTurnControllerV1(options: 
   dynamicPlaceRuntime?: NarrativeDynamicPlaceRuntimeV1 | null;
   inventoryAccessRuntime?: NarrativeInventoryAccessRuntimeV1 | null;
   socialAccessRuntime?: NarrativeSocialAccessRuntimeV1 | null;
+  rulesAccessRuntime?: NarrativeRulesAccessRuntimeV1 | null;
+  tacticalAccessRuntime?: NarrativeTacticalAccessRuntimeV1 | null;
   restRuntime?: NarrativeRestRuntimeV1 | null;
   worldSceneLocationResolver?: NarrativeWorldSceneLocationResolverV1 | null;
   activeSceneResolver?: NarrativeActiveSceneResolverV1 | null;
@@ -1797,6 +1870,8 @@ export async function createBrowserPersistentNarrativeTurnControllerV1(options: 
     dynamicPlaceRuntime: options.dynamicPlaceRuntime,
     inventoryAccessRuntime: options.inventoryAccessRuntime,
     socialAccessRuntime: options.socialAccessRuntime,
+    rulesAccessRuntime: options.rulesAccessRuntime,
+    tacticalAccessRuntime: options.tacticalAccessRuntime,
     restRuntime: options.restRuntime,
     worldSceneLocationResolver: options.worldSceneLocationResolver,
     activeSceneResolver: options.activeSceneResolver,
@@ -1827,6 +1902,8 @@ export async function createBrowserPersistentNarrativeTurnControllerV1(options: 
     dynamicPlaceRuntime: options.dynamicPlaceRuntime,
     inventoryAccessRuntime: options.inventoryAccessRuntime,
     socialAccessRuntime: options.socialAccessRuntime,
+    rulesAccessRuntime: options.rulesAccessRuntime,
+    tacticalAccessRuntime: options.tacticalAccessRuntime,
     restRuntime: options.restRuntime,
     worldSceneLocationResolver: options.worldSceneLocationResolver,
     activeSceneResolver: options.activeSceneResolver === undefined
@@ -2006,6 +2083,8 @@ async function buildResolvedOutput(input: {
   dynamicPlaceRuntime: NarrativeDynamicPlaceRuntimeV1 | null;
   inventoryAccessRuntime: NarrativeInventoryAccessRuntimeV1 | null;
   socialAccessRuntime: NarrativeSocialAccessRuntimeV1 | null;
+  rulesAccessRuntime: NarrativeRulesAccessRuntimeV1 | null;
+  tacticalAccessRuntime: NarrativeTacticalAccessRuntimeV1 | null;
   restRuntime: NarrativeRestRuntimeV1 | null;
   activeScene: PlayableSceneStateV1;
 }): Promise<Result<{ output: NarrativeTurnControllerOutputV1; commit: unknown | null }>> {
@@ -2078,8 +2157,32 @@ async function buildResolvedOutput(input: {
           activeScene: input.activeScene
         })
   );
+  const rulesAccessCanHandle = input.rulesAccessRuntime !== null && (
+    input.rulesAccessRuntime.canHandle === undefined
+      ? interpretation.runtimeDecision.requiredDomain === "rules"
+      : await input.rulesAccessRuntime.canHandle({
+          repository: input.repository,
+          campaignId: input.campaignId,
+          rawInput: input.input.rawInput,
+          interpretation,
+          domainCommand,
+          activeScene: input.activeScene
+        })
+  );
+  const tacticalAccessCanHandle = input.tacticalAccessRuntime !== null && (
+    input.tacticalAccessRuntime.canHandle === undefined
+      ? interpretation.runtimeDecision.requiredDomain === "tactical"
+      : await input.tacticalAccessRuntime.canHandle({
+          repository: input.repository,
+          campaignId: input.campaignId,
+          rawInput: input.input.rawInput,
+          interpretation,
+          domainCommand,
+          activeScene: input.activeScene
+        })
+  );
   const planningStartedAt = Date.now();
-  const planning = input.mjPlannerConfig === null || dynamicPlaceCanHandle || inventoryAccessCanHandle || socialAccessCanHandle
+  const planning = input.mjPlannerConfig === null || dynamicPlaceCanHandle || inventoryAccessCanHandle || socialAccessCanHandle || rulesAccessCanHandle || tacticalAccessCanHandle
     ? null
     : await planNarrativeTurnWithMjV1({
       campaignId: input.campaignId,
@@ -2117,6 +2220,216 @@ async function buildResolvedOutput(input: {
       createdAt: input.createdAt,
       aiTelemetry: interpretationResult?.telemetry ?? []
     });
+  }
+  if (
+    input.tacticalAccessRuntime !== null
+    && tacticalAccessCanHandle
+    && interpretation.semanticIntent.commitment === "committed"
+  ) {
+    const tactical = await input.tacticalAccessRuntime.execute({
+      repository: input.repository,
+      campaignId: input.campaignId,
+      operation: input.operation,
+      rawInput: input.input.rawInput,
+      interpretation,
+      domainCommand,
+      activeScene: input.activeScene
+    });
+    if (!tactical.ok) return tactical;
+    const resolution: NarrativeResolutionResultV1 = {
+      schemaVersion: 1,
+      contractVersion: "narrative-resolution/1",
+      resolutionId: `${input.operation.operationId}:resolution:tactical-access`,
+      operationId: input.operation.operationId,
+      resultKind: "COMMIT_APPLIED",
+      interpretation,
+      domainCommand,
+      characterExpression: {
+        schemaVersion: 1,
+        rawPlayerText: input.input.rawInput,
+        interpretedIntentId: interpretation.intentId,
+        expressionText: tactical.value.characterExpression,
+        fidelity: "RAW_EQUIVALENT",
+        addedCommitments: [],
+        preservedMeaning: true
+      },
+      preparedEffects: [],
+      handoff: null,
+      commitId: tactical.value.commit.commitId,
+      noGameTime: true,
+      safetyNotes: [
+        "Le conflit est seulement amorce ici ; seul le resultat terminal valide du plateau peut modifier l'acces."
+      ],
+      actionAdjudication: null,
+      perception: null
+    };
+    const sourceRefs = [...new Set([
+      `commit:${tactical.value.commit.commitId}`,
+      ...tactical.value.sourceRefs
+    ])];
+    const displayPacket: DisplayPacketV1 & JsonObject = {
+      schemaVersion: 1,
+      contractVersion: SCENE_SOCIAL_UI_CONTRACT_VERSION_V1,
+      operationId: input.operation.operationId,
+      sceneId: input.activeScene.sceneId,
+      displayBlocks: [{
+        blockId: `${input.operation.operationId}:tactical-access`,
+        kind: "SYSTEM_NOTICE",
+        speaker: {
+          speakerId: "speaker-system",
+          kind: "SYSTEM",
+          displayName: "Systeme",
+          roleLabel: "Handoff tactique",
+          ariaLabel: "Handoff tactique",
+          visualToken: "speaker-system"
+        },
+        text: tactical.value.playerFacingText,
+        ariaLabel: "Affrontement tactique requis pour resoudre l'acces",
+        roleLabel: "Acces tactique",
+        visualStyleToken: "speaker-system",
+        sourceRefs,
+        isDegradedFallback: false
+      }],
+      rawInputAccess: {
+        available: true,
+        operationId: input.operation.operationId
+      },
+      rhythmDiagnostics: `tactical-access:${tactical.value.process.processId}`,
+      reconstructionRefs: sourceRefs,
+      version: 1
+    };
+    return {
+      ok: true,
+      value: {
+        commit: tactical.value.commit,
+        output: {
+          schemaVersion: 1,
+          contractVersion: "narrative-turn-controller/1",
+          operationId: input.operation.operationId,
+          clientRequestId: input.input.clientRequestId,
+          noCommit: false,
+          noGameTime: true,
+          interpretation,
+          domainCommand,
+          mjPlan: planning?.plan ?? null,
+          mjPlannerFailure: planning?.planningFailure as
+            (MjPlanningFailureV1 & JsonObject) | null ?? null,
+          npcPerformance: null,
+          npcPerformanceFailure: null,
+          suspendedIntent: null,
+          pendingSkillCheck: null,
+          resolution,
+          sceneState: createInitialReferenceSceneStateV1(),
+          sceneArrival: null,
+          activeScene: input.activeScene,
+          displayPacket,
+          stageTimings: {
+            interpretationMs,
+            planningMs,
+            resolutionMs: Date.now() - resolutionStartedAt,
+            npcPerformanceMs: 0,
+            resolvedOutputMs: Date.now() - resolvedOutputStartedAt
+          },
+          aiTelemetry: [...(interpretationResult?.telemetry ?? [])]
+        }
+      }
+    };
+  }
+  if (
+    input.rulesAccessRuntime !== null && rulesAccessCanHandle &&
+    interpretation.semanticIntent.commitment === "committed"
+  ) {
+    const rules = await input.rulesAccessRuntime.execute({
+      repository: input.repository,
+      campaignId: input.campaignId,
+      operation: input.operation,
+      rawInput: input.input.rawInput,
+      interpretation,
+      domainCommand,
+      activeScene: input.activeScene
+    });
+    if (!rules.ok) return rules;
+    const resolution: NarrativeResolutionResultV1 = {
+      schemaVersion: 1,
+      contractVersion: "narrative-resolution/1",
+      resolutionId: `${input.operation.operationId}:resolution:rules-access`,
+      operationId: input.operation.operationId,
+      resultKind: "COMMIT_APPLIED",
+      interpretation,
+      domainCommand,
+      characterExpression: { schemaVersion: 1, rawPlayerText: input.input.rawInput, interpretedIntentId: interpretation.intentId, expressionText: rules.value.characterExpression, fidelity: "RAW_EQUIVALENT", addedCommitments: [], preservedMeaning: true },
+      preparedEffects: [],
+      handoff: null,
+      commitId: rules.value.commit.commitId,
+      noGameTime: true,
+      safetyNotes: ["La tentative mécanique est persistée ; seul RULES_ACCESS_DOMAIN peut appliquer le résultat du jet."],
+      actionAdjudication: null,
+      perception: null
+    };
+    const sourceRefs = [...new Set([`commit:${rules.value.commit.commitId}`, ...rules.value.sourceRefs])];
+    const displayPacket: DisplayPacketV1 & JsonObject = {
+      schemaVersion: 1,
+      contractVersion: SCENE_SOCIAL_UI_CONTRACT_VERSION_V1,
+      operationId: input.operation.operationId,
+      sceneId: input.activeScene.sceneId,
+      displayBlocks: [{
+        blockId: `${input.operation.operationId}:rules-access`,
+        kind: "SYSTEM_NOTICE",
+        speaker: { speakerId: "speaker-system", kind: "SYSTEM", displayName: "Système", roleLabel: "Règles et accès", ariaLabel: "Règles et accès", visualToken: "speaker-system" },
+        text: rules.value.playerFacingText,
+        ariaLabel: "Tentative mécanique d'accès en attente de test",
+        roleLabel: "Règles et accès",
+        visualStyleToken: "speaker-system",
+        sourceRefs,
+        isDegradedFallback: false
+      }],
+      rawInputAccess: { available: true, operationId: input.operation.operationId },
+      rhythmDiagnostics: `rules-access:${rules.value.resolution.method}:check-required`,
+      reconstructionRefs: sourceRefs,
+      version: 1
+    };
+    const policy = rules.value.resolution.checkPolicy;
+    return { ok: true, value: { commit: rules.value.commit, output: {
+      schemaVersion: 1,
+      contractVersion: "narrative-turn-controller/1",
+      operationId: input.operation.operationId,
+      clientRequestId: input.input.clientRequestId,
+      noCommit: false,
+      noGameTime: true,
+      interpretation,
+      domainCommand,
+      mjPlan: planning?.plan ?? null,
+      mjPlannerFailure: planning?.planningFailure as (MjPlanningFailureV1 & JsonObject) | null ?? null,
+      npcPerformance: null,
+      npcPerformanceFailure: null,
+      suspendedIntent: null,
+      pendingSkillCheck: {
+        schemaVersion: 1,
+        contractVersion: "pending-narrative-skill-check/1",
+        pendingCheckId: `${policy.proposal.checkId}:pending`,
+        sourceOperationId: input.operation.operationId,
+        sceneId: input.activeScene.sceneId,
+        status: "AWAITING_SKILL_ROLL",
+        proposal: policy.proposal,
+        ownerContext: {
+          owner: "RULES_ACCESS",
+          resolutionRef: rules.value.resolution.resolutionRef,
+          accessControlRef: rules.value.resolution.accessControlRef,
+          actorRef: rules.value.resolution.actorRef,
+          deviceRef: rules.value.resolution.deviceRef,
+          checkPolicy: policy
+        },
+        createdAt: input.createdAt,
+        commitAuthority: false
+      },
+      resolution,
+      sceneState: createInitialReferenceSceneStateV1(),
+      sceneArrival: null,
+      activeScene: input.activeScene,
+      displayPacket,
+      stageTimings: { interpretationMs, planningMs, resolutionMs: Date.now() - resolutionStartedAt, npcPerformanceMs: 0, resolvedOutputMs: Date.now() - resolvedOutputStartedAt },
+      aiTelemetry: [...(interpretationResult?.telemetry ?? [])]
+    } } };
   }
   if (
     input.socialAccessRuntime !== null && socialAccessCanHandle &&
@@ -2175,7 +2488,28 @@ async function buildResolvedOutput(input: {
       schemaVersion: 1, contractVersion: "narrative-turn-controller/1", operationId: input.operation.operationId, clientRequestId: input.input.clientRequestId,
       noCommit: false, noGameTime: true, interpretation, domainCommand, mjPlan: planning?.plan ?? null,
       mjPlannerFailure: planning?.planningFailure as (MjPlanningFailureV1 & JsonObject) | null ?? null,
-      npcPerformance: null, npcPerformanceFailure: null, suspendedIntent: null, pendingSkillCheck: null,
+      npcPerformance: null, npcPerformanceFailure: null, suspendedIntent: null,
+      pendingSkillCheck: social.value.resolution.outcome === "CHECK_REQUIRED" && social.value.resolution.checkPolicy !== null
+        ? {
+            schemaVersion: 1,
+            contractVersion: "pending-narrative-skill-check/1",
+            pendingCheckId: `${social.value.resolution.checkPolicy.proposal.checkId}:pending`,
+            sourceOperationId: input.operation.operationId,
+            sceneId: input.activeScene.sceneId,
+            status: "AWAITING_SKILL_ROLL",
+            proposal: social.value.resolution.checkPolicy.proposal,
+            ownerContext: {
+              owner: "SOCIAL_ACCESS",
+              resolutionRef: social.value.resolution.resolutionRef,
+              accessControlRef: social.value.resolution.accessControlRef,
+              playerActorRef: social.value.resolution.playerActorRef,
+              respondingActorRef: social.value.resolution.respondingActorRef,
+              checkPolicy: social.value.resolution.checkPolicy
+            },
+            createdAt: input.createdAt,
+            commitAuthority: false
+          }
+        : null,
       resolution: socialResolution, sceneState: createInitialReferenceSceneStateV1(), sceneArrival: null, activeScene: input.activeScene, displayPacket,
       stageTimings: { interpretationMs, planningMs, resolutionMs: Date.now() - resolutionStartedAt, npcPerformanceMs: 0, resolvedOutputMs: Date.now() - resolvedOutputStartedAt },
       aiTelemetry: [...(interpretationResult?.telemetry ?? [])]
@@ -2833,6 +3167,7 @@ export function buildPendingNarrativeSkillCheckV1(input: {
     sceneId: input.sceneId,
     status: "AWAITING_SKILL_ROLL",
     proposal: perception.checkProposal,
+    ownerContext: { owner: "PERCEPTION" },
     createdAt: input.createdAt,
     commitAuthority: false
   };

@@ -43,6 +43,9 @@ avec un ancien plan de travail.
 - [`Contrat-affirmations-temoignages-et-connaissances.md`](Contrat-affirmations-temoignages-et-connaissances.md)
 - [`Contrat-acces-par-inventaire.md`](Contrat-acces-par-inventaire.md)
 - [`Contrat-acces-social.md`](Contrat-acces-social.md)
+- [`Contrat-acces-par-perception.md`](Contrat-acces-par-perception.md)
+- [`Contrat-acces-par-regles.md`](Contrat-acces-par-regles.md)
+- [`Contrat-acces-par-tactique.md`](Contrat-acces-par-tactique.md)
 - [`Contrat-budget-appels-ia-par-tour.md`](Contrat-budget-appels-ia-par-tour.md)
   sépare vérité, perspective privée, témoignage attribué et connaissance
   acquise avant leur raccord au dialogue et aux créations.
@@ -135,6 +138,12 @@ avec un ancien plan de travail.
   création puis retour.
 - [`Matrice-certification-gate-6V-monde-vivant.md`](Matrice-certification-gate-6V-monde-vivant.md)
   certifie la verticale transverse PNJ, intrigue, monde et temps.
+- [`Matrice-certification-controles-acces-multi-regions.md`](Matrice-certification-controles-acces-multi-regions.md)
+  certifie deux seuils de natures différentes en Ylsséa et en Ardherne, du
+  refus sans mutation jusqu'à l'ouverture, la traversée et la reprise.
+- [`Matrice-certification-pipeline-openai-navigateur.md`](Matrice-certification-pipeline-openai-navigateur.md)
+  certifie en live l'ordre, l'unicité et le plafond des rôles OpenAI sur action,
+  dialogue, observation, transition et clarification.
 - [`Scenarios-acceptation.md`](Scenarios-acceptation.md) décrit les comportements
   observables.
 - [`Matrice-couverture-scenarios.md`](Matrice-couverture-scenarios.md) relie les

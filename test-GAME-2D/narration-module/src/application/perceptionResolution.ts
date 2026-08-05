@@ -57,7 +57,10 @@ export function resolvePerceptionV1(input: {
     request.informationKind !== "VISIBLE_TRAIT"
   ) {
     const proposal = selectSkillCheckDifficultyBandV1(buildUnresolvedSkillCheckProposalV1({
-      checkId: `perception:${input.scene.sceneId}:${input.targetRef ?? "scene"}:skill-check:1`,
+      checkId: buildPerceptionCheckIdV1(
+        input.scene.sceneId,
+        input.targetRef ?? "scene"
+      ),
       domain: "perception",
       goal: request.soughtInformation ?? request.focus,
       targetRef: input.targetRef,
@@ -85,6 +88,32 @@ export function resolvePerceptionV1(input: {
     return result("NOT_PERCEPTIBLE", effectiveDepth, input.targetRef, request.focus, [], withheld, null);
   }
   return result("AUTOMATIC_RESULT", effectiveDepth, input.targetRef, request.focus, revealed, withheld, null);
+}
+
+export function buildPerceptionCheckIdV1(
+  sceneId: string,
+  targetRef: string
+): string {
+  const identity = `${sceneId}\u0000${targetRef}`;
+  return [
+    "perception-check",
+    idPart(sceneId).slice(0, 24),
+    idPart(targetRef).slice(-24),
+    fnv1a32(identity)
+  ].join(":");
+}
+
+function idPart(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9._-]+/gu, "-").replace(/^-+|-+$/gu, "") || "scene";
+}
+
+function fnv1a32(value: string): string {
+  let hash = 0x811c9dc5;
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return (hash >>> 0).toString(16).padStart(8, "0");
 }
 
 function buildVisiblePresenceClue(scene: PlayableSceneStateV1, targetRef: string): PlayableScenePerceptionClueV1 | null {

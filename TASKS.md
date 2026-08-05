@@ -1,6 +1,6 @@
 # Tableau de bord du projet
 
-Dernière mise à jour : 2026-08-03
+Dernière mise à jour : 2026-08-04
 
 Ce fichier ne contient que le travail actif, la prochaine décision et les blocages.
 L'état détaillé du module narration, ses principes et sa feuille de route sont dans
@@ -212,21 +212,33 @@ Référence :
     contrôle d'accès distinct, ouvert aux approches libres du joueur ;
   - [x] certifier le scénario transverse des trois témoins jusqu'à la
     matérialisation, l'accès, la confirmation ou la réfutation et la reprise.
-- [ ] Raccorder les approches jouables aux contrôles d'accès persistants :
+- [x] Raccorder les approches jouables aux contrôles d'accès persistants :
   - ordre et méthode de reprise :
     [`Passation-prochains-lots-controles-acces.md`](test-GAME-2D/narration-module/docs/Passation-prochains-lots-controles-acces.md) ;
   - [x] implémenter l'approche inventaire autoritaire : possession réelle,
     accessibilité, justificatif actif, conservation ou consommation atomique,
     ouverture et rejeu dans l'opération narrative ;
-  - [ ] fournir aux campagnes concernées les catalogues concrets de politiques,
-    alias d'objets, justificatifs et mappings seuil/interlocuteur ;
+  - [x] fournir un premier catalogue concret de campagne sur le passage réel
+    Caserne centrale → Château Tharqual : contrôle, officier habilité, politique
+    sociale, ordre de passage et registre de justificatifs ;
   - [x] raccorder la négociation sociale sans transformer une parole en succès :
     accord, refus, condition ou test requis persistants, cible autoritaire,
     ouverture atomique et rendu dans l'opération narrative ;
-  - [ ] raccorder automatiquement un résultat de test social à la reprise de
+  - [x] raccorder automatiquement un résultat de test social à la reprise de
     la négociation qui l'a demandé ;
-  - [ ] raccorder perception, tests de règles et résultats tactiques à leur
-    autorité propriétaire respective.
+  - [x] raccorder la perception au seuil réel : information directe,
+    contradiction, recherche avec jet, approche révélée, rechargement et aucun
+    changement arbitraire du contrôle ;
+  - [x] raccorder une première approche par règles : méthode et dispositif
+    catalogués, fiche et équipement relus, jet restaurable, temps, bruit,
+    ouverture ou maintien du contrôle atomiques ;
+  - [x] raccorder les résultats tactiques à leur autorité propriétaire :
+    handoff sans succès narratif, graine et checkpoint restaurables, outcome
+    terminal validé, conséquences personnage, accès et temps atomiques.
+- [x] Lot F — certifier les contrôles d'accès dans au moins deux régions et
+  sur plusieurs types de seuils : contrôle militaire en Ylsséa et obstacle
+  naturel en Ardherne, refus d'un objet réellement détenu, approche
+  alternative, condition, rechargement, réussite, ouverture puis transition.
 - [ ] Audit transverse du pipeline narratif et de la qualité MJ :
   - [x] imposer un plafond transversal de trois appels OpenAI facturés par tour,
     reprises et rôles confondus, avec refus local du quatrième ;
@@ -246,7 +258,7 @@ Référence :
     capacités disponibles, handoff-only et à déclenchement externe ;
   - [x] aligner les contrats V5, NAR-131 et pipeline IA sur l'entrée réellement
     consommée par `player_intent_interpreter` ;
-  - [ ] certifier dans une recette navigateur OpenAI que chaque rôle utile est
+  - [x] certifier dans une recette navigateur OpenAI que chaque rôle utile est
     appelé une seule fois et dans l'ordre attendu sur action, dialogue,
     observation, transition et clarification ;
   - [ ] définir avec chaque propriétaire les commandes joueur encore absentes

@@ -1,0 +1,75 @@
+---
+schema_version: 1
+type: ville
+id: hameau_du_torrent_froid
+nom: Hameau du Torrent-Froid
+aliases:
+  - Torrent-Froid
+resume: Hameau forestier d'Ardherne situé en amont du Bourg des Forges, près d'une rivière froide.
+informations: []
+territoire: astryade
+region: ardherne
+type_ville: hameau forestier de montagne
+origine: communautés d'Ardherne
+type_gouvernance: conseil local non documenté
+siege_pouvoir: external:non_documente
+population_totale: 420
+composition_population:
+  - humains et nains majoritaires
+niveau_vie: modeste
+niveau_criminalite: 5
+stabilite_sociale: stable
+corruption: 0
+tension_ethnique: 0
+climat: montagneux et froid
+particularites_env:
+  - rivière froide et forêt dense
+quartiers: []
+batiments_importants: []
+factions_presentes: []
+religions_principales: []
+liaisons:
+  - bourg_des_forges
+  - ardherne
+profil_population:
+  especes_dominantes:
+    - humains
+    - autre
+  especes_minoritaires:
+    - elfes
+  roles_communs:
+    - bûcheron
+    - artisan
+    - pnj_lambda
+  presence_etrangere: faible
+profil_presence:
+  roles_probables:
+    - role: bûcheron
+      poids: 4
+    - role: artisan
+      poids: 3
+    - role: pnj_lambda
+      poids: 3
+  roles_rares: []
+  ponderation_especes:
+    - espece: humains
+      poids: 5
+    - espece: autre
+      poids: 4
+    - espece: elfes
+      poids: 1
+profil_langues:
+  langues_communes:
+    - commun
+profil_social:
+  culture_autorite: locale
+  hospitalite_envers_etrangers: prudente
+  visibilite_violence: faible
+mots_cles:
+  - forêt
+  - torrent
+---
+## [COMMUN] Liaison avec le Bourg des Forges
+
+Un chemin de montagne relie le hameau au Bourg des Forges. Il suit le torrent
+et reste vulnérable aux chutes de pierres et d'arbres.

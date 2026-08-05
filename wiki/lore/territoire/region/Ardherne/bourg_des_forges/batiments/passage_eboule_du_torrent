@@ -1,0 +1,61 @@
+---
+schema_version: 1
+type: batiment
+id: passage_eboule_du_torrent
+nom: Passage éboulé du Torrent-Froid
+aliases:
+  - route du Torrent-Froid
+  - passage du Torrent-Froid
+resume: Tronçon de route forestière d'Ardherne où un éboulement a couché un tronc et des blocs entre le Bourg des Forges et le Hameau du Torrent-Froid.
+informations: []
+
+ville: bourg_des_forges
+quartier: external:abords_du_bourg
+region: ardherne
+territoire: astryade
+
+type_batiment: passage routier de montagne
+fonction_principale:
+  - relier le Bourg des Forges au Hameau du Torrent-Froid
+importance_strategique: 45
+
+proprietaire_faction: external:communaute_du_bourg
+proprietaire_principal: Communauté du Bourg des Forges
+acces: public mais temporairement obstrue
+factions_residentes: []
+profil_presence:
+  roles_probables:
+    - role: charretier
+      poids: 3
+    - role: bucheron
+      poids: 2
+    - role: pnj_lambda
+      poids: 2
+  roles_rares: []
+  ponderation_especes:
+    - espece: humains
+      poids: 6
+    - espece: autre
+      poids: 3
+    - espece: elfes
+      poids: 1
+
+etat_general: obstrue par un eboulement recent
+niveau_securite: 15
+rumeurs: []
+
+lieux_connectes:
+  - bourg_des_forges
+  - hameau_du_torrent_froid
+
+mots_cles:
+  - eboulement
+  - tronc
+  - route
+  - torrent
+---
+## [COMMUN] Obstacle visible
+
+Un tronc lourd et plusieurs blocs ferment la route. Le passage peut être
+dégagé par un effort physique adapté, mais une arme ordinaire n'est pas un
+outil approprié pour couper ou déplacer l'ensemble sans risque.

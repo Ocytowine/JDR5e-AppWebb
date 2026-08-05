@@ -10,7 +10,10 @@ import {
   validateTacticalOutcomeV1,
   type TacticalOutcomeV1
 } from "../../narration-module/src/handoff";
-import type { BastionTacticalSessionV1 } from "../../narration-module/src/application";
+import {
+  isAccessTacticalSessionSummaryV1,
+  type BastionTacticalSessionV1
+} from "../../narration-module/src/application";
 import type { GameBoardEncounterInputV1 } from "./gameBoardEncounterAdapter";
 import type { GameBoardTacticalStateV1 } from "./gameBoardTacticalState";
 
@@ -233,16 +236,7 @@ export async function buildPendingGameBoardTacticalOutcomeV1(input: {
       hpBefore: initialPlayerHp,
       hpAfter: finalPlayerHp,
       resourcesAfter: state.playerResources
-    }, {
-      candidateId: `candidate:bastion:${input.session.summary.bastionId}`,
-      ownerDomain: "bastion",
-      bastionId: input.session.summary.bastionId,
-      incidentId: input.session.summary.incidentId,
-      incidentDefinitionRef:
-        input.session.summary.incidentDefinitionRef,
-      processId: report.value.processId,
-      endCondition: report.value.endCondition
-    }],
+    }, ownerConsequenceCandidate(input.session, report.value.endCondition)],
     checkpointRefs: [{
       kind: "process.checkpoint",
       id: report.value.checkpointId
@@ -259,6 +253,31 @@ export async function buildPendingGameBoardTacticalOutcomeV1(input: {
           { issues: validation.issues }
         )
       };
+}
+
+function ownerConsequenceCandidate(
+  session: BastionTacticalSessionV1,
+  endCondition: string
+): JsonObject {
+  if (isAccessTacticalSessionSummaryV1(session.summary)) {
+    return {
+      candidateId: `candidate:access:${session.summary.accessControlRef}`,
+      ownerDomain: "access",
+      accessControlRef: session.summary.accessControlRef,
+      processId: session.process.processId,
+      endCondition,
+      resolutionPolicyRef: session.summary.resolutionPolicyRef
+    };
+  }
+  return {
+    candidateId: `candidate:bastion:${session.summary.bastionId}`,
+    ownerDomain: "bastion",
+    bastionId: session.summary.bastionId,
+    incidentId: session.summary.incidentId,
+    incidentDefinitionRef: session.summary.incidentDefinitionRef,
+    processId: session.process.processId,
+    endCondition
+  };
 }
 
 function nonEmpty(value: unknown): value is string {

@@ -146,7 +146,7 @@ function validateAiIntentInterpretationPayload(payload: unknown): string[] {
   const allowedActions = new Set(["ask_possibility", "ask", "open", "force", "observe", "act"]);
   const allowedSemanticKinds = new Set(["address_visible_actor", "move_near_visible_actor", "manipulate_visible_object", "traverse_visible_boundary", "observe_environment", "nonverbal_signal", "hypothetical_action", "context_question", "meta_request", "unclear_intent"]);
   const allowedRuntimeStatuses = new Set(["SUPPORTED_BY_CURRENT_RUNTIME", "UNSUPPORTED_DOMAIN", "NEEDS_CLARIFICATION", "AI_INTERPRETATION_FAILED"]);
-  const allowedRuntimeDomains = new Set(["scene_resolution", "social", "perception", "inventory", "tactical", "rest", "world"]);
+  const allowedRuntimeDomains = new Set(["scene_resolution", "social", "perception", "inventory", "rules", "tactical", "rest", "world"]);
 
   typed.intents.forEach((intent, index) => {
     const path = `payload.intents[${index}]`;
@@ -439,7 +439,7 @@ function validatePlannerPayload(payload: unknown): string[] {
     if (!["SUPPORTED_BY_CURRENT_RUNTIME", "UNSUPPORTED_DOMAIN", "NEEDS_CLARIFICATION", "AI_INTERPRETATION_FAILED"].includes(String(typed.planningBasis.runtimeStatus))) {
       issues.push("payload.planningBasis.runtimeStatus: invalid status");
     }
-    if (!(typed.planningBasis.requiredDomain === null || ["scene_resolution", "social", "perception", "inventory", "tactical", "rest", "world"].includes(String(typed.planningBasis.requiredDomain)))) {
+    if (!(typed.planningBasis.requiredDomain === null || ["scene_resolution", "social", "perception", "inventory", "rules", "tactical", "rest", "world"].includes(String(typed.planningBasis.requiredDomain)))) {
       issues.push("payload.planningBasis.requiredDomain: invalid domain or null");
     }
   }
@@ -458,7 +458,7 @@ function validatePlannerPayload(payload: unknown): string[] {
       issues.push(...validateNonEmptyString(beat.stopCondition, `${path}.stopCondition`));
     });
   }
-  const allowedDomains = ["scene_resolution", "social", "perception", "inventory", "tactical", "rest", "world"];
+  const allowedDomains = ["scene_resolution", "social", "perception", "inventory", "rules", "tactical", "rest", "world"];
   if (!Array.isArray(typed.commandProposals)) {
     issues.push("payload.commandProposals: expected array");
   } else {
@@ -757,7 +757,7 @@ function validateSemanticIntentPayloadV2(payload: unknown, composed = false): st
   issues.push(...exactKeys(intent, intentKeys, path));
   const kinds = new Set(["address_visible_actor", "move_near_visible_actor", "manipulate_visible_object", "traverse_visible_boundary", "observe_environment", "nonverbal_signal", "hypothetical_action", "context_question", "meta_request", "unclear_intent"]);
   const commitments = new Set(["none", "hypothetical", "conditional", "committed", "unclear"]);
-  const domains = new Set(["scene_resolution", "social", "perception", "inventory", "tactical", "rest", "world"]);
+  const domains = new Set(["scene_resolution", "social", "perception", "inventory", "rules", "tactical", "rest", "world"]);
   if (typeof intent.kind !== "string" || !kinds.has(intent.kind)) issues.push(issue(`${path}.kind`, "invalid semantic kind"));
   if (typeof intent.commitment !== "string" || !commitments.has(intent.commitment)) issues.push(issue(`${path}.commitment`, "invalid commitment"));
   if (!isStringArray(intent.preconditions) || intent.preconditions.length > 4 || intent.preconditions.some(entry => entry.trim().length === 0)) issues.push(issue(`${path}.preconditions`, "expected at most four non-empty strings"));

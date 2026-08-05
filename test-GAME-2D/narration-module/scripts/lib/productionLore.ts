@@ -35,7 +35,11 @@ export async function loadProductionLoreSources(input: {
   const sources: LoreSourceInputV1[] = [];
   for (const absolutePath of await listFilesRecursively(input.loreRoot)) {
     const sourcePath = relative(input.repositoryRoot, absolutePath).replaceAll("\\", "/");
-    const sourceText = await readFile(absolutePath, "utf8");
+    // Lore fingerprints and embedded bodies must not depend on the checkout's
+    // platform line endings. CRLF is the historical canonical representation
+    // used by the installed package.
+    const sourceText = (await readFile(absolutePath, "utf8"))
+      .replace(/\r?\n/gu, "\r\n");
     if (sourceText.startsWith("---\n") || sourceText.startsWith("---\r\n")) {
       if (exclusions.has(sourcePath)) throw new Error(`${sourcePath} is both compilable and excluded.`);
       sources.push({ sourcePath, sourceText });

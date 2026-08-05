@@ -120,7 +120,7 @@ export interface AiSemanticPlayerIntentV2 {
   preconditions: string[];
   playerGoal: string;
   actionHint: string | null;
-  domainHint: "scene_resolution" | "social" | "perception" | "inventory" | "tactical" | "rest" | "world" | null;
+  domainHint: "scene_resolution" | "social" | "perception" | "inventory" | "rules" | "tactical" | "rest" | "world" | null;
   scope: "LOCAL_INTERACTION" | "SCENE_TRANSITION" | "SOCIAL_EXCHANGE" | "PERCEPTION" | "META" | "UNKNOWN";
   targetMention: {
     surface: string;
@@ -288,7 +288,7 @@ export interface AiIntentRuntimeHandlingV1 {
   schemaVersion: 1;
   status: "SUPPORTED_BY_CURRENT_RUNTIME" | "UNSUPPORTED_DOMAIN" | "NEEDS_CLARIFICATION" | "AI_INTERPRETATION_FAILED";
   reason: string;
-  requiredDomain: "scene_resolution" | "social" | "perception" | "inventory" | "tactical" | "rest" | "world" | null;
+  requiredDomain: "scene_resolution" | "social" | "perception" | "inventory" | "rules" | "tactical" | "rest" | "world" | null;
   canonicalActionHint: string | null;
   noCommit: boolean;
   noGameTime: boolean;
@@ -332,7 +332,7 @@ export interface SceneBeatProposalV1 {
 
 export interface DomainCommandProposalV1 {
   proposalId: string;
-  domain: "scene_resolution" | "social" | "perception" | "inventory" | "tactical" | "rest" | "world";
+  domain: "scene_resolution" | "social" | "perception" | "inventory" | "rules" | "tactical" | "rest" | "world";
   commandType: string;
   targetRefs: string[];
   payload: Record<string, unknown>;

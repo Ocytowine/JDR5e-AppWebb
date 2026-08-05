@@ -23,7 +23,7 @@ import {
   type ProcessCheckpointV1,
   type ProcessHandoffV1
 } from "../handoff";
-import { bastionTacticalHandoffAggregateIdV1 } from "./bastionIncidentAuthority";
+import { tacticalHandoffAggregateIdV1 } from "./bastionIncidentAuthority";
 
 export const TACTICAL_CHECKPOINT_AGGREGATE_TYPE_V1 =
   "tactical.checkpoint" as const;
@@ -109,7 +109,7 @@ export async function saveTacticalCheckpointV1(input: {
     input.repository.getAggregate(
       input.campaignId,
       "process.handoff",
-      bastionTacticalHandoffAggregateIdV1(input.processId)
+      tacticalHandoffAggregateIdV1(input.processId)
     ),
     input.repository.getAggregate(
       input.campaignId,

@@ -146,13 +146,18 @@ export interface BastionIncidentResultV1 extends JsonObject {
   replayed: boolean;
 }
 
-export function bastionTacticalHandoffAggregateIdV1(processId: string): AggregateId {
+export function tacticalHandoffAggregateIdV1(processId: string): AggregateId {
   return opaqueId<AggregateId>(`agg_handoff_${processId}`);
 }
 
-export function bastionTacticalSeedAggregateIdV1(processId: string): AggregateId {
+export function tacticalSeedAggregateIdV1(processId: string): AggregateId {
   return opaqueId<AggregateId>(`agg_tactical_seed_${processId}`);
 }
+
+/** @deprecated Compatibilite avec les appels du vertical bastion. */
+export const bastionTacticalHandoffAggregateIdV1 = tacticalHandoffAggregateIdV1;
+/** @deprecated Compatibilite avec les appels du vertical bastion. */
+export const bastionTacticalSeedAggregateIdV1 = tacticalSeedAggregateIdV1;
 
 export async function handleBastionIncidentV1(input: {
   repository: CampaignRepository;

@@ -21,7 +21,7 @@ import {
   type ProcessHandoffV1,
   type TacticalOutcomeV1
 } from "../handoff";
-import { bastionTacticalHandoffAggregateIdV1 } from "./bastionIncidentAuthority";
+import { tacticalHandoffAggregateIdV1 } from "./bastionIncidentAuthority";
 import { restoreTacticalCheckpointV1 } from "./tacticalCheckpointRuntime";
 
 export const TACTICAL_OUTCOME_AGGREGATE_TYPE_V1 =
@@ -101,7 +101,7 @@ export async function recordPendingTacticalOutcomeV1(input: {
       error: coreError("VALIDATION_FAILED", "tactical.outcome.campaign-mismatch")
     };
   }
-  const processAggregateId = bastionTacticalHandoffAggregateIdV1(
+  const processAggregateId = tacticalHandoffAggregateIdV1(
     input.outcome.processId
   );
   const [campaign, processAggregate, checkpoint, existingOutcome] =

@@ -1,0 +1,78 @@
+---
+schema_version: 1
+type: ville
+id: bourg_des_forges
+nom: Bourg des Forges
+aliases: []
+resume: Petite localité d'Ardherne établie au débouché des vallées minières et tournée vers le travail du métal.
+informations: []
+territoire: astryade
+region: ardherne
+type_ville: bourg artisanal de montagne
+origine: communautés humaines et naines d'Ardherne
+type_gouvernance: conseil local non documenté
+siege_pouvoir: external:non_documente
+population_totale: 1800
+composition_population:
+  - humains et nains majoritaires
+niveau_vie: modeste
+niveau_criminalite: 10
+stabilite_sociale: stable
+corruption: 0
+tension_ethnique: 0
+climat: montagneux et froid
+particularites_env:
+  - routes forestières exposées aux éboulements
+quartiers: []
+batiments_importants:
+  - passage_eboule_du_torrent
+factions_presentes: []
+religions_principales: []
+liaisons:
+  - hameau_du_torrent_froid
+  - ardherne
+profil_population:
+  especes_dominantes:
+    - humains
+    - autre
+  especes_minoritaires:
+    - elfes
+  roles_communs:
+    - forgeron
+    - mineur
+    - charretier
+  presence_etrangere: faible
+profil_presence:
+  roles_probables:
+    - role: forgeron
+      poids: 4
+    - role: mineur
+      poids: 3
+    - role: charretier
+      poids: 2
+    - role: pnj_lambda
+      poids: 3
+  roles_rares: []
+  ponderation_especes:
+    - espece: humains
+      poids: 5
+    - espece: autre
+      poids: 4
+    - espece: elfes
+      poids: 1
+profil_langues:
+  langues_communes:
+    - commun
+profil_social:
+  culture_autorite: locale
+  hospitalite_envers_etrangers: prudente
+  visibilite_violence: faible
+mots_cles:
+  - forge
+  - montagne
+---
+## [COMMUN] Route du Torrent Froid
+
+La route forestière qui rejoint le Hameau du Torrent-Froid traverse des pentes
+instables. Après un éboulement, des troncs et des blocs peuvent couper le
+passage jusqu'à leur dégagement.

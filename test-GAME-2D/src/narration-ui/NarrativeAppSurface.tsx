@@ -29,6 +29,7 @@ import {
   type PendingNarrativeSkillCheckV1,
   type PlayableSceneStateV1,
   type BastionTacticalSessionV1,
+  isAccessTacticalSessionSummaryV1,
   type CampaignWorldSimulationRuntimeV1,
   type CampaignWorldSimulationSnapshotV1,
   type CampaignWorldSimulationAdvanceResultV1
@@ -609,6 +610,18 @@ export function NarrativeAppSurface(props: {
       if (result.value.output.sceneArrival !== null) {
         setCurrentScene(result.value.output.sceneArrival.scene);
       }
+      const tacticalSession = await controller
+        .restoreActiveBastionTacticalSession();
+      if (tacticalSession.ok) {
+        setActiveTacticalSession(tacticalSession.value);
+        props.onTacticalHandoffChange?.(tacticalSession.value);
+      } else {
+        reportPostCommitError(
+          tacticalSession.error,
+          "Restauration du handoff tactique",
+          result.value.output.operationId
+        );
+      }
       const availabilityScene =
         result.value.output.sceneArrival?.scene ?? currentScene ?? openingScene;
       if (
@@ -892,7 +905,9 @@ export function NarrativeAppSurface(props: {
 
         {activeTacticalSession !== null && (
           <section
-            aria-label="Défense tactique en attente"
+            aria-label={isAccessTacticalSessionSummaryV1(activeTacticalSession.summary)
+              ? "Rencontre tactique en attente"
+              : "Défense tactique en attente"}
             style={{
               borderRadius: 16,
               border: "1px solid rgba(255,190,92,0.42)",
@@ -901,7 +916,9 @@ export function NarrativeAppSurface(props: {
             }}
           >
             <h2 style={{ margin: "0 0 6px", fontSize: 17 }}>
-              Défense du bastion
+              {isAccessTacticalSessionSummaryV1(activeTacticalSession.summary)
+                ? "Conflit au seuil"
+                : "Défense du bastion"}
             </h2>
             <p style={{ margin: "0 0 10px", color: "rgba(255,255,255,0.82)", fontSize: 13 }}>
               {activeTacticalSession.summary.incidentDisplayName} à{" "}
@@ -1468,7 +1485,9 @@ async function enhancePrototypePacket(
     config: {
       provider,
       expressionRoute: prototypeExpressionRoute,
-      sceneWriterRoute: prototypeSceneWriterRoute,
+      sceneWriterRoute: mode === "openai"
+        ? prototypeOpenAiSceneWriterRoute
+        : prototypeSceneWriterRoute,
       coherenceCriticRoute: mode === "openai" ? prototypeCoherenceCriticRoute : undefined,
       useRemoteExpressionAdapter: false,
       retryPolicy: prototypeRetryPolicy
@@ -1634,6 +1653,14 @@ const prototypeSceneWriterRoute: AiModelRouteV1 = {
   outputTokenLimit: 1_500,
   timeoutMs: 30_000,
   fallbackRouteIds: []
+};
+
+const prototypeOpenAiSceneWriterRoute: AiModelRouteV1 = {
+  ...prototypeSceneWriterRoute,
+  routeId: "prototype-ui-openai-scene-writer",
+  providerId: "server-openai-route",
+  modelId: "server-selected-openai-model",
+  modelConfigVersion: "narrative-openai-route/1"
 };
 
 const prototypeCoherenceCriticRoute: AiModelRouteV1 = {

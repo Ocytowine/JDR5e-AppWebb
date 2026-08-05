@@ -114,7 +114,7 @@ export function buildInterpreterRuntimeContextV1(input: {
   };
 }
 
-const CLOSED_DOMAINS = new Set<NarrativeRuntimeDomainV1>(["inventory", "tactical", "rest", "world"]);
+const CLOSED_DOMAINS = new Set<NarrativeRuntimeDomainV1>(["inventory", "rules", "tactical", "rest", "world"]);
 
 export function routeNarrativeSemanticIntentV1(input: {
   semanticIntent: AiStructuredSemanticIntentV1;

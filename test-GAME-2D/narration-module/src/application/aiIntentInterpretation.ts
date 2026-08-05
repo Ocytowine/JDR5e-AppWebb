@@ -293,7 +293,7 @@ export function buildLocalIntentPayload(rawInput: string, localReferentHints: Lo
   const risky = /\b(voler|vole|ouvrir|entrer|forcer|crocheter|attaquer|attaque|frapper|prendre)\b/u.test(normalized);
   const speech = /\b(je demande|je lui demande|lui demander|je questionne|j'interroge|j interroge|je lui dis|je dis|je reponds|je réponds|parler|discuter|interroger)\b/u.test(normalized);
   const target = findTarget(rawInput, localReferentHints, speech ? "ask" : localAction, registry);
-  const explicitCommittedAction = /\b(je vole|j'attaque|j attaque|je frappe|je prends|je tente|j'essaie|j essaie|j'ouvre|j ouvre|je l'ouvre|je le force|je la force|je force|je crochete)\b/u.test(normalized);
+  const explicitCommittedAction = /\b(je vole|j'attaque|j attaque|je frappe|je prends|je tente|j'essaie|j essaie|j'ouvre|j ouvre|je l'ouvre|je le force|je la force|je force|je crochete|je cherche|je fouille|j'inspecte|j inspecte|j'examine|j examine)\b/u.test(normalized);
   const action = explicitCommittedAction || /\b(je m'avance|je m avance|je vais|je me dirige|je m'approche|je m approche|je regarde|j'observe|j observe)\b/u.test(normalized);
   const implicitDoorManipulation = /\b(poignee|mecanisme|loquet|battant)\b/u.test(normalized) &&
     /\b(main|pivote|tourne|actionne|abaisse|pousse|tire)\b/u.test(normalized);
@@ -473,7 +473,12 @@ function buildSemanticIntent(input: {
   requiresClarification: boolean;
   confidence: AiStructuredPlayerIntentV1["confidence"];
 }): AiStructuredSemanticIntentV1 {
-  const kind = semanticKind(input.intentType, input.action, input.rawInput);
+  const kind = semanticKind(
+    input.intentType,
+    input.action,
+    input.rawInput,
+    input.target
+  );
   return {
     schemaVersion: 1,
     kind,
@@ -485,7 +490,14 @@ function buildSemanticIntent(input: {
     forbiddenInterpretations: [...input.forbiddenInterpretations],
     confidence: input.confidence,
     perception: kind === "observe_environment"
-      ? { schemaVersion: 1, depth: "GLANCE", focus: input.coreMeaning, soughtInformation: null }
+      ? {
+          schemaVersion: 1,
+          depth: localPerceptionDepth(input.rawInput),
+          focus: input.coreMeaning,
+          soughtInformation: localPerceptionDepth(input.rawInput) === "SEARCH"
+            ? input.topicValue ?? input.coreMeaning
+            : null
+        }
       : null,
     dialogueAct: kind === "address_visible_actor"
       ? {
@@ -537,6 +549,21 @@ function buildRuntimeHandling(input: {
       requiredDomain: "scene_resolution",
       canonicalActionHint: input.action,
       noCommit: false,
+      noGameTime: true
+    };
+  }
+  if (
+    input.intentType === "action"
+    && input.target?.ref?.startsWith("poi:") === true
+    && /\b(je vais|je me dirige|j avance|j'avance|j entre|j'entre|je franchis)\b/u.test(normalize(input.rawInput))
+  ) {
+    return {
+      schemaVersion: 1,
+      status: "UNSUPPORTED_DOMAIN",
+      reason: "Le franchissement explicite d'une limite visible doit être validé par le domaine monde injecté.",
+      requiredDomain: "world",
+      canonicalActionHint: input.action,
+      noCommit: true,
       noGameTime: true
     };
   }
@@ -605,20 +632,27 @@ function classifyLocalUnsupportedRuntimeDomain(rawInput: string): AiIntentRuntim
   const normalized = normalize(rawInput);
   if (/\b(attaque|attaquer|frappe|frapper|combat|tuer|poignarder)\b/u.test(normalized)) return "tactical";
   if (/\b(repos|dormir|campement|se reposer)\b/u.test(normalized)) return "rest";
-  if (/\b(voler|vole|prendre|prends|ramasser|ramasse|acheter|achete|vendre|vends|donner|donne|equiper|equipe)\b/u.test(normalized)) return "inventory";
+  if (/\b(force|forcer|crochete|crocheter|enfonce|enfoncer)\b/u.test(normalized)) return "rules";
+  if (/\b(voler|vole|prendre|prends|ramasser|ramasse|acheter|achete|vendre|vends|donner|donne|equiper|equipe|presente|montre|utilise|mandat|ordre de passage)\b/u.test(normalized)) return "inventory";
   return "world";
 }
 
 function semanticKind(
   intentType: AiStructuredPlayerIntentV1["intentType"],
   action: string | null,
-  rawInput: string
+  rawInput: string,
+  target: AiStructuredPlayerIntentV1["target"] = null
 ): AiStructuredSemanticIntentV1["kind"] {
   const normalized = normalize(rawInput);
   if (intentType === "meta_question") return "context_question";
   if (intentType === "possibility_query") return "hypothetical_action";
   if (intentType === "speech") return "address_visible_actor";
   if (intentType === "unclear_commitment") return "unclear_intent";
+  if (
+    intentType === "action"
+    && target?.ref?.startsWith("poi:") === true
+    && /\b(je vais|je me dirige|j avance|j'avance|j entre|j'entre|je franchis)\b/u.test(normalized)
+  ) return "traverse_visible_boundary";
   if (intentType === "action" && isApproachOnlyText(rawInput)) return "nonverbal_signal";
   if (action === "observe") return "observe_environment";
   if (intentType === "action") return "manipulate_visible_object";
@@ -1285,7 +1319,7 @@ function semanticRuntimeSuggestionV2(
   const noCommit = requiresClarification || proposed.commitment !== "committed" || proposed.kind === "observe_environment";
   return {
     schemaVersion: 1,
-    status: requiresClarification ? "NEEDS_CLARIFICATION" : ["inventory", "tactical", "rest", "world"].includes(proposed.domainHint ?? "") ? "UNSUPPORTED_DOMAIN" : "SUPPORTED_BY_CURRENT_RUNTIME",
+    status: requiresClarification ? "NEEDS_CLARIFICATION" : ["inventory", "rules", "tactical", "rest", "world"].includes(proposed.domainHint ?? "") ? "UNSUPPORTED_DOMAIN" : "SUPPORTED_BY_CURRENT_RUNTIME",
     reason: requiresClarification ? "Le sens ou le référent doit être précisé." : "Suggestion de domaine issue du sens V2; décision finale réservée au registre runtime local.",
     requiredDomain: proposed.scope === "SCENE_TRANSITION" ? "world" : proposed.domainHint,
     canonicalActionHint: legacyAction,
@@ -1518,8 +1552,17 @@ function imposedDetails(rawInput: string, targetLabel: string | null): string[] 
 function actionLabel(normalized: string): string {
   if (/\b(ouvrir|ouvre)\b/u.test(normalized)) return "open";
   if (/\b(force|forcer|crochete|crocheter)\b/u.test(normalized)) return "force";
-  if (/\b(regarde|observe)\b/u.test(normalized)) return "observe";
+  if (/\b(regarde|observe|cherche|fouille|inspecte|examine)\b/u.test(normalized)) return "observe";
   return "act";
+}
+
+function localPerceptionDepth(rawInput: string): "GLANCE" | "FOCUSED" | "SEARCH" {
+  const normalized = normalize(rawInput);
+  if (/\b(cherche|fouille|minutieusement|en detail|autre entree|autre passage)\b/u.test(normalized)) {
+    return "SEARCH";
+  }
+  if (/\b(inspecte|examine|attentivement|de pres)\b/u.test(normalized)) return "FOCUSED";
+  return "GLANCE";
 }
 
 function normalize(value: string): string {

@@ -171,6 +171,7 @@ async function setup(suffix: string, die: number) {
     sceneId: scene.sceneId,
     status: "AWAITING_SKILL_ROLL",
     proposal,
+    ownerContext: { owner: "PERCEPTION" },
     createdAt: now,
     commitAuthority: false
   };

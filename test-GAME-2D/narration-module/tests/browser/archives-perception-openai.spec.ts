@@ -9,7 +9,7 @@ test("observation générale des Archives: prose continue et parcours OpenAI cou
     if (body?.request?.role) roles.push(body.request.role);
   });
 
-  await page.goto("/");
+  await openArchivesPilot(page);
   await page.getByRole("radio", { name: "OpenAI" }).check();
   const input = page.getByLabel("Entrée libre du joueur");
   await expect(input).toBeEnabled({ timeout: 30_000 });
@@ -55,7 +55,7 @@ test("intention composée aux Archives: l'approche puis la salutation atteint le
     pendingCalls.delete(request);
   });
 
-  await page.goto("/");
+  await openArchivesPilot(page);
   await page.getByRole("radio", { name: "OpenAI" }).check();
   const input = page.getByLabel("Entrée libre du joueur");
   await expect(input).toBeEnabled({ timeout: 30_000 });
@@ -138,7 +138,7 @@ test("orientation aux Archives: un archiviste déjà visible ne demande aucun je
     if (body?.request?.role) roles.push(`${body.request.role}:${body.request.contractVersion ?? "unknown"}`);
   });
 
-  await page.goto("/");
+  await openArchivesPilot(page);
   await page.getByRole("radio", { name: "OpenAI" }).check();
   const input = page.getByLabel("Entrée libre du joueur");
   await expect(input).toBeEnabled({ timeout: 30_000 });
@@ -173,7 +173,7 @@ test("référence pronominale sans focus: clarification sûre sans panne IA", as
   });
   page.on("pageerror", error => pageErrors.push(error.message));
 
-  await page.goto("/");
+  await openArchivesPilot(page);
   await page.getByRole("radio", { name: "OpenAI" }).check();
   const input = page.getByLabel("Entrée libre du joueur");
   await expect(input).toBeEnabled({ timeout: 30_000 });
@@ -189,3 +189,9 @@ test("référence pronominale sans focus: clarification sûre sans panne IA", as
   expect(roles.some(role => role.startsWith("npc_performer:"))).toBe(false);
   console.log(`[archives-live-no-focus] roles=${roles.join(",")}`);
 });
+
+async function openArchivesPilot(page: import("@playwright/test").Page) {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Ouvrir le pilote" }).click();
+  await expect(page.getByRole("radio", { name: "OpenAI" })).toBeVisible();
+}

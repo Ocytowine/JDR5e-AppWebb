@@ -15,6 +15,13 @@ import type { PreparedSkillCheckOutcomeV1 } from "./skillCheckOutcomePreparation
 export const SKILL_CHECK_OUTCOME_COMMIT_CONTRACT_VERSION_V1 =
   "skill-check-outcome-commit/1" as const;
 
+export interface SkillCheckOwnerTargetV1 extends JsonObject {
+  aggregateType: string;
+  aggregateId: string;
+  expectedAggregateRevision: number | null;
+  nextPayload: JsonObject;
+}
+
 export interface SkillCheckOwnerResultV1 extends JsonObject {
   schemaVersion: 1;
   contractVersion: typeof SKILL_CHECK_OUTCOME_COMMIT_CONTRACT_VERSION_V1;
@@ -29,6 +36,7 @@ export interface SkillCheckOwnerResultV1 extends JsonObject {
     expectedAggregateRevision: number | null;
   };
   nextPayload: JsonObject;
+  additionalTargets: SkillCheckOwnerTargetV1[];
   publicSourceRefs: string[];
   ownerAuthority: true;
 }
@@ -38,6 +46,7 @@ export function augmentTemporalCommitWithSkillCheckOutcomeV1(input: {
   prepared: PreparedSkillCheckOutcomeV1;
   ownerResult: SkillCheckOwnerResultV1;
   currentTargetAggregate: AggregateRecord | null;
+  currentAdditionalTargetAggregates?: AggregateRecord[];
 }): { ok: true; value: CommitRequest } | { ok: false; issues: string[] } {
   const { temporalCommit, prepared, ownerResult, currentTargetAggregate } = input;
   const issues: string[] = [];
@@ -66,26 +75,34 @@ export function augmentTemporalCommitWithSkillCheckOutcomeV1(input: {
   if (clockWrite?.payload.elapsedGameSeconds !== expectedGameSecond) {
     issues.push("temporal commit does not reach prepared effective time");
   }
-  const targetKey = `${ownerResult.target.aggregateType}:${ownerResult.target.aggregateId}`;
-  if (temporalCommit.aggregateWrites.some(write => `${write.aggregateType}:${write.aggregateId}` === targetKey)) {
-    issues.push("target aggregate is already written by temporal commit");
-  }
+  const targets = [{ ...ownerResult.target, nextPayload: ownerResult.nextPayload }, ...ownerResult.additionalTargets];
+  const targetKeys = targets.map(target => `${target.aggregateType}:${target.aggregateId}`);
+  if (new Set(targetKeys).size !== targetKeys.length) issues.push("owner targets must be unique");
+  if (targets.some(target => !target.aggregateType.trim() || !target.aggregateId.trim())) issues.push("additional target identity is required");
+  if (temporalCommit.aggregateWrites.some(write => targetKeys.includes(`${write.aggregateType}:${write.aggregateId}`))) issues.push("owner target is already written by temporal commit");
+  const primary = targets[0];
   if (currentTargetAggregate === null) {
-    if (ownerResult.target.expectedAggregateRevision !== null) issues.push("new target requires null expected revision");
+    if (primary.expectedAggregateRevision !== null) issues.push("new target requires null expected revision");
   } else if (
     currentTargetAggregate.campaignId !== temporalCommit.campaignId ||
-    currentTargetAggregate.aggregateType !== ownerResult.target.aggregateType ||
-    currentTargetAggregate.aggregateId !== ownerResult.target.aggregateId ||
-    currentTargetAggregate.aggregateRevision !== ownerResult.target.expectedAggregateRevision
-  ) {
-    issues.push("current target aggregate mismatch");
+    currentTargetAggregate.aggregateType !== primary.aggregateType ||
+    currentTargetAggregate.aggregateId !== primary.aggregateId ||
+    currentTargetAggregate.aggregateRevision !== primary.expectedAggregateRevision
+  ) issues.push("current target aggregate mismatch");
+  const currentAdditional = new Map((input.currentAdditionalTargetAggregates ?? []).map(aggregate => [
+    `${aggregate.aggregateType}:${aggregate.aggregateId}`,
+    aggregate
+  ]));
+  for (const target of targets.slice(1)) {
+    const current = currentAdditional.get(`${target.aggregateType}:${target.aggregateId}`) ?? null;
+    if (current === null ? target.expectedAggregateRevision !== null : (
+      current.campaignId !== temporalCommit.campaignId ||
+      current.aggregateRevision !== target.expectedAggregateRevision
+    )) issues.push("current additional target aggregate mismatch");
   }
   if (issues.length > 0) return { ok: false, issues };
 
   const aggregateId = opaqueId<AggregateId>(ownerResult.target.aggregateId);
-  const nextRevision = ownerResult.target.expectedAggregateRevision === null
-    ? 0
-    : ownerResult.target.expectedAggregateRevision + 1;
   const acceptedCommand: AcceptedCommandDraft = {
     schemaVersion: 1,
     contractId: "rules.skill-check-outcome",
@@ -116,11 +133,11 @@ export function augmentTemporalCommitWithSkillCheckOutcomeV1(input: {
     eventType: "rules.skill-check.outcome-committed",
     origin: "PLAYER_INTENT",
     causation: { kind: "COMMAND", id: acceptedCommand.commandId },
-    aggregateRefs: [{
-      aggregateType: ownerResult.target.aggregateType,
-      aggregateId,
-      aggregateRevision: nextRevision
-    }],
+    aggregateRefs: targets.map(target => ({
+      aggregateType: target.aggregateType,
+      aggregateId: opaqueId<AggregateId>(target.aggregateId),
+      aggregateRevision: target.expectedAggregateRevision === null ? 0 : target.expectedAggregateRevision + 1
+    })),
     visibility: { scope: "PLAYER_VISIBLE", actorIds: [] },
     occurredAtGameSecond: expectedGameSecond,
     payloadSchemaVersion: 1,
@@ -139,13 +156,13 @@ export function augmentTemporalCommitWithSkillCheckOutcomeV1(input: {
     value: {
       ...cloneJson(temporalCommit),
       acceptedCommands: [...temporalCommit.acceptedCommands.map(cloneJson), acceptedCommand],
-      aggregateWrites: [...temporalCommit.aggregateWrites.map(cloneJson), {
-        aggregateType: ownerResult.target.aggregateType,
-        aggregateId,
-        expectedAggregateRevision: ownerResult.target.expectedAggregateRevision,
-        payloadSchemaVersion: 1,
-        payload: cloneJson(ownerResult.nextPayload)
-      }],
+      aggregateWrites: [...temporalCommit.aggregateWrites.map(cloneJson), ...targets.map(target => ({
+        aggregateType: target.aggregateType,
+        aggregateId: opaqueId<AggregateId>(target.aggregateId),
+        expectedAggregateRevision: target.expectedAggregateRevision,
+        payloadSchemaVersion: 1 as const,
+        payload: cloneJson(target.nextPayload)
+      }))],
       events: [...temporalCommit.events.map(cloneJson), event]
     }
   };

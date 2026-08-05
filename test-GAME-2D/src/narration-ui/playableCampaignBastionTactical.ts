@@ -177,7 +177,7 @@ function asJsonObjectV1(value: unknown): JsonObject | null {
     : null;
 }
 
-function buildGameBoardPlayerProjectionV1(input: {
+export function buildGameBoardPlayerProjectionV1(input: {
   actorId: string;
   teamId: string;
   character: CharacterAggregatePayloadV1;

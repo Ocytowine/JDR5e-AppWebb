@@ -19,7 +19,10 @@ import type {
 } from "../map-module/world-simulation";
 import { CampaignGateway } from "./narration-ui/CampaignGateway";
 import type { ActiveCharacterSheetV1 } from "./narration-ui/activeCharacterSheetAdapter";
-import type { BastionTacticalSessionV1 } from "../narration-module/src/application";
+import {
+  isAccessTacticalSessionSummaryV1,
+  type BastionTacticalSessionV1
+} from "../narration-module/src/application";
 import {
   createEmbeddedGameBoardActorResolverV1,
   createEmbeddedGameBoardMapResolverV1,
@@ -228,7 +231,11 @@ export function App(props: {
           </SurfaceButton>
         )}
         <SurfaceButton active={surface === "tactical"} onClick={() => setSurface("tactical")}>
-          {tacticalSession === null ? "Tactique" : "Tactique · défense en attente"}
+          {tacticalSession === null
+            ? "Tactique"
+            : isAccessTacticalSessionSummaryV1(tacticalSession.summary)
+              ? "Tactique · conflit d'accès en attente"
+              : "Tactique · défense en attente"}
         </SurfaceButton>
         {narrativeEntry.kind !== "INJECTED" && (
           <SurfaceButton

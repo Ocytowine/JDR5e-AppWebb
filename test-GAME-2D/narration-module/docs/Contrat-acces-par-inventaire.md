@@ -1,6 +1,6 @@
 # Contrat d'accès par inventaire
 
-Statut : `SOCLE_RUNTIME_CERTIFIE_LOCAL_2026-08-03`
+Statut : `RUNTIME_ET_PREMIER_CATALOGUE_CAMPAGNE_CERTIFIES_2026-08-04`
 
 Ce contrat décrit l'approche « je présente/utilise un objet » devant un
 contrôle d'accès. Il ne couvre pas les mutations générales d'inventaire
@@ -42,19 +42,29 @@ prose IA à fabriquer une possession.
 
 ## Frontière d'intégration
 
-Le moteur générique et son raccord au contrôleur sont disponibles. Chaque
-campagne doit encore fournir ses données concrètes : contrôles d'accès, règles
-d'objets acceptés, résolveur des noms d'objets et registre autoritaire des
-justificatifs. Sans seuil compatible, une demande d'inventaire ordinaire reste
-un handoff et ne passe pas par ce moteur.
+Le moteur générique et son raccord au contrôleur sont disponibles. La campagne
+jouable installe désormais un premier catalogue concret pour la connexion lore
+`lore:caserne_centrale:connection:2`, de la Caserne centrale vers le Château
+Tharqual. Il reconnaît l'`obj_ordre_passage_tharqual` et ses alias, mais exige
+un enregistrement actif, détenu par le personnage et couvrant
+`access-scope:caserne-centrale-chateau-tharqual`.
+
+Le registre installé est vide au démarrage : le créateur ne donne pas cet
+ordre au personnage et le simple fait de le nommer ne l'ajoute jamais à
+`character.state`. Une future autorité de quête ou de monde devra committer
+son émission avant que cette voie puisse réussir. Les autres campagnes et
+seuils doivent toujours fournir leurs propres données concrètes.
 
 ## Preuves
 
 ```text
 npm run narration-module:test:inventory-access
 npm run narration-module:test:narrative-turn-controller
+npm run narration-module:test:campaign-access-lot-b
 ```
 
 La recette couvre objet absent, justificatif révoqué, mauvais détenteur,
 accessibilité, conservation, consommation atomique, ouverture, rejeu et
-exécution dans l'opération du tour narratif.
+exécution dans l'opération du tour narratif. La recette navigateur du lot B
+prouve en plus l'absence de création de l'ordre annoncé, l'ouverture sociale,
+la reprise de campagne et le franchissement dans une opération ultérieure.

@@ -45,7 +45,9 @@ niveau_controle: non documente
 zones_de_loi_faible: []
 
 # LIENS / CONTENU
-villes_principales: []
+villes_principales:
+  - bourg_des_forges
+  - hameau_du_torrent_froid
 lieux_remarquables: []
 factions_actives: []
 

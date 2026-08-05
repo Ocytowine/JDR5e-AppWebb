@@ -19,6 +19,8 @@ import {
   type BastionIncidentPublicSummaryV1
 } from "./bastionIncidentAuthority";
 import { loadBastionRegistryV1 } from "./bastionAuthority";
+import { loadAccessControlRegistryV1 } from "./accessControlAuthority";
+import type { AccessTacticalSessionSummaryV1 } from "./tacticalAccessAuthority";
 import { restoreTacticalCheckpointV1 } from "./tacticalCheckpointRuntime";
 import { restorePendingTacticalOutcomeV1 } from "./tacticalOutcomeRuntime";
 
@@ -30,7 +32,7 @@ export interface BastionTacticalSessionV1 {
   contractVersion: typeof BASTION_TACTICAL_SESSION_CONTRACT_V1;
   status: "READY_FOR_TACTICAL" | "COMPLETED_PENDING_INTEGRATION";
   sourceEventId: string;
-  summary: BastionIncidentPublicSummaryV1;
+  summary: BastionIncidentPublicSummaryV1 | AccessTacticalSessionSummaryV1;
   process: ProcessHandoffV1;
   seed: TacticalEncounterSeedV1;
   checkpoint: ProcessCheckpointV1 | null;
@@ -49,29 +51,26 @@ export async function restoreActiveBastionTacticalSessionV1(input: {
   if (!events.ok) return events;
   const candidates = events.value
     .filter(event =>
-      event.eventType === "bastion_defense_handoff_started"
+      (event.eventType === "bastion_defense_handoff_started"
+        || event.eventType === "access_tactical_handoff_started")
       && event.visibility.scope === "PLAYER_VISIBLE"
-      && isIncidentSummary(event.payload)
+      && (isIncidentSummary(event.payload) || isAccessSummary(event.payload))
       && event.payload.status === "HANDOFF_ACTIVE"
       && event.payload.tacticalProcessId !== null
     )
     .reverse();
   if (candidates.length === 0) return { ok: true, value: null };
 
-  const registry = await loadBastionRegistryV1(input.repository, input.campaignId);
-  if (!registry.ok) return registry;
   for (const event of candidates) {
-    const summary = event.payload as BastionIncidentPublicSummaryV1;
+    const summary = event.payload as
+      | BastionIncidentPublicSummaryV1
+      | AccessTacticalSessionSummaryV1;
     const processId = summary.tacticalProcessId!;
-    const incidentStillActive = registry.value.state.bastions.some(bastion =>
-      bastion.bastionId === summary.bastionId
-      && bastion.incidents.some(incident =>
-        incident.incidentId === summary.incidentId
-        && incident.tacticalProcessId === processId
-        && incident.status === "HANDOFF_ACTIVE"
-      )
-    );
-    if (!incidentStillActive) continue;
+    const incidentStillActive = isAccessSummary(summary)
+      ? await accessHandoffStillOwned(input.repository, input.campaignId, summary)
+      : await bastionHandoffStillOwned(input.repository, input.campaignId, summary);
+    if (!incidentStillActive.ok) return incidentStillActive;
+    if (!incidentStillActive.value) continue;
 
     const [processAggregate, seedAggregate] = await Promise.all([
       input.repository.getAggregate(
@@ -149,6 +148,43 @@ export async function restoreActiveBastionTacticalSessionV1(input: {
   return { ok: true, value: null };
 }
 
+async function bastionHandoffStillOwned(
+  repository: CampaignRepository,
+  campaignId: CampaignId,
+  summary: BastionIncidentPublicSummaryV1
+): Promise<Result<boolean>> {
+  const registry = await loadBastionRegistryV1(repository, campaignId);
+  if (!registry.ok) return registry;
+  return {
+    ok: true,
+    value: registry.value.state.bastions.some(bastion =>
+      bastion.bastionId === summary.bastionId
+      && bastion.incidents.some(incident =>
+        incident.incidentId === summary.incidentId
+        && incident.tacticalProcessId === summary.tacticalProcessId
+        && incident.status === "HANDOFF_ACTIVE"
+      )
+    )
+  };
+}
+
+async function accessHandoffStillOwned(
+  repository: CampaignRepository,
+  campaignId: CampaignId,
+  summary: AccessTacticalSessionSummaryV1
+): Promise<Result<boolean>> {
+  const registry = await loadAccessControlRegistryV1(repository, campaignId);
+  if (!registry.ok) return registry;
+  return {
+    ok: true,
+    value: registry.value.state.controls.some(control =>
+      control.accessControlRef === summary.accessControlRef
+      && control.boundaryRef === summary.boundaryRef
+      && control.state === "CONTROLLED"
+    )
+  };
+}
+
 async function listAllEvents(
   repository: CampaignRepository,
   campaignId: CampaignId
@@ -186,6 +222,34 @@ function isIncidentSummary(value: unknown): value is BastionIncidentPublicSummar
     && Number.isInteger(summary.occurredAtGameSecond)
     && Number(summary.occurredAtGameSecond) >= 0
     && nonEmpty(summary.narrative);
+}
+
+export function isAccessTacticalSessionSummaryV1(
+  value: unknown
+): value is AccessTacticalSessionSummaryV1 {
+  return isAccessSummary(value);
+}
+
+function isAccessSummary(value: unknown): value is AccessTacticalSessionSummaryV1 {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) return false;
+  const summary = value as Partial<AccessTacticalSessionSummaryV1>;
+  return summary.schemaVersion === 1
+    && summary.ownerDomain === "access"
+    && nonEmpty(summary.accessControlRef)
+    && nonEmpty(summary.boundaryRef)
+    && nonEmpty(summary.destinationRef)
+    && nonEmpty(summary.placeRef)
+    && nonEmpty(summary.placeDisplayName)
+    && nonEmpty(summary.incidentId)
+    && nonEmpty(summary.incidentDefinitionRef)
+    && nonEmpty(summary.incidentDisplayName)
+    && summary.kind === "TACTICAL_ACCESS"
+    && summary.status === "HANDOFF_ACTIVE"
+    && nonEmpty(summary.tacticalProcessId)
+    && Number.isInteger(summary.occurredAtGameSecond)
+    && Number(summary.occurredAtGameSecond) >= 0
+    && nonEmpty(summary.narrative)
+    && nonEmpty(summary.resolutionPolicyRef);
 }
 
 function nonEmpty(value: unknown): value is string {

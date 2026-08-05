@@ -343,7 +343,7 @@ function buildRolePayloadSchema(requestOrRole) {
                   schemaVersion: { enum: [1] },
                   status: { enum: ["SUPPORTED_BY_CURRENT_RUNTIME", "UNSUPPORTED_DOMAIN", "NEEDS_CLARIFICATION", "AI_INTERPRETATION_FAILED"] },
                   reason: { type: "string" },
-                  requiredDomain: { enum: ["scene_resolution", "social", "perception", "inventory", "tactical", "rest", "world", null] },
+                  requiredDomain: { enum: ["scene_resolution", "social", "perception", "inventory", "rules", "tactical", "rest", "world", null] },
                   canonicalActionHint: { enum: ["ask_possibility", "ask", "open", "force", "observe", "act", null] },
                   noCommit: { type: "boolean" },
                   noGameTime: { type: "boolean" }
@@ -483,7 +483,7 @@ function buildRolePayloadSchema(requestOrRole) {
             intentId: { type: "string" },
             semanticGoal: { type: "string" },
             runtimeStatus: { enum: ["SUPPORTED_BY_CURRENT_RUNTIME", "UNSUPPORTED_DOMAIN", "NEEDS_CLARIFICATION", "AI_INTERPRETATION_FAILED"] },
-            requiredDomain: { enum: ["scene_resolution", "social", "perception", "inventory", "tactical", "rest", "world", null] }
+            requiredDomain: { enum: ["scene_resolution", "social", "perception", "inventory", "rules", "tactical", "rest", "world", null] }
           }
         },
         sceneBeats: {
@@ -511,7 +511,7 @@ function buildRolePayloadSchema(requestOrRole) {
             required: ["proposalId", "domain", "commandType", "targetRefs", "payload", "commitAuthority"],
             properties: {
               proposalId: { type: "string" },
-              domain: { enum: ["scene_resolution", "social", "perception", "inventory", "tactical", "rest", "world"] },
+              domain: { enum: ["scene_resolution", "social", "perception", "inventory", "rules", "tactical", "rest", "world"] },
               commandType: { type: "string" },
               targetRefs: { type: "array", items: { type: "string" } },
               payload: {
@@ -814,7 +814,7 @@ function buildSemanticIntentPayloadSchemaV2() {
           preconditions: { type: "array", maxItems: 4, items: { type: "string" } },
           playerGoal: { type: "string" },
           actionHint: { type: ["string", "null"] },
-          domainHint: { enum: ["scene_resolution", "social", "perception", "inventory", "tactical", "rest", "world", null] },
+          domainHint: { enum: ["scene_resolution", "social", "perception", "inventory", "rules", "tactical", "rest", "world", null] },
           scope: { enum: ["LOCAL_INTERACTION", "SCENE_TRANSITION", "SOCIAL_EXCHANGE", "PERCEPTION", "META", "UNKNOWN"] },
           targetMention: {
             anyOf: [{
@@ -1783,7 +1783,7 @@ function validateRolePayload(payload, role, request = null) {
     const allowedIntentActions = new Set(["ask_possibility", "ask", "open", "force", "observe", "act"]);
     const allowedSemanticKinds = new Set(["address_visible_actor", "move_near_visible_actor", "manipulate_visible_object", "traverse_visible_boundary", "observe_environment", "nonverbal_signal", "hypothetical_action", "context_question", "meta_request", "unclear_intent"]);
     const allowedRuntimeStatuses = new Set(["SUPPORTED_BY_CURRENT_RUNTIME", "UNSUPPORTED_DOMAIN", "NEEDS_CLARIFICATION", "AI_INTERPRETATION_FAILED"]);
-    const allowedRuntimeDomains = new Set(["scene_resolution", "social", "perception", "inventory", "tactical", "rest", "world"]);
+    const allowedRuntimeDomains = new Set(["scene_resolution", "social", "perception", "inventory", "rules", "tactical", "rest", "world"]);
     if (!Array.isArray(payload.intents) || payload.intents.length === 0 || payload.intents.length > 3) {
       issues.push("payload.intents must contain 1 to 3 intents.");
       return issues;
@@ -1917,7 +1917,7 @@ function validateSemanticIntentPayloadV2(payload) {
   if (!intent || typeof intent !== "object" || Array.isArray(intent)) return [...issues, "payload.intent must be an object."];
   const kinds = ["address_visible_actor", "move_near_visible_actor", "manipulate_visible_object", "traverse_visible_boundary", "observe_environment", "nonverbal_signal", "hypothetical_action", "context_question", "meta_request", "unclear_intent"];
   const commitments = ["none", "hypothetical", "conditional", "committed", "unclear"];
-  const domains = ["scene_resolution", "social", "perception", "inventory", "tactical", "rest", "world"];
+  const domains = ["scene_resolution", "social", "perception", "inventory", "rules", "tactical", "rest", "world"];
   if (!kinds.includes(intent.kind)) issues.push("payload.intent.kind is invalid.");
   if (!commitments.includes(intent.commitment)) issues.push("payload.intent.commitment is invalid.");
   if (!Array.isArray(intent.preconditions) || intent.preconditions.length > 4 || intent.preconditions.some(item => typeof item !== "string" || item.trim().length === 0)) issues.push("payload.intent.preconditions must contain at most four non-empty strings.");
@@ -2144,7 +2144,7 @@ function validateCommittedActionReferent(intent, index) {
 function validateMjPlannerPayload(payload, request) {
   const issues = [];
   const allowedBeatKinds = new Set(["CONTEXT_RESPONSE", "LOCAL_ACTION_ATTEMPT", "ACTOR_REACTION_EXPECTED", "DOMAIN_BLOCKED", "CLARIFICATION"]);
-  const allowedDomains = new Set(["scene_resolution", "social", "perception", "inventory", "tactical", "rest", "world"]);
+  const allowedDomains = new Set(["scene_resolution", "social", "perception", "inventory", "rules", "tactical", "rest", "world"]);
   const allowedRuntimeStatuses = new Set(["SUPPORTED_BY_CURRENT_RUNTIME", "UNSUPPORTED_DOMAIN", "NEEDS_CLARIFICATION", "AI_INTERPRETATION_FAILED"]);
   const allowedActorRoles = new Set(["intent_interpreter", "player_intent_interpreter", "mj_planner", "player_expression_adapter", "npc_performer", "rules_adjudicator", "coherence_critic", "scene_writer", "scene_creator", "destination_arbiter", "clarification_writer"]);
   const allowedHandoffs = new Set(["ASK_PLAYER", "CONTINUE_AUTOMATICALLY", "CLARIFY", "END_TURN"]);

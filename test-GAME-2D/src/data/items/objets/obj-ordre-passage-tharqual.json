@@ -1,0 +1,21 @@
+{
+  "id": "obj_ordre_passage_tharqual",
+  "label": "Ordre de passage Tharqual",
+  "type": "object",
+  "category": "document",
+  "weight": 0.05,
+  "tags": [
+    "document",
+    "autorisation",
+    "garnison",
+    "tharqual"
+  ],
+  "description": "Ordre nominatif émis par la garnison. Sa validité et son périmètre doivent être confirmés par le registre d'émission.",
+  "value": {
+    "platinum": 0,
+    "gold": 0,
+    "silver": 0,
+    "copper": 0
+  },
+  "harmonisable": false
+}

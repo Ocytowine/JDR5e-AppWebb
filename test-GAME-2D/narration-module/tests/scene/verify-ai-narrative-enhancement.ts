@@ -448,7 +448,7 @@ async function main(): Promise<void> {
     rawInput: "J'observe plus attentivement la porte du fond"
   });
   if (!focusedDoor.ok) throw new Error(focusedDoor.error.messageKey);
-  assert.deepEqual(focusedDoor.value.output.resolution.perception?.revealedClueRefs, ["door-immediate-signs"]);
+  assert.deepEqual(focusedDoor.value.output.resolution.perception?.revealedClueRefs, ["door-focused-signs"]);
   const focusedDoorOp = focusedDoor.value.operation.operationId;
   const focusedDoorAuthority = buildNarrativeRenderAuthorityV1(focusedDoor.value.output.resolution, focusedDoor.value.output.displayPacket);
   const mechanicalTextureProvider = new RecordingProvider([
@@ -515,7 +515,7 @@ async function main(): Promise<void> {
   });
   assert.equal(mechanicalTexture.fallbackKind, "RENDER_AUTHORITY_REJECTION");
   assert.equal(mechanicalTexture.displayPacket.displayBlocks.some(block => /engrenages rouillés|toujours fonctionnels/iu.test(block.text)), false);
-  assert.equal(mechanicalTexture.displayPacket.displayBlocks.some(block => /rien.*permet.*établir|mécanisme cédera/iu.test(block.text)), true);
+  assert.equal(mechanicalTexture.displayPacket.displayBlocks.some(block => /sans pouvoir déduire|état interne|contenu de l'arrière-salle/iu.test(block.text)), true);
   const mechanicalCriticRequest = mechanicalTextureProvider.requests.find(request => request.attemptId.endsWith(":coherence-critic:attempt:1"));
   const mechanicalRenderPlan = (mechanicalCriticRequest?.input.task as { renderAuthority: NarrativeRenderAuthorityV1 }).renderAuthority;
   assert.equal(mechanicalRenderPlan.texturePolicy.mayAffectRules, false);
@@ -1017,10 +1017,10 @@ async function main(): Promise<void> {
   const broadObservation = await controller.submit({
     schemaVersion: 1,
     clientRequestId: "req-ai-broad-observation-coverage",
-    rawInput: "J'observe les gens autour de moi."
+    rawInput: "est ce que je vois des gens autour de moi ?"
   });
   if (!broadObservation.ok) throw new Error(broadObservation.error.messageKey);
-  assert.equal(broadObservation.value.output.interpretation.semanticIntent.kind, "observe_environment");
+  assert.equal(broadObservation.value.output.interpretation.semanticIntent.kind, "context_question");
   const broadOp = broadObservation.value.operation.operationId;
   const sceneRef = `playable-scene:${broadObservation.value.output.activeScene.sceneId}:${broadObservation.value.output.activeScene.version}`;
   const poorObservationProvider = new RecordingProvider([
@@ -1031,7 +1031,7 @@ async function main(): Promise<void> {
       payload: {
         intentId: broadObservation.value.output.interpretation.intentId,
         expressionKind: "observation",
-        renderedExpression: "J'observe les gens autour de moi.",
+        renderedExpression: "Est-ce que je vois des gens autour de moi ?",
         meaningCovered: ["observer les présences proches"],
         addedMeaning: [],
         omittedMeaning: [],
@@ -1092,7 +1092,7 @@ async function main(): Promise<void> {
       payload: {
         intentId: broadObservation.value.output.interpretation.intentId,
         expressionKind: "observation",
-        renderedExpression: "J'observe les gens autour de moi.",
+        renderedExpression: "Est-ce que je vois des gens autour de moi ?",
         meaningCovered: ["observer les présences proches"],
         addedMeaning: [],
         omittedMeaning: [],

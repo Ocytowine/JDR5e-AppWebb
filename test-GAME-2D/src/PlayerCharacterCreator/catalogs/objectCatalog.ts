@@ -12,6 +12,7 @@ import ContenantsObjSacADos from "../../data/items/objets/contenants/obj-sac-a-d
 import ContenantsObjSacVoyage from "../../data/items/objets/contenants/obj-sac-voyage.json";
 import ObjGrimoire from "../../data/items/objets/obj-grimoire.json";
 import ObjInsigneUnite from "../../data/items/objets/obj-insigne-unite.json";
+import ObjOrdrePassageTharqual from "../../data/items/objets/obj-ordre-passage-tharqual.json";
 import ObjPlumeEncre from "../../data/items/objets/obj-plume-encre.json";
 import ObjSouvenirVole from "../../data/items/objets/obj-souvenir-vole.json";
 import ObjSymboleSacre from "../../data/items/objets/obj-symbole-sacre.json";
@@ -32,6 +33,7 @@ const OBJECT_MODULES: Record<string, ObjectItemDefinition> = {
   "./contenants/obj-sac-voyage.json": ContenantsObjSacVoyage as unknown as ObjectItemDefinition,
   "./obj-grimoire.json": ObjGrimoire as unknown as ObjectItemDefinition,
   "./obj-insigne-unite.json": ObjInsigneUnite as unknown as ObjectItemDefinition,
+  "./obj-ordre-passage-tharqual.json": ObjOrdrePassageTharqual as unknown as ObjectItemDefinition,
   "./obj-plume-encre.json": ObjPlumeEncre as unknown as ObjectItemDefinition,
   "./obj-souvenir-vole.json": ObjSouvenirVole as unknown as ObjectItemDefinition,
   "./obj-symbole-sacre.json": ObjSymboleSacre as unknown as ObjectItemDefinition,

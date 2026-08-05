@@ -27,12 +27,32 @@ import {
   loadAccessControlRegistryV1,
   type AccessControlRegistryV1
 } from "./accessControlAuthority";
+import { validateSkillCheckProposalV1, type SkillCheckProposalV1 } from "./skillCheckProposal";
 
 export const SOCIAL_ACCESS_RESOLUTION_CONTRACT_V1 = "social-access-resolution/1" as const;
 export const SOCIAL_ACCESS_ATTEMPT_REGISTRY_CONTRACT_V1 = "social-access-attempt-registry/1" as const;
 export const SOCIAL_ACCESS_ATTEMPT_REGISTRY_AGGREGATE_TYPE_V1 = "social-access-attempt.registry" as const;
 
 export type SocialAccessOutcomeV1 = "GRANTED" | "DENIED" | "CONDITION_OFFERED" | "CHECK_REQUIRED";
+
+export interface SocialAccessCheckPolicyV1 extends JsonObject {
+  schemaVersion: 1;
+  proposal: SkillCheckProposalV1;
+  durationSeconds: number;
+  success: {
+    playerFacingResponse: string;
+    requirementRef: string;
+    satisfyRequirementRefs: string[];
+    waiveRequirementRefs: string[];
+    resultingAccessState: "OPEN" | "CONTROLLED";
+    sourceRefs: string[];
+  };
+  failure: {
+    playerFacingResponse: string;
+    sourceRefs: string[];
+  };
+  ruleRefs: string[];
+}
 
 export interface ResolveSocialAccessCommandV1 extends JsonObject {
   schemaVersion: 1;
@@ -60,6 +80,7 @@ export interface SocialAccessAuthorizationV1 extends JsonObject {
   playerFacingResponse: string;
   conditionRef: string | null;
   checkProposalRef: string | null;
+  checkPolicy: SocialAccessCheckPolicyV1 | null;
   sourceRefs: string[];
 }
 
@@ -81,6 +102,14 @@ export interface SocialAccessAttemptRecordV1 extends JsonObject {
   outcome: SocialAccessOutcomeV1;
   conditionRef: string | null;
   checkProposalRef: string | null;
+  checkResolution: {
+    checkId: string;
+    rollId: string;
+    outcome: "GRANTED" | "DENIED";
+    playerFacingResponse: string;
+    resolvedAtGameSecond: number;
+    sourceRefs: string[];
+  } | null;
   occurredAtGameSecond: number;
   sourceRefs: string[];
 }
@@ -97,11 +126,14 @@ export interface SocialAccessResolutionResultV1 extends JsonObject {
   schemaVersion: 1;
   accessControlRef: string;
   resolutionRef: string;
+  playerActorRef: string;
+  respondingActorRef: string;
   outcome: SocialAccessOutcomeV1;
   resultingAccessState: "OPEN" | "CONTROLLED";
   playerFacingResponse: string;
   conditionRef: string | null;
   checkProposalRef: string | null;
+  checkPolicy: SocialAccessCheckPolicyV1 | null;
   commitId: string;
   replayed: boolean;
 }
@@ -180,6 +212,7 @@ export async function resolveSocialAccessV1(input: {
     outcome: authorization.outcome,
     conditionRef: authorization.conditionRef,
     checkProposalRef: authorization.checkProposalRef,
+    checkResolution: null,
     occurredAtGameSecond: input.command.occurredAtGameSecond,
     sourceRefs: [...authorization.sourceRefs]
   };
@@ -216,11 +249,14 @@ export async function resolveSocialAccessV1(input: {
     schemaVersion: 1,
     accessControlRef: control.accessControlRef,
     resolutionRef: authorization.resolutionRef,
+    playerActorRef: input.command.playerActorRef,
+    respondingActorRef: authorization.respondingActorRef,
     outcome: authorization.outcome,
     resultingAccessState: nextControlResult.control.state as "OPEN" | "CONTROLLED",
     playerFacingResponse: authorization.playerFacingResponse,
     conditionRef: authorization.conditionRef,
     checkProposalRef: authorization.checkProposalRef,
+    checkPolicy: authorization.checkPolicy,
     commitId: committed.value.commitId,
     replayed: false
   };
@@ -263,6 +299,8 @@ function validateAuthorization(command: ResolveSocialAccessCommandV1, control: A
   }
   if (value.outcome === "CONDITION_OFFERED" ? value.conditionRef === null : value.conditionRef !== null) issues.push("conditionRef must match CONDITION_OFFERED");
   if (value.outcome === "CHECK_REQUIRED" ? value.checkProposalRef === null : value.checkProposalRef !== null) issues.push("checkProposalRef must match CHECK_REQUIRED");
+  if (value.outcome === "CHECK_REQUIRED" ? value.checkPolicy === null : value.checkPolicy !== null) issues.push("checkPolicy must match CHECK_REQUIRED");
+  if (value.checkPolicy !== null) issues.push(...validateCheckPolicy(control, value));
   return issues;
 }
 
@@ -273,6 +311,33 @@ function validateAttempt(value: SocialAccessAttemptRecordV1): string[] {
   if (!Number.isInteger(value.occurredAtGameSecond) || value.occurredAtGameSecond < 0 || !Array.isArray(value.sourceRefs) || value.sourceRefs.length === 0) issues.push("social access attempt time or sources are invalid");
   if (value.outcome === "CONDITION_OFFERED" ? value.conditionRef === null : value.conditionRef !== null) issues.push("social access attempt condition is inconsistent");
   if (value.outcome === "CHECK_REQUIRED" ? value.checkProposalRef === null : value.checkProposalRef !== null) issues.push("social access attempt check is inconsistent");
+  if (value.checkResolution != null) {
+    if (value.outcome !== "CHECK_REQUIRED" || value.checkProposalRef !== value.checkResolution.checkId) issues.push("social access check resolution is not bound to its proposal");
+    if (!["GRANTED", "DENIED"].includes(value.checkResolution.outcome) || !value.checkResolution.rollId.trim() || !value.checkResolution.playerFacingResponse.trim()) issues.push("social access check resolution is invalid");
+    if (!Number.isInteger(value.checkResolution.resolvedAtGameSecond) || value.checkResolution.resolvedAtGameSecond < value.occurredAtGameSecond) issues.push("social access check resolution time is invalid");
+  }
+  return issues;
+}
+
+function validateCheckPolicy(control: AccessControlRecordV1, authorization: SocialAccessAuthorizationV1): string[] {
+  const policy = authorization.checkPolicy;
+  if (policy === null) return [];
+  const issues: string[] = [];
+  const proposalValidation = validateSkillCheckProposalV1(policy.proposal);
+  if (!proposalValidation.ok) issues.push(...proposalValidation.issues.map(issue => `check proposal: ${issue}`));
+  if (policy.schemaVersion !== 1 || policy.proposal.domain !== "social" || policy.proposal.checkId !== authorization.checkProposalRef) issues.push("social check proposal identity is invalid");
+  if (policy.proposal.targetRef !== authorization.respondingActorRef) issues.push("social check target must be the responding actor");
+  if (policy.proposal.difficulty.status !== "RULE_RESOLVED" || policy.proposal.characterContext === null) issues.push("social check proposal must be ready to roll");
+  if (!Number.isInteger(policy.durationSeconds) || policy.durationSeconds < 0) issues.push("social check duration is invalid");
+  const known = new Set(control.requirements.map(requirement => requirement.requirementRef));
+  const touched = [...policy.success.satisfyRequirementRefs, ...policy.success.waiveRequirementRefs];
+  if (!known.has(policy.success.requirementRef) || touched.some(ref => !known.has(ref)) || !policy.success.satisfyRequirementRefs.includes(policy.success.requirementRef)) issues.push("social check success requirements are invalid");
+  if (policy.success.resultingAccessState === "OPEN") {
+    const remaining = control.requirements.filter(requirement => requirement.status === "ACTIVE" && !touched.includes(requirement.requirementRef));
+    if (remaining.length > 0) issues.push("social check success cannot open while requirements remain active");
+  }
+  if (!policy.success.playerFacingResponse.trim() || !policy.failure.playerFacingResponse.trim()) issues.push("social check outcome responses are required");
+  if (policy.success.sourceRefs.length === 0 || policy.failure.sourceRefs.length === 0 || policy.ruleRefs.length === 0) issues.push("social check outcome sources and rules are required");
   return issues;
 }
 

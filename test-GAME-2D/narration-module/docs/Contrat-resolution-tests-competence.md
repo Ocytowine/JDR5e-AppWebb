@@ -117,7 +117,7 @@ Restent fermés : construction automatique d'une conséquence pour tous les
 domaines, intégration au contrôleur de tour, politique complète de répétition et
 interface de lancer.
 
-## Premier domaine jouable : Perception
+## Domaines jouables : Perception, accès social et règles d'accès
 
 `perception-skill-check-outcome/1` transforme une recherche active en politique
 de résultat propriétaire. Une réussite peut révéler uniquement les indices de
@@ -126,16 +126,33 @@ la cible marqués à la fois `CHECKED` et `VISIBLE_SIGN`. Les faits
 compris de la reprise narrative. Un échec ne révèle aucun indice et demande un
 changement de contexte avant une nouvelle tentative.
 
+Dans une scène et sur une cible réelles, l'identité du test de perception est
+compacte et déterministe. Elle conserve un suffixe d'empreinte avant de servir
+aux identités du dé, de l'outcome et du commit ; les longues identités de
+campagne ne peuvent donc plus rendre ces écritures invalides.
+
 Le contrôleur expose maintenant `pending-narrative-skill-check/1` avec le statut
 `AWAITING_SKILL_ROLL` lorsqu'une résolution perceptive retourne
 `CHECK_REQUIRED`. Cet état contient la proposition exacte, la scène et
 l'opération source, sans autorité de commit. Il est enregistré avec la sortie
 durable du tour et restauré par le rejeu de l'opération.
 
-La prochaine ouverture est une commande explicite de reprise qui consommera cet
-état, persistera le d20, préparera la branche Perception, puis appellera le
-commit atomique existant. Le simple envoi d'un nouveau texte joueur ne doit pas
-être interprété implicitement comme un lancer.
+Le même état porte désormais un contexte propriétaire typé. Pour un accès
+social, il conserve la tentative, le contrôle, le joueur, l'interlocuteur et la
+politique couvrant réussite et échec. Après le jet, `SOCIAL_ACCESS_DOMAIN`
+transforme le verdict en accord ou refus et compose atomiquement sa mutation
+avec le temps. Le moteur de dé ne décide jamais lui-même de l'ouverture.
+
+Pour une approche mécanique, le contexte `RULES_ACCESS` conserve la tentative,
+le dispositif, la méthode, le contrôle et sa politique. Le résultat propriétaire
+compose le registre de tentative, le temps, le bruit et l'état du contrôle. La
+politique peut déclarer des ressources, mais toute consommation reste refusée
+tant que la cible inventaire correspondante n'est pas intégrée au même commit.
+
+La commande explicite de reprise consomme cet état, persiste le d20, prépare la
+branche du propriétaire, puis appelle le commit atomique existant. Le simple
+envoi d'un nouveau texte joueur ne doit pas être interprété implicitement comme
+un lancer.
 
 ## Reprise explicite du lancer
 
@@ -145,8 +162,8 @@ sortie durable, vérifie que la proposition est prête à lancer et que la scèn
 active correspond, puis enchaîne :
 
 1. persistance idempotente du d20 ;
-2. sélection de la branche Perception ;
-3. construction du résultat propriétaire ;
+2. sélection de la branche Perception ou Social ;
+3. construction du résultat par le propriétaire ;
 4. préparation du segment temporel ;
 5. commit atomique du temps et de la conséquence.
 

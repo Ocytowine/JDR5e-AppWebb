@@ -37,8 +37,18 @@ import {
   type SocialAccessAuthorizationV1,
   type SocialAccessAuthorityPortV1,
   type SocialAccessOutcomeV1,
+  NarrativeTurnControllerV1,
+  type D20SourceV1,
+  type PendingNarrativeSkillCheckV1,
   type UpsertAccessControlCommandV1
 } from "../../src/application";
+
+class CountingD20 implements D20SourceV1 {
+  readonly sourceId = "social-access-test-d20";
+  calls = 0;
+  constructor(private readonly value: number) {}
+  nextD20(): number { this.calls += 1; return this.value; }
+}
 
 async function main(): Promise<void> {
   const deniedFixture = await setup("denied");
@@ -101,7 +111,10 @@ async function main(): Promise<void> {
   assert.equal(runtimeResult.respondingActorName, "Garde de la grille");
   assert.equal(runtimeResult.resolution.resultingAccessState, "OPEN");
 
-  console.log("social access authority: denied, condition, check-required, owner identity, atomic grant and replay verified.");
+  await verifyAutomaticCheckResume("resume-success", 12, "OPEN", "GRANTED");
+  await verifyAutomaticCheckResume("resume-failure", 1, "CONTROLLED", "DENIED");
+
+  console.log("social access authority: decisions, automatic checked resume, atomic opening, reload and replay verified.");
 }
 
 type Fixture = Awaited<ReturnType<typeof setup>>;
@@ -140,12 +153,142 @@ function authorization(fixture: Fixture, outcome: SocialAccessOutcomeV1): Social
     playerFacingResponse: outcome === "GRANTED" ? "Très bien. Vous pouvez passer." : outcome === "DENIED" ? "Non. Je ne peux pas vous laisser passer." : outcome === "CONDITION_OFFERED" ? "Revenez avec l'accord de ma supérieure." : "Convainquez-moi que votre demande est urgente.",
     conditionRef: outcome === "CONDITION_OFFERED" ? "condition:obtain-supervisor-approval" : null,
     checkProposalRef: outcome === "CHECK_REQUIRED" ? "skill-check-proposal:social-access" : null,
+    checkPolicy: outcome === "CHECK_REQUIRED" ? {
+      schemaVersion: 1,
+      proposal: {
+        schemaVersion: 1,
+        contractVersion: "skill-check-proposal/1",
+        checkId: "skill-check-proposal:social-access",
+        domain: "social",
+        goal: "Convaincre le garde de laisser passer le personnage.",
+        targetRef: "actor:gate-guard",
+        ability: "CHA",
+        skillId: "persuasion",
+        characterContext: {
+          schemaVersion: 1, contractVersion: "mechanical-character-context/1", characterId: "character:hero",
+          ability: "CHA", abilityModifier: 2, proficiencyBonus: 2, skillId: "persuasion", proficiencyRank: 1,
+          totalModifier: 4, passiveScore: null, backgroundId: "emissaire", sourceRefs: ["character:hero"]
+        },
+        difficulty: {
+          status: "RULE_RESOLVED", dc: 12, band: "EASY", ruleRef: "core.check.difficulty-class@1",
+          assessment: { schemaVersion: 1, contractVersion: "difficulty-assessment/1", assessmentId: "difficulty:social-access", domain: "social", baseBand: "EASY", selectedBand: "EASY", netShift: 0, totalShift: 0, publicReasons: [], privateFactorCount: 0, publicSourceRefs: ["social-policy:gate-guard"], privateSourceRefs: [], ruleRefs: ["core.check.difficulty-assessment@1"], commitAuthority: false }
+        },
+        passive: { eligible: false, score: null, reason: "La négociation engagée demande un jet explicite." },
+        advantageSources: [], disadvantageSources: [],
+        stakes: { success: "Le garde accorde le passage.", failure: "Le garde maintient son refus." },
+        retryPolicy: "DOMAIN_TO_DECIDE", timeCost: "DOMAIN_TO_DECIDE",
+        sourceRefs: ["social-policy:gate-guard", "character:hero"], ruleRefs: ["core.check.difficulty-class@1"], commitAuthority: false
+      },
+      durationSeconds: 6,
+      success: {
+        playerFacingResponse: "Votre argument porte. Vous pouvez passer.",
+        requirementRef: fixture.control.requirements[0]!.requirementRef,
+        satisfyRequirementRefs: [fixture.control.requirements[0]!.requirementRef],
+        waiveRequirementRefs: [], resultingAccessState: "OPEN",
+        sourceRefs: ["social-policy:gate-guard"]
+      },
+      failure: { playerFacingResponse: "Votre argument ne suffit pas. Le passage reste fermé.", sourceRefs: ["social-policy:gate-guard"] },
+      ruleRefs: ["rule.social-access.persuasion@1"]
+    } : null,
     sourceRefs: ["social-policy:gate-guard"]
   };
 }
 
 function authority(value: SocialAccessAuthorizationV1): SocialAccessAuthorityPortV1 {
   return { async resolve() { return { ok: true, authorization: value }; } };
+}
+
+async function verifyAutomaticCheckResume(
+  slug: string,
+  die: number,
+  expectedAccessState: "OPEN" | "CONTROLLED",
+  expectedDecision: "GRANTED" | "DENIED"
+): Promise<void> {
+  const fixture = await setup(slug);
+  const sourceOperation = await beginReceivedOperation(
+    fixture.repository,
+    fixture.campaignId,
+    `narrative-social-check:${slug}`,
+    "narrative.turn.input",
+    { rawInput: "Je tente de convaincre le garde." }
+  );
+  const auth = authorization(fixture, "CHECK_REQUIRED");
+  const resolution = expectOk(await resolveSocialAccessV1({
+    repository: fixture.repository,
+    campaignId: fixture.campaignId,
+    operation: sourceOperation,
+    command: {
+      ...command(fixture, `social-check:${slug}`),
+      sourceOperationId: sourceOperation.operationId,
+      clientRequestId: `social-check:${slug}`,
+      speechText: "Je tente de convaincre le garde."
+    },
+    authorityPort: authority(auth)
+  }));
+  assert.equal(resolution.checkPolicy !== null, true);
+  if (resolution.checkPolicy === null) throw new Error("missing social check policy");
+  const scene = { sceneId: fixture.control.sourceSceneId } as never;
+  const pending: PendingNarrativeSkillCheckV1 = {
+    schemaVersion: 1,
+    contractVersion: "pending-narrative-skill-check/1",
+    pendingCheckId: `${resolution.checkPolicy.proposal.checkId}:pending`,
+    sourceOperationId: sourceOperation.operationId,
+    sceneId: fixture.control.sourceSceneId,
+    status: "AWAITING_SKILL_ROLL",
+    proposal: resolution.checkPolicy.proposal,
+    ownerContext: {
+      owner: "SOCIAL_ACCESS",
+      resolutionRef: resolution.resolutionRef,
+      accessControlRef: resolution.accessControlRef,
+      playerActorRef: resolution.playerActorRef,
+      respondingActorRef: resolution.respondingActorRef,
+      checkPolicy: resolution.checkPolicy
+    },
+    createdAt: "2026-08-03T18:00:00.000Z",
+    commitAuthority: false
+  };
+  expectOk(await fixture.repository.completePresentation(sourceOperation.operationId, "COMMITTED_RENDERED", 1, { pendingSkillCheck: pending }));
+  const d20 = new CountingD20(die);
+  const controller = new NarrativeTurnControllerV1({
+    repository: fixture.repository,
+    campaignId: fixture.campaignId,
+    intentInterpreterConfig: null,
+    mjPlannerConfig: null,
+    npcPerformerConfig: null,
+    activeSceneResolver: { resolve: async () => ({ ok: true, value: scene }) },
+    d20Source: d20
+  });
+  const resumeCommand = {
+    schemaVersion: 1 as const,
+    clientRequestId: `roll-social-check:${slug}`,
+    sourceOperationId: sourceOperation.operationId,
+    pendingCheckId: pending.pendingCheckId
+  };
+  const restoredBeforeRoll = expectOk(await controller.restorePendingSkillCheck());
+  assert.equal(restoredBeforeRoll?.pendingCheckId, pending.pendingCheckId);
+  const first = expectOk(await controller.rollPendingSkillCheck(resumeCommand));
+  assert.equal(first.prepared.outcome, expectedDecision === "GRANTED" ? "SUCCESS" : "FAILURE");
+  assert.equal(first.displayPacket.displayBlocks.some(block => block.text.includes(expectedDecision === "GRANTED" ? "Vous pouvez passer" : "reste fermé")), true);
+  assert.equal(d20.calls, 1);
+  const access = expectOk(await loadAccessControlRegistryV1(fixture.repository, fixture.campaignId)).state.controls[0]!;
+  assert.equal(access.state, expectedAccessState);
+  const attempt = expectOk(await loadSocialAccessAttemptRegistryV1(fixture.repository, fixture.campaignId)).state.attempts[0]!;
+  assert.equal(attempt.checkResolution?.outcome, expectedDecision);
+  const reloadedController = new NarrativeTurnControllerV1({
+    repository: fixture.repository,
+    campaignId: fixture.campaignId,
+    intentInterpreterConfig: null,
+    mjPlannerConfig: null,
+    npcPerformerConfig: null,
+    activeSceneResolver: { resolve: async () => ({ ok: true, value: scene }) },
+    d20Source: d20
+  });
+  const replay = expectOk(await reloadedController.rollPendingSkillCheck(resumeCommand));
+  assert.equal(replay.commit.commitId, first.commit.commitId);
+  assert.equal(replay.replayed, true);
+  assert.equal(d20.calls, 1);
+  const restored = expectOk(await reloadedController.restorePendingSkillCheck());
+  assert.equal(restored, null);
 }
 
 function accessControl(slug: string): AccessControlRecordV1 {

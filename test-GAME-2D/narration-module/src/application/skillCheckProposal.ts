@@ -31,7 +31,7 @@ export interface SkillCheckProposalV1 extends JsonObject {
   schemaVersion: 1;
   contractVersion: typeof SKILL_CHECK_PROPOSAL_CONTRACT_VERSION_V1;
   checkId: string;
-  domain: "perception" | "rules";
+  domain: "perception" | "social" | "rules";
   goal: string;
   targetRef: string | null;
   ability: AbilityIdV1;
