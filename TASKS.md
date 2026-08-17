@@ -1,12 +1,14 @@
 # Tableau de bord du projet
 
-Dernière mise à jour : 2026-08-04
+Dernière mise à jour : 2026-08-17
 
 Ce fichier ne contient que le travail actif, la prochaine décision et les blocages.
 L'état détaillé du module narration, ses principes et sa feuille de route sont dans
 [`Consolidation-fondations-narration.md`](test-GAME-2D/narration-module/docs/Consolidation-fondations-narration.md).
 La méthode de reprise des prochains lots de contrôles d'accès est détaillée dans
 [`Passation-prochains-lots-controles-acces.md`](test-GAME-2D/narration-module/docs/Passation-prochains-lots-controles-acces.md).
+L'instantané autonome destiné à une reprise dans une autre session Codex est
+[`Passation-reprise-Codex-2026-08-17.md`](test-GAME-2D/narration-module/docs/Passation-reprise-Codex-2026-08-17.md).
 
 ## Étape active
 

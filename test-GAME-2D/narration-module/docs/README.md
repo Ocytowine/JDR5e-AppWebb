@@ -6,12 +6,15 @@ avec un ancien plan de travail.
 ## Commencer ici
 
 1. [`TASKS.md`](../../../TASKS.md) — lot immédiat et blocages.
-2. [`Passation-prochains-lots-controles-acces.md`](Passation-prochains-lots-controles-acces.md)
+2. [`Passation-reprise-Codex-2026-08-17.md`](Passation-reprise-Codex-2026-08-17.md)
+   — instantané autonome pour reprendre sur une autre discussion ou un autre
+   poste, avec état Git, acquis, blocage OpenAI et actions immédiates.
+3. [`Passation-prochains-lots-controles-acces.md`](Passation-prochains-lots-controles-acces.md)
    — ordre, méthode et critères de fermeture des prochains raccords d'accès.
-3. [`Consolidation-fondations-narration.md`](Consolidation-fondations-narration.md)
+4. [`Consolidation-fondations-narration.md`](Consolidation-fondations-narration.md)
    — état actuel, principes, limites, feuille de route et méthode.
-4. Le contrat actif du comportement à modifier.
-5. Les tests et le code correspondants.
+5. Le contrat actif du comportement à modifier.
+6. Les tests et le code correspondants.
 
 ## Contrats actifs
 
