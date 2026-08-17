@@ -5,16 +5,15 @@ avec un ancien plan de travail.
 
 ## Commencer ici
 
-1. [`TASKS.md`](../../../TASKS.md) — lot immédiat et blocages.
-2. [`Passation-reprise-Codex-2026-08-17.md`](Passation-reprise-Codex-2026-08-17.md)
-   — instantané autonome pour reprendre sur une autre discussion ou un autre
-   poste, avec état Git, acquis, blocage OpenAI et actions immédiates.
-3. [`Passation-prochains-lots-controles-acces.md`](Passation-prochains-lots-controles-acces.md)
-   — ordre, méthode et critères de fermeture des prochains raccords d'accès.
-4. [`Consolidation-fondations-narration.md`](Consolidation-fondations-narration.md)
-   — état actuel, principes, limites, feuille de route et méthode.
-5. Le contrat actif du comportement à modifier.
-6. Les tests et le code correspondants.
+1. [`Consolidation-fondations-narration.md`](Consolidation-fondations-narration.md)
+   — unique état global et feuille de route active.
+2. [`TASKS.md`](../../../TASKS.md) — exécution immédiate de J1 et blocages,
+   dérivée de la consolidation.
+3. Le contrat actif du comportement à modifier.
+4. Les tests et le code correspondants.
+
+Les passations datées ne font plus partie du parcours de démarrage. Elles sont
+conservées en archives pour expliquer un ancien point de reprise.
 
 ## Contrats actifs
 
@@ -39,7 +38,10 @@ avec un ancien plan de travail.
 - [`Contrat-gate-realiste-semantique-V5.md`](Contrat-gate-realiste-semantique-V5.md)
 - [`Contrat-registre-referents-scene.md`](Contrat-registre-referents-scene.md)
 - [`Contrat-contexte-personnage-interpreteur.md`](Contrat-contexte-personnage-interpreteur.md)
+- [`Contrat-contexte-public-joueur-J1.md`](Contrat-contexte-public-joueur-J1.md)
+- [`Contrat-frontieres-automatiques-J1.md`](Contrat-frontieres-automatiques-J1.md)
 - [`Contrat-routage-capacites-runtime-NAR131.md`](Contrat-routage-capacites-runtime-NAR131.md)
+- [`Contrat-commandes-joueur-domaines-proprietaires.md`](Contrat-commandes-joueur-domaines-proprietaires.md)
 - [`Contrat-resolution-perceptive.md`](Contrat-resolution-perceptive.md)
 - [`Contrat-resolution-tests-competence.md`](Contrat-resolution-tests-competence.md)
 - [`Contrat-controleur-tour-narratif.md`](Contrat-controleur-tour-narratif.md)
@@ -98,9 +100,6 @@ avec un ancien plan de travail.
 
 ## Guides en français
 
-- [`Passation-prochains-lots-controles-acces.md`](Passation-prochains-lots-controles-acces.md)
-  guide la prochaine conversation depuis `TASKS.md`, fixe l'ordre des lots et
-  rappelle les invariants, tests et limites à préserver.
 - [`Guide-personnel-scenario-fonctionnement-global.md`](Guide-personnel-scenario-fonctionnement-global.md)
 - [`Recette-transverse-temoignages-lieu-acces.md`](Recette-transverse-temoignages-lieu-acces.md)
   est le document vivant destiné au propriétaire du projet : un scénario
@@ -149,8 +148,6 @@ avec un ancien plan de travail.
   dialogue, observation, transition et clarification.
 - [`Scenarios-acceptation.md`](Scenarios-acceptation.md) décrit les comportements
   observables.
-- [`Matrice-couverture-scenarios.md`](Matrice-couverture-scenarios.md) relie les
-  scénarios à leur couverture.
 - Les fichiers `Matrice-preuves-*.md`, `Matrice-certification-*.md` et
   `Benchmark-*.md` sont des preuves datées. Ils ne changent pas la feuille de
   route.
@@ -170,6 +167,10 @@ doivent pas servir de planning actif :
 - [`Audit-final.md`](Audit-final.md)
 - [`Audit-technique-I06ZB.md`](Audit-technique-I06ZB.md)
 - [`Sortie-phase-I06.md`](Sortie-phase-I06.md)
+- [`Passation-reprise-Codex-2026-08-17.md`](Passation-reprise-Codex-2026-08-17.md)
+- [`Passation-prochains-lots-controles-acces.md`](Passation-prochains-lots-controles-acces.md)
+- [`Matrice-couverture-scenarios.md`](Matrice-couverture-scenarios.md), dont les
+  états de lots datent d'avant leur fermeture et ne servent plus au pilotage
 - les fichiers `Handoff-*.md`, `Cadrage-I06*.md` et les anciennes matrices de lot.
 
 L'ancien suivi `Suivi-prochains-lots-narration.md` et l'ancien snapshot

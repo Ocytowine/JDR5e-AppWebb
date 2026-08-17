@@ -168,6 +168,9 @@ de matériaux n'existe pas, une amélioration qui en exige reste
   sans appel IA ni fallback ;
 - rejeu et restauration IndexedDB sans second ordre, seconde installation ou
   second bloc narratif ;
+- lorsque plusieurs projections partagent le même horodatage technique, leur
+  restauration respecte d'abord la révision de campagne observée ; une identité
+  de rendu hashée ne peut pas réordonner l'établissement et l'achèvement ;
 - preuves `narration-module:test:bastion` et
   `narration-module:test:bastion-ui`.
 

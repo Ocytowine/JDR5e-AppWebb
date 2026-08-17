@@ -130,7 +130,11 @@ L'événement privé reste committé sans être envoyé au rédacteur. Un PNJ ne
 agir que depuis ce qu'il sait, croit ou perçoit. Le joueur ne reçoit jamais une
 cause secrète pour expliquer artificiellement un comportement visible.
 
-## Répartition dans la feuille de route
+## Découpage historique de livraison
+
+Les références 6C et 6D expliquent comment ce contrat certifié a été livré.
+Elles ne définissent plus l'ordre des travaux futurs, centralisé dans
+[`Consolidation-fondations-narration.md`](Consolidation-fondations-narration.md).
 
 ### 6C — fondation sociale et première initiative locale
 

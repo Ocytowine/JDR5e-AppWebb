@@ -237,6 +237,16 @@ async function main(): Promise<void> {
   }));
   assert.equal(replayedInitiative.replayed, true);
   assert.equal(replayedInitiative.commitId, initiative.commitId);
+  const replayedAfterActorPromotion = expectOk(await resolveLocalSocialInitiativeBoundaryV1({
+    repository,
+    campaignId,
+    command: {
+      ...initiativeCommand,
+      presentActorIds: [...initiativeCommand.presentActorIds, "npc-promoted-after-entry"]
+    }
+  }));
+  assert.equal(replayedAfterActorPromotion.replayed, true);
+  assert.equal(replayedAfterActorPromotion.commitId, initiative.commitId);
   const initiativeConflict = await resolveLocalSocialInitiativeBoundaryV1({
     repository,
     campaignId,
@@ -294,7 +304,10 @@ async function main(): Promise<void> {
   const calmReplay = expectOk(await resolveLocalSocialInitiativeBoundaryV1({
     repository,
     campaignId,
-    command: calmCommand
+    command: {
+      ...calmCommand,
+      presentActorIds: [...calmCommand.presentActorIds, "npc-promoted-after-calm-entry"]
+    }
   }));
   assert.equal(calmReplay.replayed, true);
   assert.equal(calmReplay.status, "CALM");

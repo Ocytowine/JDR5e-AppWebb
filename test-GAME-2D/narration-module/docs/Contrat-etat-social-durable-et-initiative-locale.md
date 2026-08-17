@@ -72,6 +72,14 @@ Une initiative retenue crée atomiquement :
 Le commit ne change ni temps, ni position, ni relation, ni intrigue. Une
 conséquence supplémentaire appartient à son domaine propriétaire.
 
+L'identité idempotente d'une frontière de scène conserve la scène, le type de
+frontière, le personnage et l'instant diégétique, mais pas la liste hydratée
+des présences. Cette liste est un instantané de sélection du premier passage :
+si un acteur de scène est ensuite promu puis que la campagne est rechargée, la
+même frontière restaure son résultat committé ou `CALM` sans conflit et sans
+réexécuter une initiative. Une scène, un type de frontière ou un instant
+différent avec le même identifiant reste un conflit d'idempotence.
+
 ## Performance et rendu bornés
 
 Le performer reçoit uniquement :
@@ -115,6 +123,7 @@ L'attente réelle devant l'écran reste exclue.
 - scène sans préoccupation éligible retournée `CALM` ;
 - ordre stable entre plusieurs initiatives ;
 - rejeu sans double compteur ni double événement ;
+- rejeu après promotion d'un acteur sans conflit lié à la présence hydratée ;
 - aucun appel à l'interpréteur joueur pour une frontière autonome.
 
 ## Hors périmètre 6C

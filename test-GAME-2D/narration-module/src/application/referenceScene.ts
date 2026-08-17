@@ -14,6 +14,11 @@ import {
 import type { ReferenceSceneStateV1 } from "./referenceSceneState";
 import { buildNpcDialogueFallbackV1 } from "./npcDialogueFallback";
 import { narrativeDesignationOfV1, narrativeSubsequentMentionV1 } from "./narrativeDesignation";
+import {
+  answerPlayerPublicContextQueryV1,
+  classifyInterpretedPublicContextQuestionV1,
+  type PlayerPublicContextV1
+} from "./playerPublicContext";
 
 export const REFERENCE_PLAYABLE_SCENE_ID_V1 = "reference-inn-rain-001" as const;
 export const REFERENCE_PLAYABLE_SCENE_CONTRACT_VERSION_V1 = "reference-playable-scene/1" as const;
@@ -390,16 +395,30 @@ export function buildReferenceSceneBlocksV1(input: {
   resolution: NarrativeResolutionResultV1;
   sceneState?: ReferenceSceneStateV1;
   playableScene?: PlayableSceneStateV1;
+  playerPublicContext?: PlayerPublicContextV1 | null;
 }): DisplayBlockV1[] {
   const playableScene = input.playableScene ?? REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1;
   if (isAiInterpretationFailureDiagnosticV1(input.interpretation)) return [];
   if (input.resolution.resultKind === "CLARIFICATION_REQUIRED") return [];
   if (input.interpretation.intentType === "meta_question") {
     if (isOutOfFictionMetaQuestion(input.rawInput)) return [];
+    const publicQuery = input.playerPublicContext === null
+      || input.playerPublicContext === undefined
+      ? null
+      : classifyInterpretedPublicContextQuestionV1({
+          rawInput: input.rawInput,
+          interpretedMeaning: input.interpretation.coreMeaning
+        });
     const answerKind = isWeatherQuestion(input.rawInput, input.interpretation.coreMeaning)
       ? "weather"
-      : isLocationQuestion(input.rawInput, input.interpretation.coreMeaning)
+      : publicQuery === "LOCATION"
+        || (publicQuery === null
+          && isLocationQuestion(input.rawInput, input.interpretation.coreMeaning))
         ? "location"
+        : publicQuery === "PRESENT_ACTORS"
+          ? "present-actors"
+          : publicQuery === "KNOWN_FACTS"
+            ? "known-facts"
         : "context";
     const variant = presentationVariant(input.operationId, 3);
     return [referenceBlock({
@@ -410,8 +429,14 @@ export function buildReferenceSceneBlocksV1(input: {
       displayName: "MJ",
       text: answerKind === "weather"
         ? weatherAnswerNarration(variant)
-        : answerKind === "location"
-          ? locationAnswerNarration(playableScene)
+        : publicQuery !== null && input.playerPublicContext !== null
+          && input.playerPublicContext !== undefined
+          ? answerPlayerPublicContextQueryV1({
+              context: input.playerPublicContext,
+              query: publicQuery
+            })
+          : answerKind === "location"
+            ? locationAnswerNarration(playableScene)
           : playableScene.sceneId === REFERENCE_PLAYABLE_SCENE_ID_V1
             ? sceneContextNarration(input.rawInput, input.interpretation.coreMeaning, variant)
             : playableScene.perceptibleSituation.join(" "),

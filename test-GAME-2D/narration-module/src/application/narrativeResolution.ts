@@ -21,6 +21,7 @@ import { SCENE_SOCIAL_UI_CONTRACT_VERSION_V1 } from "../scene";
 import { isAiInterpretationFailureDiagnosticV1, validateCanonicalIntentAuthorityV1, type NarrativeIntentInterpretationV1, type SuspendedIntentRecordV1 } from "./intentClarification";
 import { validateNarrativeDomainCommandV1, type NarrativeDomainCommandV1 } from "./domainCommands";
 import { REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1, type PlayableSceneStateV1 } from "./playableScene";
+import type { PlayerPublicContextV1 } from "./playerPublicContext";
 import { resolvePerceptionV1, type PerceptionResolutionV1 } from "./perceptionResolution";
 import { adjudicateContextualActionV1, type ContextualActionAdjudicationV1 } from "./contextualActionAdjudication";
 import { loadActiveMechanicalCharacterContextV1 } from "./mechanicalCharacterContextLoader";
@@ -119,6 +120,7 @@ export interface NarrativeResolutionInputV1 {
   domainCommand: NarrativeDomainCommandV1 | null;
   suspendedIntent: SuspendedIntentRecordV1 | null;
   playableScene?: PlayableSceneStateV1;
+  playerPublicContext?: PlayerPublicContextV1 | null;
 }
 
 export interface NarrativeResolutionOutputV1 {
@@ -210,7 +212,7 @@ export async function resolveNarrativeTurnV1(input: NarrativeResolutionInputV1):
       ok: true,
       value: {
         result: deterministic,
-        displayPacket: buildResolutionDisplayPacket(input.operation.operationId, input.rawInput, deterministic, loadedSceneState.value.state, hydratedPlayableScene),
+        displayPacket: buildResolutionDisplayPacket(input.operation.operationId, input.rawInput, deterministic, loadedSceneState.value.state, hydratedPlayableScene, input.playerPublicContext),
         commit: null,
         sceneState: loadedSceneState.value.state,
         playableScene: hydratedPlayableScene
@@ -276,7 +278,7 @@ export async function resolveNarrativeTurnV1(input: NarrativeResolutionInputV1):
     ]
   };
 
-  const displayPacket = buildResolutionDisplayPacket(input.operation.operationId, input.rawInput, applied, nextSceneState, nextPlayableScene);
+  const displayPacket = buildResolutionDisplayPacket(input.operation.operationId, input.rawInput, applied, nextSceneState, nextPlayableScene, input.playerPublicContext);
   return {
     ok: true,
     value: {
@@ -755,7 +757,8 @@ function buildResolutionDisplayPacket(
   rawInput: string,
   resolution: NarrativeResolutionResultV1,
   sceneState?: ReferenceSceneStateV1,
-  playableScene: PlayableSceneStateV1 = REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1
+  playableScene: PlayableSceneStateV1 = REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1,
+  playerPublicContext?: PlayerPublicContextV1 | null
 ): DisplayPacketV1 & JsonObject {
   const blocks = [
     block(operationId, "raw", "RAW_INPUT", "Joueur", "PLAYER_CHARACTER", rawInput, [`operation:${operationId}:raw`])
@@ -777,7 +780,8 @@ function buildResolutionDisplayPacket(
     interpretation: resolution.interpretation,
     resolution,
     sceneState,
-    playableScene
+    playableScene,
+    playerPublicContext
   }));
   blocks.push(block(
     operationId,

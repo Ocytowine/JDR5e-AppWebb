@@ -1,6 +1,6 @@
 # Cadrage du lore narratif et des créations dynamiques
 
-Statut : `CADRAGE ACTIF`
+Statut : `CADRAGE DE RÉFÉRENCE — LOT INITIAL LIVRÉ`
 
 Dernière mise à jour : 2026-07-22
 
@@ -202,9 +202,12 @@ Fournir validation, diagnostics de couverture et aperçu des influences sélecti
 - création durable automatique sans validation de domaine ;
 - duplication du lore dans IndexedDB comme état courant mutable.
 
-## Prochaine étape concrète
+## Étape historique ayant suivi ce cadrage
 
-Produire le contrat minimal LORE-NAR-02 de sélection et d'héritage sur le corpus pilote avant de modifier `lore-authoring/1`.
+Le contrat minimal LORE-NAR-02 de sélection et d'héritage sur le corpus pilote
+a ensuite été produit. Cette mention retrace l'enchaînement livré ; elle ne
+constitue plus une prochaine étape. La planification courante appartient à
+[`Consolidation-fondations-narration.md`](Consolidation-fondations-narration.md).
 
 ## Références
 

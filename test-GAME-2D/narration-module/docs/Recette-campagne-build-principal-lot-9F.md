@@ -85,11 +85,51 @@ La commande rassemble :
 - la verticale tactique isolée 8D ;
 - le runtime atomique de simulation de campagne.
 
-Pour cibler uniquement l’entrée réelle :
+Pour cibler uniquement l'entrée réelle :
 
 ```bash
 npm run narration-module:test:campaign-main-9f
 ```
+
+Pour rejouer spécifiquement, avec OpenAI, la transition depuis une campagne
+propre des Archives vers la Place des Archives :
+
+```bash
+npm run narration-module:test:archives-place-transition:openai-live
+```
+
+Cette gate injecte une fiche valide dans une base IndexedDB isolée, crée la
+campagne depuis la vraie entrée, active OpenAI puis soumet « Je me dirige vers
+la Place des Archives. ». Elle exige une action réellement exécutée, le passage
+par `player_intent_interpreter → scene_creator → scene_writer`, le commit de la
+transition, sa reprise après rechargement, aucune alerte et aucune erreur de
+page. Ce chemin de création locale réserve le budget de trois appels au
+créateur propriétaire du candidat et au writer ; le `mj_planner` n'est donc pas
+appelé et le critique éventuel est refusé localement comme quatrième appel. La
+présence du nom du lieu dans la seule entrée joueur ne suffit pas à faire passer
+la gate.
+
+La passe certifiée du 2026-08-17 observe trois appels HTTP 200, dans l'ordre
+`player_intent_interpreter → scene_creator → scene_writer`. La transition
+committe une seule arrivée et huit secondes diégétiques. Après rechargement,
+**Reprendre** restaure la Place des Archives et le fil sans rappeler le
+créateur. Aucun diagnostic d'étape secondaire n'apparaît. Le
+`coherence_critic` est refusé localement comme quatrième appel et le rendu déjà
+validé est conservé.
+
+Pour rejouer la conversation réelle avec le clerc :
+
+```bash
+npm run narration-module:test:campaign-clerk-conversation:openai-live
+```
+
+Cette gate crée une campagne depuis une fiche valide, contacte le clerc, demande
+l'accès aux registres de naissance, puis pose deux questions sur son ancienneté
+et son opinion des restrictions. La passe certifiée du 2026-08-17 observe, pour
+chacun des quatre tours, trois appels HTTP 200 dans l'ordre
+`player_intent_interpreter → mj_planner → npc_performer`. Les quatre répliques
+sont rendues, capturées comme paroles attribuées puis restaurées après
+rechargement, sans alerte ni erreur de page.
 
 ## Refus à observer
 

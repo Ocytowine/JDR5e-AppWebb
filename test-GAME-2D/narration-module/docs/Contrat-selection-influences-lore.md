@@ -108,7 +108,7 @@ Lorsque le plafond est atteint, le paquet porte `influence budget reached`. Ce p
 - entités liées non résolues ;
 - plafond d'influences atteint.
 
-## Limites avant branchement runtime
+## Limites recensées à la livraison du socle
 
 - les changements de campagne ne remplacent pas encore les valeurs du lore initial ;
 - les profils de présence ne sont pas encore des relations compilées strictes vers `espece` ;
@@ -131,7 +131,11 @@ Lorsque le plafond est atteint, le paquet porte `influence budget reached`. Ce p
 - budget borné ;
 - rejet d'une ancre absente.
 
-## Suite
+## Évolution envisagée lors de la livraison
 
-Le prochain lot doit produire un adaptateur explicite entre `LoreInfluencePacketV1` et une proposition de scène dynamique. Avant le premier commit de scène, il devra superposer les remplacements de campagne et faire valider topologie, persistance et secrets par leurs domaines propriétaires.
+À la livraison de ce socle, l'évolution envisagée était un adaptateur explicite entre `LoreInfluencePacketV1` et une proposition de scène dynamique, après superposition des remplacements de campagne et validation de la topologie, de la persistance et des secrets par leurs domaines propriétaires.
+
+Cette section conserve l'intention du contrat, mais ne planifie aucun lot. L'état
+et l'ordre de réalisation actuels appartiennent uniquement à
+[`Consolidation-fondations-narration.md`](Consolidation-fondations-narration.md).
 

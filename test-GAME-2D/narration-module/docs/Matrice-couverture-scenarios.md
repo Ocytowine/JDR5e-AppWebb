@@ -2,13 +2,17 @@
 
 Date : 2026-07-07
 
-Statut : `PILOTAGE` — revue transversale, non substitutive à la roadmap.
+Statut : `ARCHIVE_HISTORIQUE` — couverture observée avant la fermeture des lots
+ultérieurs ; ne pas utiliser ses états pour planifier.
 
 ## Objectif
 
-Cette matrice vérifie que les scénarios `NAR-ACC-001` à `NAR-ACC-021` restent couverts par la roadmap sans court-circuiter l'ordre logique des lots.
+Cette matrice vérifiait, à sa date, que les scénarios `NAR-ACC-001` à
+`NAR-ACC-021` restaient couverts sans court-circuiter l'ordre alors actif.
 
-Elle ne crée pas de nouvelle autorisation d'implémentation.
+Elle ne crée aucune autorisation d'implémentation et ses mentions de prochains
+lots sont historiques. La couverture actuelle doit être confrontée au code,
+aux contrats actifs et à la feuille de route canonique.
 
 Règle de lecture :
 

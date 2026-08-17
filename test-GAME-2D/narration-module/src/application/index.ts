@@ -14,6 +14,7 @@ export * from "./knowledgeAuthority";
 export * from "./knowledgeSubjects";
 export * from "./npcTestimonyCapture";
 export * from "./interpreterCharacterContext";
+export * from "./playerPublicContext";
 export * from "./lorePlayableScene";
 export * from "./loreGuidedSceneCreation";
 export * from "./loreGuidedPlaceCandidateGeneration";

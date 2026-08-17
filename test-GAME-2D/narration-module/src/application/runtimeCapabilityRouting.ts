@@ -63,6 +63,8 @@ export function buildInterpreterRuntimeContextV1(input: {
   sceneTransition: boolean;
   dynamicPlace: boolean;
   rest: boolean;
+  inventoryAccess: boolean;
+  tacticalAccess: boolean;
 }): InterpreterRuntimeContextV1 {
   return {
     schemaVersion: 1,
@@ -93,10 +95,22 @@ export function buildInterpreterRuntimeContextV1(input: {
         playerFacingScope: "Demande engagée de repos court ou long; le propriétaire vérifie ensuite le lieu et les règles."
       },
       {
+        capabilityId: "inventory.access-credential",
+        domain: "inventory",
+        availability: input.inventoryAccess ? "AVAILABLE" : "HANDOFF_ONLY",
+        playerFacingScope: "Présenter un objet réellement possédé à un contrôle d'accès actif qui accepte l'approche inventaire."
+      },
+      {
         capabilityId: "inventory.mutation",
         domain: "inventory",
         availability: "HANDOFF_ONLY",
         playerFacingScope: "Prendre, donner, acheter, vendre ou équiper; aucune mutation n'est autorisée par l'interpréteur."
+      },
+      {
+        capabilityId: "tactical.access-conflict",
+        domain: "tactical",
+        availability: input.tacticalAccess ? "AVAILABLE" : "HANDOFF_ONLY",
+        playerFacingScope: "Engager l'approche tactique d'un contrôle d'accès actif lorsqu'une fabrique de rencontre propriétaire est installée."
       },
       {
         capabilityId: "tactical.generic-handoff",

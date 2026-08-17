@@ -112,8 +112,10 @@ La première vérification prouve :
 - Les aptitudes `featureIds` sont encore rangées dans
   `privateMechanical` : elles restent exclues tant qu'une projection publique
   dédiée ne les classe pas comme références interprétables.
-- Les connaissances du personnage et ses états observables ne disposent pas
-  encore d'un contrat public typé.
+- Le contexte public J1 possède désormais son contrat séparé
+  `player-public-context/1`. Les blessures visibles et autres nouveaux états du
+  personnage restent exclus tant que leur propriétaire ne les projette pas de
+  manière structurée.
 - Reconnaître une action, un sort ou un objet ne raccorde pas son exécution :
   les commandes inventaire et tactique générique restent à définir avec leurs
   propriétaires.

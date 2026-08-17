@@ -351,7 +351,11 @@ export async function restoreNarrativeRenderedThreadV1(input: {
   const operations = await input.repository.listOperations(input.campaignId, "narrative.render.projection", input.limit);
   if (!operations.ok) return operations;
 
-  const projections: NarrativeRenderedProjectionV1[] = [];
+  const projectionEntries: Array<{
+    projection: NarrativeRenderedProjectionV1;
+    observedCampaignRevision: number;
+    receivedAt: string;
+  }> = [];
   const skippedOperationIds: string[] = [];
   for (const operation of operations.value) {
     if (operation.phase !== "COMPLETED" || operation.resultPayload === null) {
@@ -369,12 +373,23 @@ export async function restoreNarrativeRenderedThreadV1(input: {
       skippedOperationIds.push(operation.operationId);
       continue;
     }
-    projections.push(cloneJson(candidate) as NarrativeRenderedProjectionV1);
+    projectionEntries.push({
+      projection: cloneJson(candidate) as NarrativeRenderedProjectionV1,
+      observedCampaignRevision: operation.observedCampaignRevision,
+      receivedAt: operation.receivedAt
+    });
   }
-  projections.sort((left, right) => {
-    const byRecordedAt = left.recordedAt.localeCompare(right.recordedAt);
-    return byRecordedAt !== 0 ? byRecordedAt : left.renderOperationId.localeCompare(right.renderOperationId);
+  projectionEntries.sort((left, right) => {
+    const byRecordedAt = left.projection.recordedAt.localeCompare(right.projection.recordedAt);
+    if (byRecordedAt !== 0) return byRecordedAt;
+    const byCampaignRevision = left.observedCampaignRevision - right.observedCampaignRevision;
+    if (byCampaignRevision !== 0) return byCampaignRevision;
+    const byReceivedAt = left.receivedAt.localeCompare(right.receivedAt);
+    return byReceivedAt !== 0
+      ? byReceivedAt
+      : left.projection.renderOperationId.localeCompare(right.projection.renderOperationId);
   });
+  const projections = projectionEntries.map(entry => entry.projection);
 
   return {
     ok: true,

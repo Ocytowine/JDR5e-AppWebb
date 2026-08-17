@@ -1,12 +1,17 @@
 # Passation de reprise Codex — 2026-08-17
 
+Statut : `ARCHIVE_INSTANTANÉE — NE PAS UTILISER COMME ROADMAP`
+
+Cette passation décrit l'état observé à sa date. Les actions immédiates qu'elle
+contient sont terminées ou remplacées. Pour tout nouveau travail, lire
+[`Consolidation-fondations-narration.md`](Consolidation-fondations-narration.md),
+unique feuille de route active, puis `TASKS.md`.
+
 ## But de ce document
 
-Ce document permet de reprendre le développement du module narration dans une
-nouvelle discussion Codex et sur un autre poste, sans dépendre de l'historique
-de la conversation précédente. Il s'agit d'un instantané de reprise, pas d'une
-seconde feuille de route : `TASKS.md` reste la source de vérité pour l'ordre du
-travail.
+Ce document permettait de reprendre le développement dans une nouvelle
+discussion sans dépendre de l'historique précédent. Il reste conservé comme
+preuve du point de reprise, pas comme consigne actuelle.
 
 ## État Git à reprendre
 
@@ -22,7 +27,10 @@ Commencer par récupérer le dépôt, sélectionner `Narration-V4`, puis compare
 `git status --short --branch` et `git log -5 --oneline` à cet instantané. Ne
 jamais écraser des changements locaux trouvés sur le nouveau poste.
 
-## Lecture obligatoire avant modification
+## Lecture demandée lors de cette passation historique
+
+Cette liste est conservée pour comprendre le contexte de reprise du 17 août.
+Elle ne remplace pas l'ordre de lecture courant défini dans l'index du module.
 
 Lire dans cet ordre :
 
@@ -152,11 +160,13 @@ recette live sur le nouveau poste :
 La clé ne doit jamais être placée dans Git, envoyée au navigateur ou copiée dans
 un rapport de test.
 
-## Travail encore ouvert dans `TASKS.md`
+## Travail qui restait ouvert à la date de la passation
 
-Il existe plusieurs axes ouverts. Ne pas les fusionner dans un gros lot.
+Les actions ci-dessous sont depuis terminées ou remplacées par la feuille de
+route canonique. Elles sont conservées uniquement pour expliquer les décisions
+et validations qui ont suivi.
 
-### Reprise immédiate recommandée : validation manuelle du build
+### Priorité historique : validation manuelle du build
 
 La dernière validation manuelle est interrompue par le quota externe. Une fois
 l'accès OpenAI rétabli et autorisé :
@@ -173,7 +183,7 @@ l'accès OpenAI rétabli et autorisé :
 Si la transition passe une fois le quota rétabli, fermer explicitement la tâche
 correspondante dans `TASKS.md` sans inventer de correction de code.
 
-### Prochain chantier de conception sémantique
+### Chantier historique de conception sémantique
 
 Définir avec les domaines propriétaires les commandes joueur encore absentes de
 l'ontologie :
@@ -188,10 +198,11 @@ un propriétaire déterministe existe, que son manifeste public peut l'exposer e
 que son handoff est testable. L'interpréteur propose une intention ; il ne
 possède ni l'inventaire, ni la progression, ni le bastion, ni le combat.
 
-Autres tâches ouvertes à préserver : projection typée des connaissances et
-états observables du personnage, audit des frontières automatiques après chaque
-type de tour, qualité multi-tours hors Archives et consolidation de la
-simulation du monde. Leur ordre exact reste celui de `TASKS.md`.
+À cette date, les autres tâches recensées concernaient la projection typée des
+connaissances et états observables du personnage, l'audit des frontières
+automatiques, la qualité multi-tours hors Archives et la simulation du monde.
+Leur état et leur ordre actuels ne sont définis que dans la feuille de route
+canonique.
 
 ## Carte minimale du code utile
 
@@ -236,7 +247,10 @@ Ne jamais modifier manuellement un catalogue généré lorsqu'un script de
 génération existe. Ne jamais utiliser un reset destructeur pour nettoyer le
 dépôt.
 
-## Message prêt à donner à la nouvelle session Codex
+## Message de reprise historique — ne plus réutiliser
+
+Ce bloc est l'instruction transmise au moment de la passation. Il est obsolète
+et ne constitue ni une procédure actuelle ni une liste de tâches.
 
 ```text
 Reprends le développement de JDR5e-AppWebb sur la branche Narration-V4.

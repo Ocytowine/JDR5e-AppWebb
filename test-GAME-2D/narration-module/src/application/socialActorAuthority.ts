@@ -319,13 +319,28 @@ export async function resolveLocalSocialInitiativeBoundaryV1(input: {
   const issues = validateBoundaryCommand(input.command);
   if (issues.length > 0) return invalid("social.local-initiative-boundary-invalid", issues);
   const operationId = opaqueId<OperationId>(`social-local-initiative:${input.command.clientRequestId}`);
+  const boundaryIdentity = localInitiativeBoundaryIdentityV1(input.command);
   const requestFingerprint = await computeRequestFingerprint(
     "social.local-initiative.boundary",
     1,
-    input.command
+    boundaryIdentity
   );
   const existing = await input.repository.getOperation(operationId);
-  if (existing.ok && existing.value.requestFingerprint !== requestFingerprint) {
+  const persistedBoundaryFingerprint = existing.ok
+    && existing.value.operationKind === "social.local-initiative.boundary"
+    ? await computeRequestFingerprint(
+        "social.local-initiative.boundary",
+        1,
+        localInitiativeBoundaryIdentityV1(
+          existing.value.requestPayload as unknown as SocialLocalInitiativeBoundaryCommandV1
+        )
+      )
+    : null;
+  if (
+    existing.ok
+    && existing.value.requestFingerprint !== requestFingerprint
+    && persistedBoundaryFingerprint !== requestFingerprint
+  ) {
     return {
       ok: false,
       error: coreError("IDEMPOTENCY_CONFLICT", "social.local-initiative-request-conflict")
@@ -419,6 +434,20 @@ export async function resolveLocalSocialInitiativeBoundaryV1(input: {
   };
   const completed = await input.repository.completePresentation(operationId, "COMMITTED_RENDERED", 1, result);
   return completed.ok ? { ok: true, value: result } : completed;
+}
+
+function localInitiativeBoundaryIdentityV1(
+  command: SocialLocalInitiativeBoundaryCommandV1
+): JsonObject {
+  return {
+    schemaVersion: command.schemaVersion,
+    contractVersion: command.contractVersion,
+    clientRequestId: command.clientRequestId,
+    sceneId: command.sceneId,
+    boundaryKind: command.boundaryKind,
+    playerActorId: command.playerActorId,
+    occurredAtGameSecond: command.occurredAtGameSecond
+  };
 }
 
 export function selectLocalSocialInitiativeV1(input: {

@@ -121,6 +121,9 @@ Les données absentes, notamment biologie et apparence générale des espèces, 
 
 Cette preuve empêche un retour silencieux à une prose conservée mais introuvable par le sélecteur de lore.
 
-## Prochaine étape
+## Étape historique ayant suivi cette preuve
 
-Définir le contrat minimal de sélection LORE-NAR-02 sur ce corpus : chaîne d'héritage, précédence, raisons de sélection et budget.
+Le contrat minimal de sélection LORE-NAR-02 a ensuite défini sur ce corpus la
+chaîne d'héritage, la précédence, les raisons de sélection et le budget. Cette
+section ne planifie plus aucun travail ; voir la feuille de route canonique
+[`Consolidation-fondations-narration.md`](Consolidation-fondations-narration.md).

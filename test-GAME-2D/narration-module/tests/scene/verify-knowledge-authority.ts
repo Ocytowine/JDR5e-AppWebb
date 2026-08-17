@@ -511,6 +511,44 @@ async function main(): Promise<void> {
     expectOk(await loadActorKnowledgeRegistryV1(fixture.repository, fixture.campaignId, "actor:aryn")).state.acquisitions.length,
     5
   );
+  const longRenderOperationId = `campaign-main-9f-render-op-${"a".repeat(32)}`;
+  const longIdentityFixture = await setup();
+  await seedCompletedSourceOperation({ ...longIdentityFixture, operationId: longRenderOperationId });
+  const longIdentityPerformance: NpcPerformerPayloadV1 = {
+    ...capturedPerformance,
+    performanceId: "performance-clerc-registres-naissances",
+    utterances: [{
+      ...capturedPerformance.utterances[0]!,
+      utteranceId: "utterance-clerc-restrictions-acces-registres"
+    }],
+    knowledgeClaims: capturedPerformance.knowledgeClaims?.map(candidate => ({
+      ...candidate,
+      utteranceId: "utterance-clerc-restrictions-acces-registres"
+    }))
+  };
+  const longIdentityCapture = expectOk(await captureNpcTestimonyV1({
+    repository: longIdentityFixture.repository,
+    campaignId: longIdentityFixture.campaignId,
+    performance: longIdentityPerformance,
+    finalNpcSpeechText: longIdentityPerformance.utterances[0]!.text,
+    sourceOperationId: longRenderOperationId,
+    sceneRef: "scene:archives-main-hall",
+    playerActorRef: "actor:aryn",
+    occurredAtGameSecond: 0
+  }));
+  assert.equal(longIdentityCapture.status, "RECORDED");
+  const longIdentityReplay = expectOk(await captureNpcTestimonyV1({
+    repository: longIdentityFixture.repository,
+    campaignId: longIdentityFixture.campaignId,
+    performance: longIdentityPerformance,
+    finalNpcSpeechText: longIdentityPerformance.utterances[0]!.text,
+    sourceOperationId: longRenderOperationId,
+    sceneRef: "scene:archives-main-hall",
+    playerActorRef: "actor:aryn",
+    occurredAtGameSecond: 0
+  }));
+  assert.equal(longIdentityReplay.status, "RECORDED");
+  assert.equal(longIdentityReplay.testimony?.replayed, true);
   const mismatchedVisibleSpeech = expectOk(await captureNpcTestimonyV1({
     repository: fixture.repository,
     campaignId: fixture.campaignId,

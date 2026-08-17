@@ -117,7 +117,9 @@ assert.equal(unclear.requiredDomain, null, "une intention inconnue ne retombe pl
 const interpreterContext = buildInterpreterRuntimeContextV1({
   sceneTransition: true,
   dynamicPlace: false,
-  rest: true
+  rest: true,
+  inventoryAccess: true,
+  tacticalAccess: true
 });
 assert.equal(
   interpreterContext.capabilities.find(entry =>
@@ -135,10 +137,39 @@ assert.equal(
 );
 assert.equal(
   interpreterContext.capabilities.find(entry =>
+    entry.capabilityId === "inventory.access-credential"
+  )?.availability,
+  "AVAILABLE",
+  "le cas inventaire spécialisé doit refléter son propriétaire installé"
+);
+assert.equal(
+  interpreterContext.capabilities.find(entry =>
     entry.capabilityId === "inventory.mutation"
   )?.availability,
   "HANDOFF_ONLY",
   "le manifeste ne doit jamais ouvrir silencieusement l'inventaire"
+);
+assert.equal(
+  interpreterContext.capabilities.find(entry =>
+    entry.capabilityId === "tactical.access-conflict"
+  )?.availability,
+  "AVAILABLE",
+  "le handoff tactique spécialisé doit refléter sa fabrique propriétaire"
+);
+assert.equal(
+  interpreterContext.capabilities.find(entry =>
+    entry.capabilityId === "tactical.generic-handoff"
+  )?.availability,
+  "HANDOFF_ONLY",
+  "un propriétaire d'accès ne doit pas ouvrir le combat générique"
+);
+assert.equal(
+  interpreterContext.capabilities.some(entry =>
+    entry.capabilityId === "character.progression-choice"
+    || entry.capabilityId === "bastion.player-order"
+  ),
+  false,
+  "progression et bastion restent absents du manifeste texte libre tant que leurs projections d'options n'existent pas"
 );
 
 console.log("runtime-capability-routing/nar131: OK");

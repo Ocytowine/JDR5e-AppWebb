@@ -41,6 +41,7 @@ import {
   type InterpreterCharacterAmbiguityV1,
   type InterpreterCharacterContextV1
 } from "./interpreterCharacterContext";
+import type { PlayerPublicContextV1 } from "./playerPublicContext";
 
 export const AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V1 = "ai-intent-interpretation/1" as const;
 export const AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V2 = "ai-intent-semantic/2" as const;
@@ -190,6 +191,7 @@ export async function interpretNarrativeInputWithAiV1(input: {
   recentSemanticTurns?: RecentSemanticTurnV1[];
   runtimeContext?: InterpreterRuntimeContextV1;
   characterContext?: InterpreterCharacterContextV1 | null;
+  playerPublicContext?: PlayerPublicContextV1 | null;
   playableScene?: PlayableSceneStateV1;
 }): Promise<AiIntentInterpretationResultV1> {
   const playableScene = input.playableScene ?? REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1;
@@ -669,6 +671,7 @@ async function buildIntentInterpreterRequestV1(input: {
   recentSemanticTurns?: RecentSemanticTurnV1[];
   runtimeContext?: InterpreterRuntimeContextV1;
   characterContext?: InterpreterCharacterContextV1 | null;
+  playerPublicContext?: PlayerPublicContextV1 | null;
   playableScene?: PlayableSceneStateV1;
 }): Promise<AiCallRequestV1> {
   const snapshotId = `${input.operationId}:snapshot:intent`;
@@ -718,7 +721,8 @@ async function buildIntentInterpreterRequestV1(input: {
     recentSemanticTurns,
     activeDialogueTarget,
     runtimeContext,
-    characterContext: input.characterContext ?? null
+    characterContext: input.characterContext ?? null,
+    playerPublicContext: input.playerPublicContext ?? null
   } as unknown as JsonObject;
   return {
     schemaVersion: 1,
@@ -751,6 +755,7 @@ async function buildIntentInterpreterRequestV1(input: {
         activeDialogueTarget,
         runtimeContext,
         characterContext: input.characterContext ?? null,
+        playerPublicContext: input.playerPublicContext ?? null,
         outputContract: input.config.contractVersion ?? AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V1,
         forbiddenAuthority: ["commit", "time", "inventory", "tactical", "durable_lore", "social_success"]
       }

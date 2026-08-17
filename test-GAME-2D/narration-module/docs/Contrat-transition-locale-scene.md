@@ -172,10 +172,15 @@ Commandes : `npm run narration-module:test:scene-transition`, `npm run narration
 
 La matrice couvre transition locale, passage bloqué, voyage, destination contradictoire, version périmée, connexion absente et connexion ambiguë avec des identifiants génériques sans dépendance à la scène de l'auberge. Elle vérifie aussi la composition atomique avec le temps, la validation du `CommitRequest`, le rejeu identique, le rejet sans mutation d'une révision de position périmée et la reconstruction post-commit sans restauration de l'ancienne mise en scène.
 
-## Prochaine étape
+## Validation complémentaire issue de la livraison
 
 Les recettes navigateur locale et OpenAI live montent la vraie `NarrativeAppSurface` avec un contrôleur injecté. Elles vérifient l'arrivée, l'observation, l'approche de la lampe, l'examen des traces puis le retour dans la salle commune. La recette live contrôle directement les appels `scene_writer` et `coherence_critic`, leurs réponses HTTP 200 et l'absence de fallback local. Le passage validé le 2026-07-27 dure environ 2,9 minutes.
 
 La frontière de présentation impose qu'une arrivée post-commit conserve sa narration d'arrivée et ne soit pas réécrite avec le contexte générique de la scène précédente. Le vertical prouve les deux transitions, la seconde arrivée à la seconde 16, le changement de registre actif et la révélation perceptive bornée sans origine inventée. `activeSceneNarrative.ts` exclut l'historique d'autres `sceneId` et rejette toute sortie qui déclare des faits, événements ou présences non fournis.
 
-Prochaine étape : intégrer cette gate live dans une campagne de stabilité répétée et mesurer séparément la latence de `scene_writer` et de `coherence_critic`, sans l'ajouter aux tests ordinaires qui doivent rester sans coût fournisseur.
+À la livraison, une campagne de stabilité répétée et une mesure séparée de la
+latence de `scene_writer` et de `coherence_critic` avaient été proposées comme
+validation complémentaire, hors tests ordinaires afin qu'ils restent sans coût
+fournisseur. Cette proposition ne constitue pas une priorité active ; l'ordre
+courant est défini dans
+[`Consolidation-fondations-narration.md`](Consolidation-fondations-narration.md).

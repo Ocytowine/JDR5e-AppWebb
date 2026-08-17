@@ -39,6 +39,16 @@ restent exécutées par leurs runtimes dédiés après validation de l'intention
 Une intention qui requiert un domaine fermé conserve son sens et n'est jamais
 rabattue sur `scene_resolution`.
 
+Le manifeste distingue toutefois deux adaptateurs spécialisés déjà
+propriétaires : `inventory.access-credential` pour présenter un exemplaire à un
+contrôle actif et `tactical.access-conflict` pour amorcer le handoff d'un seuil
+contrôlé. Leur disponibilité suit l'injection effective de ces runtimes. Elle
+n'ouvre ni `inventory.mutation`, ni `tactical.generic-handoff`, qui restent
+toujours `HANDOFF_ONLY`. Progression et ordres de bastion ne sont pas annoncés
+comme commandes texte libre tant que leurs options publiques typées manquent.
+La matrice complète est figée dans
+[`Contrat-commandes-joueur-domaines-proprietaires.md`](Contrat-commandes-joueur-domaines-proprietaires.md).
+
 ## Vue fournie à l'interpréteur
 
 `interpreter-runtime-context/1` est un manifeste public d'aide à
@@ -77,6 +87,8 @@ La compatibilité des domaines potentiellement concurrents est structurelle. Une
 
 Commande ciblée : `npm run narration-module:test:runtime-routing`.
 
-## Suite
+## Portée de la livraison
 
-NAR-131 n'ouvre aucune nouvelle mécanique. La prochaine gate éprouve NAR-129 à NAR-131 sur des conversations PNJ longues et des scènes complètes avant de choisir une capacité métier.
+NAR-131 n'ouvre aucune nouvelle mécanique. La gate qui lui a succédé a éprouvé
+NAR-129 à NAR-131 sur des conversations PNJ longues et des scènes complètes.
+Cette séquence est livrée et n'ordonne pas les travaux futurs.

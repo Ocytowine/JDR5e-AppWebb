@@ -109,6 +109,13 @@ correspond encore à la performance structurée. Il sauvegarde ensuite le dossie
 la perspective, le témoignage et `HEARD`. Une réécriture divergente est refusée
 afin de ne jamais mémoriser une parole différente de celle affichée.
 
+L'identité technique de cette capture conserve la forme historique tant que la
+commande et ses identifiants dérivés respectent la limite du noyau. Lorsque la
+concaténation de l'opération rendue et de l'énoncé serait trop longue, une
+empreinte déterministe les remplace. Le témoignage garde ses références de
+provenance complètes ; seul l'identifiant de rejeu est borné. Une même capture
+reste donc rejouable sans second commit.
+
 ## Projection privée vers le PNJ active
 
 Avant l'appel `npc_performer` déjà prévu pour le dialogue, le runtime charge
@@ -133,6 +140,18 @@ contrat impose donc explicitement `intentionalDeceptionAllowed=false`.
 
 Cette projection est construite localement : elle n'ajoute aucun appel IA et
 reste comprise dans le plafond de trois appels facturés du tour.
+
+## Projection publique vers le joueur active
+
+`player-public-context/1` relit le registre du personnage actif et ne conserve
+que ses acquisitions `HEARD`, `OBSERVED`, `CONFIRMED` ou `REFUTED`. Il les
+réunit aux faits explicitement connus dans la scène active. Une information
+entendue garde ses sources attribuées et n'est jamais présentée comme une vérité
+objective par cette projection.
+
+Les perspectives privées, causes de tromperie et connaissances des autres
+acteurs ne sont pas lues. Cette vue permet les réponses locales « que sais-je ? »
+sans commit, sans temps de jeu et sans appel IA supplémentaire.
 
 ## Contexte séparé du créateur de lieu actif
 
@@ -224,7 +243,9 @@ Le même script vérifie aussi :
 - la réutilisation du même dossier malgré les différences d'accents et de
   casse ;
 - le refus de capturer une phrase visible différente de la performance
-  structurée.
+  structurée ;
+- la capture et le rejeu d'un énoncé dont les identités réelles dépasseraient
+  la limite du noyau si elles étaient concaténées.
 - la projection de faits, croyances et incertitudes vers le seul PNJ concerné ;
 - l'exclusion d'une tromperie, de sa vérité privée, de sa cause et des autres
   données sociales sensibles ;

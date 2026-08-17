@@ -1,6 +1,9 @@
 # Audit final du module narration
 
-Statut : `RETENU` — audit initial terminé; addenda progressifs jusqu'à I-06L livrés; audit I-07 tactique/repos terminé et I-07A autorisé. I-08 certification reste fermé jusqu'à sa gate.
+Statut : `ARCHIVE_HISTORIQUE` — audit initial et addenda conservés comme traces
+de décision. Les autorisations et prochaines étapes qu'il contient ne pilotent
+plus le développement ; voir
+[`Consolidation-fondations-narration.md`](Consolidation-fondations-narration.md).
 
 ## Objectif
 

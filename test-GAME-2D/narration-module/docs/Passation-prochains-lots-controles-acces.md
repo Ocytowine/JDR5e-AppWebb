@@ -1,15 +1,15 @@
 # Passation : prochains lots des contrôles d'accès
 
-Statut : `LOTS_A_A_F_TERMINES_2026-08-04`
+Statut : `ARCHIVE — LOTS_A_A_F_TERMINÉS_2026-08-04`
 
-Ce document est destiné à la prochaine conversation de travail. Il complète
-`TASKS.md` sans le remplacer : `TASKS.md` reste le tableau de bord synthétique,
-et cette passation explique comment traiter proprement les cases encore
-ouvertes autour des accès libres.
+Ce document conserve la méthode et les décisions des lots d'accès désormais
+fermés. Il ne définit plus aucune prochaine étape. L'ordre actuel appartient
+uniquement à
+[`Consolidation-fondations-narration.md`](Consolidation-fondations-narration.md).
 
-## Point de départ obligatoire
+## Point de départ historique des lots A à F
 
-Avant toute modification :
+Au début de ces lots, la reprise imposait de :
 
 1. lire le `AGENTS.md` racine, `README.md` et `TASKS.md` ;
 2. exécuter `git status --short --branch` et préserver toutes les modifications
@@ -250,9 +250,10 @@ Les lots A à F sont clos localement et de manière déterministe. La recette
 navigateur OpenAI suivante est également certifiée en live : ordre, unicité et
 plafond des rôles sur action, dialogue, observation, transition et
 clarification. Elle reste une preuve de compréhension et de rendu, jamais une
-autorité métier. La prochaine étape concrète de `TASKS.md` est de définir avec
-chaque propriétaire les commandes joueur encore absentes de l'ontologie
-sémantique : inventaire, progression, bastion et tactique générique.
+autorité métier. À la fermeture de cette passation, l'étape alors envisagée
+était de définir avec chaque propriétaire les commandes joueur absentes de
+l'ontologie sémantique : inventaire, progression, bastion et tactique générique.
+Cette indication est historique ; elle ne fixe plus l'ordre du développement.
 
 ## Méthode commune pour chaque lot
 

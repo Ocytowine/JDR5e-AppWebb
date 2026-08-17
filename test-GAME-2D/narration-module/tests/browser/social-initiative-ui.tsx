@@ -10,11 +10,33 @@ import {
 } from "../../src/application";
 
 async function bootstrap() {
+  const activeSceneResolver = {
+    async resolve() {
+      const scene = REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1;
+      if (window.sessionStorage.getItem("social-initiative-promoted-actor") !== "1") {
+        return { ok: true as const, value: scene };
+      }
+      const promotedActor = {
+        ...scene.presentNpc[0]!,
+        actorId: "npc-promoted-after-entry",
+        displayName: "Acteur promu après l'entrée",
+        narrativeLabel: "l'acteur promu"
+      };
+      return {
+        ok: true as const,
+        value: {
+          ...scene,
+          presentNpc: [...scene.presentNpc, promotedActor]
+        }
+      };
+    }
+  };
   const controller = await createBrowserPersistentNarrativeTurnControllerV1({
     databaseName: "jdr5e-social-initiative-ui-6c",
     intentInterpreterConfig: null,
     mjPlannerConfig: null,
     npcPerformerConfig: null,
+    activeSceneResolver,
     initializeRepository: async (repository, campaignId) => {
       const changes: SocialActorMutationSetV1 = {
         knownFactRefsAdded: [],

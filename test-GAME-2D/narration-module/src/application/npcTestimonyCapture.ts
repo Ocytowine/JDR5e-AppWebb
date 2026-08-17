@@ -25,6 +25,9 @@ import {
   type KnowledgeSubjectDossierV1
 } from "./knowledgeSubjects";
 
+// `record-testimony:` and the longest downstream `:command` suffix must still fit in 128 characters.
+const MAX_LEGACY_TESTIMONY_CLIENT_REQUEST_ID_LENGTH = 103;
+
 export type NpcTestimonyPreparationV1 =
   | { status: "READY"; command: RecordAttributedTestimonyCommandV1 }
   | { status: "NOTHING_TO_RECORD"; reason: string }
@@ -100,12 +103,19 @@ export async function prepareNpcTestimonyCommandV1(input: {
     });
   }
   const testimonyRef = `testimony:${safeRefSegment(input.sourceOperationId)}:${safeRefSegment(utterance.utteranceId)}`;
+  const legacyClientRequestId = `${input.sourceOperationId}:testimony:${safeRefSegment(utterance.utteranceId)}`;
+  const clientRequestId = legacyClientRequestId.length <= MAX_LEGACY_TESTIMONY_CLIENT_REQUEST_ID_LENGTH
+    ? legacyClientRequestId
+    : `npc-testimony-${(await computeJsonFingerprint({
+        sourceOperationId: input.sourceOperationId,
+        utteranceId: utterance.utteranceId
+      })).replace(/^sha256:/u, "").slice(0, 32)}`;
   return {
     status: "READY",
     command: {
       schemaVersion: 1,
       contractVersion: RECORD_ATTRIBUTED_TESTIMONY_COMMAND_V1,
-      clientRequestId: `${input.sourceOperationId}:testimony:${safeRefSegment(utterance.utteranceId)}`,
+      clientRequestId,
       sourceOperationId: input.sourceOperationId,
       occurredAtGameSecond: input.occurredAtGameSecond,
       claims,

@@ -117,6 +117,7 @@ import {
   createInterpreterCharacterContextResolverV1,
   type InterpreterCharacterContextResolverV1
 } from "./interpreterCharacterContext";
+import { loadPlayerPublicContextV1 } from "./playerPublicContext";
 import type { RestProcessStateV1, RestSegmentActivityV1 } from "../handoff";
 import {
   SOCIAL_LOCAL_INITIATIVE_CONTRACT_V1,
@@ -2100,6 +2101,15 @@ async function buildResolvedOutput(input: {
           campaignId: input.campaignId
         });
   if (!characterContextResult.ok) return characterContextResult;
+  const playerPublicContextResult = characterContextResult.value === null
+    ? { ok: true as const, value: null }
+    : await loadPlayerPublicContextV1({
+        repository: input.repository,
+        campaignId: input.campaignId,
+        activeScene: input.activeScene,
+        characterContext: characterContextResult.value
+      });
+  if (!playerPublicContextResult.ok) return playerPublicContextResult;
   const interpretationResult = input.intentInterpreterConfig === null
     ? null
     : await interpretNarrativeInputWithAiV1({
@@ -2113,9 +2123,12 @@ async function buildResolvedOutput(input: {
       runtimeContext: buildInterpreterRuntimeContextV1({
         sceneTransition: input.sceneTransitionRuntime !== null,
         dynamicPlace: input.dynamicPlaceRuntime !== null,
-        rest: input.restRuntime !== null
+        rest: input.restRuntime !== null,
+        inventoryAccess: input.inventoryAccessRuntime !== null,
+        tacticalAccess: input.tacticalAccessRuntime !== null
       }),
       characterContext: characterContextResult.value,
+      playerPublicContext: playerPublicContextResult.value,
       playableScene: input.activeScene
     });
   const interpretation = interpretationResult === null
@@ -2762,7 +2775,8 @@ async function buildResolvedOutput(input: {
     interpretation,
     domainCommand,
     suspendedIntent,
-    playableScene: input.activeScene
+    playableScene: input.activeScene,
+    playerPublicContext: playerPublicContextResult.value
   });
   if (!resolution.ok) return resolution;
   const resolutionMs = Date.now() - resolutionStartedAt;
