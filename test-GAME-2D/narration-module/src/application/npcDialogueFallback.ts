@@ -10,7 +10,8 @@ export interface NpcDialogueFallbackV1 {
 export function buildNpcDialogueFallbackV1(
   actorId: string,
   dialogueAct: NpcDialogueActKindV1,
-  actorDisplayName?: string | null
+  actorDisplayName?: string | null,
+  presentationVariant = 0
 ): NpcDialogueFallbackV1 {
   const isWaitress = actorId === "npc:npc-serveuse-nerveuse" || actorId === "npc-serveuse-nerveuse";
   const isGuard = actorId === "npc:npc-garde-blesse" || actorId === "npc-garde-blesse";
@@ -22,9 +23,28 @@ export function buildNpcDialogueFallbackV1(
       : { text: `${subject} tourne son attention vers toi et incline légèrement la tête. « Bonjour. »`, nonVerbalReaction: "attention tournée vers l'interlocuteur" };
   }
   if (dialogueAct === "ASK_QUESTION") {
-    return isWaitress
-      ? { text: "La serveuse écoute jusqu'au bout. « Je comprends votre question, mais je ne peux rien confirmer à ce sujet ici. »", nonVerbalReaction: "écoute prudente" }
-      : { text: `${subject} écoute jusqu'au bout. « Je comprends votre question, mais je ne peux rien confirmer à ce sujet ici. »`, nonVerbalReaction: "attention maintenue" };
+    const variants = isWaitress
+      ? [{
+          text: "La serveuse écoute jusqu'au bout. « Je comprends votre question, mais je ne peux rien confirmer à ce sujet ici. »",
+          nonVerbalReaction: "écoute prudente"
+        }, {
+          text: "La serveuse suspend son geste. « Votre question est claire. Je ne peux pourtant rien confirmer au-delà de ce que j'ai vérifié. »",
+          nonVerbalReaction: "geste suspendu, réponse mesurée"
+        }, {
+          text: "La serveuse parle à voix basse. « Sur cette question, je ne veux rien confirmer sans l'avoir vérifié. »",
+          nonVerbalReaction: "voix basse, regard attentif"
+        }]
+      : [{
+          text: `${subject} écoute jusqu'au bout. « Je comprends votre question, mais je ne peux rien confirmer à ce sujet ici. »`,
+          nonVerbalReaction: "attention maintenue"
+        }, {
+          text: `${subject} prend un court instant avant de répondre. « Votre question est claire. Je ne peux pourtant rien confirmer au-delà de ce que j'ai vérifié. »`,
+          nonVerbalReaction: "courte réflexion"
+        }, {
+          text: `${subject} garde un ton mesuré. « Sur cette question, je ne veux rien confirmer sans l'avoir vérifié. »`,
+          nonVerbalReaction: "réponse mesurée"
+        }];
+    return variants[normalizedVariant(presentationVariant, variants.length)]!;
   }
   if (dialogueAct === "MAKE_STATEMENT") {
     return isWaitress
@@ -39,4 +59,10 @@ export function buildNpcDialogueFallbackV1(
   return isWaitress
     ? { text: "La serveuse marque une pause, attentive, sans prétendre avoir compris davantage.", nonVerbalReaction: "pause attentive" }
     : { text: `${subject} te prête attention, sans prétendre avoir compris davantage.`, nonVerbalReaction: "attention maintenue" };
+}
+
+function normalizedVariant(value: number, count: number): number {
+  return Number.isFinite(value)
+    ? ((Math.trunc(value) % count) + count) % count
+    : 0;
 }

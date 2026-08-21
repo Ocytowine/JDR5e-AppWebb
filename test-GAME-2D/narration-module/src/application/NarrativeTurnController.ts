@@ -45,6 +45,7 @@ import {
 import {
   applyNpcPerformanceToDisplayPacketV1,
   createDefaultNpcPerformerConfigV1,
+  missionDecisionFallbackV1,
   performNpcTurnV1,
   type NpcPerformanceFailureV1,
   type NpcPerformerConfigV1
@@ -99,11 +100,29 @@ import {
 } from "./campaignNpcPromotionRuntime";
 import {
   proposeMissionRelationEngagementV1,
+  recordMissionOutcomeV1,
   resolveMissionRelationEngagementV1,
   type MissionRelationEngagementResultV1,
   type ProposeMissionRelationEngagementCommandV1,
+  type RecordMissionOutcomeCommandV1,
   type ResolveMissionRelationEngagementCommandV1
 } from "./missionRelationAuthority";
+import type { NarrativeMissionRelationRuntimeV1 } from "./catalogMissionRelationRuntime";
+import {
+  changeCompanionPresenceV1,
+  companionDirectiveNarrationV1,
+  decideCompanionDirectiveV1,
+  decideCompanionDirectiveInNarrativeTurnV1,
+  hydrateActiveCompanionsV1,
+  loadCompanionPartyRegistryV1,
+  moveCompanionPartyV1,
+  recruitCompanionV1,
+  type ChangeCompanionPresenceCommandV1,
+  type DecideCompanionDirectiveCommandV1,
+  type MoveCompanionPartyCommandV1,
+  type RecruitCompanionCommandV1
+} from "./companionPartyAuthority";
+import type { NarrativePlotCreationRuntimeV1 } from "./catalogPlotCreationRuntime";
 import {
   recordCampaignLoreProjectionV1,
   type RecordCampaignLoreProjectionCommandV1,
@@ -140,6 +159,7 @@ import {
   type SceneEventBundleV1
 } from "./plotAuthority";
 import {
+  buildPlotSceneDisplayPacketV1,
   projectAndRecordPlotSceneRevealV1,
   type PlotSceneBoundaryProjectionResultV1
 } from "./plotSceneProjection";
@@ -413,6 +433,76 @@ export interface NarrativeSocialBoundaryInputV1 {
   occurredAtGameSecond?: number;
 }
 
+export interface NarrativeInventoryTransactionRuntimeV1 {
+  canHandle(input: {
+    repository: CampaignRepository;
+    campaignId: CampaignId;
+    rawInput: string;
+    interpretation: NarrativeIntentInterpretationV1;
+    domainCommand: NarrativeDomainCommandV1 | null;
+    activeScene: PlayableSceneStateV1;
+  }): Promise<boolean> | boolean;
+  execute(input: {
+    repository: CampaignRepository;
+    campaignId: CampaignId;
+    operation: OperationRecord;
+    rawInput: string;
+    interpretation: NarrativeIntentInterpretationV1;
+    domainCommand: NarrativeDomainCommandV1 | null;
+    activeScene: PlayableSceneStateV1;
+  }): Promise<Result<{
+    commit: CommitRecord | null;
+    resolution: import("./inventoryTransactionAuthority").InventoryTransactionResultV1 | null;
+    outcome: "APPLIED" | "REJECTED";
+    characterExpression: string;
+    playerFacingText: string;
+    sourceRefs: string[];
+  }>>;
+}
+
+export type NarrativeAutomaticBoundarySourceKindV1 =
+  | "WORLD_TIME_ADVANCE"
+  | "SCENE_TRANSITION"
+  | "REST_SEGMENT"
+  | "TACTICAL_INTEGRATION"
+  | "CAMPAIGN_ACTIVATION"
+  | "COMMITTED_ACTION";
+
+export interface NarrativeAutomaticBastionCauseV1 extends JsonObject {
+  schemaVersion: 1;
+  sourceEventId: string;
+}
+
+export interface NarrativeAutomaticBoundaryInputV1 {
+  schemaVersion: 1;
+  sourceOperationId: string;
+  sourceKind: NarrativeAutomaticBoundarySourceKindV1;
+  commitApplied: boolean;
+  timeAdvanced: boolean;
+  sceneEntry: boolean;
+  causalChange: boolean;
+  allowSocialInitiative?: boolean;
+  playerActorId?: string;
+  bastionCauses?: NarrativeAutomaticBastionCauseV1[];
+}
+
+export interface NarrativeAutomaticBoundaryTraceStepV1 extends JsonObject {
+  schemaVersion: 1;
+  kind: "BASTION_CAUSE" | "CAUSAL_SCENE" | "SOCIAL_INITIATIVE";
+  status: "EXECUTED" | "NO_VISIBLE_EFFECT" | "SKIPPED";
+  reason: string;
+  sourceRef: string;
+}
+
+export interface NarrativeAutomaticBoundaryResultV1 {
+  schemaVersion: 1;
+  sourceOperationId: string;
+  sourceKind: NarrativeAutomaticBoundarySourceKindV1;
+  controlDecision: "RETURN_CONTROL" | "INTERRUPT_FOR_PLAYER_DECISION";
+  trace: NarrativeAutomaticBoundaryTraceStepV1[];
+  displayPackets: DisplayPacketV1[];
+}
+
 export interface PendingNarrativeSkillCheckV1 extends JsonObject {
   schemaVersion: 1;
   contractVersion: "pending-narrative-skill-check/1";
@@ -481,6 +571,9 @@ export interface NarrativeTurnControllerOptions {
   sceneTransitionRuntime?: NarrativeSceneTransitionRuntimeV1 | null;
   dynamicPlaceRuntime?: NarrativeDynamicPlaceRuntimeV1 | null;
   inventoryAccessRuntime?: NarrativeInventoryAccessRuntimeV1 | null;
+  inventoryTransactionRuntime?: NarrativeInventoryTransactionRuntimeV1 | null;
+  missionRelationRuntime?: NarrativeMissionRelationRuntimeV1 | null;
+  plotCreationRuntime?: NarrativePlotCreationRuntimeV1 | null;
   socialAccessRuntime?: NarrativeSocialAccessRuntimeV1 | null;
   rulesAccessRuntime?: NarrativeRulesAccessRuntimeV1 | null;
   tacticalAccessRuntime?: NarrativeTacticalAccessRuntimeV1 | null;
@@ -526,6 +619,9 @@ export class NarrativeTurnControllerV1 {
   private readonly sceneTransitionRuntime: NarrativeSceneTransitionRuntimeV1 | null;
   private readonly dynamicPlaceRuntime: NarrativeDynamicPlaceRuntimeV1 | null;
   private readonly inventoryAccessRuntime: NarrativeInventoryAccessRuntimeV1 | null;
+  private readonly inventoryTransactionRuntime: NarrativeInventoryTransactionRuntimeV1 | null;
+  private readonly missionRelationRuntime: NarrativeMissionRelationRuntimeV1 | null;
+  private readonly plotCreationRuntime: NarrativePlotCreationRuntimeV1 | null;
   private readonly socialAccessRuntime: NarrativeSocialAccessRuntimeV1 | null;
   private readonly rulesAccessRuntime: NarrativeRulesAccessRuntimeV1 | null;
   private readonly tacticalAccessRuntime: NarrativeTacticalAccessRuntimeV1 | null;
@@ -561,6 +657,9 @@ export class NarrativeTurnControllerV1 {
     this.sceneTransitionRuntime = options.sceneTransitionRuntime ?? null;
     this.dynamicPlaceRuntime = options.dynamicPlaceRuntime ?? null;
     this.inventoryAccessRuntime = options.inventoryAccessRuntime ?? null;
+    this.inventoryTransactionRuntime = options.inventoryTransactionRuntime ?? null;
+    this.missionRelationRuntime = options.missionRelationRuntime ?? null;
+    this.plotCreationRuntime = options.plotCreationRuntime ?? null;
     this.socialAccessRuntime = options.socialAccessRuntime ?? null;
     this.rulesAccessRuntime = options.rulesAccessRuntime ?? null;
     this.tacticalAccessRuntime = options.tacticalAccessRuntime ?? null;
@@ -602,6 +701,26 @@ export class NarrativeTurnControllerV1 {
       : this.activeSceneResolver.resolve({ repository: this.repository, campaignId: this.campaignId });
   }
 
+  async recruitCompanion(command: RecruitCompanionCommandV1) {
+    return recruitCompanionV1({ repository: this.repository, campaignId: this.campaignId, command });
+  }
+
+  async decideCompanionDirective(command: DecideCompanionDirectiveCommandV1) {
+    return decideCompanionDirectiveV1({ repository: this.repository, campaignId: this.campaignId, command });
+  }
+
+  async moveCompanionParty(command: MoveCompanionPartyCommandV1) {
+    return moveCompanionPartyV1({ repository: this.repository, campaignId: this.campaignId, command });
+  }
+
+  async changeCompanionPresence(command: ChangeCompanionPresenceCommandV1) {
+    return changeCompanionPresenceV1({ repository: this.repository, campaignId: this.campaignId, command });
+  }
+
+  async restoreCompanionParty() {
+    return loadCompanionPartyRegistryV1({ repository: this.repository, campaignId: this.campaignId });
+  }
+
   async processLocalSocialBoundary(
     input: NarrativeSocialBoundaryInputV1
   ): Promise<Result<NarrativeSocialBoundaryResultV1>> {
@@ -625,6 +744,12 @@ export class NarrativeTurnControllerV1 {
       scene: activeScene.value
     });
     if (!hydratedScene.ok) return hydratedScene;
+    const companionScene = await hydrateActiveCompanionsV1({
+      repository: this.repository,
+      campaignId: this.campaignId,
+      scene: hydratedScene.value
+    });
+    if (!companionScene.ok) return companionScene;
     const clockAggregate = await this.repository.getAggregate(
       this.campaignId,
       "world.clock",
@@ -640,11 +765,11 @@ export class NarrativeTurnControllerV1 {
         schemaVersion: 1,
         contractVersion: SOCIAL_LOCAL_INITIATIVE_CONTRACT_V1,
         clientRequestId: input.clientRequestId,
-        sceneId: hydratedScene.value.sceneId,
+        sceneId: companionScene.value.sceneId,
         boundaryKind: input.boundaryKind,
         presentActorIds: [...new Set([
-          ...hydratedScene.value.presentNpc.map(actor => actor.actorId),
-          ...hydratedScene.value.ambientPopulation.map(actor => actor.actorId),
+          ...companionScene.value.presentNpc.map(actor => actor.actorId),
+          ...companionScene.value.ambientPopulation.map(actor => actor.actorId),
           input.playerActorId
         ])],
         playerActorId: input.playerActorId,
@@ -671,7 +796,7 @@ export class NarrativeTurnControllerV1 {
       clientRequestId: input.clientRequestId,
       sourceOperationId: `social-local-initiative:${input.clientRequestId}`,
       initiativeResult: initiativeResult.value,
-      scene: hydratedScene.value,
+      scene: companionScene.value,
       performer: this.socialInitiativePerformer
     });
   }
@@ -774,6 +899,176 @@ export class NarrativeTurnControllerV1 {
       boundaryKind: "LOCAL_TIME_BOUNDARY",
       playerActorId
     });
+  }
+
+  async processAutomaticBoundaries(
+    input: NarrativeAutomaticBoundaryInputV1
+  ): Promise<Result<NarrativeAutomaticBoundaryResultV1>> {
+    const causes = input.bastionCauses ?? [];
+    if (
+      input.schemaVersion !== 1
+      || !input.sourceOperationId.trim()
+      || causes.some(cause => cause.schemaVersion !== 1 || !cause.sourceEventId.trim())
+    ) {
+      return {
+        ok: false,
+        error: coreError(
+          "VALIDATION_FAILED",
+          "narrative.automatic-boundary.invalid-input"
+        )
+      };
+    }
+    const requestsReaction = input.timeAdvanced
+      || input.sceneEntry
+      || input.causalChange
+      || causes.length > 0;
+    if (!input.commitApplied && requestsReaction) {
+      return {
+        ok: false,
+        error: coreError(
+          "VALIDATION_FAILED",
+          "narrative.automatic-boundary.reaction-without-commit"
+        )
+      };
+    }
+    if (!input.commitApplied || !requestsReaction) {
+      return {
+        ok: true,
+        value: {
+          schemaVersion: 1,
+          sourceOperationId: input.sourceOperationId,
+          sourceKind: input.sourceKind,
+          controlDecision: "RETURN_CONTROL",
+          trace: [{
+            schemaVersion: 1,
+            kind: "CAUSAL_SCENE",
+            status: "SKIPPED",
+            reason: !input.commitApplied
+              ? "Aucun commit : aucune réaction automatique."
+              : "Le commit ne fait avancer ni temps, ni scène, ni cause.",
+            sourceRef: input.sourceOperationId
+          }],
+          displayPackets: []
+        }
+      };
+    }
+
+    const trace: NarrativeAutomaticBoundaryTraceStepV1[] = [];
+    const displayPackets: DisplayPacketV1[] = [];
+    for (const cause of causes) {
+      if (this.bastionTacticalRuntime === null) {
+        trace.push({
+          schemaVersion: 1,
+          kind: "BASTION_CAUSE",
+          status: "SKIPPED",
+          reason: "Aucun système de bastion n’est actif dans cette campagne.",
+          sourceRef: cause.sourceEventId
+        });
+      } else {
+        const bastion = await this.processCommittedBastionCauseBoundary({
+          sourceOperationId: input.sourceOperationId,
+          sourceEventId: cause.sourceEventId
+        });
+        if (!bastion.ok) return bastion;
+        const packet = bastion.value.projection?.displayPacket;
+        if (packet !== undefined) displayPackets.push(packet);
+        trace.push({
+          schemaVersion: 1,
+          kind: "BASTION_CAUSE",
+          status: packet === undefined ? "NO_VISIBLE_EFFECT" : "EXECUTED",
+          reason: packet === undefined
+            ? "Cause examinée sans effet visible de bastion."
+            : "Cause de bastion examinée et projetée.",
+          sourceRef: cause.sourceEventId
+        });
+      }
+    }
+
+    const causal = await this.processActiveCausalSceneBoundary({
+      schemaVersion: 1
+    });
+    if (!causal.ok) return causal;
+    if (causal.value.displayPacket !== null) {
+      displayPackets.push(causal.value.displayPacket);
+    }
+    trace.push({
+      schemaVersion: 1,
+      kind: "CAUSAL_SCENE",
+      status: causal.value.displayPacket === null
+        ? "NO_VISIBLE_EFFECT"
+        : "EXECUTED",
+      reason: causal.value.displayPacket === null
+        ? "Intrigues et monde examinés sans effet visible."
+        : "Intrigues et monde examinés et projetés.",
+      sourceRef: input.sourceOperationId
+    });
+
+    const mayRunSocial = causal.value.bundle.controlDecision === "RETURN_CONTROL"
+      && input.allowSocialInitiative !== false
+      && (input.sceneEntry || input.timeAdvanced);
+    if (!mayRunSocial) {
+      trace.push({
+        schemaVersion: 1,
+        kind: "SOCIAL_INITIATIVE",
+        status: "SKIPPED",
+        reason: causal.value.bundle.controlDecision !== "RETURN_CONTROL"
+          ? "Le monde demande une décision du joueur."
+          : "Aucune frontière sociale demandée.",
+        sourceRef: input.sourceOperationId
+      });
+      return {
+        ok: true,
+        value: {
+          schemaVersion: 1,
+          sourceOperationId: input.sourceOperationId,
+          sourceKind: input.sourceKind,
+          controlDecision: causal.value.bundle.controlDecision,
+          trace,
+          displayPackets
+        }
+      };
+    }
+
+    const social = input.sceneEntry
+      ? await this.processActiveSceneEntrySocialBoundary({
+          schemaVersion: 1,
+          ...(input.playerActorId === undefined
+            ? {}
+            : { playerActorId: input.playerActorId })
+        })
+      : await this.processActiveLocalTimeSocialBoundary({
+          schemaVersion: 1,
+          sourceOperationId: input.sourceOperationId,
+          ...(input.playerActorId === undefined
+            ? {}
+            : { playerActorId: input.playerActorId })
+        });
+    if (!social.ok) return social;
+    if (social.value.displayPacket !== null) {
+      displayPackets.push(social.value.displayPacket);
+    }
+    trace.push({
+      schemaVersion: 1,
+      kind: "SOCIAL_INITIATIVE",
+      status: social.value.displayPacket === null
+        ? "NO_VISIBLE_EFFECT"
+        : "EXECUTED",
+      reason: social.value.displayPacket === null
+        ? "Initiative PNJ examinée sans intervention visible."
+        : "Initiative PNJ examinée et projetée.",
+      sourceRef: input.sourceOperationId
+    });
+    return {
+      ok: true,
+      value: {
+        schemaVersion: 1,
+        sourceOperationId: input.sourceOperationId,
+        sourceKind: input.sourceKind,
+        controlDecision: causal.value.bundle.controlDecision,
+        trace,
+        displayPackets
+      }
+    };
   }
 
   async processActivePlotSceneBoundary(input: {
@@ -1064,7 +1359,16 @@ export class NarrativeTurnControllerV1 {
       await cancelUncommittedOperationAfterFailure(this.repository, received.value.operationId);
       return hydratedSceneResult;
     }
-    activeScene = hydratedSceneResult.value;
+    const companionSceneResult = await hydrateActiveCompanionsV1({
+      repository: this.repository,
+      campaignId: this.campaignId,
+      scene: hydratedSceneResult.value
+    });
+    if (!companionSceneResult.ok) {
+      await cancelUncommittedOperationAfterFailure(this.repository, received.value.operationId);
+      return companionSceneResult;
+    }
+    activeScene = companionSceneResult.value;
 
     activateAiCallBudgetV1(received.value.operationId);
 
@@ -1084,6 +1388,9 @@ export class NarrativeTurnControllerV1 {
       sceneTransitionRuntime: this.sceneTransitionRuntime,
       dynamicPlaceRuntime: this.dynamicPlaceRuntime,
       inventoryAccessRuntime: this.inventoryAccessRuntime,
+      inventoryTransactionRuntime: this.inventoryTransactionRuntime,
+      missionRelationRuntime: this.missionRelationRuntime,
+      plotCreationRuntime: this.plotCreationRuntime,
       socialAccessRuntime: this.socialAccessRuntime,
       rulesAccessRuntime: this.rulesAccessRuntime,
       tacticalAccessRuntime: this.tacticalAccessRuntime,
@@ -1605,6 +1912,16 @@ export class NarrativeTurnControllerV1 {
     });
   }
 
+  async recordMissionOutcome(
+    command: RecordMissionOutcomeCommandV1
+  ): Promise<Result<MissionRelationEngagementResultV1>> {
+    return recordMissionOutcomeV1({
+      repository: this.repository,
+      campaignId: this.campaignId,
+      command
+    });
+  }
+
   async recordCampaignLoreProjection(
     command: RecordCampaignLoreProjectionCommandV1
   ): Promise<Result<RecordCampaignLoreProjectionResultV1>> {
@@ -1794,6 +2111,9 @@ export async function createPrototypeNarrativeTurnControllerV1(options: {
   sceneTransitionRuntime?: NarrativeSceneTransitionRuntimeV1 | null;
   dynamicPlaceRuntime?: NarrativeDynamicPlaceRuntimeV1 | null;
   inventoryAccessRuntime?: NarrativeInventoryAccessRuntimeV1 | null;
+  inventoryTransactionRuntime?: NarrativeInventoryTransactionRuntimeV1 | null;
+  missionRelationRuntime?: NarrativeMissionRelationRuntimeV1 | null;
+  plotCreationRuntime?: NarrativePlotCreationRuntimeV1 | null;
   socialAccessRuntime?: NarrativeSocialAccessRuntimeV1 | null;
   rulesAccessRuntime?: NarrativeRulesAccessRuntimeV1 | null;
   tacticalAccessRuntime?: NarrativeTacticalAccessRuntimeV1 | null;
@@ -1824,6 +2144,9 @@ export async function createPrototypeNarrativeTurnControllerV1(options: {
       : options.sceneTransitionRuntime,
     dynamicPlaceRuntime: options.dynamicPlaceRuntime,
     inventoryAccessRuntime: options.inventoryAccessRuntime,
+    inventoryTransactionRuntime: options.inventoryTransactionRuntime,
+    missionRelationRuntime: options.missionRelationRuntime,
+    plotCreationRuntime: options.plotCreationRuntime,
     socialAccessRuntime: options.socialAccessRuntime,
     rulesAccessRuntime: options.rulesAccessRuntime,
     tacticalAccessRuntime: options.tacticalAccessRuntime,
@@ -1848,6 +2171,9 @@ export async function createBrowserPersistentNarrativeTurnControllerV1(options: 
   sceneTransitionRuntime?: NarrativeSceneTransitionRuntimeV1 | null;
   dynamicPlaceRuntime?: NarrativeDynamicPlaceRuntimeV1 | null;
   inventoryAccessRuntime?: NarrativeInventoryAccessRuntimeV1 | null;
+  inventoryTransactionRuntime?: NarrativeInventoryTransactionRuntimeV1 | null;
+  missionRelationRuntime?: NarrativeMissionRelationRuntimeV1 | null;
+  plotCreationRuntime?: NarrativePlotCreationRuntimeV1 | null;
   socialAccessRuntime?: NarrativeSocialAccessRuntimeV1 | null;
   rulesAccessRuntime?: NarrativeRulesAccessRuntimeV1 | null;
   tacticalAccessRuntime?: NarrativeTacticalAccessRuntimeV1 | null;
@@ -1870,6 +2196,9 @@ export async function createBrowserPersistentNarrativeTurnControllerV1(options: 
     sceneTransitionRuntime: options.sceneTransitionRuntime,
     dynamicPlaceRuntime: options.dynamicPlaceRuntime,
     inventoryAccessRuntime: options.inventoryAccessRuntime,
+    inventoryTransactionRuntime: options.inventoryTransactionRuntime,
+    missionRelationRuntime: options.missionRelationRuntime,
+    plotCreationRuntime: options.plotCreationRuntime,
     socialAccessRuntime: options.socialAccessRuntime,
     rulesAccessRuntime: options.rulesAccessRuntime,
     tacticalAccessRuntime: options.tacticalAccessRuntime,
@@ -1902,6 +2231,9 @@ export async function createBrowserPersistentNarrativeTurnControllerV1(options: 
       : options.sceneTransitionRuntime,
     dynamicPlaceRuntime: options.dynamicPlaceRuntime,
     inventoryAccessRuntime: options.inventoryAccessRuntime,
+    inventoryTransactionRuntime: options.inventoryTransactionRuntime,
+    missionRelationRuntime: options.missionRelationRuntime,
+    plotCreationRuntime: options.plotCreationRuntime,
     socialAccessRuntime: options.socialAccessRuntime,
     rulesAccessRuntime: options.rulesAccessRuntime,
     tacticalAccessRuntime: options.tacticalAccessRuntime,
@@ -2083,6 +2415,9 @@ async function buildResolvedOutput(input: {
   sceneTransitionRuntime: NarrativeSceneTransitionRuntimeV1 | null;
   dynamicPlaceRuntime: NarrativeDynamicPlaceRuntimeV1 | null;
   inventoryAccessRuntime: NarrativeInventoryAccessRuntimeV1 | null;
+  inventoryTransactionRuntime: NarrativeInventoryTransactionRuntimeV1 | null;
+  missionRelationRuntime: NarrativeMissionRelationRuntimeV1 | null;
+  plotCreationRuntime: NarrativePlotCreationRuntimeV1 | null;
   socialAccessRuntime: NarrativeSocialAccessRuntimeV1 | null;
   rulesAccessRuntime: NarrativeRulesAccessRuntimeV1 | null;
   tacticalAccessRuntime: NarrativeTacticalAccessRuntimeV1 | null;
@@ -2110,6 +2445,14 @@ async function buildResolvedOutput(input: {
         characterContext: characterContextResult.value
       });
   if (!playerPublicContextResult.ok) return playerPublicContextResult;
+  const companionPartyResult = await loadCompanionPartyRegistryV1({
+    repository: input.repository,
+    campaignId: input.campaignId
+  });
+  if (!companionPartyResult.ok) return companionPartyResult;
+  const activeCompanionRefs = companionPartyResult.value.state?.members
+    .filter(member => member.status === "ACTIVE" && member.currentSceneId === input.activeScene.sceneId)
+    .map(member => `npc:${member.actorId}`) ?? [];
   const interpretationResult = input.intentInterpreterConfig === null
     ? null
     : await interpretNarrativeInputWithAiV1({
@@ -2125,11 +2468,13 @@ async function buildResolvedOutput(input: {
         dynamicPlace: input.dynamicPlaceRuntime !== null,
         rest: input.restRuntime !== null,
         inventoryAccess: input.inventoryAccessRuntime !== null,
+        inventoryMutation: input.inventoryTransactionRuntime !== null,
         tacticalAccess: input.tacticalAccessRuntime !== null
       }),
       characterContext: characterContextResult.value,
       playerPublicContext: playerPublicContextResult.value,
-      playableScene: input.activeScene
+      playableScene: input.activeScene,
+      activeCompanionRefs
     });
   const interpretation = interpretationResult === null
     ? interpretNarrativeInputV1({
@@ -2158,6 +2503,15 @@ async function buildResolvedOutput(input: {
           activeScene: input.activeScene
         })
   );
+  const inventoryTransactionCanHandle = input.inventoryTransactionRuntime !== null &&
+    await input.inventoryTransactionRuntime.canHandle({
+      repository: input.repository,
+      campaignId: input.campaignId,
+      rawInput: input.input.rawInput,
+      interpretation,
+      domainCommand,
+      activeScene: input.activeScene
+    });
   const socialAccessCanHandle = input.socialAccessRuntime !== null && (
     input.socialAccessRuntime.canHandle === undefined
       ? interpretation.runtimeDecision.requiredDomain === "social"
@@ -2195,7 +2549,7 @@ async function buildResolvedOutput(input: {
         })
   );
   const planningStartedAt = Date.now();
-  const planning = input.mjPlannerConfig === null || dynamicPlaceCanHandle || inventoryAccessCanHandle || socialAccessCanHandle || rulesAccessCanHandle || tacticalAccessCanHandle
+  const planning = input.mjPlannerConfig === null || dynamicPlaceCanHandle || inventoryAccessCanHandle || inventoryTransactionCanHandle || socialAccessCanHandle || rulesAccessCanHandle || tacticalAccessCanHandle || (interpretation.semanticIntent.companionDirective ?? null) !== null
     ? null
     : await planNarrativeTurnWithMjV1({
       campaignId: input.campaignId,
@@ -2219,8 +2573,182 @@ async function buildResolvedOutput(input: {
   const runtimeRoute = routeNarrativeSemanticIntentV2({
     semanticIntent: interpretation.semanticIntent,
     runtimeSuggestion: interpretation.runtimeHandling ?? null,
-    availability: { rest: input.restRuntime !== null }
+    availability: {
+      rest: input.restRuntime !== null,
+      inventoryMutation: input.inventoryTransactionRuntime !== null
+    }
   });
+  const companionDirective = interpretation.semanticIntent.companionDirective ?? null;
+  const targetActorId = normalizeCompanionTargetActorIdV1(
+    interpretation.semanticIntent.target?.ref ?? null
+  );
+  const activeCompanion = companionDirective === null || targetActorId === null
+    ? null
+    : companionPartyResult.value.state?.members.find(member =>
+      member.status === "ACTIVE"
+      && member.currentSceneId === input.activeScene.sceneId
+      && member.actorId === targetActorId
+    ) ?? null;
+  if (
+    companionDirective !== null
+    && activeCompanion !== null
+    && interpretation.semanticIntent.dialogueAct?.act === "REQUEST_ACTION"
+    && ["committed", "conditional"].includes(interpretation.semanticIntent.commitment)
+  ) {
+    const campaign = await input.repository.getCampaign(input.campaignId);
+    if (!campaign.ok) return campaign;
+    const clock = await input.repository.getAggregate(
+      input.campaignId,
+      "world.clock",
+      campaign.value.clockAggregateId
+    );
+    if (!clock.ok) return clock;
+    const decided = await decideCompanionDirectiveInNarrativeTurnV1({
+      repository: input.repository,
+      campaignId: input.campaignId,
+      operation: input.operation,
+      command: {
+        schemaVersion: 1,
+        clientRequestId: input.input.clientRequestId,
+        directiveId: `${input.operation.operationId}:companion-directive`,
+        campaignNpcId: activeCompanion.campaignNpcId,
+        category: companionDirective.category,
+        requestSummary: companionDirective.requestSummary,
+        occurredAtGameSecond: Number(
+          (clock.value.payload as CampaignClockPayload).elapsedGameSeconds ?? 0
+        )
+      }
+    });
+    if (!decided.ok) return decided;
+    const directive = decided.value.directive;
+    if (directive === null) {
+      return {
+        ok: false,
+        error: coreError("PERSISTENCE_FAILURE", "companion.directive-result-missing")
+      };
+    }
+    const actor = [...input.activeScene.presentNpc, ...input.activeScene.ambientPopulation]
+      .find(candidate => candidate.actorId === activeCompanion.actorId);
+    const companionName = actor?.displayName ?? "Ton compagnon";
+    const sourceRefs = [...new Set([
+      `commit:${decided.value.commitId}`,
+      `companion:${activeCompanion.campaignNpcId}`,
+      ...directive.sourceRefs
+    ])];
+    const resolution: NarrativeResolutionResultV1 = {
+      schemaVersion: 1,
+      contractVersion: "narrative-resolution/1",
+      resolutionId: `${input.operation.operationId}:resolution:companion-directive`,
+      operationId: input.operation.operationId,
+      resultKind: "COMMIT_APPLIED",
+      interpretation,
+      domainCommand,
+      characterExpression: {
+        schemaVersion: 1,
+        rawPlayerText: input.input.rawInput,
+        interpretedIntentId: interpretation.intentId,
+        expressionText: input.input.rawInput.trim(),
+        fidelity: "RAW_EQUIVALENT",
+        addedCommitments: [],
+        preservedMeaning: true
+      },
+      preparedEffects: [],
+      handoff: null,
+      commitId: decided.value.commitId,
+      noGameTime: true,
+      safetyNotes: [
+        "Le compagnon décide selon sa politique d'autonomie persistée; aucune réussite d'action n'est appliquée par cette réponse."
+      ],
+      actionAdjudication: null,
+      perception: null
+    };
+    const companionSceneState = createInitialReferenceSceneStateV1();
+    const companionPerformance = input.npcPerformerConfig === null
+      ? null
+      : await performNpcTurnV1({
+          repository: input.repository,
+          campaignId: input.campaignId,
+          operationId: input.operation.operationId,
+          rawInput: input.input.rawInput,
+          interpretation,
+          mjPlan: null,
+          resolution,
+          sceneState: companionSceneState,
+          activeScene: input.activeScene,
+          config: input.npcPerformerConfig,
+          assignedActorId: `npc:${activeCompanion.actorId}`,
+          ownerCompanionDecision: { companionName, directive }
+        });
+    const fallbackDisplayPacket: DisplayPacketV1 & JsonObject = {
+      schemaVersion: 1,
+      contractVersion: SCENE_SOCIAL_UI_CONTRACT_VERSION_V1,
+      operationId: input.operation.operationId,
+      sceneId: input.activeScene.sceneId,
+      displayBlocks: [{
+        blockId: `${input.operation.operationId}:raw`,
+        kind: "RAW_INPUT",
+        speaker: { speakerId: "speaker-player", kind: "PLAYER_CHARACTER", displayName: "Joueur", roleLabel: "Entrée joueur", ariaLabel: "Entrée libre du joueur", visualToken: "speaker-player" },
+        text: input.input.rawInput,
+        ariaLabel: "Entrée originale du joueur",
+        roleLabel: "Entrée joueur",
+        visualStyleToken: "speaker-player",
+        sourceRefs: [`operation:${input.operation.operationId}:raw`],
+        isDegradedFallback: false
+      }, {
+        blockId: `${input.operation.operationId}:companion-response`,
+        kind: "NPC_SPEECH",
+        speaker: { speakerId: `npc:${activeCompanion.actorId}`, kind: "NPC", displayName: companionName, roleLabel: "Compagnon", ariaLabel: companionName, visualToken: "speaker-npc" },
+        text: companionDirectiveNarrationV1({ companionName, directive }),
+        ariaLabel: `Réponse de ${companionName}`,
+        roleLabel: "Réponse du compagnon",
+        visualStyleToken: "speaker-npc",
+        sourceRefs,
+        isDegradedFallback: false
+      }],
+      rawInputAccess: { available: true, operationId: input.operation.operationId },
+      rhythmDiagnostics: "companion-directive:resolved",
+      reconstructionRefs: sourceRefs,
+      version: 1
+    };
+    const displayPacket = applyNpcPerformanceToDisplayPacketV1({
+      displayPacket: fallbackDisplayPacket,
+      performance: companionPerformance?.performance ?? null,
+      performanceFailure: companionPerformance?.performanceFailure as (NpcPerformanceFailureV1 & JsonObject) | null ?? null,
+      activeScene: input.activeScene
+    });
+    return { ok: true, value: { commit: decided.value, output: {
+      schemaVersion: 1,
+      contractVersion: "narrative-turn-controller/1",
+      operationId: input.operation.operationId,
+      clientRequestId: input.input.clientRequestId,
+      noCommit: false,
+      noGameTime: true,
+      interpretation,
+      domainCommand,
+      mjPlan: planning?.plan ?? null,
+      mjPlannerFailure: planning?.planningFailure as (MjPlanningFailureV1 & JsonObject) | null ?? null,
+      npcPerformance: companionPerformance?.performance ?? null,
+      npcPerformanceFailure: companionPerformance?.performanceFailure as (NpcPerformanceFailureV1 & JsonObject) | null ?? null,
+      suspendedIntent: null,
+      pendingSkillCheck: null,
+      resolution,
+      sceneState: companionSceneState,
+      sceneArrival: null,
+      activeScene: input.activeScene,
+      displayPacket,
+      stageTimings: {
+        interpretationMs,
+        planningMs,
+        resolutionMs: Date.now() - resolutionStartedAt,
+        npcPerformanceMs: 0,
+        resolvedOutputMs: Date.now() - resolvedOutputStartedAt
+      },
+      aiTelemetry: [
+        ...(interpretationResult?.telemetry ?? []),
+        ...(companionPerformance?.telemetry ?? [])
+      ]
+    } } };
+  }
   if (runtimeRoute.capabilityId === "rest.process" && input.restRuntime !== null) {
     return input.restRuntime.execute({
       repository: input.repository,
@@ -2529,6 +3057,106 @@ async function buildResolvedOutput(input: {
     } } };
   }
   if (
+    input.inventoryTransactionRuntime !== null && inventoryTransactionCanHandle &&
+    interpretation.semanticIntent.commitment === "committed"
+  ) {
+    const inventory = await input.inventoryTransactionRuntime.execute({
+      repository: input.repository,
+      campaignId: input.campaignId,
+      operation: input.operation,
+      rawInput: input.input.rawInput,
+      interpretation,
+      domainCommand,
+      activeScene: input.activeScene
+    });
+    if (!inventory.ok) return inventory;
+    const applied = inventory.value.outcome === "APPLIED" && inventory.value.commit !== null && inventory.value.resolution !== null;
+    const inventoryResolution: NarrativeResolutionResultV1 = {
+      schemaVersion: 1,
+      contractVersion: "narrative-resolution/1",
+      resolutionId: `${input.operation.operationId}:resolution:inventory-transaction`,
+      operationId: input.operation.operationId,
+      resultKind: applied ? "COMMIT_APPLIED" : "NO_COMMIT_RESPONSE",
+      interpretation,
+      domainCommand,
+      characterExpression: {
+        schemaVersion: 1,
+        rawPlayerText: input.input.rawInput,
+        interpretedIntentId: interpretation.intentId,
+        expressionText: inventory.value.characterExpression,
+        fidelity: "STYLE_NORMALIZED",
+        addedCommitments: [],
+        preservedMeaning: true
+      },
+      preparedEffects: [],
+      handoff: null,
+      commitId: inventory.value.commit?.commitId ?? null,
+      noGameTime: true,
+      safetyNotes: ["Transaction décidée depuis les exemplaires, contenants et emplacements autoritaires de l'inventaire."],
+      actionAdjudication: null,
+      perception: null
+    };
+    const sourceRefs = [...new Set([
+      ...(inventory.value.commit === null ? [] : [`commit:${inventory.value.commit.commitId}`]),
+      ...inventory.value.sourceRefs
+    ])];
+    const displayPacket: DisplayPacketV1 & JsonObject = {
+      schemaVersion: 1,
+      contractVersion: SCENE_SOCIAL_UI_CONTRACT_VERSION_V1,
+      operationId: input.operation.operationId,
+      sceneId: input.activeScene.sceneId,
+      displayBlocks: [{
+        blockId: `${input.operation.operationId}:raw`,
+        kind: "RAW_INPUT",
+        speaker: { speakerId: "speaker-player", kind: "PLAYER_CHARACTER", displayName: "Joueur", roleLabel: "Entrée joueur", ariaLabel: "Entrée libre du joueur", visualToken: "speaker-player" },
+        text: input.input.rawInput,
+        ariaLabel: "Entrée originale du joueur",
+        roleLabel: "Entrée joueur",
+        visualStyleToken: "speaker-player",
+        sourceRefs: [`operation:${input.operation.operationId}:raw`],
+        isDegradedFallback: false
+      }, {
+        blockId: `${input.operation.operationId}:inventory-transaction`,
+        kind: "SYSTEM_NOTICE",
+        speaker: { speakerId: "speaker-system", kind: "SYSTEM", displayName: "Système", roleLabel: "Inventaire", ariaLabel: "Inventaire", visualToken: "speaker-system" },
+        text: inventory.value.playerFacingText,
+        ariaLabel: "Transaction d'inventaire validée",
+        roleLabel: "Inventaire",
+        visualStyleToken: "speaker-system",
+        sourceRefs,
+        isDegradedFallback: false
+      }],
+      rawInputAccess: { available: true, operationId: input.operation.operationId },
+      rhythmDiagnostics: `inventory-transaction:${inventory.value.resolution?.action ?? "REJECTED"}`,
+      reconstructionRefs: sourceRefs,
+      version: 1
+    };
+    return { ok: true, value: { commit: inventory.value.commit, output: {
+      schemaVersion: 1,
+      contractVersion: "narrative-turn-controller/1",
+      operationId: input.operation.operationId,
+      clientRequestId: input.input.clientRequestId,
+      noCommit: !applied,
+      noGameTime: true,
+      interpretation,
+      domainCommand,
+      mjPlan: planning?.plan ?? null,
+      mjPlannerFailure: planning?.planningFailure as (MjPlanningFailureV1 & JsonObject) | null ?? null,
+      npcPerformance: null,
+      npcPerformanceFailure: null,
+      suspendedIntent: null,
+      pendingSkillCheck: null,
+      resolution: inventoryResolution,
+      sceneState: createInitialReferenceSceneStateV1(),
+      sceneArrival: null,
+      activeScene: input.activeScene,
+      displayPacket,
+      stageTimings: { interpretationMs, planningMs, resolutionMs: Date.now() - resolutionStartedAt, npcPerformanceMs: 0, resolvedOutputMs: Date.now() - resolvedOutputStartedAt },
+      aiTelemetry: [...(interpretationResult?.telemetry ?? [])]
+    } } };
+  }
+
+  if (
     input.inventoryAccessRuntime !== null && inventoryAccessCanHandle &&
     interpretation.semanticIntent.commitment === "committed"
   ) {
@@ -2780,6 +3408,81 @@ async function buildResolvedOutput(input: {
   });
   if (!resolution.ok) return resolution;
   const resolutionMs = Date.now() - resolutionStartedAt;
+  const plotCreation = input.plotCreationRuntime === null
+    ? { ok: true as const, value: { creation: null, telemetry: [] as AiCallTelemetryV1[], skippedReason: null } }
+    : await input.plotCreationRuntime.maybeCreateFromSearch({
+      repository: input.repository,
+      campaignId: input.campaignId,
+      operation: input.operation,
+      interpretation,
+      activeScene: resolution.value.playableScene
+    });
+  if (!plotCreation.ok) return plotCreation;
+  let immediatePlotDisplay: DisplayPacketV1 & JsonObject | null = null;
+  if (plotCreation.value.creation !== null) {
+    const evolvedPlot = await evolveDuePlotsV1({
+      repository: input.repository,
+      campaignId: input.campaignId,
+      command: {
+        schemaVersion: 1,
+        contractVersion: PLOT_EVOLUTION_CONTRACT_V1,
+        clientRequestId: `${input.operation.clientRequestId}:plot-created-evolution`
+      }
+    });
+    if (!evolvedPlot.ok) return evolvedPlot;
+    const playerKnowledgeRefs = playerPublicContextResult.value?.knownFacts.flatMap(fact => [
+      fact.factRef,
+      ...fact.sourceRefs
+    ]) ?? [];
+    const revealedPlot = await revealPlotEffectsInSceneV1({
+      repository: input.repository,
+      campaignId: input.campaignId,
+      command: {
+        schemaVersion: 1,
+        contractVersion: PLOT_SCENE_REVEAL_CONTRACT_V1,
+        clientRequestId: `${input.operation.clientRequestId}:plot-created-reveal`,
+        sceneId: resolution.value.playableScene.sceneId,
+        playerKnowledgeRefs: [...new Set(playerKnowledgeRefs)]
+      }
+    });
+    if (!revealedPlot.ok) return revealedPlot;
+    immediatePlotDisplay = revealedPlot.value.status === "REVEALED"
+      ? buildPlotSceneDisplayPacketV1(revealedPlot.value.operationId, revealedPlot.value.bundle)
+      : null;
+  }
+  const plotHypothesis = input.plotCreationRuntime === null
+    ? { ok: true as const, value: null }
+    : await input.plotCreationRuntime.recordHypothesisFromTurn({
+      repository: input.repository,
+      campaignId: input.campaignId,
+      operation: input.operation,
+      rawInput: input.input.rawInput,
+      playerActorRef: playerPublicContextResult.value?.character.actorRef ?? "player-character",
+      interpretation
+    });
+  if (!plotHypothesis.ok) return plotHypothesis;
+  const plotConclusion = input.plotCreationRuntime === null
+    ? { ok: true as const, value: { resolution: null, telemetry: [] as AiCallTelemetryV1[] } }
+    : await input.plotCreationRuntime.resolveConclusionFromTurn({
+      repository: input.repository,
+      campaignId: input.campaignId,
+      operation: input.operation,
+      rawInput: input.input.rawInput,
+      playerActorRef: playerPublicContextResult.value?.character.actorRef ?? "player-character",
+      interpretation
+    });
+  if (!plotConclusion.ok) return plotConclusion;
+  const missionProposal = input.missionRelationRuntime === null
+    ? { ok: true as const, value: null }
+    : await input.missionRelationRuntime.proposeFromDialogue({
+      repository: input.repository,
+      campaignId: input.campaignId,
+      operation: input.operation,
+      rawInput: input.input.rawInput,
+      interpretation,
+      activeScene: resolution.value.playableScene
+    });
+  if (!missionProposal.ok) return missionProposal;
   const npcPerformanceStartedAt = Date.now();
   const npcPerformance = input.npcPerformerConfig === null
     ? null
@@ -2793,15 +3496,80 @@ async function buildResolvedOutput(input: {
       resolution: resolution.value.result,
       sceneState: resolution.value.sceneState,
       activeScene: resolution.value.playableScene,
-      config: input.npcPerformerConfig
+      config: input.npcPerformerConfig,
+      missionRelationEngagement: missionProposal.value?.engagement ?? null
     });
   const npcPerformanceMs = Date.now() - npcPerformanceStartedAt;
-  const displayPacket = applyNpcPerformanceToDisplayPacketV1({
+  let displayPacket = applyNpcPerformanceToDisplayPacketV1({
     displayPacket: resolution.value.displayPacket,
     performance: npcPerformance?.performance ?? null,
     performanceFailure: npcPerformance?.performanceFailure as (NpcPerformanceFailureV1 & JsonObject) | null ?? null,
     activeScene: resolution.value.playableScene
   });
+  if (immediatePlotDisplay !== null) {
+    displayPacket = {
+      ...displayPacket,
+      displayBlocks: [...displayPacket.displayBlocks, ...immediatePlotDisplay.displayBlocks],
+      reconstructionRefs: [...new Set([
+        ...displayPacket.reconstructionRefs,
+        ...immediatePlotDisplay.reconstructionRefs
+      ])]
+    } as DisplayPacketV1 & JsonObject;
+  }
+  if (missionProposal.value !== null && npcPerformance?.performance === null) {
+    const decision = missionProposal.value.engagement;
+    let replacedSpeech = false;
+    displayPacket = {
+      ...displayPacket,
+      displayBlocks: displayPacket.displayBlocks.map(block => {
+        if (replacedSpeech || block.kind !== "NPC_SPEECH") return block;
+        replacedSpeech = true;
+        return {
+          ...block,
+          text: missionDecisionFallbackV1({
+            disposition: decision.status,
+            conditions: decision.resolution?.conditions ?? []
+          }, block.text),
+          isDegradedFallback: true
+        };
+      })
+    } as DisplayPacketV1 & JsonObject;
+  }
+  if (missionProposal.value !== null) {
+    const proposalRefs = [
+      `mission-relation:${missionProposal.value.engagement.engagementId}`,
+      `commit:${missionProposal.value.commitId}`
+    ];
+    displayPacket = {
+      ...displayPacket,
+      displayBlocks: displayPacket.displayBlocks.map(block =>
+        block.kind === "NPC_SPEECH"
+          ? { ...block, sourceRefs: [...new Set([...block.sourceRefs, ...proposalRefs])] }
+          : block
+      ),
+      reconstructionRefs: [...new Set([...displayPacket.reconstructionRefs, ...proposalRefs])]
+    } as DisplayPacketV1 & JsonObject;
+  }
+  if (plotConclusion.value.resolution !== null) {
+    const resolution = plotConclusion.value.resolution.resolution;
+    const mjBlock = displayPacket.displayBlocks.find(block => block.kind === "GM_NARRATION")
+      ?? displayPacket.displayBlocks[0];
+    if (mjBlock !== undefined) {
+      const sourceRefs = [...new Set([`plot:${plotConclusion.value.resolution.plotId}`, ...resolution.sourceRefs])];
+      displayPacket = {
+        ...displayPacket,
+        displayBlocks: [...displayPacket.displayBlocks, {
+          ...mjBlock,
+          blockId: `${input.operation.operationId}:plot-resolution`,
+          kind: "GM_NARRATION",
+          text: `Les éléments finissent par s'accorder : ${resolution.conclusion}`,
+          sourceRefs,
+          isDegradedFallback: false
+        }],
+        reconstructionRefs: [...new Set([...displayPacket.reconstructionRefs, ...sourceRefs])]
+      } as DisplayPacketV1 & JsonObject;
+    }
+  }
 
   return {
     ok: true,
@@ -2839,10 +3607,20 @@ async function buildResolvedOutput(input: {
           npcPerformanceMs,
           resolvedOutputMs: Date.now() - resolvedOutputStartedAt
         },
-        aiTelemetry: [...(interpretationResult?.telemetry ?? []), ...(npcPerformance?.telemetry ?? [])]
+        aiTelemetry: [
+          ...(interpretationResult?.telemetry ?? []),
+          ...plotCreation.value.telemetry,
+          ...plotConclusion.value.telemetry,
+          ...(npcPerformance?.telemetry ?? [])
+        ]
       }
     }
   };
+}
+
+function normalizeCompanionTargetActorIdV1(targetRef: string | null): string | null {
+  if (targetRef === null || !targetRef.trim()) return null;
+  return targetRef.replace(/^(?:npc|actor):/u, "");
 }
 
 function buildDestinationDecisionControllerResult(input: {

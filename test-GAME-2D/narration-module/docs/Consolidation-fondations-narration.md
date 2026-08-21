@@ -1,6 +1,6 @@
 # État actuel et feuille de route unique du module narration
 
-Date de référence : 2026-08-17
+Date de référence : 2026-08-20
 
 Statut : `SOURCE_CANONIQUE_ACTIVE`
 
@@ -36,8 +36,9 @@ Construire un jeu de rôle narratif solo dans lequel un humain peut :
 - s'exprimer librement et être compris sans apprendre des commandes ;
 - dialoguer durablement avec plusieurs PNJ cohérents ;
 - observer, enquêter, découvrir et revisiter des lieux ;
-- gérer ses objets à l'oral sous l'autorité de l'inventaire ;
-- recevoir, suivre et résoudre une petite aventure cohérente ;
+- gérer ses objets par une volonté écrite sous l'autorité de l'inventaire ;
+- recevoir, suivre et résoudre un parcours de jeu cohérent, guidé par ses
+  volontés écrites ;
 - voir le monde, les intrigues et les PNJ évoluer sans être leur déclencheur
   unique ;
 - créer des relations durables pouvant, dans un lot ultérieur explicitement
@@ -91,16 +92,16 @@ l'action.
 |---|---|---|
 | Campagne principale | `LIVRÉ` | davantage de contenu naturel reste nécessaire |
 | Persistance et reprise | `LIVRÉ` | migrations futures et charge extrême restent des sujets NFR |
-| Intention libre V2–V5 | `LIVRÉ` | ontologie métier encore fermée pour plusieurs commandes génériques |
-| Dialogue PNJ | `LIVRÉ` | qualité longue hors Archives à étendre |
+| Intention libre V2–V6 | `LIVRÉ` | V6 ajoute seulement la demande structurée aux compagnons actifs ; plusieurs commandes génériques restent fermées |
+| Dialogue PNJ | `LIVRÉ` | variété de contenu et mémoire sociale longue à étendre |
 | Contexte public joueur | `LIVRÉ_V1` | états observables supplémentaires à ajouter seulement par contrat propriétaire |
 | Mémoire et témoignages | `LIVRÉ_DANS_PÉRIMÈTRE` | mémoire sociale longue et mensonge volontaire encore fermés |
-| Lieux locaux | `LIVRÉ` | voyage lointain complet absent |
+| Lieux et voyage | `LIVRÉ_J6` | branchement dans la gate complète réservé à J9 |
 | Contrôles d'accès | `LIVRÉ` | catalogues concrets encore limités |
-| Inventaire oral | `PARTIEL` | justificatif d'accès livré ; transactions génériques et commerce absents |
-| Mission et relation | `AUTORITÉ_LIVRÉE` | cycle naturel de quête et évolution sociale longue incomplets |
-| Intrigue | `NOYAU_LIVRÉ` | génération runtime complète et boucle d'aventure encore absentes |
-| Monde vivant | `PARTIEL` | raccord campagne livré ; contenu local naturel à consolider |
+| Inventaire par volonté écrite | `LIVRÉ` | gestion, transferts, propriétaires externes et commerce physique certifiés |
+| Mission et relation | `LIVRÉ_J4` | variété de missions et évolution sociale longue à étendre avec les futurs contenus |
+| Intrigue | `LIVRÉ_J5` | variété des intrigues à étendre avec les futurs contenus |
+| Monde vivant | `LIVRÉ_DANS_PÉRIMÈTRE` | raccord campagne et première preuve locale naturelle livrés ; variété de contenu à étendre avec les futurs lots |
 | Repos et progression | `LIVRÉ_DANS_PÉRIMÈTRE` | options texte libre volontairement non annoncées |
 | Bastion | `LIVRÉ_DANS_PÉRIMÈTRE` | économie de campagne et ordres texte libre absents |
 | Tactique | `LIVRÉ_SPÉCIALISÉ` | accès et défense de bastion couverts ; combat générique fermé |
@@ -140,7 +141,29 @@ connaissances acquises du personnage. Elle répond localement aux questions de
 lieu, de présence et de connaissance sans commit, sans temps de jeu et sans
 exposer les données privées.
 
-## Feuille de route ordonnée vers une petite aventure jouable
+La seconde tranche J1 livre l'orchestration commune des réactions automatiques.
+L'avance naturelle du monde, les transitions de scène, les segments de repos,
+l'intégration tactique et la reprise passent maintenant par cet ordre unique.
+Les tests certifient l'ordre, l'interruption et l'absence de second affichage
+après rechargement.
+
+La troisième tranche J1 renforce la recette `npc-return-ui`, située hors du
+pilote Archives. Elle certifie quatre échanges avec le même PNJ, au moins trois
+formulations distinctes, exactement une réponse par intention, la sortie et le
+retour entre deux scènes, les arrivées visibles, la mémoire conversationnelle
+et sa reprise depuis le stockage navigateur. La saisie est rendue au joueur
+après chaque tour. La variation locale utilise la révision conversationnelle
+déjà existante et n'ajoute aucun fait ni engagement durable.
+
+La quatrième tranche J1 remplace le signal monde fabriqué de la recette
+`world-event-ui` par une vraie heure exécutée par le moteur de simulation déjà
+existant. Un signal religieux produit naturellement aux docks est projeté dans
+le récit sans révéler la faction ou l'action interne. La demande rejouée et le
+rechargement ne créent aucun second affichage. Une campagne sans système de
+bastion actif ignore proprement cette branche optionnelle au lieu de bloquer les
+autres réactions du monde.
+
+## Feuille de route ordonnée vers un parcours de jeu complet
 
 Un lot futur est `PLANIFIÉ`, mais pas autorisé à l'implémentation tant que les
 critères du lot précédent ne sont pas fermés et que son contrat proche n'est pas
@@ -148,7 +171,7 @@ critères du lot précédent ne sont pas fermés et que son contrat proche n'est
 
 ### J1 — Fermer la consolidation joueur ↔ MJ
 
-Statut : `ACTIF_AUTORISÉ`
+Statut : `LIVRÉ`
 
 Objectif : rendre la boucle déjà disponible fiable avant d'ajouter un nouveau
 domaine joueur.
@@ -177,10 +200,11 @@ Références :
 
 ### J2 — Étendre la verticale jouable NAR-ACC-002
 
-Statut : `PLANIFIÉ_APRÈS_J1`
+Statut : `LIVRÉ_DANS_PÉRIMÈTRE`
 
 Objectif : utiliser le parcours officiel des Archives comme intégration unique
-de la petite aventure, sans créer une quête produit préécrite concurrente.
+d'un parcours dirigé par les volontés écrites du joueur, sans créer une quête
+préécrite concurrente.
 
 La gate doit relier progressivement entrée, observation, plusieurs PNJ,
 intrigue contextuelle, enquête, déplacement, conséquence causale, éventuel
@@ -189,12 +213,88 @@ handoff tactique, repos, ellipse et retour.
 La fixture fixe les intentions et les oracles. Elle ne fixe pas à l'avance les
 noms, la vérité, les indices ou l'adversaire que le générateur doit proposer.
 
+J2 n'annonce pas que les dix-huit échanges de `NAR-ACC-002` sont déjà
+jouables. Il ouvre une gate continue dans le build principal, puis y raccorde
+uniquement les capacités déjà livrées ou les adaptations de contenu qui
+emploient leurs autorités existantes. Les futurs lots étendront cette même
+gate ; ils ne créeront pas une seconde aventure de démonstration.
+
+#### Briques vérifiées avant développement
+
+| Partie du parcours | État au début de J2 | Décision J2 |
+|---|---|---|
+| Fiche, création/reprise de campagne et entrée aux Archives | livré dans le build principal | réutiliser sans nouveau bootstrap |
+| Observation libre, question de contexte et question méta sans temps | livré | réunir dans le même parcours navigateur |
+| Archiviste, clerc et garde ambiants | produits depuis le profil de présence du lore | dialoguer avec deux acteurs sans imposer de noms |
+| Dialogue durable et reprise | livré | vérifier attribution, perspectives distinctes et absence de doublon |
+| Accès social propriétaire | moteur livré, contenu concret actuellement certifié hors Archives | ajouter seulement un contrôle des Archives sourcé par leur accès privé ; ne pas créer une nouvelle règle sociale |
+| Déplacement Archives ↔ Place des Archives | livré | raccorder aller, retour et temps validé au même fil |
+| Simulation du monde et réactions automatiques | livrées | vérifier la continuité ; ne pas inventer un signal local aux Archives |
+| Intrigue prévalidée et évolution hors écran | noyau livré dans une preuve séparée | ne pas fabriquer d'intrigue J2 ; attendre la création runtime de J5 |
+| Mission/relation naturelle | boucle J4 livrée après ce cadrage | réutiliser sans l'étendre dans J2 |
+| Inventaire générique et commerce | livrés | transaction J3 propriétaire |
+| Repos et tactique | parcours spécialisés livrés, aucune cause naturelle garantie aux Archives | ne pas forcer leur apparition ; extension ultérieure de la gate |
+| Ellipse, rappel tardif et résolution d'aventure | socles séparés seulement | certification progressive, fermeture complète en J9 |
+
+#### Étapes de J2
+
+1. créer une seule gate navigateur `NAR-ACC-002` depuis l'entrée réelle du
+   build, avec une campagne persistante et sans écriture directe d'événement
+   métier par le test ;
+2. y certifier le checkpoint A : création, entrée aux Archives, observation,
+   question de contexte, question méta, temps inchangé et reprise ;
+3. poursuivre dans la même campagne avec deux PNJ ambiants : paroles attribuées,
+   perspectives distinctes, changement d'interlocuteur et restauration ;
+4. raccorder l'accès privé des Archives au moteur social existant, avec succès,
+   échec ou clarification décidés par ce propriétaire et jamais par la prose ;
+5. enchaîner déplacement vers la Place des Archives, avance réelle du temps,
+   retour aux Archives et rechargement, sans perdre les acteurs ni doubler les
+   réactions ;
+6. publier dans la gate les étapes encore fermées comme attentes explicites de
+   J3 à J9, sans fixture qui les ferait passer artificiellement.
+
+#### Avancement vérifié
+
+- La gate navigateur `campaign-adventure-j2` part de l'entrée réelle du build
+  et crée une campagne sans injecter d'événement métier.
+- Le checkpoint A est vert en mode local : entrée aux Archives, observation
+  libre des présences, question sur le lieu, question méta, temps inchangé,
+  aller-retour par l'écran du monde et reprise après rechargement.
+- La gate vérifie qu'un échange restauré n'est pas dupliqué. Elle a aussi borné
+  l'ancienne variation de texte de l'Auberge du Seuil à cette seule scène de
+  démonstration, afin qu'elle ne remplace plus le texte d'une campagne active.
+- L'étape 3 est verte dans la même campagne : le joueur s'adresse d'abord à
+  l'archiviste, puis au clerc ; les deux réponses portent le bon interlocuteur,
+  restent distinctes et sont restaurées une seule fois après rechargement.
+- L'étape 4 est verte : une demande explicite d'accès aux fonds réservés est
+  décidée par `SOCIAL_ACCESS_DOMAIN`. L'archiviste exige le mandat de haut rang
+  déjà mentionné par le lore ; l'accès reste `CONTROLLED`, aucun jet n'est
+  inventé et le temps ne bouge pas. Une simple salutation reste un dialogue
+  normal et ne déclenche pas ce contrôle.
+- L'étape 5 est verte dans la recette OpenAI ciblée existante : la Place des
+  Archives est créée et atteinte une seule fois en 8 secondes, puis le retour
+  réutilise localement la route persistée et ramène la campagne aux Archives à
+  16 secondes. Le rechargement conserve la scène, le temps et les deux
+  transitions sans rappeler `scene_creator`.
+- La recette ciblée observe trois appels HTTP 200 dans l'ordre
+  `player_intent_interpreter → scene_creator → scene_writer`. Si le writer
+  dépasse son budget de sortie, le texte local validé est conservé sans perdre
+  le commit de création ou de déplacement.
+- Les attentes J3 à J9 restent fermées dans cette gate. J2 ne revendique donc
+  toujours pas les dix-huit échanges complets de `NAR-ACC-002`.
+
+J2 est terminé lorsque ce parcours continu passe en mode local déterministe et
+dans une recette OpenAI ciblée, sans menu de choix, sans quête préécrite, sans
+événement métier injecté par le test et sans régression du build. Cette
+fermeture reste une extension partielle de `NAR-ACC-002`, pas la certification
+du parcours jouable complet réservé à J9.
+
 Référence : [`Scenarios-acceptation.md`](Scenarios-acceptation.md),
 `NAR-ACC-002`.
 
-### J3 — Inventaire oral et transaction propriétaire
+### J3 — Inventaire par volonté écrite et transaction propriétaire
 
-Statut : `PLANIFIÉ_CONTRAT_REQUIS`
+Statut : `FERMÉ — GESTION, TRANSFERTS ET COMMERCE LIVRÉS`
 
 Objectif : ouvrir une transaction inventaire générique sans donner l'agrégat
 privé ou l'autorité au modèle.
@@ -212,15 +312,35 @@ Le contrat doit couvrir quantité, accessibilité, contenants, emplacements,
 capacité, monnaie, atomicité, temps et rejeu. Le justificatif d'accès existant
 reste un adaptateur spécialisé, pas la transaction générique.
 
+#### Avancement vérifié
+
+- `inventory-transaction/1` relit les exemplaires de `character.state` et
+  valide rangement, sortie, équipement et déséquipement sans autorité de l'IA.
+- Le contexte d'interprétation projette désormais chaque objet possédé avec
+  quantité et état `EQUIPPED`, `DIRECT` ou `STORED`, sans exposer les secrets
+  mécaniques ni les inventaires externes.
+- Une réussite synchronise dans un seul commit l'inventaire, les emplacements,
+  la projection tactique et l'équipement visible de la projection narrative.
+- `inventory.external-ownership` conserve les possessions du lieu et des PNJ.
+  Déposer puis prendre transfère le même exemplaire sans création narrative.
+- La gate continue vérifie pièces d'or ↔ bourse, épée déséquipée puis équipée,
+  refus sans mutation, temps inchangé et reprise exacte après rechargement.
+- Donner et recevoir relisent le PNJ présent, sa politique durable et
+  l'accessibilité de l'exemplaire. Acheter et vendre relisent une offre active,
+  le prix du catalogue et les pièces physiques des deux propriétaires.
+- Le marchand existant des Halles propose la plume et l'encre à une pièce d'or.
+  La transaction est certifiée sans ouvrir artificiellement une route lointaine.
+
 Références :
 
+- [`Contrat-transactions-inventaire-J3.md`](Contrat-transactions-inventaire-J3.md) ;
 - [`Contrat-commandes-joueur-domaines-proprietaires.md`](Contrat-commandes-joueur-domaines-proprietaires.md) ;
 - [`Contrat-acces-par-inventaire.md`](Contrat-acces-par-inventaire.md) ;
 - [`Scenarios-acceptation.md`](Scenarios-acceptation.md), `NAR-ACC-009`.
 
 ### J4 — Boucle naturelle mission et relation
 
-Statut : `PLANIFIÉ_CONTRAT_D_ADAPTATION_REQUIS`
+Statut : `FERMÉ — BOUCLE PROPRIÉTAIRE ET RESTITUTION NARRATIVE LIVRÉES`
 
 Objectif : raccorder les dialogues au registre mission/relation existant sans
 faire d'une réplique une acceptation.
@@ -232,8 +352,20 @@ Travail :
    ou `UNCERTAIN` ;
 3. restituer conditions, promesses et conséquences publiques ;
 4. raccorder réussite, échec ou abandon d'une mission ;
-5. ouvrir seulement par ruleset les axes durables pertinents tels que confiance,
-   respect, peur, affection, hostilité et obligation.
+5. ouvrir seulement les axes durables déjà définis par le domaine social :
+   `trust`, `affinity`, `fear` et `debt`.
+
+Avancement : une demande d'action adressée à un PNJ visible crée un engagement
+persistant. La politique propriétaire décide ensuite acceptation, refus,
+condition ou hésitation avant que l'IA formule la réplique. Une condition ou
+une hésitation peut recevoir une nouvelle décision ; une acceptation ou un
+refus reste final. Si l'IA n'est pas disponible ou si sa réponse est rejetée,
+un texte local naturel exprime la même décision sans état technique visible.
+
+Réussite, échec et abandon sont enregistrés comme fins durables d'une mission
+acceptée. Leurs effets sociaux éventuels passent par l'autorité sociale déjà
+existante et uniquement par ses quatre axes. Un nouvel appel identique restaure
+le résultat et peut terminer un effet social interrompu sans doubler la mission.
 
 Références :
 
@@ -243,7 +375,7 @@ Références :
 
 ### J5 — Création et suivi d'intrigue dynamique
 
-Statut : `PLANIFIÉ_SELON_NAR_ACC_006`
+Statut : `LIVRÉ`
 
 Objectif : ouvrir la création runtime sans remplacer le noyau d'intrigue livré
 ni introduire une aventure produit préécrite.
@@ -264,18 +396,53 @@ Phase B — continuité :
 3. tester découverte, témoignage erroné, hypothèse incorrecte, ellipse,
    évolution hors écran et résolution.
 
+Avancement : `plot-candidate/1` fournit désormais à l'IA le contexte public
+autorisé du monde, du lore, des acteurs et de la scène. Une proposition sans
+deux pistes indépendantes, utilisant un acteur inconnu, formant une causalité
+circulaire ou révélant sa vérité dans un signe public est refusée avant commit.
+Une proposition valide est promue par `plot-registry/1`, sans second moteur.
+Les causalités, perspectives d'acteur et détails de pistes sont conservés ; une
+piste réellement révélée devient une découverte sans modifier la vérité.
+
+Cette création est maintenant déclenchable dans le build OpenAI uniquement par
+une recherche écrite et approfondie du joueur. Une observation rapide ne crée
+rien ; une intrigue active empêche une seconde création et une panne de l'IA
+laisse la campagne sans nouvelle intrigue plutôt que charger une aventure
+locale préécrite. Une proposition acceptée est maintenant gelée dans une
+fixture versionnée. La preuve ciblée conserve une hypothèse incorrecte sans
+changer la vérité, révèle un témoignage erroné, maintient une voie de
+réfutation et fait évoluer l'intrigue hors écran. Le PNJ ne reçoit que sa propre
+perspective : le clerc peut croire que le registre a été mal rangé sans
+apprendre que cette croyance est fausse ni accéder au savoir de l'archiviste.
+Lorsqu'une proposition est acceptée, le premier signe immédiatement accessible
+est restitué dans le même tour de recherche, sans exposer le commit ni la
+vérité cachée.
+
+Chaque acteur causal possède maintenant une motivation sourcée et liée à ses
+propres étapes. Un contrôle sémantique séparé refuse avant promotion une
+motivation contradictoire, sans rapport avec l'action ou fondée sur un savoir
+que l'acteur ne possède pas.
+
+La fixture déroule dix échanges narratifs : recherche, deux pistes
+indépendantes, témoignage, fausse hypothèse, ellipse, évolution hors écran,
+réfutation puis conclusion. `plot-resolution/1` ne ferme l'intrigue qu'après le
+contrôle sémantique de la conclusion et la vérification locale des découvertes.
+La fausse hypothèse devient réfutée, la conclusion devient soutenue et la
+vérité cachée reste stable pendant tout le parcours.
+
 Références :
 
 - [`Contrat-noyau-intrigue-et-revelation-bornee.md`](Contrat-noyau-intrigue-et-revelation-bornee.md) ;
+- [`Contrat-generation-intrigue-J5.md`](Contrat-generation-intrigue-J5.md) ;
 - [`Coherence-intrigues.md`](Coherence-intrigues.md) ;
 - [`Scenarios-acceptation.md`](Scenarios-acceptation.md), `NAR-ACC-006`.
 
 ### J6 — Exploration locale complète puis voyage
 
-Statut : `PLANIFIÉ_APRÈS_BOUCLE_D_AVENTURE_LOCALE`
+Statut : `FERMÉ — EXPLORATION ET VOYAGE DE CAMPAGNE LIVRÉS`
 
-Objectif : ne pas retarder la petite aventure locale tout en conservant le
-voyage prévu par l'architecture.
+Objectif : ne pas retarder le parcours de jeu local tout en conservant le voyage
+prévu par l'architecture.
 
 Ordre :
 
@@ -286,15 +453,35 @@ Ordre :
 4. raccorder les rencontres contextuelles reproductibles sans imposer un
    combat.
 
+Avancement : la première preuve locale réutilise les autorités existantes et
+couvre trois lieux, un passage contrôlé, quatre transitions, le retour au lieu
+initial et un rejeu stable. La création de lieu reste celle déjà validée par le
+contrat de création atomique ; J6 n'ajoute aucun second registre.
+
+Le premier raccord lointain transforme désormais un catalogue de routes du
+monde en `TravelProcess`. Il choisit le trajet valide le plus court pour le mode
+demandé, refuse les routes ou modes absents et corrige la position conservée
+entre deux étapes.
+
+Le raccord campagne persiste désormais le départ puis relit avant chaque segment
+la position, la photographie versionnée du groupe et les ressources fournies par
+l'inventaire. L'horloge, le checkpoint, la position et la consommation préparée
+par le propriétaire sont réunis dans un seul commit. Le calcul cumulé empêche le
+découpage d'un trajet de doubler les provisions. Une frontière mondiale, une
+interruption ou une rencontre arrête le segment ; une rencontre conserve les
+approches du joueur et n'impose aucun combat. Un processus planifié, actif ou
+interrompu peut être restauré sans recalculer sa décision.
+
 Références :
 
 - [`Guide-lieux-connus-crees-et-deplacements.md`](Guide-lieux-connus-crees-et-deplacements.md) ;
+- [`Contrat-voyage-campagne-J6.md`](Contrat-voyage-campagne-J6.md) ;
 - [`Integration-domaines.md`](Integration-domaines.md) ;
 - [`Scenarios-acceptation.md`](Scenarios-acceptation.md), `NAR-ACC-010`.
 
 ### J7 — Cadrage puis compagnon narratif
 
-Statut : `PLANIFIÉ_NON_AUTORISÉ_AVANT_CONTRAT`
+Statut : `FERMÉ — COMPAGNON NARRATIF CERTIFIÉ`
 
 Objectif : faire d'un PNJ durable un compagnon possible sans supprimer sa
 volonté propre.
@@ -312,12 +499,34 @@ Le premier vertical est narratif : recrutement autorisé, présence sur plusieur
 scènes, participation bornée, directive refusée ou acceptée, séparation et
 reprise. Aucun statut ou schéma technique n'est fixé avant le contrat.
 
+Le contrat J7 attribue désormais la cause au registre mission/relation,
+l'identité durable au registre de PNJ, la volonté et l'initiative au domaine
+social, et la seule appartenance au groupe à `companion.party-registry`. Il
+interdit toute projection tactique et toute réussite d'action déduite d'une
+directive acceptée.
+
+Le noyau `companion.party-registry/1` est maintenant livré. Il vérifie
+l'engagement accepté et le même PNJ de campagne avant recrutement, conserve une
+politique d'autonomie sourcée, décide acceptation, adaptation, condition ou
+refus, et sépare toujours décision et réussite d'action. Les membres actifs sont
+projetables dans plusieurs scènes et forment la photographie versionnée lue par
+le voyage J6. Séparation, réunion, départ définitif et rejeu sont persistants.
+Le contrat `ai-intent-semantic/6` reçoit uniquement les références des
+compagnons actifs de la scène et classe la demande libre sans mots-clés métier.
+La décision est persistée dans le même tour narratif, puis le `npc_performer`
+l'incarne sans pouvoir la changer ni annoncer une réussite. Le fallback reste
+narratif si la sortie IA est indisponible. Une recette navigateur certifie
+acceptation, refus et restauration après rechargement. Une préoccupation
+sociale persistée certifie aussi l'initiative bornée du compagnon, avec les
+mêmes délais, cibles présentes et possibilité `CALM` que les autres PNJ.
+
 Référence :
+[`Contrat-compagnon-narratif-J7.md`](Contrat-compagnon-narratif-J7.md),
 [`Guide-pnj-compagnons-et-initiative.md`](Guide-pnj-compagnons-et-initiative.md).
 
 ### J8 — Compagnon tactique
 
-Statut : `DIFFÉRÉ_APRÈS_J7`
+Statut : `PROCHAIN LOT — CONTRAT REQUIS AVANT CODE`
 
 Objectif : projeter un compagnon narratif validé vers le plateau sans en faire
 un personnage d'exemple ou une seconde autorité.
@@ -332,7 +541,7 @@ Références :
 - [`Contrat-handoffs-tactique-repos.md`](Contrat-handoffs-tactique-repos.md) ;
 - [`Guide-defense-bastion-et-plateau-tactique.md`](Guide-defense-bastion-et-plateau-tactique.md).
 
-### J9 — Certification de la petite aventure complète
+### J9 — Certification du parcours de jeu complet
 
 Statut : `GATE_FINALE_PLANIFIÉE`
 
@@ -344,7 +553,7 @@ campagne réelle
 → mission ou relation propriétaire
 → intrigue contextuelle validée
 → découverte et revisite de lieux
-→ inventaire oral atomique
+→ inventaire par volonté écrite, avec transaction atomique
 → indices, conséquences et évolution hors écran
 → résolution
 → ellipse, sauvegarde et reprise
@@ -352,12 +561,11 @@ campagne réelle
 
 Le compagnon narratif rejoint cette gate après J7 ; le compagnon tactique reste
 une extension après J8. Leur absence ne doit pas bloquer la première fermeture
-de la petite aventure solo.
+du parcours de jeu solo.
 
 ## Hors périmètre tant qu'aucun lot ne les ouvre
 
 - mutation d'inventaire générique par le texte ou par l'IA ;
-- commerce sans transaction de monnaie propriétaire ;
 - génération d'intrigue promue sans validation locale ;
 - quête préécrite imposée pour faire passer `NAR-ACC-002` ;
 - voyage lointain simulé uniquement par prose ;

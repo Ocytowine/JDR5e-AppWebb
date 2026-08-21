@@ -18,6 +18,7 @@ export type InterpreterCharacterReferenceKindV1 =
   | "LANGUAGE"
   | "ACTION"
   | "SPELL"
+  | "INVENTORY_ITEM"
   | "EQUIPPED_ITEM";
 
 export interface InterpreterCharacterReferenceV1 extends JsonObject {
@@ -27,6 +28,9 @@ export interface InterpreterCharacterReferenceV1 extends JsonObject {
   label: string;
   aliases: string[];
   availability: "REFERENCE_ONLY";
+  inventoryState: "EQUIPPED" | "DIRECT" | "STORED" | null;
+  quantity: number | null;
+  containerRef: string | null;
 }
 
 export interface InterpreterCharacterAmbiguityV1 extends JsonObject {
@@ -83,10 +87,22 @@ interface MinimalTacticalProjectionV1 {
   spellIds: string[];
 }
 
+interface MinimalInventoryStateV1 {
+  characterId: string;
+  items: Array<{
+    instanceId: string;
+    itemId: string;
+    quantity: number;
+    equippedSlot: string | null;
+    storedInInstanceId: string | null;
+  }>;
+}
+
 const REFERENCE_LIMITS: Record<InterpreterCharacterReferenceKindV1, number> = {
   LANGUAGE: 12,
   ACTION: 24,
   SPELL: 24,
+  INVENTORY_ITEM: 32,
   EQUIPPED_ITEM: 12
 };
 
@@ -94,7 +110,7 @@ const DELIBERATELY_EXCLUDED_V1 = [
   "ability_scores_and_modifiers",
   "hit_points_armor_class_and_difficulty",
   "resource_amounts_and_cooldowns",
-  "private_inventory_and_currency",
+  "merchant_prices_counterparties_and_private_external_inventories",
   "biography_personality_objectives_and_flaws",
   "campaign_secrets_and_private_knowledge",
   "success_failure_and_execution_authority"
@@ -119,7 +135,7 @@ export async function loadActiveInterpreterCharacterContextV1(input: {
   const activeRefs = await resolveActiveProjectionRefsV1(input);
   if (!activeRefs.ok) return { ok: false, error: activeRefs.error };
   if (activeRefs.value === null) return { ok: true, value: null };
-  const [narrativeRecord, tacticalRecord] = await Promise.all([
+  const [narrativeRecord, tacticalRecord, characterRecord] = await Promise.all([
     input.repository.getAggregate(
       input.campaignId,
       "character.narrative-projection",
@@ -129,16 +145,25 @@ export async function loadActiveInterpreterCharacterContextV1(input: {
       input.campaignId,
       "character.tactical-projection",
       activeRefs.value.tacticalProjectionAggregateId
+    ),
+    input.repository.getAggregate(
+      input.campaignId,
+      "character.state",
+      activeRefs.value.characterAggregateId
     )
   ]);
   if (!narrativeRecord.ok) return narrativeRecord;
   if (!tacticalRecord.ok) return tacticalRecord;
+  if (!characterRecord.ok) return characterRecord;
   const narrative = parseNarrativeProjection(narrativeRecord.value.payload);
   const tactical = parseTacticalProjection(tacticalRecord.value.payload);
+  const inventory = parseInventoryState(characterRecord.value.payload);
   if (
     narrative === null
     || tactical === null
+    || inventory === null
     || narrative.characterId !== tactical.characterId
+    || narrative.characterId !== inventory.characterId
   ) {
     return {
       ok: false,
@@ -154,6 +179,7 @@ export async function loadActiveInterpreterCharacterContextV1(input: {
     value: buildInterpreterCharacterContextV1({
       narrative,
       tactical,
+      inventory,
       catalog: input.catalog ?? {}
     })
   };
@@ -165,6 +191,7 @@ async function resolveActiveProjectionRefsV1(input: {
 }): Promise<Result<{
   narrativeProjectionAggregateId: AggregateId;
   tacticalProjectionAggregateId: AggregateId;
+  characterAggregateId: AggregateId;
 } | null>> {
   const activeProfile = await input.repository.getAggregate(
     input.campaignId,
@@ -176,6 +203,7 @@ async function resolveActiveProjectionRefsV1(input: {
     if (
       typeof profile.narrativeProjectionAggregateId !== "string"
       || typeof profile.tacticalProjectionAggregateId !== "string"
+      || typeof profile.characterStateAggregateId !== "string"
     ) {
       return {
         ok: false,
@@ -192,7 +220,8 @@ async function resolveActiveProjectionRefsV1(input: {
         narrativeProjectionAggregateId:
           profile.narrativeProjectionAggregateId as AggregateId,
         tacticalProjectionAggregateId:
-          profile.tacticalProjectionAggregateId as AggregateId
+          profile.tacticalProjectionAggregateId as AggregateId,
+        characterAggregateId: profile.characterStateAggregateId as AggregateId
       }
     };
   }
@@ -210,7 +239,10 @@ async function resolveActiveProjectionRefsV1(input: {
   const tacticalRef = bootstrap.aggregateRefs.find(
     ref => ref.aggregateType === "character.tactical-projection"
   );
-  if (narrativeRef === undefined || tacticalRef === undefined) {
+  const characterRef = bootstrap.aggregateRefs.find(
+    ref => ref.aggregateType === "character.state"
+  );
+  if (narrativeRef === undefined || tacticalRef === undefined || characterRef === undefined) {
     return {
       ok: false,
       error: coreError(
@@ -224,7 +256,8 @@ async function resolveActiveProjectionRefsV1(input: {
     ok: true,
     value: {
       narrativeProjectionAggregateId: narrativeRef.aggregateId,
-      tacticalProjectionAggregateId: tacticalRef.aggregateId
+      tacticalProjectionAggregateId: tacticalRef.aggregateId,
+      characterAggregateId: characterRef.aggregateId
     }
   };
 }
@@ -256,12 +289,14 @@ export function findUnresolvedCharacterReferenceAmbiguityV1(input: {
 function buildInterpreterCharacterContextV1(input: {
   narrative: MinimalNarrativeProjectionV1;
   tactical: MinimalTacticalProjectionV1;
+  inventory: MinimalInventoryStateV1;
   catalog: InterpreterCharacterReferenceCatalogV1;
 }): InterpreterCharacterContextV1 {
   const indexes = {
     LANGUAGE: catalogIndex(input.catalog.languages),
     ACTION: catalogIndex(input.catalog.actions),
     SPELL: catalogIndex(input.catalog.spells),
+    INVENTORY_ITEM: catalogIndex(input.catalog.items),
     EQUIPPED_ITEM: catalogIndex(input.catalog.items)
   } satisfies Record<
     InterpreterCharacterReferenceKindV1,
@@ -293,13 +328,39 @@ function buildInterpreterCharacterContextV1(input: {
   ) {
     const entry = indexes.EQUIPPED_ITEM.get(item.itemId);
     const label = safeLabel(entry?.label, item.itemId);
+    const inventoryItem = input.inventory.items.find(candidate =>
+      candidate.instanceId === item.instanceId
+    );
     references.push({
       schemaVersion: 1,
       ref: `character-equipped-item:${item.instanceId}`,
       kind: "EQUIPPED_ITEM",
       label,
       aliases: referenceAliases(item.itemId, label, entry?.aliases),
-      availability: "REFERENCE_ONLY"
+      availability: "REFERENCE_ONLY",
+      inventoryState: "EQUIPPED",
+      quantity: inventoryItem?.quantity ?? 1,
+      containerRef: null
+    });
+  }
+  const equippedIds = new Set(input.narrative.visibleEquipment.map(item => item.instanceId));
+  for (const item of input.inventory.items
+    .filter(entry => !equippedIds.has(entry.instanceId))
+    .slice(0, REFERENCE_LIMITS.INVENTORY_ITEM)) {
+    const entry = indexes.INVENTORY_ITEM.get(item.itemId);
+    const label = safeLabel(entry?.label, item.itemId);
+    references.push({
+      schemaVersion: 1,
+      ref: `character-inventory-item:${item.instanceId}`,
+      kind: "INVENTORY_ITEM",
+      label,
+      aliases: referenceAliases(item.itemId, label, entry?.aliases),
+      availability: "REFERENCE_ONLY",
+      inventoryState: item.storedInInstanceId === null ? "DIRECT" : "STORED",
+      quantity: item.quantity,
+      containerRef: item.storedInInstanceId === null
+        ? null
+        : `character-inventory-item:${item.storedInInstanceId}`
     });
   }
   references.sort((left, right) =>
@@ -324,7 +385,7 @@ function buildInterpreterCharacterContextV1(input: {
 
 function addReferences(
   output: InterpreterCharacterReferenceV1[],
-  kind: Exclude<InterpreterCharacterReferenceKindV1, "EQUIPPED_ITEM">,
+  kind: Exclude<InterpreterCharacterReferenceKindV1, "EQUIPPED_ITEM" | "INVENTORY_ITEM">,
   ids: string[],
   index: Map<string, InterpreterCharacterReferenceCatalogEntryV1>
 ): void {
@@ -337,7 +398,10 @@ function addReferences(
       kind,
       label,
       aliases: referenceAliases(id, label, entry?.aliases),
-      availability: "REFERENCE_ONLY"
+      availability: "REFERENCE_ONLY",
+      inventoryState: null,
+      quantity: null,
+      containerRef: null
     });
   }
 }
@@ -396,6 +460,33 @@ function parseNarrativeProjection(
     languages: candidate.languages,
     visibleEquipment
   };
+}
+
+function parseInventoryState(payload: JsonObject): MinimalInventoryStateV1 | null {
+  const candidate = payload as Record<string, unknown>;
+  if (candidate.schemaVersion !== 1 || typeof candidate.characterId !== "string" || !Array.isArray(candidate.inventory)) return null;
+  const items = candidate.inventory.flatMap(value => {
+    const item = object(value);
+    return item !== null
+      && typeof item.instanceId === "string"
+      && typeof item.itemId === "string"
+      && typeof item.quantity === "number"
+      && Number.isInteger(item.quantity)
+      && item.quantity > 0
+      && (item.equippedSlot === null || typeof item.equippedSlot === "string")
+      && (item.storedInInstanceId === null || typeof item.storedInInstanceId === "string")
+      ? [{
+          instanceId: item.instanceId,
+          itemId: item.itemId,
+          quantity: item.quantity,
+          equippedSlot: item.equippedSlot,
+          storedInInstanceId: item.storedInInstanceId
+        }]
+      : [];
+  });
+  return items.length === candidate.inventory.length
+    ? { characterId: candidate.characterId, items }
+    : null;
 }
 
 function parseTacticalProjection(

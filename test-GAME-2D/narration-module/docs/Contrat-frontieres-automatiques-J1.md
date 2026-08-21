@@ -1,6 +1,6 @@
 # Contrat J1 — étapes automatiques après une action
 
-Statut : `ACTIF — AUDIT TERMINÉ, CORRECTION À IMPLÉMENTER`
+Statut : `LIVRÉ — PARCOURS MIGRÉS ET REJEU CERTIFIÉ`
 
 ## Explication simple
 
@@ -47,22 +47,22 @@ action sans changement de campagne ne déclenche pas cette chaîne.
 | Activité ou incident de bastion | méthodes séparées | passer par la chaîne commune lorsqu'un événement committé l'exige |
 | Fin d'une séquence tactique | intégration propriétaire, puis réactions surtout lors de la reprise | exécuter une fois après l'intégration, sans attendre un rechargement |
 
-## Problème principal
+## Problème corrigé
 
-Les briques existent déjà dans `NarrativeTurnControllerV1`, mais l'interface
-les appelle depuis plusieurs parcours différents. Le contrôleur ne possède pas
-encore une seule méthode qui décide, depuis le résultat committé, quelles
+Les briques existaient déjà dans `NarrativeTurnControllerV1`, mais l'interface
+les appelait depuis plusieurs parcours différents. Le contrôleur possède
+maintenant une seule méthode qui décide, depuis le résultat committé, quelles
 réactions automatiques sont nécessaires.
 
-Cette dispersion crée trois risques :
+La correction ferme les trois risques relevés :
 
 - oublier une réaction après une nouvelle famille de tour ;
 - exécuter deux fois une réaction lors d'une reprise ;
 - afficher les événements dans un ordre différent selon l'écran utilisé.
 
-## Correction autorisée
+## Correction appliquée
 
-Ajouter au contrôleur une orchestration unique et typée. Son entrée devra dire :
+Le contrôleur expose une orchestration unique et typée. Son entrée indique :
 
 - quelle opération vient de finir ;
 - si elle a produit un commit ;
@@ -71,9 +71,30 @@ Ajouter au contrôleur une orchestration unique et typée. Son entrée devra dir
 - quelles causes committées doivent être transmises au bastion ;
 - si le joueur peut encore recevoir une initiative de PNJ.
 
-La méthode ne devra rien déduire du texte affiché. Elle appellera les briques
-existantes dans l'ordre commun, rassemblera leurs paquets d'affichage et
-retournera une trace indiquant ce qui a été exécuté ou ignoré.
+La méthode ne déduit rien du texte affiché. Elle appelle les briques existantes
+dans l'ordre commun, rassemble leurs paquets d'affichage et retourne une trace
+indiquant ce qui a été exécuté ou ignoré.
+
+## Avancement de la correction
+
+`NarrativeTurnControllerV1.processAutomaticBoundaries` est maintenant le point
+de passage commun. Il :
+
+- refuse de lancer une réaction annoncée sans commit ;
+- appelle les causes de bastion avant les intrigues et le monde ;
+- ignore explicitement cette branche lorsqu'aucun système de bastion n'est
+  actif dans la campagne, sans empêcher les autres réactions ;
+- n'appelle l'initiative PNJ que si le monde rend la main ;
+- distingue entrée de scène et passage du temps ;
+- retourne les paquets d'affichage dans leur ordre et une trace explicite.
+
+Les parcours d'avance naturelle du monde, de transition de scène, de repos,
+d'intégration tactique et de reprise utilisent désormais cette méthode. Le
+repos conserve l'initiative locale entre ses segments actifs ; à sa fin ou lors
+d'une interruption, il laisse les intrigues et le monde réagir sans relancer
+une initiative de repos. Une issue tactique fait réagir le monde dès son
+intégration, sans attendre un rechargement. La reprise réutilise le même ordre
+et les mêmes identifiants stables, sans second affichage.
 
 ## Règles de sécurité
 
@@ -86,9 +107,9 @@ retournera une trace indiquant ce qui a été exécuté ou ignoré.
 - Une réponse sans commit et sans temps n'appelle aucune frontière.
 - Une erreur d'affichage après commit ne rejoue jamais le résultat métier.
 
-## Gate de correction
+## Gate de correction livrée
 
-La vérification devra couvrir au minimum :
+La vérification couvre :
 
 - question sans commit : zéro frontière ;
 - dialogue sans effet durable : zéro frontière ;
@@ -98,3 +119,8 @@ La vérification devra couvrir au minimum :
 - intégration tactique : chaîne exécutée une fois ;
 - reprise : aucune duplication ;
 - interruption par le monde : aucune initiative PNJ ajoutée derrière.
+
+La recette navigateur `world-event-ui` ajoute une preuve de bout en bout : une
+heure est exécutée par le vrai moteur de simulation, un signal qu'il produit
+naturellement est raconté sans ses identifiants privés, puis reste unique après
+rechargement et rejeu de la même demande.

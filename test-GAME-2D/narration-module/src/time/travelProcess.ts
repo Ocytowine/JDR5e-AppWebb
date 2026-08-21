@@ -13,9 +13,11 @@ import type {
   TravelEncounterPressureV1,
   TravelEncounterSeedV1,
   TravelPlanV1,
+  TravelPartySnapshotV1,
   TravelProcessStateV1,
   TravelRouteStepV1,
-  TravelSegmentV1
+  TravelSegmentV1,
+  WorldTravelRouteCatalogV1
 } from "./travelTypes";
 
 function fail(path: string, issue: string, details: JsonObject = {}): TemporalResultV1<never> {
@@ -52,7 +54,24 @@ function validateRouteStep(step: TravelRouteStepV1): boolean {
     step.dangerLevel <= 100 &&
     Array.isArray(step.environmentTags) &&
     new Set(step.environmentTags).size === step.environmentTags.length &&
-    step.environmentTags.every(nonEmpty);
+    step.environmentTags.every(nonEmpty) &&
+    validateResourceRates(step.resourceRates ?? []);
+}
+
+function validateParty(party: TravelPartySnapshotV1): boolean {
+  const members = [...party.memberActorIds];
+  return party.schemaVersion === 1 && nonEmpty(party.partyId)
+    && nonNegativeInteger(party.partyRevision) && nonEmpty(party.leaderActorId)
+    && members.length > 0 && members.includes(party.leaderActorId)
+    && new Set(members).size === members.length && members.every(nonEmpty)
+    && party.sourceRefs.length > 0 && party.sourceRefs.every(nonEmpty);
+}
+
+function validateResourceRates(rates: NonNullable<TravelRouteStepV1["resourceRates"]>): boolean {
+  return Array.isArray(rates) && new Set(rates.map(rate => rate.itemId)).size === rates.length
+    && rates.every(rate => rate.schemaVersion === 1 && nonEmpty(rate.itemId)
+      && positiveInteger(rate.unitsPerPersonPerDay)
+      && Array.isArray(rate.sourceRefs) && rate.sourceRefs.length > 0 && rate.sourceRefs.every(nonEmpty));
 }
 
 export function validateTravelPlanV1(plan: TravelPlanV1): TemporalResultV1<TravelPlanV1> {
@@ -74,14 +93,185 @@ export function validateTravelPlanV1(plan: TravelPlanV1): TemporalResultV1<Trave
     plan.route.at(-1)?.toLocationId !== plan.destinationLocationId ||
     plan.route.some((step, index) => index > 0 && plan.route[index - 1].toLocationId !== step.fromLocationId) ||
     !nonEmpty(plan.source?.id) ||
-    !positiveInteger(plan.source?.version)
+    !positiveInteger(plan.source?.version) || (plan.party !== undefined && !validateParty(plan.party))
   ) return fail("/plan", "invalid travel plan");
   return { ok: true, value: cloneJson(plan) };
+}
+
+export function buildTravelProcessFromRouteCatalogV1(input: {
+  campaignId: TravelPlanV1["campaignId"];
+  characterId: string;
+  originLocationId: string;
+  destinationLocationId: string;
+  mode: TravelPlanV1["mode"];
+  createdAtGameSecond: number;
+  source: TravelPlanV1["source"];
+  catalog: WorldTravelRouteCatalogV1;
+  party: TravelPartySnapshotV1;
+}): TemporalResultV1<TravelProcessStateV1> {
+  if (
+    input.catalog.schemaVersion !== 1
+    || !nonEmpty(input.catalog.catalogId)
+    || !positiveInteger(input.catalog.catalogVersion)
+    || input.originLocationId === input.destinationLocationId
+    || !nonEmpty(input.characterId)
+    || !nonNegativeInteger(input.createdAtGameSecond)
+    || !validateParty(input.party)
+  ) return fail("/travel-plan", "invalid travel plan request");
+  if (
+    !Array.isArray(input.catalog.anchors)
+    || !Array.isArray(input.catalog.routes)
+    || new Set(input.catalog.anchors.map(anchor => anchor.locationId)).size !== input.catalog.anchors.length
+    || new Set(input.catalog.routes.map(route => route.routeId)).size !== input.catalog.routes.length
+    || input.catalog.anchors.some(anchor => anchor.schemaVersion !== 1 || !nonEmpty(anchor.locationId)
+      || !["AVAILABLE", "CLOSED"].includes(anchor.status) || !Array.isArray(anchor.sourceRefs)
+      || anchor.sourceRefs.length === 0 || !anchor.sourceRefs.every(nonEmpty))
+    || input.catalog.routes.some(route => route.schemaVersion !== 1 || !nonEmpty(route.routeId)
+      || !nonEmpty(route.fromLocationId) || !nonEmpty(route.toLocationId) || route.fromLocationId === route.toLocationId
+      || !["FORWARD", "BIDIRECTIONAL"].includes(route.direction) || !["OPEN", "CLOSED"].includes(route.status)
+      || !positiveInteger(route.distanceUnits) || !Number.isInteger(route.dangerLevel) || route.dangerLevel < 0 || route.dangerLevel > 100
+      || !Array.isArray(route.environmentTags) || new Set(route.environmentTags).size !== route.environmentTags.length || !route.environmentTags.every(nonEmpty)
+      || !Array.isArray(route.sourceRefs) || route.sourceRefs.length === 0 || !route.sourceRefs.every(nonEmpty)
+      || Object.values(route.estimatedSecondsByMode).some(value => !positiveInteger(value))
+      || !validateResourceRates(route.resourceRates ?? []))
+  ) return fail("/travel-plan/catalog", "invalid world travel route catalog");
+  const availableAnchors = new Set(input.catalog.anchors
+    .filter(anchor => anchor.schemaVersion === 1 && anchor.status === "AVAILABLE" && nonEmpty(anchor.locationId))
+    .map(anchor => anchor.locationId));
+  if (!availableAnchors.has(input.originLocationId) || !availableAnchors.has(input.destinationLocationId)) {
+    return fail("/travel-plan/anchors", "origin or destination is not an available world anchor");
+  }
+  const edges = input.catalog.routes.flatMap(route => {
+    const seconds = route.estimatedSecondsByMode[input.mode];
+    if (
+      route.schemaVersion !== 1
+      || route.status !== "OPEN"
+      || !nonEmpty(route.routeId)
+      || !availableAnchors.has(route.fromLocationId)
+      || !availableAnchors.has(route.toLocationId)
+      || !positiveInteger(seconds)
+      || !positiveInteger(route.distanceUnits)
+      || !Number.isInteger(route.dangerLevel)
+      || route.dangerLevel < 0
+      || route.dangerLevel > 100
+      || !Array.isArray(route.sourceRefs)
+      || route.sourceRefs.length === 0
+      || !route.sourceRefs.every(nonEmpty)
+    ) return [];
+    const forward = { route, from: route.fromLocationId, to: route.toLocationId, seconds };
+    return route.direction === "BIDIRECTIONAL"
+      ? [forward, { route, from: route.toLocationId, to: route.fromLocationId, seconds }]
+      : [forward];
+  });
+  const distances = new Map<string, number>([[input.originLocationId, 0]]);
+  const pathKeys = new Map<string, string>([[input.originLocationId, ""]]);
+  const previous = new Map<string, (typeof edges)[number]>();
+  const unvisited = new Set(availableAnchors);
+  while (unvisited.size > 0) {
+    const current = [...unvisited]
+      .filter(locationId => distances.has(locationId))
+      .sort((left, right) => (distances.get(left)! - distances.get(right)!)
+        || (pathKeys.get(left) ?? "").localeCompare(pathKeys.get(right) ?? "")
+        || left.localeCompare(right))[0];
+    if (current === undefined) break;
+    unvisited.delete(current);
+    if (current === input.destinationLocationId) break;
+    for (const edge of edges.filter(value => value.from === current).sort((left, right) => left.route.routeId.localeCompare(right.route.routeId))) {
+      if (!unvisited.has(edge.to)) continue;
+      const distance = distances.get(current)! + edge.seconds;
+      const pathKey = `${pathKeys.get(current) ?? ""}|${edge.route.routeId}:${edge.to}`;
+      const knownDistance = distances.get(edge.to);
+      if (knownDistance === undefined || distance < knownDistance || distance === knownDistance && pathKey < (pathKeys.get(edge.to) ?? "")) {
+        distances.set(edge.to, distance);
+        pathKeys.set(edge.to, pathKey);
+        previous.set(edge.to, edge);
+      }
+    }
+  }
+  if (!distances.has(input.destinationLocationId)) return fail("/travel-plan/route", "no validated route supports this travel mode");
+  const selected: Array<(typeof edges)[number]> = [];
+  let cursor = input.destinationLocationId;
+  while (cursor !== input.originLocationId) {
+    const edge = previous.get(cursor);
+    if (edge === undefined) return fail("/travel-plan/route", "validated route reconstruction failed");
+    selected.unshift(edge);
+    cursor = edge.from;
+  }
+  const planId = `travel-plan:${input.source.id}:${input.catalog.catalogId}:${input.catalog.catalogVersion}`;
+  const processId = `travel-process:${planId}`;
+  const plan: TravelPlanV1 = {
+    schemaVersion: 1,
+    planId,
+    campaignId: input.campaignId,
+    characterId: input.characterId,
+    originLocationId: input.originLocationId,
+    destinationLocationId: input.destinationLocationId,
+    mode: input.mode,
+    route: selected.map((edge, index) => ({
+      stepId: `travel-step:${index + 1}:${edge.route.routeId}:${edge.from}:${edge.to}`,
+      fromLocationId: edge.from,
+      toLocationId: edge.to,
+      distanceUnits: edge.route.distanceUnits,
+      estimatedSeconds: edge.seconds,
+      dangerLevel: edge.route.dangerLevel,
+      environmentTags: [...new Set(edge.route.environmentTags)].sort(),
+      resourceRates: cloneJson(edge.route.resourceRates ?? [])
+    })),
+    totalEstimatedSeconds: distances.get(input.destinationLocationId)!,
+    createdAtGameSecond: input.createdAtGameSecond,
+    source: cloneJson(input.source),
+    party: cloneJson(input.party)
+  };
+  const validated = validateTravelPlanV1(plan);
+  if (!validated.ok) return validated;
+  return {
+    ok: true,
+    value: {
+      schemaVersion: 1,
+      processId,
+      campaignId: input.campaignId,
+      status: "PLANNED",
+      plan: validated.value,
+      checkpoint: {
+        schemaVersion: 1,
+        checkpointId: `travel-checkpoint:${planId}:0`,
+        processId,
+        checkpointRevision: 0,
+        status: "PLANNED",
+        currentLocationId: input.originLocationId,
+        nextLocationId: validated.value.route[0]!.toLocationId,
+        elapsedTravelSeconds: 0,
+        remainingTravelSeconds: validated.value.totalEstimatedSeconds,
+        completedStepIds: [],
+        activeSegment: null,
+        lastEncounterDecision: null
+      }
+    }
+  };
 }
 
 function remainingRoute(plan: TravelPlanV1, checkpoint: TravelCheckpointV1): TravelRouteStepV1[] {
   const completed = new Set(checkpoint.completedStepIds);
   return plan.route.filter(step => !completed.has(step.stepId));
+}
+
+function sameParty(expected: TravelPartySnapshotV1, actual: TravelPartySnapshotV1): boolean {
+  return expected.partyId === actual.partyId && expected.partyRevision === actual.partyRevision
+    && expected.leaderActorId === actual.leaderActorId
+    && [...expected.memberActorIds].sort().join("|") === [...actual.memberActorIds].sort().join("|");
+}
+
+function resourceConsumptionForSegment(input: {
+  step: TravelRouteStepV1;
+  partySize: number;
+  elapsedBeforeInStep: number;
+  elapsedAfterInStep: number;
+}) {
+  return (input.step.resourceRates ?? []).map(rate => {
+    const before = Math.floor(rate.unitsPerPersonPerDay * input.partySize * input.elapsedBeforeInStep / 86_400);
+    const after = Math.floor(rate.unitsPerPersonPerDay * input.partySize * input.elapsedAfterInStep / 86_400);
+    return { itemId: rate.itemId, quantity: after - before };
+  }).filter(value => value.quantity > 0).sort((left, right) => left.itemId.localeCompare(right.itemId));
 }
 
 function nextWorldBoundary(currentGameSecond: number, worldSimulatedThrough: number, secondsPerBoundary: number): number | null {
@@ -245,6 +435,17 @@ export async function prepareTravelSegmentV1(
     !positiveInteger(input.secondsPerWorldBoundary) ||
     !positiveInteger(input.maxSegmentSeconds)
   ) return fail("/", "invalid travel process input");
+  if (input.process.plan.party !== undefined) {
+    if (input.partySnapshot === undefined || !validateParty(input.partySnapshot)
+      || !sameParty(input.process.plan.party, input.partySnapshot)) {
+      return fail("/party", "authoritative party changed since travel planning");
+    }
+    if (!Array.isArray(input.availableResources)
+      || new Set(input.availableResources.map(resource => resource.itemId)).size !== input.availableResources.length
+      || input.availableResources.some(resource => !nonEmpty(resource.itemId) || !nonNegativeInteger(resource.quantity))) {
+      return fail("/resources", "authoritative travel resources are missing or invalid");
+    }
+  }
 
   const pressure = computeTravelEncounterPressureV1({ dangerLevel: 0, worldPressure: 0, environmentTags: [] });
   const emptySeed: TravelEncounterSeedV1 = {
@@ -271,7 +472,8 @@ export async function prepareTravelSegmentV1(
         encounterPressure: pressure,
         encounterDecision: { ...decision.value, triggered: false, category: "NONE", candidateRef: null, requiresPlayerDecision: false },
         stopReason: "NO_GAME_TIME",
-        pendingDecision: null
+        pendingDecision: null,
+        resourceConsumption: []
       }
     };
   }
@@ -298,6 +500,18 @@ export async function prepareTravelSegmentV1(
   }
   const durationSeconds = plannedEnd - input.currentGameSecond;
   if (!positiveInteger(durationSeconds)) return fail("/segment", "travel segment must consume positive game time");
+  const elapsedBeforeInStep = step.estimatedSeconds - remainingInStep;
+  const resourceConsumption = resourceConsumptionForSegment({
+    step,
+    partySize: input.process.plan.party?.memberActorIds.length ?? 1,
+    elapsedBeforeInStep,
+    elapsedAfterInStep: elapsedBeforeInStep + durationSeconds
+  });
+  const available = new Map((input.availableResources ?? []).map(resource => [resource.itemId, resource.quantity]));
+  const missing = resourceConsumption.filter(resource => (available.get(resource.itemId) ?? 0) < resource.quantity);
+  if (missing.length > 0) return fail("/resources", "travel segment lacks authoritative resources", {
+    missing: missing.map(resource => ({ itemId: resource.itemId, required: resource.quantity, available: available.get(resource.itemId) ?? 0 }))
+  });
   const segment: TravelSegmentV1 = {
     schemaVersion: 1,
     segmentId: `travel.segment.${input.process.processId}.${input.process.checkpoint.checkpointRevision + 1}`,
@@ -348,13 +562,14 @@ export async function prepareTravelSegmentV1(
     : remainingTravelSeconds === 0
       ? "ARRIVED"
       : "ACTIVE";
+  const nextIncompleteStep = input.process.plan.route.find(value => !completedStepIds.includes(value.stepId)) ?? null;
   const checkpointBase: Omit<TravelCheckpointV1, "checkpointId"> = {
     schemaVersion: 1,
     processId: input.process.processId,
     checkpointRevision: input.process.checkpoint.checkpointRevision + 1,
     status,
-    currentLocationId: remainingTravelSeconds === 0 ? input.process.plan.destinationLocationId : step.fromLocationId,
-    nextLocationId: remainingTravelSeconds === 0 ? null : step.toLocationId,
+    currentLocationId: arrivedAtStepEnd ? step.toLocationId : step.fromLocationId,
+    nextLocationId: remainingTravelSeconds === 0 ? null : nextIncompleteStep?.toLocationId ?? step.toLocationId,
     elapsedTravelSeconds,
     remainingTravelSeconds,
     completedStepIds: completedStepIds.sort(),
@@ -405,7 +620,8 @@ export async function prepareTravelSegmentV1(
       encounterPressure,
       encounterDecision: encounter.value,
       stopReason,
-      pendingDecision
+      pendingDecision,
+      resourceConsumption
     }
   };
 }

@@ -35,6 +35,17 @@ export const MISSION_RELATION_REGISTRY_AGGREGATE_TYPE_V1 = "mission-relation.reg
 export type MissionRelationEngagementKindV1 = "MISSION" | "RELATION";
 export type MissionRelationDispositionV1 = "ACCEPTED" | "REFUSED" | "CONDITIONAL" | "UNCERTAIN";
 export type MissionRelationAuthorityV1 = "QUEST" | "SOCIAL";
+export type MissionOutcomeKindV1 = "SUCCESS" | "FAILURE" | "ABANDONED";
+export type MissionRelationshipAxisV1 = "trust" | "affinity" | "fear" | "debt";
+
+export interface MissionOutcomeV1 extends JsonObject {
+  schemaVersion: 1;
+  outcome: MissionOutcomeKindV1;
+  publicSummary: string;
+  publicSourceRefs: string[];
+  relationshipEffects: Array<{ axis: MissionRelationshipAxisV1; delta: number }>;
+  outcomeOperationId: string;
+}
 
 export interface MissionRelationResolutionV1 extends JsonObject {
   schemaVersion: 1;
@@ -61,6 +72,7 @@ export interface MissionRelationEngagementV1 extends JsonObject {
   status: "PROPOSED" | MissionRelationDispositionV1;
   resolution: MissionRelationResolutionV1 | null;
   resolutionOperationId: string | null;
+  missionOutcome: MissionOutcomeV1 | null;
   version: 1;
 }
 
@@ -92,6 +104,17 @@ export interface ResolveMissionRelationEngagementCommandV1 extends JsonObject {
   clientRequestId: string;
   engagementId: string;
   resolution: MissionRelationResolutionV1;
+}
+
+export interface RecordMissionOutcomeCommandV1 extends JsonObject {
+  schemaVersion: 1;
+  contractVersion: "mission-outcome-command/1";
+  clientRequestId: string;
+  engagementId: string;
+  outcome: MissionOutcomeKindV1;
+  publicSummary: string;
+  publicSourceRefs: string[];
+  relationshipEffects: Array<{ axis: MissionRelationshipAxisV1; delta: number }>;
 }
 
 export interface MissionRelationEngagementResultV1 extends JsonObject {
@@ -158,6 +181,7 @@ export async function proposeMissionRelationEngagementV1(input: {
     status: "PROPOSED",
     resolution: null,
     resolutionOperationId: null,
+    missionOutcome: null,
     version: 1
   };
   const nextRegistry: MissionRelationRegistryV1 = {
@@ -216,7 +240,9 @@ export async function resolveMissionRelationEngagementV1(input: {
   const index = loaded.value.state.engagements.findIndex(entry => entry.engagementId === input.command.engagementId);
   if (index < 0) return invalid("mission-relation.engagement-not-found", ["proposal must exist before resolution"]);
   const current = loaded.value.state.engagements[index]!;
-  if (current.status !== "PROPOSED") return invalid("mission-relation.already-resolved", ["engagement is already resolved"]);
+  if (!["PROPOSED", "CONDITIONAL", "UNCERTAIN"].includes(current.status)) {
+    return invalid("mission-relation.already-resolved", ["engagement decision is final"]);
+  }
   if (!authorityMatches(current.engagementKind, input.command.resolution)) {
     return invalid("mission-relation.authority-mismatch", ["resolution authority does not own this engagement kind"]);
   }
@@ -259,6 +285,77 @@ export async function resolveMissionRelationEngagementV1(input: {
     schemaVersion: 1,
     engagement,
     ownerConfirmation,
+    commitId: committed.value.commitId,
+    replayed: false
+  };
+  const completed = await input.repository.completePresentation(operationId, "COMMITTED_RENDERED", 1, result);
+  return completed.ok ? { ok: true, value: result } : completed;
+}
+
+export async function recordMissionOutcomeV1(input: {
+  repository: CampaignRepository;
+  campaignId: CampaignId;
+  command: RecordMissionOutcomeCommandV1;
+  occurredAtGameSecond?: number;
+}): Promise<Result<MissionRelationEngagementResultV1>> {
+  const issues = validateMissionOutcome(input.command);
+  if (issues.length > 0) return invalid("mission-relation.outcome-invalid", issues);
+  const operationId = opaqueId<OperationId>(`mission-outcome:${input.command.clientRequestId}`);
+  const started = await beginOperation({
+    repository: input.repository,
+    campaignId: input.campaignId,
+    operationId,
+    clientRequestId: input.command.clientRequestId,
+    operationKind: "mission-relation.outcome",
+    payload: cloneJson(input.command)
+  });
+  if (!started.ok) return started;
+  if (started.value.phase === "COMPLETED") return restoreResult(started.value);
+  const loaded = await loadMissionRelationRegistryV1(input.repository, input.campaignId);
+  if (!loaded.ok) return loaded;
+  const index = loaded.value.state.engagements.findIndex(entry => entry.engagementId === input.command.engagementId);
+  if (index < 0) return invalid("mission-relation.engagement-not-found", ["mission must exist before outcome"]);
+  const current = loaded.value.state.engagements[index]!;
+  if (current.engagementKind !== "MISSION" || current.status !== "ACCEPTED") {
+    return invalid("mission-relation.outcome-not-active", ["only an accepted mission may receive an outcome"]);
+  }
+  if (current.missionOutcome !== null && current.missionOutcome !== undefined) {
+    return invalid("mission-relation.outcome-already-recorded", ["mission outcome is final"]);
+  }
+  const missionOutcome: MissionOutcomeV1 = {
+    schemaVersion: 1,
+    outcome: input.command.outcome,
+    publicSummary: input.command.publicSummary,
+    publicSourceRefs: unique(input.command.publicSourceRefs),
+    relationshipEffects: input.command.relationshipEffects.map(effect => ({ ...effect })),
+    outcomeOperationId: operationId
+  };
+  const engagement: MissionRelationEngagementV1 = { ...current, missionOutcome };
+  const engagements = [...loaded.value.state.engagements];
+  engagements[index] = engagement;
+  const nextRegistry = { ...loaded.value.state, engagements, version: loaded.value.state.version + 1 };
+  const committed = await commitRegistryMutation({
+    repository: input.repository,
+    campaignId: input.campaignId,
+    operation: started.value,
+    currentAggregate: loaded.value.aggregate,
+    nextRegistry,
+    commandType: "mission-relation.outcome",
+    commandPayload: { engagementId: engagement.engagementId, outcome: missionOutcome.outcome },
+    eventType: `mission-relation.mission-${missionOutcome.outcome.toLowerCase()}`,
+    eventPayload: {
+      engagementId: engagement.engagementId,
+      outcome: missionOutcome.outcome,
+      publicSummary: missionOutcome.publicSummary,
+      relationshipEffects: missionOutcome.relationshipEffects
+    },
+    occurredAtGameSecond: input.occurredAtGameSecond ?? 0
+  });
+  if (!committed.ok) return committed;
+  const result: MissionRelationEngagementResultV1 = {
+    schemaVersion: 1,
+    engagement,
+    ownerConfirmation: null,
     commitId: committed.value.commitId,
     replayed: false
   };
@@ -503,6 +600,20 @@ function validateResolution(resolution: MissionRelationResolutionV1): string[] {
     if (resolution.disposition !== "CONDITIONAL" && resolution.conditions.length > 0) issues.push("only conditional resolution may carry unresolved conditions");
   }
   issues.push(...validatePublicSources(resolution.publicSourceRefs));
+  return issues;
+}
+
+function validateMissionOutcome(command: RecordMissionOutcomeCommandV1): string[] {
+  const issues: string[] = [];
+  if (command.schemaVersion !== 1 || command.contractVersion !== "mission-outcome-command/1") issues.push("outcome contract mismatch");
+  if (![command.clientRequestId, command.engagementId, command.publicSummary].every(value => typeof value === "string" && value.trim())) issues.push("outcome identities and summary are required");
+  if (!["SUCCESS", "FAILURE", "ABANDONED"].includes(command.outcome)) issues.push("mission outcome is invalid");
+  issues.push(...validatePublicSources(command.publicSourceRefs));
+  if (!Array.isArray(command.relationshipEffects) || command.relationshipEffects.some(effect =>
+    effect === null || typeof effect !== "object"
+    || !["trust", "affinity", "fear", "debt"].includes(String(effect.axis))
+    || !Number.isInteger(effect.delta) || Math.abs(effect.delta) > 10
+  )) issues.push("relationship effects must use allowed ruleset axes and bounded integer deltas");
   return issues;
 }
 

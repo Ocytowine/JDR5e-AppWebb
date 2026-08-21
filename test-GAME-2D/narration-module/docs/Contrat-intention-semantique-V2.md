@@ -77,7 +77,7 @@ Le tour de transition a produit le handoff attendu en 17,3 s puis 18,8 s lors de
 
 Chaque appel serveur expose désormais dans la notification système existante : rôle, modèle, latence fournisseur, tokens d'entrée/sortie/total, motif de fin, budgets, taille du contexte et taille du schéma. Un transport interrompu conserve les mêmes dimensions avec des compteurs de tokens inconnus.
 
-Le contexte V2–V5 est limité aux référents visibles et à leurs propriétés
+Le contexte V2–V6 est limité aux référents visibles et à leurs propriétés
 publiques, à la projection minimale `interpreter-character-context/1`, aux
 trois focus récents, aux trois intentions sémantiques récentes et au manifeste
 public `interpreter-runtime-context/1`. La projection personnage ne porte ni

@@ -1,6 +1,6 @@
 # Tableau d'exécution du projet
 
-Dernière mise à jour : 2026-08-17
+Dernière mise à jour : 2026-08-21
 
 Ce fichier reste volontairement court. L'unique état global et feuille de route
 du module narration est
@@ -8,40 +8,27 @@ du module narration est
 Les contrats définissent les comportements ; les passations, audits, plans et
 matrices datées n'ordonnent plus le travail.
 
-## Lot actif — J1 : consolidation joueur ↔ MJ
+## Lot actif — J8 : cadrage du compagnon tactique
 
-- [x] Créer avec les propriétaires une projection publique typée des
-  connaissances et états observables utiles au personnage :
-  - [x] figer les champs publics et leurs sources autoritaires ;
-  - [x] exclure fiche mécanique complète, secrets et inventaire privé ;
-  - [x] fournir les réponses déterministes à « où suis-je ? », « qui est
-    présent ? » et « que sais-je ? » ;
-  - [x] intégrer la projection à l'empreinte de contexte et à la reprise.
-- [x] Auditer les frontières automatiques après chaque famille de tour :
-  action, dialogue, monde, intrigue, initiative PNJ, temps, progression,
-  bastion et tactique.
-- [ ] Centraliser dans le contrôleur l'ordre des réactions automatiques, puis
-  remplacer les appels dispersés de l'interface.
-- [ ] Étendre la qualité multi-tours hors du pilote Archives : continuité de
-  scène, variété, rythme, conséquences perceptibles et restitution de la main.
-- [ ] Consolider les événements naturels de la simulation du monde dans une
-  campagne, sans signal local artificiel.
+- [ ] Auditer les contrats tactiques, la graine `GameBoard` et l'intégration des
+  conséquences avant de définir la projection d'un compagnon.
+- [ ] Écrire le contrat J8 : contrôle, autonomie, placement, initiative, tour,
+  ressources, blessures, fuite, incapacité et retour narratif.
+- [ ] Implémenter seulement après validation de ce contrat.
 
 ### Prochaine action concrète
 
-Implémenter l'orchestration unique décrite dans
-[`Contrat-frontieres-automatiques-J1.md`](test-GAME-2D/narration-module/docs/Contrat-frontieres-automatiques-J1.md),
-puis migrer un premier parcours sans modifier les autorités existantes.
+Relire les briques tactiques existantes et écrire le contrat J8 sans injecter
+encore de compagnon dans `GameBoard`.
 
-## Prochain lot
+## Lots suivants
 
-J2 étendra la verticale officielle `NAR-ACC-002` dans le build principal. Il ne
-commence qu'après fermeture de J1. Les lots J2 à J9 et leurs critères sont
-ordonnés uniquement dans la feuille de route canonique.
+J8 traite la projection tactique du compagnon, puis J9 certifie le parcours
+complet.
 
 ## Dernier point de contrôle
 
-- Lots narration 0 à 9 fermés dans leur périmètre.
+- Anciens lots narration 0 à 9 fermés dans leur périmètre historique.
 - Contrôles d'accès A à F certifiés.
 - Transition OpenAI Archives → Place des Archives certifiée et restaurable.
 - Conversation OpenAI de quatre tours avec le clerc certifiée et restaurable.
@@ -50,18 +37,64 @@ ordonnés uniquement dans la feuille de route canonique.
   les capacités spécialisées réellement raccordées sont annoncées disponibles.
 - Contexte public joueur J1 livré : lieu, présences visibles, équipement visible
   et connaissances acquises, avec réponses locales sans temps de jeu.
+- Orchestration automatique J1 livrée : monde, transitions, repos, résultat
+  tactique et reprise passent par l'ordre commun sans remplacer leurs autorités.
+- Qualité multi-tours J1 certifiée hors Archives : quatre échanges avec un PNJ,
+  formulations variées, sortie-retour, conséquence de déplacement visible,
+  reprise persistante et restitution de la saisie après chaque tour.
+- Événement monde naturel J1 certifié : une vraie heure de simulation produit
+  un signal local raconté sans données privées, stable au rejeu et au
+  rechargement.
+- Cadrage J2 terminé : une seule gate progressive `NAR-ACC-002`, séparation
+  explicite des capacités J3–J9 et interdiction des événements artificiels.
+- Gate J2 et checkpoint A livrés : entrée réelle, Archives, observation libre,
+  questions de contexte et méta, temps inchangé, changement d'écran et reprise
+  persistante sans doublon d'échange.
+- Deux interlocuteurs J2 livrés : l'archiviste et le clerc répondent séparément,
+  restent correctement attribués et leurs échanges sont restaurés sans doublon.
+- Accès privé J2 livré : le moteur social enregistre la condition du mandat de
+  haut rang, laisse l'accès contrôlé et n'avance pas le temps.
+- Boucle de lieu J2 livrée : création OpenAI unique de la Place des Archives,
+  aller en 8 secondes, retour local en 8 secondes et reprise aux Archives à
+  16 secondes sans rappeler le créateur.
+- J2 fermé comme extension partielle de `NAR-ACC-002` ; les capacités J3–J9
+  restent explicitement ouvertes par leurs propres lots.
+- J3 personnel livré : les volontés écrites ranger, sortir, équiper et
+  déséquiper passent par une transaction atomique, restaurable et sans temps.
+- J3 lieu livré : déposer transfère un exemplaire possédé vers le lieu actif et
+  prendre ne récupère qu'un exemplaire réellement présent et accessible.
+- J3 fermé : donner/recevoir utilisent l'inventaire persistant et l'autorisation
+  du PNJ ; achat/vente utilisent une offre réelle, le prix de `src/data/items`
+  et de la monnaie physique, sans création ni perte d'objet.
+- J4 fermé : une demande adressée à un PNJ visible devient une proposition
+  durable ; le propriétaire décide avant la formulation narrative de l'IA.
+  Acceptation, refus, condition, hésitation et nouvelle décision sont conservés
+  sans état technique visible.
+- Réussite, échec et abandon d'une mission sont durables. Leurs conséquences
+  utilisent uniquement les axes sociaux existants `trust`, `affinity`, `fear`
+  et `debt`, avec rejeu sûr.
+- J5 fermé : motivations contrôlées avant création, croyances séparées par PNJ,
+  hypothèses conservées sans changer la vérité, évolution hors écran et
+  résolution certifiées dans un parcours de dix échanges narratifs.
+- J6 fermé : exploration de trois lieux avec retour, trajet lointain fondé sur
+  les routes du monde, groupe versionné, ressources propriétaires, progression
+  atomique de l'heure, de la position et du checkpoint, interruptions ouvertes
+  sans combat imposé et reprise persistante.
+- J7 cadré et noyau livré : recrutement depuis une cause mission/relation réelle,
+  groupe durable, volonté propre, déplacement, séparation, réunion, départ et
+  photographie compatible avec le voyage J6.
+- J7 fermé : une demande libre est structurée par `ai-intent-semantic/6` sans
+  mots-clés métier, la décision du compagnon est persistée dans le même tour,
+  sa réponse passe par le performer avec fallback narratif, son initiative
+  sociale bornée est certifiée et le parcours navigateur survit au rechargement.
 - Build global et régressions ciblées verts au dernier point de contrôle.
 
 ## Blocages et reports explicites
 
 - Les tests de compétence attendent toujours une projection mécanique stable du
   créateur de personnage.
-- La transaction générique de monnaie, matériaux et inventaire de campagne
-  manque ; aucun coût ne doit devenir gratuit.
-- Le voyage lointain complet reste non ouvert ; seules les transitions locales
-  sont jouables.
-- Le compagnon n'a encore ni contrat durable, ni appartenance au groupe, ni
-  directives, ni déplacement de groupe.
+- Le voyage J6 possède son runtime de campagne et ses preuves ; son branchement
+  dans la grande gate joueur continue de relever de l'intégration finale J9.
 - Les compagnons contrôlables et la surprise restent refusés par la projection
   tactique actuelle.
 - La consolidation interne du moteur de simulation reste suivie dans

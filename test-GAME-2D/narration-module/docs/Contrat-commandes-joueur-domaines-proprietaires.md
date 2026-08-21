@@ -1,6 +1,6 @@
 # Contrat des commandes joueur et domaines propriétaires
 
-Statut : `ACTIF — AUDIT DE CONCEPTION`
+Statut : `ACTIF — TRANSACTION COMPLÈTE J3 RACCORDÉE`
 
 ## But
 
@@ -33,7 +33,8 @@ Avant d'ajouter un nouveau `semanticIntent.kind`, chaque ouverture devra fournir
 | Domaine | Commande propriétaire existante | Déclenchement texte libre | Décision |
 |---|---|---|---|
 | Inventaire | présenter un exemplaire possédé à un contrôle d'accès | spécialisé, si le runtime d'accès inventaire est installé | `AVAILABLE` sous `inventory.access-credential` |
-| Inventaire | prendre, déplacer, donner, acheter, vendre, équiper ou déséquiper | aucun propriétaire générique | `HANDOFF_ONLY` sous `inventory.mutation` |
+| Inventaire | ranger, sortir, équiper ou déséquiper un objet possédé | `inventory-transaction/1` installé | `AVAILABLE` sous `inventory.mutation` |
+| Inventaire | prendre, déposer, donner, recevoir, acheter ou vendre | `inventory.external-ownership` et offre propriétaire | `AVAILABLE` sous `inventory.mutation` |
 | Progression | appliquer un award committé avec choix, candidat validé et fenêtre de repos | interface propriétaire seulement | fermé au texte libre |
 | Bastion | démarrer un travail catalogué | interface propriétaire seulement | fermé au texte libre |
 | Bastion | affecter un PNJ de campagne à un rôle catalogué | interface propriétaire seulement | fermé au texte libre |
@@ -57,13 +58,18 @@ contrôle d'accès est committé atomiquement avec l'éventuelle consommation.
 
 Cette commande ne constitue pas une transaction d'inventaire générale.
 
-### Commandes encore fermées
+### Transaction complète ouverte
 
-Prendre, ramasser, transférer, acheter, vendre, ranger, équiper et déséquiper
-exigent un nouveau propriétaire de transaction. Celui-ci devra valider au
-minimum les instances, quantités, conteneurs, emplacements exclusifs, accès
-physique, monnaie et contrepartie. Le `RuleRegistry` sait valider certaines
-contraintes, mais ne possède pas la transaction.
+`inventory-transaction/1` valide désormais les exemplaires, quantités,
+contenants, poids, capacité et emplacements exclusifs pour ranger, sortir,
+équiper et déséquiper. Il synchronise atomiquement l'état personnage et les
+projections tactique et narrative. Le registre `inventory.external-ownership`
+permet aussi de déposer dans le lieu actif puis de reprendre le même exemplaire.
+
+Donner et recevoir vérifient le PNJ visible, son autorisation durable et
+l'exemplaire accessible. Acheter et vendre exigent une offre active, un prix
+identique à `src/data/items` et les pièces physiques suffisantes. Objet et
+monnaie changent de propriétaire dans le même commit.
 
 L'interpréteur peut conserver `requiredDomain=inventory`; il ne peut pas choisir
 l'exemplaire privé, le prix, la quantité ou le résultat.
@@ -138,7 +144,10 @@ raccordées des domaines génériques fermés :
 
 - `inventory.access-credential` reflète la présence du runtime d'accès
   inventaire ;
-- `inventory.mutation` reste toujours `HANDOFF_ONLY` ;
+- `inventory.mutation` est `AVAILABLE` seulement lorsque
+  `inventory-transaction/1` est injecté ;
+- les échanges avec les lieux et PNJ, commerce compris, passent par
+  `inventory.mutation` lorsque le propriétaire externe est installé ;
 - `tactical.access-conflict` reflète la présence du runtime tactique d'accès ;
 - `tactical.generic-handoff` reste toujours `HANDOFF_ONLY` ;
 - progression et ordres de bastion ne sont pas annoncés comme capacités texte
@@ -158,8 +167,8 @@ exécution.
    bastion avant toute nouvelle capacité de texte libre.
 3. Ouvrir ensuite au plus une commande à la fois, avec sélection exacte,
    clarification, autorité, restauration et cas de refus.
-4. Ne cadrer les mutations d'inventaire génériques qu'après création de leur
-   transaction propriétaire.
+4. Conserver les échanges d'inventaire derrière les propriétaires externes et
+   leurs offres persistantes.
 5. Ne cadrer le combat générique qu'après création de son autorité de rencontre
    et de graine.
 

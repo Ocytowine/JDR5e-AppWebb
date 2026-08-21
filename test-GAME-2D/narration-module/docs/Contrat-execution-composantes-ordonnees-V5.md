@@ -113,6 +113,6 @@ persistées avant d'accepter une nouvelle saisie.
 
 - le test déterministe `verify-semantic-intent-v5-ordered-execution.ts` valide le contrat, les beats, le rendu et la libération du focus ;
 - les validations serveur couvrent le schéma strict V5 et conservent V1 à V4 ;
-- la recette OpenAI Archives exécute deux tours successifs avec `player_intent_interpreter:ai-intent-semantic/5` : approche avant la salutation, puis remerciement avant l'éloignement ;
+- la recette OpenAI Archives exécute désormais ces deux tours avec le contrat actif `player_intent_interpreter:ai-intent-semantic/6`, qui conserve intégralement les composantes ordonnées V5 ;
 - le rendu obtenu reste strictement narratif ; les noms de composantes sont réservés à la bulle système de diagnostic ;
 - `npm run build` passe.

@@ -3,7 +3,7 @@
 Statut : `LIVRE`
 Sous-lot : `6D`
 Contrats cibles : `plot-registry/1`, `plot-evolution/1`,
-`scene-event-bundle/1`
+`scene-event-bundle/1`, `plot-hypothesis/1`, `plot-resolution/1`
 
 ## Objectif
 
@@ -22,6 +22,8 @@ uniquement la cohérence et les engagements de l'intrigue.
    l'horloge autoritaire.
 3. La révélation committe séparément le fait qu'un signe a été présenté ou
    qu'une information a été acquise par un canal autorisé.
+4. La résolution exige les voies indépendantes déjà découvertes et la
+   réfutation des fausses pistes avant de fermer l'intrigue.
 
 Un texte narratif, une sortie IA ou le simple passage du temps réel ne produit
 aucune de ces écritures.
@@ -35,6 +37,10 @@ Une fausse piste éventuelle doit référencer une voie de réfutation existante
 La vérité centrale et les engagements sont immuables dans le premier vertical :
 une correction exige plus tard un contrat de réparation tracée, jamais un
 remplacement silencieux.
+
+Une hypothèse du joueur est conservée sans autorité sur la vérité. La résolution
+peut ensuite la marquer comme soutenue ou réfutée, mais seulement après une
+décision sémantique contrôlée et la vérification locale des preuves découvertes.
 
 ## Évolution hors écran
 

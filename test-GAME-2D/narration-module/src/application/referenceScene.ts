@@ -478,7 +478,8 @@ export function buildReferenceSceneBlocksV1(input: {
       text: buildNpcDialogueFallbackV1(
         target.actorId,
         input.interpretation.semanticIntent.dialogueAct?.act ?? "OTHER",
-        target.displayName
+        target.displayName,
+        input.sceneState?.interactionCount ?? presentationVariant(input.operationId, 3)
       ).text,
       sourceRefs: [`reference-scene:${playableScene.sceneId}`, `resolution:${input.resolution.resolutionId}:speech-reaction`]
     });

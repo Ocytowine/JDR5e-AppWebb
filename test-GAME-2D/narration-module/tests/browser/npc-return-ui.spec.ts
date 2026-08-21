@@ -8,26 +8,41 @@ declare global {
   }
 }
 
-test("un acteur de scène conserve identité et mémoire après une sortie-retour", async ({ page }) => {
+test("J1 maintient une conversation variée et jouable après sortie, retour et reprise", async ({ page }) => {
   await page.goto("/narration-module/tests/browser/npc-return-ui.html");
   const input = page.getByLabel("Entrée libre du joueur");
   const send = page.getByRole("button", { name: "Envoyer" });
   const log = page.getByRole("log");
+  const npcSpeech = page.locator('[data-narrative-block-kind="NPC_SPEECH"]');
+  const dialogueReplies: string[] = [];
 
   await expect(input).toBeEnabled();
-  await submit("Je salue le copiste.", "Copiste itinérant");
-  await submit("Je lui demande depuis combien de temps il voyage ?", "Copiste itinérant");
-  await submit("Je lui demande s'il recopie des histoires locales ?", "Copiste itinérant");
+  await submitDialogue("Je salue le copiste.");
+  await submitDialogue("Je lui demande depuis combien de temps il voyage ?");
+  await submitDialogue("Je lui demande s'il recopie des histoires locales ?");
 
   await submit("Je franchis la porte du fond vers l'arrière-salle.", "Destination=location:inn-back-room");
+  await expect(log).toContainText("tu arrives à Arrière-salle de l'Auberge du Seuil");
   await submit("Je retourne dans la salle commune.", "Destination=location:inn-common-room");
+  await expect(log).toContainText("tu arrives à Auberge du Seuil");
   await expect(log).toContainText("Copiste itinérant");
 
-  await submit("Je lui demande s'il se souvient de mes questions ?", "Copiste itinérant");
+  await submitDialogue("Je lui demande s'il se souvient de mes questions ?");
   await expect(log).toContainText("Intentions joueur mémorisées (3)");
   await expect(log).toContainText("Répliques PNJ antérieures visibles (3)");
   await expect(log).toContainText("Couples intention → réponse (3)");
   await expect(log).not.toContainText("Interlocuteur");
+  await expect(page.getByRole("alert")).toHaveCount(0);
+  expect(new Set(dialogueReplies).size).toBeGreaterThanOrEqual(3);
+  for (let index = 1; index < dialogueReplies.length; index += 1) {
+    expect(dialogueReplies[index]).not.toBe(dialogueReplies[index - 1]);
+  }
+
+  await page.reload();
+  await expect(input).toBeEnabled();
+  await expect(npcSpeech).toHaveCount(4);
+  expect(new Set(await npcSpeech.allInnerTexts()).size).toBeGreaterThanOrEqual(3);
+  await expect(log).toContainText("Couples intention → réponse (3)");
   await expect(page.getByRole("alert")).toHaveCount(0);
 
   const forgedBeforeOwnerDecision = await page.evaluate(async ({ sceneActorId }) => {
@@ -153,5 +168,12 @@ test("un acteur de scène conserve identité et mémoire après une sortie-retou
     await send.click();
     await expect(log).toContainText(expected);
     await expect(input).toBeEnabled();
+  }
+
+  async function submitDialogue(text: string): Promise<void> {
+    const countBefore = await npcSpeech.count();
+    await submit(text, "Copiste itinérant");
+    await expect(npcSpeech).toHaveCount(countBefore + 1);
+    dialogueReplies.push((await npcSpeech.last().innerText()).trim());
   }
 });

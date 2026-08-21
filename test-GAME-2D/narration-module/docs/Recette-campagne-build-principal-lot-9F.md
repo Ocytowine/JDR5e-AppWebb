@@ -109,13 +109,15 @@ appelé et le critique éventuel est refusé localement comme quatrième appel. 
 présence du nom du lieu dans la seule entrée joueur ne suffit pas à faire passer
 la gate.
 
-La passe certifiée du 2026-08-17 observe trois appels HTTP 200, dans l'ordre
+La passe J2 du 2026-08-19 observe trois appels HTTP 200, dans l'ordre
 `player_intent_interpreter → scene_creator → scene_writer`. La transition
-committe une seule arrivée et huit secondes diégétiques. Après rechargement,
-**Reprendre** restaure la Place des Archives et le fil sans rappeler le
-créateur. Aucun diagnostic d'étape secondaire n'apparaît. Le
-`coherence_critic` est refusé localement comme quatrième appel et le rendu déjà
-validé est conservé.
+committe une seule arrivée et huit secondes diégétiques. Le test passe ensuite
+en mode local : « Je retourne aux Archives de Lysenthe » réutilise la connexion
+persistée, ajoute huit secondes et ramène la campagne aux Archives. Après
+rechargement, **Reprendre** restaure les Archives, les deux transitions et les
+seize secondes sans rappeler le créateur. Le `coherence_critic` reste refusé
+localement comme quatrième appel ; une sortie `scene_writer` incomplète conserve
+le rendu local validé sans annuler le commit.
 
 Pour rejouer la conversation réelle avec le clerc :
 

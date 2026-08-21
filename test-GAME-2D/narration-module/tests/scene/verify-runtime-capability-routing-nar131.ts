@@ -44,6 +44,15 @@ assert.equal(inventory.disposition, "HANDOFF");
 assert.equal(inventory.requiredDomain, "inventory");
 assert.equal(inventory.commandFamily, "HANDOFF");
 
+const ownedInventory = routeNarrativeSemanticIntentV2({
+  semanticIntent: { ...baseSemantic, target: { kind: "object", ref: "item:item-epee", label: "Épée longue" } },
+  runtimeSuggestion: suggestion("inventory", "act"),
+  availability: { rest: false, inventoryMutation: true }
+});
+assert.equal(ownedInventory.disposition, "HANDLE");
+assert.equal(ownedInventory.capabilityId, "inventory.mutation");
+assert.equal(ownedInventory.commitPolicy, "DOMAIN_VALIDATED");
+
 const dialogue = routeNarrativeSemanticIntentV1({
   semanticIntent: { ...baseSemantic, kind: "address_visible_actor", target: { kind: "npc", ref: "npc:npc-garde-blesse", label: "Garde blessé" } },
   runtimeSuggestion: suggestion("social", null)
@@ -119,6 +128,7 @@ const interpreterContext = buildInterpreterRuntimeContextV1({
   dynamicPlace: false,
   rest: true,
   inventoryAccess: true,
+  inventoryMutation: false,
   tacticalAccess: true
 });
 assert.equal(
@@ -148,6 +158,21 @@ assert.equal(
   )?.availability,
   "HANDOFF_ONLY",
   "le manifeste ne doit jamais ouvrir silencieusement l'inventaire"
+);
+const inventoryContext = buildInterpreterRuntimeContextV1({
+  sceneTransition: true,
+  dynamicPlace: false,
+  rest: true,
+  inventoryAccess: true,
+  inventoryMutation: true,
+  tacticalAccess: true
+});
+assert.equal(
+  inventoryContext.capabilities.find(entry =>
+    entry.capabilityId === "inventory.mutation"
+  )?.availability,
+  "AVAILABLE",
+  "le manifeste ouvre la mutation seulement lorsqu'une autorité de transaction est injectée"
 );
 assert.equal(
   interpreterContext.capabilities.find(entry =>

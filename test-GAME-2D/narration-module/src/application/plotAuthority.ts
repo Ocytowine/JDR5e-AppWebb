@@ -27,6 +27,8 @@ export const PLOT_REGISTRY_CONTRACT_V1 = "plot-registry/1" as const;
 export const PLOT_CREATE_COMMAND_V1 = "plot-create/1" as const;
 export const PLOT_EVOLUTION_CONTRACT_V1 = "plot-evolution/1" as const;
 export const PLOT_SCENE_REVEAL_CONTRACT_V1 = "plot-scene-reveal/1" as const;
+export const PLOT_HYPOTHESIS_COMMAND_V1 = "plot-hypothesis/1" as const;
+export const PLOT_RESOLUTION_COMMAND_V1 = "plot-resolution/1" as const;
 export const SCENE_EVENT_BUNDLE_CONTRACT_V1 = "scene-event-bundle/1" as const;
 export const PLOT_REGISTRY_AGGREGATE_TYPE_V1 = "narrative.plot-registry" as const;
 
@@ -61,6 +63,62 @@ export interface PlotFalseLeadV1 extends JsonObject {
   falseLeadId: string;
   claim: string;
   refutationCluePathIds: string[];
+}
+
+export interface PlotCausalStepV1 extends JsonObject {
+  stepId: string;
+  causedByRefs: string[];
+  actorRefs: string[];
+  locationRef: string;
+  privateOutcome: string;
+  occurredAtGameSecond: number;
+}
+
+export interface PlotActorPerspectiveV1 extends JsonObject {
+  perspectiveId: string;
+  actorRef: string;
+  claim: string;
+  epistemicStatus: "KNOWS_TRUE" | "BELIEVES_TRUE" | "BELIEVES_FALSE" | "KNOWS_FALSE" | "LYING";
+  truthRelation: "SUPPORTS" | "CONTRADICTS" | "PARTIAL" | "UNRELATED";
+  sourceRefs: string[];
+}
+
+export interface PlotClueDetailV1 extends JsonObject {
+  cluePathId: string;
+  effectId: string;
+  publicSign: string;
+  sceneId: string;
+  presentation: "OBSERVATION" | "INFERENCE" | "TESTIMONY";
+  actorRef: string | null;
+  knowledgeChannelRef: string | null;
+  sourceRefs: string[];
+}
+
+export interface PlotDiscoveryV1 extends JsonObject {
+  discoveryId: string;
+  cluePathId: string;
+  presentation: "OBSERVATION" | "INFERENCE" | "TESTIMONY";
+  statement: string;
+  sourceRefs: string[];
+  discoveredAtGameSecond: number;
+}
+
+export interface PlotPlayerHypothesisV1 extends JsonObject {
+  hypothesisId: string;
+  statement: string;
+  proposedByActorRef: string;
+  status: "UNCONFIRMED" | "SUPPORTED" | "REFUTED";
+  sourceRefs: string[];
+  recordedAtGameSecond: number;
+}
+
+export interface PlotResolutionV1 extends JsonObject {
+  resolutionId: string;
+  conclusion: string;
+  evidenceCluePathIds: string[];
+  resolvedByActorRef: string;
+  sourceRefs: string[];
+  resolvedAtGameSecond: number;
 }
 
 export interface PlotScheduledEffectV1 extends JsonObject {
@@ -142,6 +200,47 @@ export interface RevealPlotSceneCommandV1 extends JsonObject {
   clientRequestId: string;
   sceneId: string;
   playerKnowledgeRefs: string[];
+}
+
+export interface RecordPlotHypothesisCommandV1 extends JsonObject {
+  schemaVersion: 1;
+  contractVersion: typeof PLOT_HYPOTHESIS_COMMAND_V1;
+  clientRequestId: string;
+  plotId: string;
+  hypothesisId: string;
+  statement: string;
+  proposedByActorRef: string;
+  sourceRefs: string[];
+}
+
+export interface RecordPlotHypothesisResultV1 extends JsonObject {
+  schemaVersion: 1;
+  plotId: string;
+  hypothesis: PlotPlayerHypothesisV1;
+  commitId: string;
+  replayed: boolean;
+}
+
+export interface ResolvePlotCommandV1 extends JsonObject {
+  schemaVersion: 1;
+  contractVersion: typeof PLOT_RESOLUTION_COMMAND_V1;
+  clientRequestId: string;
+  plotId: string;
+  resolutionId: string;
+  conclusion: string;
+  evidenceCluePathIds: string[];
+  resolvedByActorRef: string;
+  supportedHypothesisIds: string[];
+  refutedHypothesisIds: string[];
+  sourceRefs: string[];
+}
+
+export interface ResolvePlotResultV1 extends JsonObject {
+  schemaVersion: 1;
+  plotId: string;
+  resolution: PlotResolutionV1;
+  commitId: string;
+  replayed: boolean;
 }
 
 export interface PlotSceneRevealResultV1 extends JsonObject {
@@ -538,16 +637,29 @@ export async function revealPlotEffectsInSceneV1(input: {
     ...loaded.value.state,
     plots: loaded.value.state.plots.map(plot => {
       let changed = false;
+      const discoveries = readPlotDiscoveriesV1(plot);
+      const clueDetails = readPlotClueDetailsV1(plot);
       const scheduledEvents = plot.scheduledEvents.map(event => ({
         ...event,
         effects: event.effects.map(effect => {
           const effectRef = `plot-effect:${plot.plotId}:${event.plotEventId}:${effect.effectId}`;
           if (!revealed.has(effectRef)) return effect;
           changed = true;
+          const clue = clueDetails.find(value => value.effectId === effect.effectId);
+          if (clue !== undefined && !discoveries.some(value => value.cluePathId === clue.cluePathId)) {
+            discoveries.push({
+              discoveryId: `plot-discovery:${plot.plotId}:${clue.cluePathId}`,
+              cluePathId: clue.cluePathId,
+              presentation: clue.presentation,
+              statement: clue.publicSign,
+              sourceRefs: [effectRef, ...clue.sourceRefs],
+              discoveredAtGameSecond: now
+            });
+          }
           return { ...effect, presentedAtGameSecond: now };
         })
       }));
-      return changed ? { ...plot, scheduledEvents, version: plot.version + 1 } : plot;
+      return changed ? { ...plot, scheduledEvents, discoveries, version: plot.version + 1 } : plot;
     }),
     version: loaded.value.state.version + 1
   };
@@ -586,6 +698,225 @@ export async function revealPlotEffectsInSceneV1(input: {
   };
   const completed = await input.repository.completePresentation(operationId, "COMMITTED_RENDERED", 1, result);
   return completed.ok ? { ok: true, value: result } : completed;
+}
+
+export async function recordPlotHypothesisV1(input: {
+  repository: CampaignRepository;
+  campaignId: CampaignId;
+  command: RecordPlotHypothesisCommandV1;
+}): Promise<Result<RecordPlotHypothesisResultV1>> {
+  if (
+    input.command.schemaVersion !== 1
+    || input.command.contractVersion !== PLOT_HYPOTHESIS_COMMAND_V1
+    || ![input.command.clientRequestId, input.command.plotId, input.command.hypothesisId, input.command.statement, input.command.proposedByActorRef]
+      .every(nonEmpty)
+    || !validRefs(input.command.sourceRefs)
+  ) return invalid("plot.hypothesis-invalid", ["invalid plot hypothesis command"]);
+  const operationId = opaqueId<OperationId>(`plot-hypothesis:${input.command.clientRequestId}`);
+  const existing = await restoreOrConflict<RecordPlotHypothesisResultV1>({
+    repository: input.repository,
+    operationId,
+    operationKind: "plot.hypothesis",
+    payload: input.command
+  });
+  if (existing !== null) return existing;
+  const campaign = await input.repository.getCampaign(input.campaignId);
+  if (!campaign.ok) return campaign;
+  const clock = await input.repository.getAggregate(input.campaignId, "world.clock", campaign.value.clockAggregateId);
+  if (!clock.ok) return clock;
+  const now = (clock.value.payload as CampaignClockPayload).elapsedGameSeconds;
+  const loaded = await loadPlotRegistryV1(input.repository, input.campaignId);
+  if (!loaded.ok) return loaded;
+  const plotIndex = loaded.value.state.plots.findIndex(plot => plot.plotId === input.command.plotId && plot.status === "ACTIVE");
+  if (plotIndex < 0) return invalid("plot.hypothesis-plot-not-active", ["hypothesis requires an active plot"]);
+  const current = loaded.value.state.plots[plotIndex]!;
+  const hypotheses = readPlotHypothesesV1(current);
+  if (hypotheses.some(value => value.hypothesisId === input.command.hypothesisId)) {
+    return invalid("plot.hypothesis-duplicate", ["hypothesis id already exists"]);
+  }
+  const hypothesis: PlotPlayerHypothesisV1 = {
+    hypothesisId: input.command.hypothesisId,
+    statement: input.command.statement.trim(),
+    proposedByActorRef: input.command.proposedByActorRef,
+    status: "UNCONFIRMED",
+    sourceRefs: [...new Set(input.command.sourceRefs)],
+    recordedAtGameSecond: now
+  };
+  const plots = [...loaded.value.state.plots];
+  plots[plotIndex] = { ...current, playerHypotheses: [...hypotheses, hypothesis], version: current.version + 1 };
+  const started = await beginOperation(
+    input.repository,
+    input.campaignId,
+    operationId,
+    input.command.clientRequestId,
+    "plot.hypothesis",
+    input.command
+  );
+  if (!started.ok) return started;
+  const committed = await commitPlotRegistry({
+    repository: input.repository,
+    campaignId: input.campaignId,
+    operation: started.value,
+    currentAggregate: loaded.value.aggregate,
+    nextRegistry: { ...loaded.value.state, plots, version: loaded.value.state.version + 1 },
+    commandType: "plot.hypothesis",
+    commandPayload: { plotId: current.plotId, hypothesisId: hypothesis.hypothesisId },
+    occurredAtGameSecond: now,
+    events: [{
+      eventId: opaqueId<EventId>(`${operationId}:event`),
+      eventType: "plot.player-hypothesis.recorded",
+      origin: "PLAYER_INTENT",
+      visibility: { scope: "PLAYER_VISIBLE", actorIds: [] },
+      causation: { kind: "COMMAND", id: `${operationId}:command` },
+      payload: {
+        plotId: current.plotId,
+        hypothesisId: hypothesis.hypothesisId,
+        statement: hypothesis.statement,
+        status: hypothesis.status,
+        sourceRefs: hypothesis.sourceRefs
+      }
+    }]
+  });
+  if (!committed.ok) return committed;
+  const result: RecordPlotHypothesisResultV1 = {
+    schemaVersion: 1,
+    plotId: current.plotId,
+    hypothesis,
+    commitId: committed.value.commitId,
+    replayed: false
+  };
+  const completed = await input.repository.completePresentation(operationId, "COMMITTED_RENDERED", 1, result);
+  return completed.ok ? { ok: true, value: result } : completed;
+}
+
+export async function resolvePlotV1(input: {
+  repository: CampaignRepository;
+  campaignId: CampaignId;
+  command: ResolvePlotCommandV1;
+}): Promise<Result<ResolvePlotResultV1>> {
+  const command = input.command;
+  if (
+    command.schemaVersion !== 1
+    || command.contractVersion !== PLOT_RESOLUTION_COMMAND_V1
+    || ![command.clientRequestId, command.plotId, command.resolutionId, command.conclusion, command.resolvedByActorRef].every(nonEmpty)
+    || !validRefs(command.evidenceCluePathIds)
+    || !validRefs(command.sourceRefs)
+    || !Array.isArray(command.supportedHypothesisIds)
+    || !Array.isArray(command.refutedHypothesisIds)
+  ) return invalid("plot.resolution-invalid", ["invalid plot resolution command"]);
+  const operationId = opaqueId<OperationId>(`plot-resolution:${command.clientRequestId}`);
+  const existing = await restoreOrConflict<ResolvePlotResultV1>({
+    repository: input.repository,
+    operationId,
+    operationKind: "plot.resolution",
+    payload: command
+  });
+  if (existing !== null) return existing;
+  const campaign = await input.repository.getCampaign(input.campaignId);
+  if (!campaign.ok) return campaign;
+  const clock = await input.repository.getAggregate(input.campaignId, "world.clock", campaign.value.clockAggregateId);
+  if (!clock.ok) return clock;
+  const now = (clock.value.payload as CampaignClockPayload).elapsedGameSeconds;
+  const loaded = await loadPlotRegistryV1(input.repository, input.campaignId);
+  if (!loaded.ok) return loaded;
+  const plotIndex = loaded.value.state.plots.findIndex(plot => plot.plotId === command.plotId && plot.status === "ACTIVE");
+  if (plotIndex < 0) return invalid("plot.resolution-plot-not-active", ["resolution requires an active plot"]);
+  const current = loaded.value.state.plots[plotIndex]!;
+  const discoveries = readPlotDiscoveriesV1(current);
+  const discoveredPaths = new Set(discoveries.map(discovery => discovery.cluePathId));
+  if (command.evidenceCluePathIds.some(ref => !discoveredPaths.has(ref))) {
+    return invalid("plot.resolution-evidence-not-discovered", ["resolution evidence must already be discovered"]);
+  }
+  for (const revelation of current.requiredRevelations.filter(value => value.requiredForResolution)) {
+    const independent = new Set(current.cluePaths
+      .filter(path => path.revelationId === revelation.revelationId && command.evidenceCluePathIds.includes(path.cluePathId))
+      .map(path => path.independenceKey));
+    if (independent.size < 2) return invalid("plot.resolution-insufficient-evidence", [`revelation ${revelation.revelationId} requires two independent discovered paths`]);
+  }
+  for (const falseLead of current.falseLeads) {
+    if (!falseLead.refutationCluePathIds.some(ref => command.evidenceCluePathIds.includes(ref))) {
+      return invalid("plot.resolution-false-lead-not-refuted", [`false lead ${falseLead.falseLeadId} still lacks discovered refutation evidence`]);
+    }
+  }
+  const hypotheses = readPlotHypothesesV1(current);
+  const knownHypothesisIds = new Set(hypotheses.map(value => value.hypothesisId));
+  const classified = [...command.supportedHypothesisIds, ...command.refutedHypothesisIds];
+  if (new Set(classified).size !== classified.length || classified.some(id => !knownHypothesisIds.has(id))) {
+    return invalid("plot.resolution-hypothesis-invalid", ["resolution hypothesis classification is invalid"]);
+  }
+  const supported = new Set(command.supportedHypothesisIds);
+  const refuted = new Set(command.refutedHypothesisIds);
+  const resolution: PlotResolutionV1 = {
+    resolutionId: command.resolutionId,
+    conclusion: command.conclusion.trim(),
+    evidenceCluePathIds: [...new Set(command.evidenceCluePathIds)],
+    resolvedByActorRef: command.resolvedByActorRef,
+    sourceRefs: [...new Set(command.sourceRefs)],
+    resolvedAtGameSecond: now
+  };
+  const plots = [...loaded.value.state.plots];
+  plots[plotIndex] = {
+    ...current,
+    status: "RESOLVED",
+    resolution,
+    playerHypotheses: hypotheses.map(hypothesis => supported.has(hypothesis.hypothesisId)
+      ? { ...hypothesis, status: "SUPPORTED" as const }
+      : refuted.has(hypothesis.hypothesisId)
+        ? { ...hypothesis, status: "REFUTED" as const }
+        : hypothesis),
+    version: current.version + 1
+  };
+  const started = await beginOperation(input.repository, input.campaignId, operationId, command.clientRequestId, "plot.resolution", command);
+  if (!started.ok) return started;
+  const committed = await commitPlotRegistry({
+    repository: input.repository,
+    campaignId: input.campaignId,
+    operation: started.value,
+    currentAggregate: loaded.value.aggregate,
+    nextRegistry: { ...loaded.value.state, plots, version: loaded.value.state.version + 1 },
+    commandType: "plot.resolution",
+    commandPayload: { plotId: current.plotId, resolutionId: resolution.resolutionId },
+    occurredAtGameSecond: now,
+    events: [{
+      eventId: opaqueId<EventId>(`${operationId}:event`),
+      eventType: "plot.resolved",
+      origin: "PLAYER_INTENT",
+      visibility: { scope: "PLAYER_VISIBLE", actorIds: [] },
+      causation: { kind: "COMMAND", id: `${operationId}:command` },
+      payload: {
+        plotId: current.plotId,
+        resolutionId: resolution.resolutionId,
+        conclusion: resolution.conclusion,
+        evidenceCluePathIds: resolution.evidenceCluePathIds,
+        sourceRefs: resolution.sourceRefs
+      }
+    }]
+  });
+  if (!committed.ok) return committed;
+  const result: ResolvePlotResultV1 = { schemaVersion: 1, plotId: current.plotId, resolution, commitId: committed.value.commitId, replayed: false };
+  const completed = await input.repository.completePresentation(operationId, "COMMITTED_RENDERED", 1, result);
+  return completed.ok ? { ok: true, value: result } : completed;
+}
+
+function readPlotDiscoveriesV1(plot: PlotStateV1): PlotDiscoveryV1[] {
+  const value = plot.discoveries;
+  return Array.isArray(value)
+    ? value.filter(entry => entry !== null && typeof entry === "object").map(entry => cloneJson(entry) as PlotDiscoveryV1)
+    : [];
+}
+
+function readPlotClueDetailsV1(plot: PlotStateV1): PlotClueDetailV1[] {
+  const value = plot.clueDetails;
+  return Array.isArray(value)
+    ? value.filter(entry => entry !== null && typeof entry === "object").map(entry => entry as PlotClueDetailV1)
+    : [];
+}
+
+function readPlotHypothesesV1(plot: PlotStateV1): PlotPlayerHypothesisV1[] {
+  const value = plot.playerHypotheses;
+  return Array.isArray(value)
+    ? value.filter(entry => entry !== null && typeof entry === "object").map(entry => cloneJson(entry) as PlotPlayerHypothesisV1)
+    : [];
 }
 
 function validatePlot(command: CreatePlotCommandV1): string[] {

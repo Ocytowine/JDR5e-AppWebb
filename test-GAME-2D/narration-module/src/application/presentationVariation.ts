@@ -1,6 +1,7 @@
 import type { JsonObject } from "../core";
 import type { DisplayPacketV1 } from "../scene";
 import type { NarrativeTurnControllerOutputV1 } from "./NarrativeTurnController";
+import { REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1 } from "./playableScene";
 import { buildReferenceSceneLocalNarrationV1 } from "./referenceScene";
 
 export const NARRATIVE_PRESENTATION_VARIATION_CONTRACT_VERSION_V1 = "narrative-presentation-variation/1" as const;
@@ -26,6 +27,9 @@ export function applyNarrativePresentationVariationV1(
 ): NarrativePresentationVariationResultV1 {
   const packet = input.displayPacket as DisplayPacketV1 & JsonObject;
   if (input.output.interpretation.semanticIntent.kind !== "meta_request" && input.output.interpretation.semanticIntent.kind !== "context_question") {
+    return result(packet, false, null);
+  }
+  if (input.output.activeScene.sceneId !== REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1.sceneId) {
     return result(packet, false, null);
   }
 

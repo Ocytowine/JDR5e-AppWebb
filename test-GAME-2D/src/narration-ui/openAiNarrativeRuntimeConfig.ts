@@ -4,12 +4,14 @@ import {
   AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V3,
   AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V4,
   AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V5,
+  AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V6,
   MJ_PLANNER_CONTRACT_VERSION_V1,
   NPC_PERFORMER_CONTRACT_VERSION_V1,
   type AiIntentInterpreterConfigV1,
   type MjPlannerConfigV1,
   type NpcPerformerConfigV1
 } from "../../narration-module/src/application";
+import type { PlotCandidateGeneratorConfigV1 } from "../../narration-module/src/application";
 import type { LoreGuidedPlaceCandidateGeneratorConfigV2 } from "../../narration-module/src/application";
 import type { DestinationPlausibilityArbiterConfigV1 } from "../../narration-module/src/application";
 import { ServerOpenAiEnhancementProviderV1 } from "./serverOpenAiEnhancementClient";
@@ -17,7 +19,7 @@ import { ServerOpenAiEnhancementProviderV1 } from "./serverOpenAiEnhancementClie
 export function buildOpenAiIntentInterpreterConfigV1(endpoint?: string): AiIntentInterpreterConfigV1 {
   return {
     provider: new ServerOpenAiEnhancementProviderV1(endpoint),
-    contractVersion: AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V5,
+    contractVersion: AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V6,
     route: {
       schemaVersion: 1,
       routeId: "prototype-ui-openai-player-intent-interpreter",
@@ -25,9 +27,9 @@ export function buildOpenAiIntentInterpreterConfigV1(endpoint?: string): AiInten
       providerKind: "FAKE_CONTRACT",
       providerId: "server-openai-route",
       modelId: "server-selected-openai-intent-model",
-      modelConfigVersion: "ordered-components-v5",
+      modelConfigVersion: "companion-directive-v6",
       certified: true,
-      allowedContractVersions: [AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V1, AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V2, AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V3, AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V4, AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V5],
+      allowedContractVersions: [AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V1, AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V2, AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V3, AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V4, AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V5, AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V6],
       inputTokenLimit: 2_000,
       outputTokenLimit: 900,
       timeoutMs: 30_000,
@@ -128,6 +130,50 @@ export function buildOpenAiSceneCreatorConfigV2(endpoint?: string): LoreGuidedPl
       timeoutMs: 55_000, fallbackRouteIds: []
     },
     retryPolicy: { schemaVersion: 1, role: "scene_creator", maxTechnicalRetries: 0, maxTargetedCorrections: 0, maxFullRegenerations: 0, allowFallback: false }
+  };
+}
+
+export function buildOpenAiPlotCandidateConfigV1(endpoint?: string): PlotCandidateGeneratorConfigV1 {
+  return {
+    provider: new ServerOpenAiEnhancementProviderV1(endpoint),
+    route: {
+      schemaVersion: 1,
+      routeId: "campaign-ui-openai-plot-candidate",
+      role: "scene_creator",
+      providerKind: "FAKE_CONTRACT",
+      providerId: "server-openai-route",
+      modelId: "server-selected-openai-scene-creator-model",
+      modelConfigVersion: "plot-candidate-v1",
+      certified: true,
+      allowedContractVersions: ["plot-candidate/1"],
+      inputTokenLimit: 4_000,
+      outputTokenLimit: 4_000,
+      timeoutMs: 55_000,
+      fallbackRouteIds: []
+    },
+    coherenceCriticRoute: {
+      schemaVersion: 1,
+      routeId: "campaign-ui-openai-plot-motivation-critic",
+      role: "coherence_critic",
+      providerKind: "FAKE_CONTRACT",
+      providerId: "server-openai-route",
+      modelId: "server-selected-openai-coherence-critic-model",
+      modelConfigVersion: "plot-motivation-v1",
+      certified: true,
+      allowedContractVersions: ["narrative-ai-resolution/1"],
+      inputTokenLimit: 1_600,
+      outputTokenLimit: 1_600,
+      timeoutMs: 30_000,
+      fallbackRouteIds: []
+    },
+    retryPolicy: {
+      schemaVersion: 1,
+      role: "scene_creator",
+      maxTechnicalRetries: 0,
+      maxTargetedCorrections: 0,
+      maxFullRegenerations: 0,
+      allowFallback: false
+    }
   };
 }
 

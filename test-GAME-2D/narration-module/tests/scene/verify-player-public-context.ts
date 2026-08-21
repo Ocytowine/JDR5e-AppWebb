@@ -31,7 +31,10 @@ const characterContext: InterpreterCharacterContextV1 = {
     kind: "EQUIPPED_ITEM",
     label: "Épée de l'aube",
     aliases: ["épée de l'aube"],
-    availability: "REFERENCE_ONLY"
+    availability: "REFERENCE_ONLY",
+    inventoryState: "EQUIPPED",
+    quantity: 1,
+    containerRef: null
   }],
   ambiguities: [],
   authority: "INTERPRETATION_ONLY",

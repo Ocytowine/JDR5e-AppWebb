@@ -22,12 +22,15 @@ reste un repli de compatibilité pour les anciennes campagnes :
   `observable.visibleEquipment` ;
 - `character.tactical-projection` fournit uniquement les identifiants déclarés
   d'actions et de sorts ;
+- `character.state` fournit depuis J3 une projection bornée des exemplaires
+  possédés, de leur quantité et de leur état de rangement ou d'équipement ;
 - le catalogue installé fournit les libellés et alias publics correspondants.
 
 La sortie contient :
 
 - `character.ref` et `character.label` ;
-- des références `LANGUAGE`, `ACTION`, `SPELL` et `EQUIPPED_ITEM` ;
+- des références `LANGUAGE`, `ACTION`, `SPELL`, `INVENTORY_ITEM` et
+  `EQUIPPED_ITEM` ;
 - leurs libellés, alias de catalogue et mots significatifs de libellé bornés ;
 - les alias ambigus avec la liste de leurs candidats ;
 - `authority=INTERPRETATION_ONLY` et
@@ -40,12 +43,12 @@ contenant accessible, ni réussi.
 
 ## Données volontairement absentes
 
-Le chargeur ne lit jamais l'agrégat privé `character.state`. Il ne transmet
-pas :
+Le chargeur relit `character.state`, mais n'en projette que les exemplaires
+possédés nécessaires à leur sélection. Il ne transmet pas :
 
 - caractéristiques, modificateurs, PV, CA ou difficultés ;
 - quantités de ressources, charges ou délais de récupération ;
-- inventaire non visible, monnaie, quantités ou valeurs ;
+- valeurs marchandes, offres, inventaires externes ou contreparties privées ;
 - biographie, personnalité, objectifs ou défauts ;
 - secrets de campagne ou connaissances privées ;
 - décision de réussite, d'échec, de mutation ou de handoff.
@@ -116,6 +119,6 @@ La première vérification prouve :
   `player-public-context/1`. Les blessures visibles et autres nouveaux états du
   personnage restent exclus tant que leur propriétaire ne les projette pas de
   manière structurée.
-- Reconnaître une action, un sort ou un objet ne raccorde pas son exécution :
-  les commandes inventaire et tactique générique restent à définir avec leurs
-  propriétaires.
+- Reconnaître une action, un sort ou un objet ne décide pas son exécution : la
+  transaction J3 valide les gestes personnels et les échanges externes restent
+  fermés sans leurs propriétaires.

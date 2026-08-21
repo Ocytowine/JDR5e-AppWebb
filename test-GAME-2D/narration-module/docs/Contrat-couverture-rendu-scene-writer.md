@@ -46,7 +46,7 @@ La bulle système expose la raison de rejet (`required_narrative_coverage_missin
 - le rendu déterministe de secours regroupe les présences visibles dans un seul paragraphe continu et conserve leurs références de provenance ;
 - la recette OpenAI exacte « est ce que je vois des gens autour de moi ? » produit un paragraphe continu sur l'archiviste, le clerc et le garde, au lieu du seul résumé du bâtiment ;
 - le writer a répondu en 13,53 à 14,66 s sur les passes validées ; aucun `coherence_critic` supplémentaire n'a été nécessaire ;
-- les régressions V3 à V5, résolution, contrôleur, transition de scène, route serveur et surface UI passent ;
+- les régressions V3 à V6, résolution, contrôleur, transition de scène, route serveur et surface UI passent ;
 - `npm run build` passe.
 
 ## Renforcement après recette campagne du 2026-07-30

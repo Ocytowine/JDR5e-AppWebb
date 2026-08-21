@@ -222,8 +222,12 @@ Une confiance déclarée par le modèle ne remplace jamais une validation. Une c
 
 ## Contrat de l'interpréteur
 
-Le contrat actif V5 porte une intention principale structurée `intent`, avec
-des composantes ordonnées pour les micro-actions sociales bornées. Il ne porte
+Le contrat actif V6 porte une intention principale structurée `intent`, avec
+des composantes ordonnées pour les micro-actions sociales bornées. Il ajoute
+une `companionDirective` uniquement pour une demande d'action visant une
+référence présente dans `activeCompanionRefs`. Cette projection classe la
+demande (`FOLLOW`, `SCOUT`, `ASSIST`, `GUARD`, `SOCIAL` ou `PERSONAL_RISK`) sans
+décider la réponse du PNJ. Il ne porte
 pas `intents[]`. Le contrat V1 historique utilisait une autre projection et
 reste accepté uniquement pour compatibilité.
 
@@ -243,9 +247,14 @@ L'intention indique au minimum :
 Le paquet d'entrée contient seulement la scène et les référents publics, la
 projection minimale `interpreter-character-context/1`, la mémoire sémantique
 courte restaurable, l'interlocuteur actif et le manifeste
-`interpreter-runtime-context/1`. La projection personnage exclut la fiche
-mécanique, les ressources, l'inventaire non visible, les textes biographiques
-et les secrets. Une ambiguïté d'alias non levée est refusée par une garde locale
+`interpreter-runtime-context/1`. La projection personnage expose seulement les
+objets possédés utiles à la sélection, leur quantité et leur état (porté, direct
+ou rangé). Elle exclut le reste de la fiche mécanique, les inventaires externes,
+les ressources sans objet physique, les textes biographiques et les secrets.
+La liste `activeCompanionRefs` ne contient que des identités publiques déjà
+confirmées par le registre du groupe dans la scène courante ; elle n'expose ni
+politique privée ni résultat de décision.
+Une ambiguïté d'alias non levée est refusée par une garde locale
 après l'appel IA. Le manifeste runtime décrit les raccords disponibles, les
 handoffs et les déclenchements externes ; aucun de ces contextes ne permet à
 l'interpréteur d'autoriser une fonctionnalité.

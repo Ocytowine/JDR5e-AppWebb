@@ -221,6 +221,36 @@ const preservedAi = applyNarrativePresentationVariationV1({
 assert.equal(preservedAi.applied, false, "la variation locale ne doit pas écraser une narration déjà enrichie par IA");
 assert.equal(preservedAi.displayPacket.displayBlocks.find(block => block.kind === "GM_NARRATION")?.text, "Texte IA conservé.");
 
+const archiveOutput = {
+  ...outputA,
+  activeScene: {
+    ...REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1,
+    sceneId: "wiki-location:archives_de_lysenthe",
+    locationName: "Archives de Lysenthe"
+  },
+  displayPacket: {
+    ...outputA.displayPacket,
+    sceneId: "wiki-location:archives_de_lysenthe",
+    displayBlocks: outputA.displayPacket.displayBlocks.map(block =>
+      block.kind === "GM_NARRATION"
+        ? { ...block, text: "Tu es à Archives de Lysenthe. Cette réponse ne fait pas avancer le temps." }
+        : block
+    )
+  } as DisplayPacketV1 & JsonObject
+} satisfies NarrativeTurnControllerOutputV1;
+const preservedCampaignScene = applyNarrativePresentationVariationV1({
+  schemaVersion: 1,
+  displayPacket: archiveOutput.displayPacket,
+  output: archiveOutput,
+  priorPackets: []
+});
+assert.equal(preservedCampaignScene.applied, false, "la variation de l'auberge reste bornée à sa scène de démonstration");
+assert.equal(
+  preservedCampaignScene.displayPacket.displayBlocks.find(block => block.kind === "GM_NARRATION")?.text,
+  "Tu es à Archives de Lysenthe. Cette réponse ne fait pas avancer le temps.",
+  "une réponse de campagne active ne doit pas être remplacée par le décor de démonstration"
+);
+
 console.log("scene-controlled-variation/i06zb: OK");
 
 function hash(value: string): number {

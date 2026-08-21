@@ -95,13 +95,13 @@ Attendu :
 
 Résultat live du 2026-07-28 :
 
-- la phrase normative utilise le contrat actif `player_intent_interpreter:ai-intent-semantic/5`, compatible avec l'orientation V4 ;
+- la phrase normative utilise le contrat actif `player_intent_interpreter:ai-intent-semantic/6`, compatible avec l'orientation V4 ;
 - la cible archiviste est résolue depuis le registre public ;
 - la trace indique `profondeur=GLANCE, information=PRESENCE` ;
 - l'arbitrage est `AUTOMATIC_SUCCESS` ;
 - aucun bloc « Jet requis » ni demande de fiche n'est produit.
 - aucun appel `scene_writer` ou `coherence_critic` n'est produit ;
-- le parcours fournisseur contient uniquement `player_intent_interpreter:ai-intent-semantic/5` ;
+- le parcours fournisseur contient uniquement `player_intent_interpreter:ai-intent-semantic/6` ;
 - la mesure observée avant affichage est descendue à environ 3,14 s sur la passe instrumentée, contre plus de 30 s lorsque les deux enrichissements inutiles étaient encore appelés.
 
 Commandes validées :

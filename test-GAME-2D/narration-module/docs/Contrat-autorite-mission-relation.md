@@ -2,7 +2,7 @@
 
 Statut : `ACTIF`  
 Version : `mission-relation-registry/1`  
-Dernière mise à jour : 2026-07-28
+Dernière mise à jour : 2026-08-20
 
 ## But
 
@@ -36,6 +36,13 @@ Exemple : le joueur demande au copiste de recopier un journal. Cette demande
 crée une proposition `MISSION` en état `PROPOSED`. La réplique « je vais y
 réfléchir » ne la transforme pas en acceptation.
 
+Dans la campagne jouable, une demande d'action clairement adressée par écrit à
+un PNJ visible passe désormais par ce raccord. L'état `PROPOSED`, les identifiants
+et le commit restent invisibles : le joueur ne voit que son expression et la
+réaction narrative du PNJ, enrichie par le pipeline IA ou par son relais local
+naturel. Le performer peut choisir les mots, mais ne peut ni accepter la
+mission, ni ajouter une condition, ni modifier le registre.
+
 ## Résolution
 
 La résolution appartient au domaine métier concerné :
@@ -54,9 +61,28 @@ Les quatre dispositions ont un sens durable distinct :
   avant une nouvelle décision ;
 - `UNCERTAIN` : l'absence de décision est conservée telle quelle.
 
+Dans la campagne installée, cette décision est prise avant la formulation de la
+réponse. L'IA reçoit la décision et ses conditions comme une limite à exprimer
+naturellement ; elle ne peut ni les remplacer ni en inventer d'autres. Une
+condition remplie ou une hésitation levée autorise une nouvelle décision
+propriétaire. Une acceptation ou un refus est final.
+
 Une résolution conditionnelle sans condition est invalide. Une autorité sociale
 ne peut pas confirmer une mission et une autorité de quête ne peut pas confirmer
 une relation.
+
+## Fin de mission et relation
+
+Une mission acceptée peut se terminer par `SUCCESS`, `FAILURE` ou `ABANDONED`.
+La fin, son résumé public et ses sources sont persistés une seule fois. Une
+réplique narrative ne suffit donc pas à déclarer une réussite ou un échec : le
+domaine appelant doit fournir la cause validée. L'abandon suit la même commande
+propriétaire lorsqu'il résulte d'une décision explicite du joueur.
+
+Une fin peut demander un effet relationnel. Le raccord social réutilise
+strictement les axes existants `trust`, `affinity`, `fear` et `debt`; aucun axe
+parallèle n'est créé. L'effet va du PNJ concerné vers le personnage joueur et
+conserve la fin de mission comme source.
 
 ## Confirmation et promotion
 
@@ -95,6 +121,7 @@ Depuis `test-GAME-2D/` :
 
 ```powershell
 npm run narration-module:test:mission-relation-authority
+npm run narration-module:test:mission-dialogue-j4
 npm run narration-module:test:campaign-npc-promotion-commit
 npm run narration-module:test:npc-return-ui
 ```
@@ -103,3 +130,8 @@ Le premier test couvre les quatre dispositions, les frontières d'autorité, la
 vérification persistée et le rejeu. Le test navigateur prouve qu'une
 confirmation fabriquée est refusée, puis qu'une acceptation réelle permet la
 promotion du même acteur après son retour en scène.
+
+La preuve J4 vérifie proposition et rejeu, décision narrative, nouvelle décision
+après une condition, réussite, échec, abandon et effet sur un axe relationnel
+autorisé. Elle vérifie aussi que les textes de secours ne montrent aucun nom
+d'état technique au joueur.

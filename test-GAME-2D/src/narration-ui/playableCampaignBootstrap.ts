@@ -3,10 +3,12 @@ import {
   createCampaignLoreGuidedDynamicPlaceRuntimeV1,
   createCatalogSceneTransitionRuntimeV1,
   createDefaultAiIntentInterpreterConfigV1,
+  createCatalogPlotCreationRuntimeV1,
   DYNAMIC_PLACE_FACTS_AGGREGATE_ID_V1,
   DYNAMIC_PLACE_REGISTRY_AGGREGATE_ID_V1,
   DYNAMIC_PLACE_TOPOLOGY_AGGREGATE_ID_V1,
   ensureDynamicPlaceCreationStateV1,
+  ensureExternalInventoryOwnershipV1,
   NarrativeTurnControllerV1,
   createCampaignWorldSimulationRuntimeV1,
   createInterpreterCharacterContextResolverV1,
@@ -38,6 +40,7 @@ import {
   buildOpenAiMjPlannerConfigV1,
   buildOpenAiNpcPerformerConfigV1,
   buildOpenAiSceneCreatorConfigV2,
+  buildOpenAiPlotCandidateConfigV1,
   buildOpenAiDestinationPlausibilityArbiterConfigV1
 } from "./openAiNarrativeRuntimeConfig";
 import {
@@ -70,6 +73,10 @@ import {
   createInstalledPlayableAccessRuntimesV1,
   ensureInstalledPlayableAccessControlsV1
 } from "./playableCampaignAccessCatalog";
+import { createInstalledInventoryTransactionRuntimeV1 } from
+  "./playableCampaignInventoryCatalog";
+import { createInstalledMissionRelationRuntimeV1 } from
+  "./playableCampaignMissionCatalog";
 import { WORLD_MAP_LAYOUT } from "../../map-module/data/worldMapLayout";
 import { createWorldStateFromMapLayout } from
   "../../map-module/world-simulation/mapAdapter";
@@ -209,6 +216,57 @@ export async function createPlayableCampaignControllerV1(
       campaignId,
       clock,
       topology: archivePilot.topology
+    });
+    const initialScene = archivePilot.scenes.find(scene => scene.sceneId === INITIAL_SCENE_ID_V1);
+    if (initialScene === undefined) throw new Error("initial-scene-missing-for-external-inventory");
+    await ensureExternalInventoryOwnershipV1({
+      repository,
+      campaignId,
+      clock,
+      owners: archivePilot.scenes.flatMap(scene => [{
+        ownerRef: `scene:${scene.sceneId}`,
+        ownerKind: "SCENE" as const,
+        sceneId: scene.sceneId,
+        displayName: scene.locationName
+      }, ...[...scene.presentNpc, ...scene.ambientPopulation].map(actor => {
+        const hallesMerchant = actor.actorId === "wiki-location:halles_des_commerces:ambient:1";
+        return {
+          ownerRef: `npc:${actor.actorId}`,
+          ownerKind: "NPC" as const,
+          sceneId: scene.sceneId,
+          displayName: actor.displayName,
+          acceptsDirectTransfers: true,
+          inventory: hallesMerchant ? [{
+            instanceId: "merchant:halles:plume-encre:1",
+            itemId: "obj_plume_encre",
+            itemKind: "object" as const,
+            quantity: 1,
+            equippedSlot: null,
+            storedInInstanceId: null,
+            primaryWeapon: false as const,
+            accessible: true
+          }] : [],
+          offers: hallesMerchant ? [{
+            schemaVersion: 1 as const,
+            offerRef: "offer:halles:plume-encre:1",
+            direction: "SELL_TO_PLAYER" as const,
+            itemId: "obj_plume_encre",
+            itemInstanceId: "merchant:halles:plume-encre:1",
+            currencyItemId: "obj_piece_or",
+            priceQuantity: 1,
+            status: "ACTIVE" as const
+          }, {
+            schemaVersion: 1 as const,
+            offerRef: "offer:halles:buy-plume-encre:1",
+            direction: "BUY_FROM_PLAYER" as const,
+            itemId: "obj_plume_encre",
+            itemInstanceId: null,
+            currencyItemId: "obj_piece_or",
+            priceQuantity: 1,
+            status: "ACTIVE" as const
+          }] : []
+        };
+      })])
     });
     const bootstrapEvents = await repository.listEvents(campaignId, null, 100);
     if (!bootstrapEvents.ok) throw new Error(bootstrapEvents.error.messageKey);
@@ -404,6 +462,11 @@ export async function createPlayableCampaignControllerV1(
           buildInstalledInterpreterCharacterReferenceCatalogV1()
         ),
       inventoryAccessRuntime: accessRuntimes.inventoryAccessRuntime,
+      inventoryTransactionRuntime: createInstalledInventoryTransactionRuntimeV1(),
+      missionRelationRuntime: createInstalledMissionRelationRuntimeV1(),
+      plotCreationRuntime: mode === "openai"
+        ? createCatalogPlotCreationRuntimeV1({ generatorConfig: buildOpenAiPlotCandidateConfigV1() })
+        : null,
       socialAccessRuntime: accessRuntimes.socialAccessRuntime,
       rulesAccessRuntime: accessRuntimes.rulesAccessRuntime,
       tacticalAccessRuntime: accessRuntimes.tacticalAccessRuntime,

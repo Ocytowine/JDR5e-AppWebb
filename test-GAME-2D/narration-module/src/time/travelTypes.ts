@@ -18,6 +18,27 @@ export type TravelEncounterCategoryV1 =
   | "OPPORTUNITY"
   | "NONE";
 
+export interface TravelPartySnapshotV1 {
+  schemaVersion: 1;
+  partyId: string;
+  partyRevision: number;
+  leaderActorId: string;
+  memberActorIds: string[];
+  sourceRefs: string[];
+}
+
+export interface TravelResourceRateV1 {
+  schemaVersion: 1;
+  itemId: string;
+  unitsPerPersonPerDay: number;
+  sourceRefs: string[];
+}
+
+export interface TravelResourceQuantityV1 {
+  itemId: string;
+  quantity: number;
+}
+
 export interface TravelRouteStepV1 {
   stepId: string;
   fromLocationId: string;
@@ -26,6 +47,37 @@ export interface TravelRouteStepV1 {
   estimatedSeconds: number;
   dangerLevel: number;
   environmentTags: string[];
+  resourceRates?: TravelResourceRateV1[];
+}
+
+export interface WorldTravelAnchorV1 {
+  schemaVersion: 1;
+  locationId: string;
+  status: "AVAILABLE" | "CLOSED";
+  sourceRefs: string[];
+}
+
+export interface WorldTravelRouteV1 {
+  schemaVersion: 1;
+  routeId: string;
+  fromLocationId: string;
+  toLocationId: string;
+  direction: "FORWARD" | "BIDIRECTIONAL";
+  status: "OPEN" | "CLOSED";
+  distanceUnits: number;
+  estimatedSecondsByMode: Partial<Record<TravelModeV1, number>>;
+  dangerLevel: number;
+  environmentTags: string[];
+  sourceRefs: string[];
+  resourceRates?: TravelResourceRateV1[];
+}
+
+export interface WorldTravelRouteCatalogV1 {
+  schemaVersion: 1;
+  catalogId: string;
+  catalogVersion: number;
+  anchors: WorldTravelAnchorV1[];
+  routes: WorldTravelRouteV1[];
 }
 
 export interface TravelPlanV1 {
@@ -44,6 +96,7 @@ export interface TravelPlanV1 {
     id: string;
     version: number;
   };
+  party?: TravelPartySnapshotV1;
 }
 
 export interface TravelSegmentV1 {
@@ -154,6 +207,8 @@ export interface PrepareTravelSegmentInputV1 {
     interruptAtGameSecond: GameSecond;
     reason: string;
   } | null;
+  partySnapshot?: TravelPartySnapshotV1;
+  availableResources?: TravelResourceQuantityV1[];
 }
 
 export interface PreparedTravelSegmentV1 {
@@ -164,4 +219,5 @@ export interface PreparedTravelSegmentV1 {
   encounterDecision: TravelEncounterDecisionV1;
   stopReason: "NO_GAME_TIME" | "WORLD_BOUNDARY" | "ENCOUNTER" | "ARRIVAL" | "INTERRUPTION" | "SEGMENT_LIMIT";
   pendingDecision: JsonObject | null;
+  resourceConsumption: TravelResourceQuantityV1[];
 }

@@ -33,4 +33,11 @@ test("transition locale jouée depuis la surface narration", async ({ page }) =>
   await expect(page.getByRole("log")).toContainText("tu arrives à Auberge du Seuil");
   await expect(page.getByRole("log")).toContainText("Destination=location:inn-common-room");
   await expect(page.getByRole("alert")).toHaveCount(0);
+
+  const returnArrival = page.getByRole("log").getByText(/tu arrives à Auberge du Seuil/);
+  await expect(returnArrival).toHaveCount(1);
+  await page.reload();
+  await expect(page.getByLabel("Entrée libre du joueur")).toBeEnabled();
+  await expect(returnArrival).toHaveCount(0);
+  await expect(page.getByRole("alert")).toHaveCount(0);
 });

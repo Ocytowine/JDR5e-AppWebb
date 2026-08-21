@@ -176,6 +176,9 @@ export function NarrativeAppSurface(props: {
       ]);
       let renderedThread = restored;
       let tacticalSession = restoredTactical;
+      let automaticBoundaries = null as Awaited<
+        ReturnType<NarrativeTurnControllerV1["processAutomaticBoundaries"]>
+      > | null;
       if (
         tacticalSession.ok
         && tacticalSession.value?.status ===
@@ -189,6 +192,17 @@ export function NarrativeAppSurface(props: {
               `restore-integrate:${tacticalSession.value.process.processId}`
           });
         if (integrated.ok) {
+          automaticBoundaries =
+            await nextController.processAutomaticBoundaries({
+              schemaVersion: 1,
+              sourceOperationId:
+                `tactical-integration:${tacticalSession.value.process.processId}`,
+              sourceKind: "TACTICAL_INTEGRATION",
+              commitApplied: true,
+              timeAdvanced: integrated.value.elapsedGameSeconds > 0,
+              sceneEntry: false,
+              causalChange: true
+            });
           [renderedThread, tacticalSession] = await Promise.all([
             nextController.restoreRenderedThread(),
             nextController.restoreActiveBastionTacticalSession()
@@ -200,36 +214,33 @@ export function NarrativeAppSurface(props: {
           );
         }
       }
-      const causalBoundary = await nextController.processActiveCausalSceneBoundary({
-        schemaVersion: 1
-      });
-      const socialBoundary =
-        causalBoundary.ok
-        && causalBoundary.value.bundle.controlDecision === "RETURN_CONTROL"
-          ? await nextController.processActiveSceneEntrySocialBoundary({
-              schemaVersion: 1
-            })
-          : null;
+      automaticBoundaries ??=
+        await nextController.processAutomaticBoundaries({
+          schemaVersion: 1,
+          sourceOperationId: "campaign-activation:active-scene",
+          sourceKind: "CAMPAIGN_ACTIVATION",
+          commitApplied: true,
+          timeAdvanced: false,
+          sceneEntry: true,
+          causalChange: true
+        });
       if (cancelled) return;
       if (renderedThread.ok) {
         setPacketsFromController(mergeDisplayPacketsV1([
           ...renderedThread.value.displayPackets,
           ...(restoredSkillResults.ok ? restoredSkillResults.value : []),
-          ...(socialBoundary?.ok && socialBoundary.value.displayPacket !== null
-            ? [socialBoundary.value.displayPacket]
-            : []),
-          ...(causalBoundary.ok && causalBoundary.value.displayPacket !== null
-            ? [causalBoundary.value.displayPacket]
+          ...(automaticBoundaries.ok
+            ? automaticBoundaries.value.displayPackets
             : [])
         ]));
       } else {
         reportCoreError(renderedThread.error, "Restauration du fil");
       }
-      if (socialBoundary !== null && !socialBoundary.ok) {
-        reportCoreError(socialBoundary.error, "Initiative sociale à l'entrée de scène");
-      }
-      if (!causalBoundary.ok) {
-        reportCoreError(causalBoundary.error, "Composition du monde et des intrigues à l'entrée de scène");
+      if (!automaticBoundaries.ok) {
+        reportCoreError(
+          automaticBoundaries.error,
+          "Réactions automatiques à la reprise de la campagne"
+        );
       }
       if (restoredPending.ok) setPendingSkillCheck(restoredPending.value);
       else reportCoreError(restoredPending.error, "Restauration du jet en attente");
@@ -258,11 +269,59 @@ export function NarrativeAppSurface(props: {
             schemaVersion: 1,
             ...input
           }),
-        integratePendingOutcome: input =>
-          nextController.integratePendingTacticalOutcome({
+        integratePendingOutcome: async input => {
+          const integrated = await nextController.integratePendingTacticalOutcome({
             schemaVersion: 1,
             ...input
-          })
+          });
+          if (!integrated.ok) return integrated;
+          const boundaries = await nextController.processAutomaticBoundaries({
+            schemaVersion: 1,
+            sourceOperationId: `tactical-integration:${input.processId}`,
+            sourceKind: "TACTICAL_INTEGRATION",
+            commitApplied: true,
+            timeAdvanced: integrated.value.elapsedGameSeconds > 0,
+            sceneEntry: false,
+            causalChange: true
+          });
+          if (!boundaries.ok) {
+            reportPostCommitError(
+              boundaries.error,
+              "Réactions automatiques après la séquence tactique",
+              `tactical-integration:${input.processId}`
+            );
+          }
+          const [thread, session] = await Promise.all([
+            nextController.restoreRenderedThread(),
+            nextController.restoreActiveBastionTacticalSession()
+          ]);
+          if (!cancelled) {
+            if (thread.ok) {
+              setPacketsFromController(previous => mergeDisplayPacketsV1([
+                ...previous,
+                ...thread.value.displayPackets,
+                ...(boundaries.ok ? boundaries.value.displayPackets : [])
+              ]));
+            } else {
+              reportPostCommitError(
+                thread.error,
+                "Restauration du récit après la séquence tactique",
+                `tactical-integration:${input.processId}`
+              );
+            }
+            if (session.ok) {
+              setActiveTacticalSession(session.value);
+              props.onTacticalHandoffChange?.(session.value);
+            } else {
+              reportPostCommitError(
+                session.error,
+                "Restauration de l'état tactique intégré",
+                `tactical-integration:${input.processId}`
+              );
+            }
+          }
+          return integrated;
+        }
       });
     };
     if (props.bootstrapController !== undefined) {
@@ -295,25 +354,21 @@ export function NarrativeAppSurface(props: {
                 const advanced =
                   await result.worldSimulationRuntime!.advance(input);
                 if (!advanced.ok) return advanced;
-                const bastion = await result.controller
-                  .processCommittedBastionCauseBoundary({
+                const boundaries = await result.controller
+                  .processAutomaticBoundaries({
+                    schemaVersion: 1,
                     sourceOperationId: advanced.value.sourceOperationId,
-                    sourceEventId: advanced.value.sourceEventId
+                    sourceKind: "WORLD_TIME_ADVANCE",
+                    commitApplied: true,
+                    timeAdvanced: true,
+                    sceneEntry: false,
+                    causalChange: true,
+                    bastionCauses: [{
+                      schemaVersion: 1,
+                      sourceEventId: advanced.value.sourceEventId
+                    }]
                   });
-                if (!bastion.ok) return bastion;
-                const causal = await result.controller
-                  .processActiveCausalSceneBoundary({ schemaVersion: 1 });
-                if (!causal.ok) return causal;
-                const social =
-                  causal.value.bundle.controlDecision === "RETURN_CONTROL"
-                    ? await result.controller
-                        .processActiveLocalTimeSocialBoundary({
-                          schemaVersion: 1,
-                          sourceOperationId:
-                            advanced.value.sourceOperationId
-                        })
-                    : null;
-                if (social !== null && !social.ok) return social;
+                if (!boundaries.ok) return boundaries;
                 const tactical = await result.controller
                   .restoreActiveBastionTacticalSession();
                 if (!tactical.ok) return tactical;
@@ -321,16 +376,7 @@ export function NarrativeAppSurface(props: {
                   setPacketsFromController(previous =>
                     mergeDisplayPacketsV1([
                       ...previous,
-                      ...(bastion.value.projection?.displayPacket === undefined
-                        ? []
-                        : [bastion.value.projection.displayPacket]),
-                      ...(causal.value.displayPacket === null
-                        ? []
-                        : [causal.value.displayPacket]),
-                      ...(social?.value.displayPacket === null
-                        || social === null
-                        ? []
-                        : [social.value.displayPacket])
+                      ...boundaries.value.displayPackets
                     ])
                   );
                   setActiveTacticalSession(tactical.value);
@@ -582,28 +628,21 @@ export function NarrativeAppSurface(props: {
           totalMs: projectionFinishedAt - submittedAt
         }
       });
-      const causalBoundary = result.value.output.sceneArrival === null
+      const automaticBoundaries = result.value.output.sceneArrival === null
         ? null
-        : await controller.processActiveCausalSceneBoundary({ schemaVersion: 1 });
-      if (causalBoundary !== null && !causalBoundary.ok) {
+        : await controller.processAutomaticBoundaries({
+            schemaVersion: 1,
+            sourceOperationId: result.value.output.operationId,
+            sourceKind: "SCENE_TRANSITION",
+            commitApplied: !result.value.output.noCommit,
+            timeAdvanced: !result.value.output.noGameTime,
+            sceneEntry: true,
+            causalChange: true
+          });
+      if (automaticBoundaries !== null && !automaticBoundaries.ok) {
         reportPostCommitError(
-          causalBoundary.error,
-          "Composition du monde et des intrigues à l'entrée de scène",
-          result.value.output.operationId
-        );
-      }
-      const socialBoundary =
-        result.value.output.sceneArrival !== null
-        && causalBoundary?.ok
-        && causalBoundary.value.bundle.controlDecision === "RETURN_CONTROL"
-          ? await controller.processActiveSceneEntrySocialBoundary({
-              schemaVersion: 1
-            })
-          : null;
-      if (socialBoundary !== null && !socialBoundary.ok) {
-        reportPostCommitError(
-          socialBoundary.error,
-          "Initiative sociale à l'entrée de scène",
+          automaticBoundaries.error,
+          "Réactions automatiques à l'entrée de scène",
           result.value.output.operationId
         );
       }
@@ -635,11 +674,8 @@ export function NarrativeAppSurface(props: {
       setPacketsFromController(prev => mergeDisplayPacketsV1([
         ...prev,
         enhanced,
-        ...(causalBoundary?.ok && causalBoundary.value.displayPacket !== null
-          ? [causalBoundary.value.displayPacket]
-          : []),
-        ...(socialBoundary?.ok && socialBoundary.value.displayPacket !== null
-          ? [socialBoundary.value.displayPacket]
+        ...(automaticBoundaries?.ok
+          ? automaticBoundaries.value.displayPackets
           : [])
       ]));
     }).catch(error => {
@@ -723,37 +759,28 @@ export function NarrativeAppSurface(props: {
         );
         return;
       }
-      const causalBoundary = await controller.processActiveCausalSceneBoundary({ schemaVersion: 1 });
-      if (!causalBoundary.ok) {
+      const automaticBoundaries = await controller.processAutomaticBoundaries({
+        schemaVersion: 1,
+        sourceOperationId: output.operationId,
+        sourceKind: "REST_SEGMENT",
+        commitApplied: !output.noCommit,
+        timeAdvanced: !output.noGameTime,
+        sceneEntry: false,
+        causalChange: true,
+        allowSocialInitiative: nextRest !== null
+      });
+      if (!automaticBoundaries.ok) {
         reportPostCommitError(
-          causalBoundary.error,
-          "Composition du monde et des intrigues après le segment de repos",
-          output.operationId
-        );
-      }
-      const socialBoundary = nextRest !== null
-        && causalBoundary.ok
-        && causalBoundary.value.bundle.controlDecision === "RETURN_CONTROL"
-        ? await controller.processActiveLocalTimeSocialBoundary({
-            schemaVersion: 1,
-            sourceOperationId: output.operationId
-          })
-        : null;
-      if (socialBoundary !== null && !socialBoundary.ok) {
-        reportPostCommitError(
-          socialBoundary.error,
-          "Initiative sociale après le segment de temps",
+          automaticBoundaries.error,
+          "Réactions automatiques après le segment de repos",
           output.operationId
         );
       }
       setPacketsFromController(previous => mergeDisplayPacketsV1([
         ...previous,
         output.displayPacket,
-        ...(causalBoundary.ok && causalBoundary.value.displayPacket !== null
-          ? [causalBoundary.value.displayPacket]
-          : []),
-        ...(socialBoundary?.ok && socialBoundary.value.displayPacket !== null
-          ? [socialBoundary.value.displayPacket]
+        ...(automaticBoundaries.ok
+          ? automaticBoundaries.value.displayPackets
           : [])
       ]));
       setActiveRestProcess(nextRest);

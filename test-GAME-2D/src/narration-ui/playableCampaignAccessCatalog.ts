@@ -59,6 +59,8 @@ export const THARQUAL_PASSAGE_SCOPE_REF_V1 =
   "access-scope:caserne-centrale-chateau-tharqual";
 export const ARDHERNE_ROCKFALL_ACCESS_CONTROL_REF_V1 =
   "access-control:passage-eboule-torrent-froid";
+export const ARCHIVES_RESTRICTED_HOLDINGS_ACCESS_CONTROL_REF_V1 =
+  "access-control:archives-lysenthe-restricted-holdings";
 
 const SOURCE_SCENE_ID = "wiki-location:caserne_centrale";
 const CONNECTION_ID = "lore:caserne_centrale:connection:2";
@@ -68,6 +70,28 @@ const ARDHERNE_SOURCE_SCENE_ID = "wiki-location:passage_eboule_du_torrent";
 const ARDHERNE_CONNECTION_ID = "lore:passage_eboule_du_torrent:connection:2";
 const ARDHERNE_BOUNDARY_REF = "poi:passage_eboule_du_torrent:poi:2";
 const ARDHERNE_DESTINATION_REF = "location:hameau_du_torrent_froid";
+const ARCHIVES_SOURCE_SCENE_ID = "wiki-location:archives_de_lysenthe";
+const ARCHIVES_RESTRICTED_CONNECTION_ID =
+  "archives:restricted-holdings";
+const ARCHIVES_RESTRICTED_BOUNDARY_REF =
+  "poi:archives_de_lysenthe:restricted-holdings";
+const ARCHIVES_RESTRICTED_DESTINATION_REF =
+  "access-scope:archives-restricted-holdings";
+const ARCHIVES_RESPONDING_ARCHIVIST_REF =
+  "actor:wiki-location:archives_de_lysenthe:ambient:1";
+const ARCHIVES_SOCIAL_REQUIREMENT_REF =
+  `${ARCHIVES_RESTRICTED_HOLDINGS_ACCESS_CONTROL_REF_V1}:requirement:social-permission`;
+const ARCHIVES_MANDATE_CONDITION_REF =
+  "condition:archives-high-rank-mandate";
+const ARCHIVES_ACCESS_POLICY_REF =
+  "access-policy:archives-restricted-holdings@1";
+const ARCHIVES_LORE_SOURCE_REFS = [
+  "lore-entity:archives_de_lysenthe",
+  "lore-attribute:archives_de_lysenthe:acces",
+  "lore-attribute:archives_de_lysenthe:niveau_securite",
+  "lore-attribute:archives_de_lysenthe:rumeurs:0",
+  ARCHIVES_ACCESS_POLICY_REF
+];
 const RESPONDING_OFFICER_REF =
   "actor:wiki-location:caserne_centrale:ambient:2";
 const AUTHORIZATION_REQUIREMENT_REF =
@@ -244,6 +268,39 @@ export function buildArdherneRockfallAccessControlV1(): AccessControlRecordV1 {
   };
 }
 
+export function buildArchivesRestrictedHoldingsAccessControlV1():
+AccessControlRecordV1 {
+  return {
+    schemaVersion: 1,
+    contractVersion: ACCESS_CONTROL_CONTRACT_V1,
+    accessControlRef: ARCHIVES_RESTRICTED_HOLDINGS_ACCESS_CONTROL_REF_V1,
+    connectionId: ARCHIVES_RESTRICTED_CONNECTION_ID,
+    sourceSceneId: ARCHIVES_SOURCE_SCENE_ID,
+    boundaryRef: ARCHIVES_RESTRICTED_BOUNDARY_REF,
+    destinationRef: ARCHIVES_RESTRICTED_DESTINATION_REF,
+    state: "CONTROLLED",
+    ownerDomain: "archives-lysenthe-access",
+    thresholdDescription:
+      "La consultation de certains fonds des Archives est privée et exige un mandat de haut rang.",
+    requirements: [{
+      schemaVersion: 1,
+      requirementRef: ARCHIVES_SOCIAL_REQUIREMENT_REF,
+      kind: "SOCIAL_PERMISSION",
+      description:
+        "Obtenir de l'archiviste l'autorisation de consulter les fonds réservés.",
+      status: "ACTIVE",
+      visibility: "PUBLIC",
+      ownerDomain: "social",
+      sourceRefs: [...ARCHIVES_LORE_SOURCE_REFS],
+      version: 1
+    }],
+    approachDomains: ["social", "inventory", "perception", "rules", "world"],
+    approachesAreNonExhaustive: true,
+    sourceRefs: [...ARCHIVES_LORE_SOURCE_REFS],
+    version: 1
+  };
+}
+
 /**
  * Enrichit uniquement la scène installée qui porte le seuil réel. Les indices
  * décrivent des faits catalogués et ne modifient jamais le contrôle d'accès.
@@ -276,7 +333,8 @@ export async function ensureInstalledPlayableAccessControlsV1(input: {
 }): Promise<void> {
   const controls = [
     { key: "tharqual", control: buildTharqualBarracksAccessControlV1() },
-    { key: "ardherne-rockfall", control: buildArdherneRockfallAccessControlV1() }
+    { key: "ardherne-rockfall", control: buildArdherneRockfallAccessControlV1() },
+    { key: "archives-restricted-holdings", control: buildArchivesRestrictedHoldingsAccessControlV1() }
   ];
   for (const installed of controls) {
     const command: UpsertAccessControlCommandV1 = {
@@ -358,6 +416,33 @@ export function createInstalledPlayableAccessRuntimesV1(input: {
     socialAccessRuntime: createCatalogSocialAccessRuntimeV1({
       targetResolver: {
         async resolve(request) {
+          if (
+            request.control.accessControlRef ===
+              ARCHIVES_RESTRICTED_HOLDINGS_ACCESS_CONTROL_REF_V1
+          ) {
+            const normalized = normalize(request.rawInput);
+            const asksForRestrictedAccess =
+              /\b(consulter|acceder|acces|ouvrir|voir)\b/u.test(normalized)
+              && /\b(fond|fonds|registre|registres|document|documents|archive|archives)\b/u.test(normalized)
+              && /\b(archiviste)\b/u.test(normalized);
+            if (!asksForRestrictedAccess) {
+              return { ok: false, issues: [
+                "la demande ne vise pas explicitement l'accès aux fonds auprès de l'archiviste"
+              ] };
+            }
+            const archivist = request.activeScene.ambientPopulation.find(actor =>
+              `actor:${actor.actorId}` === ARCHIVES_RESPONDING_ARCHIVIST_REF
+            ) ?? request.activeScene.presentNpc.find(actor =>
+              `actor:${actor.actorId}` === ARCHIVES_RESPONDING_ARCHIVIST_REF
+            );
+            return archivist === undefined
+              ? { ok: false, issues: ["l'archiviste responsable est absent de la scène active"] }
+              : {
+                  ok: true,
+                  actorRef: ARCHIVES_RESPONDING_ARCHIVIST_REF,
+                  displayName: archivist.displayName
+                };
+          }
           if (request.control.accessControlRef !== THARQUAL_BARRACKS_ACCESS_CONTROL_REF_V1) {
             return { ok: false, issues: ["unsupported installed access control"] };
           }
@@ -860,6 +945,31 @@ function installedSocialAuthorityPort(
 ): SocialAccessAuthorityPortV1 {
   return {
     async resolve(input) {
+      if (
+        input.control.accessControlRef ===
+          ARCHIVES_RESTRICTED_HOLDINGS_ACCESS_CONTROL_REF_V1
+        && input.command.targetActorRef === ARCHIVES_RESPONDING_ARCHIVIST_REF
+      ) {
+        return { ok: true, authorization: {
+          schemaVersion: 1,
+          authority: "SOCIAL_ACCESS_DOMAIN",
+          resolutionRef:
+            `social-access-resolution:${input.command.sourceOperationId}:archives-restricted-holdings`,
+          accessControlRef: input.control.accessControlRef,
+          respondingActorRef: ARCHIVES_RESPONDING_ARCHIVIST_REF,
+          outcome: "CONDITION_OFFERED",
+          requirementRef: null,
+          satisfyRequirementRefs: [],
+          waiveRequirementRefs: [],
+          resultingAccessState: "CONTROLLED",
+          playerFacingResponse:
+            "L'archiviste écoute ta demande. « Certains fonds ne sont consultables qu'avec un mandat de haut rang. Présentez-en un et je pourrai examiner votre demande. »",
+          conditionRef: ARCHIVES_MANDATE_CONDITION_REF,
+          checkProposalRef: null,
+          checkPolicy: null,
+          sourceRefs: [...ARCHIVES_LORE_SOURCE_REFS]
+        } };
+      }
       if (
         input.control.accessControlRef !== THARQUAL_BARRACKS_ACCESS_CONTROL_REF_V1
         || input.command.targetActorRef !== RESPONDING_OFFICER_REF

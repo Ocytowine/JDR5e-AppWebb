@@ -15,9 +15,12 @@ import {
   createDefaultNpcPerformerConfigV1,
   createDefaultAiIntentInterpreterConfigV1,
   createPrototypeNarrativeTurnControllerV1,
+  buildLocalIntentPayload,
+  buildSceneReferentRegistryV1,
   evaluateNarrativeRuntimeDecisionV1,
   interpretNarrativeInputWithAiV1,
   upgradeLegacyNarrativeIntentInterpretationV1,
+  REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1,
   validateCanonicalIntentAuthorityV1,
   validateNarrativeDomainCommandV1,
   type AiIntentInterpreterConfigV1,
@@ -105,6 +108,44 @@ async function main(): Promise<void> {
   assert.equal(stabilizedDoorDomain.status, "SUPPORTED_BY_CURRENT_RUNTIME");
 
   const config = createDefaultAiIntentInterpreterConfigV1();
+  const localReturnScene = {
+    ...REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1,
+    sceneId: "arrival:place_des_archives",
+    locationName: "Place des Archives",
+    pointsOfInterest: [{
+      ...REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1.pointsOfInterest[0]!,
+      pointId: "return-to-archives",
+      label: "Passage de retour",
+      keywords: ["retour"],
+      destinationAliases: ["Archives de Lysenthe"]
+    }]
+  };
+  const localReturn = buildLocalIntentPayload(
+    "Je retourne aux Archives de Lysenthe.",
+    [],
+    buildSceneReferentRegistryV1(localReturnScene)
+  ).intents[0]!;
+  assert.equal(localReturn.semanticIntent.kind, "traverse_visible_boundary");
+  assert.equal(localReturn.target?.ref, "poi:return-to-archives");
+  assert.equal(localReturn.requiresClarification, false);
+  const localVisiblePopulation = await interpret(
+    "J'observe calmement les personnes présentes.",
+    config
+  );
+  assert.equal(
+    localVisiblePopulation.interpretation.semanticIntent.kind,
+    "observe_environment"
+  );
+  assert.equal(
+    localVisiblePopulation.interpretation.semanticIntent.perception?.informationKind,
+    "PRESENCE"
+  );
+  assert.equal(
+    localVisiblePopulation.interpretation.referentResolution?.ambiguity,
+    "none",
+    "une observation générale des présences n'exige aucune cible individuelle"
+  );
+  assert.equal(localVisiblePopulation.interpretation.requiresClarification, false);
   let capturedSemanticHistory: unknown = null;
   let capturedRuntimeContext: unknown = null;
   let capturedContextFingerprint = "";

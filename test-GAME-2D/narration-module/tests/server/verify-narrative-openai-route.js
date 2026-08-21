@@ -652,6 +652,23 @@ function semanticIntentRequestV5(overrides = {}) {
   });
 }
 
+function semanticIntentRequestV6(overrides = {}) {
+  return intentRequest({
+    contractVersion: "ai-intent-semantic/6",
+    input: {
+      instructionsRef: "ai-intent-interpretation/player-intent-semantic/v6",
+      roleContextPack: {},
+      task: {
+        rawInput: "Marel, examine ces registres avec moi.",
+        activeCompanionRefs: ["npc:marel"],
+        outputContract: "ai-intent-semantic/6"
+      }
+    },
+    limits: { inputTokenBudget: 1_000, outputTokenBudget: 900, timeoutMs: 30_000 },
+    ...overrides
+  });
+}
+
 function assertEveryArraySchemaHasItems(schema, path = "schema") {
   if (!schema || typeof schema !== "object" || Array.isArray(schema)) return;
   if (schema.type === "array") {
@@ -703,7 +720,7 @@ async function main() {
   assert.equal(normalizedContact.payload.intent.dialogueAct.act, "INITIATE_CONVERSATION");
   assert.equal(validateEnvelope(normalizedContact, semanticRequest).ok, true);
 
-  [request(), intentRequest(), semanticIntentRequestV3(), semanticIntentRequestV4(), semanticIntentRequestV5(), mjPlannerRequest(), npcPerformerRequest(), sceneCreatorRequest(), sceneCreatorRequestV2(), destinationArbiterRequest()].forEach(roleRequest => {
+  [request(), intentRequest(), semanticIntentRequestV3(), semanticIntentRequestV4(), semanticIntentRequestV5(), semanticIntentRequestV6(), mjPlannerRequest(), npcPerformerRequest(), sceneCreatorRequest(), sceneCreatorRequestV2(), destinationArbiterRequest()].forEach(roleRequest => {
     const schema = buildStrictAiOutputSchema(roleRequest).schema;
     assertEveryArraySchemaHasItems(schema);
     assertOpenAiStrictObjectShape(schema);
@@ -760,6 +777,17 @@ async function main() {
     orderedComposition.properties.spatialFollowUp.anyOf[0].properties.kind.enum,
     ["REPOSITION_AWAY"]
   );
+  const normalizedCompanionDirective = normalizeAiCallRequest(semanticIntentRequestV6());
+  assert.equal(normalizedCompanionDirective.ok, true);
+  const companionIntentSchema = buildStrictAiOutputSchema(semanticIntentRequestV6()).schema.properties.payload.properties.intent;
+  assert.equal(companionIntentSchema.required.includes("companionDirective"), true);
+  assert.deepEqual(
+    companionIntentSchema.properties.companionDirective.anyOf[0].properties.category.enum,
+    ["FOLLOW", "SCOUT", "ASSIST", "GUARD", "SOCIAL", "PERSONAL_RISK"]
+  );
+  const companionInstructions = buildRoleInstructions(semanticIntentRequestV6());
+  assert.equal(companionInstructions.includes("task.activeCompanionRefs"), true);
+  assert.equal(companionInstructions.includes("sans mots-clés"), true);
   const focusedRequest = semanticIntentRequestV5({
     input: {
       instructionsRef: "ai-intent-interpretation/player-intent-semantic/v5",

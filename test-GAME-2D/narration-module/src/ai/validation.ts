@@ -8,6 +8,7 @@ import type {
   AiSemanticIntentPayloadV3,
   AiSemanticIntentPayloadV4,
   AiSemanticIntentPayloadV5,
+  AiSemanticIntentPayloadV6,
   AiModelRouteV1,
   AiOutputValidationResultV1,
   AiRoleOutputEnvelopeV1,
@@ -970,7 +971,9 @@ export function validateAiRoleOutputEnvelopeV1(output: unknown, request: AiCallR
   if (issues.length === 0) {
     if (request.role === "intent_interpreter") issues.push(...validateIntentPayload(envelope.payload));
     if (request.role === "player_intent_interpreter") issues.push(...(
-      request.contractVersion === "ai-intent-semantic/5"
+      request.contractVersion === "ai-intent-semantic/6"
+        ? validateSemanticIntentPayloadV6(envelope.payload)
+        : request.contractVersion === "ai-intent-semantic/5"
         ? validateSemanticIntentPayloadV5(envelope.payload)
         : request.contractVersion === "ai-intent-semantic/4"
           ? validateSemanticIntentPayloadV4(envelope.payload)
@@ -1051,6 +1054,7 @@ function validateDestinationArbiterPayload(payload: unknown, request: AiCallRequ
 }
 
 function validateSceneCreatorPayload(payload: unknown, request: AiCallRequestV1): string[] {
+  if (request.contractVersion === "plot-candidate/1") return validatePlotCandidatePayloadV1(payload);
   if (!isObject(payload)) return ["payload: expected object"];
   const v2 = request.contractVersion === "lore-guided-place-candidate/2";
   const expectedKeys = [
@@ -1088,6 +1092,59 @@ function validateSceneCreatorPayload(payload: unknown, request: AiCallRequestV1)
       if (!["LOCAL", "TRAVEL"].includes(String(connection.scale))) issues.push(`${path}.scale: invalid scale`);
       if (!isStringArray(connection.sourceRefs) || connection.sourceRefs.length === 0 || connection.sourceRefs.some(ref => ref.trim().length === 0)) issues.push(`${path}.sourceRefs: expected non-empty string array`);
     });
+  }
+  return issues;
+}
+
+function validatePlotCandidatePayloadV1(payload: unknown): string[] {
+  if (!isObject(payload)) return ["payload: expected object"];
+  const issues = exactKeys(payload, [
+    "actorMotivations", "actorPerspectives", "candidateId", "causalTimeline", "clues", "commitments",
+    "falseLeads", "futureEvents", "hiddenTruth", "plotId", "requiredRevelations",
+    "sourceRefs", "summary"
+  ], "payload");
+  for (const key of ["candidateId", "plotId", "summary"] as const) {
+    issues.push(...validateNonEmptyString(payload[key], `payload.${key}`));
+  }
+  for (const key of ["actorMotivations", "actorPerspectives", "causalTimeline", "clues", "commitments", "falseLeads", "futureEvents", "requiredRevelations", "sourceRefs"] as const) {
+    if (!Array.isArray(payload[key])) issues.push(`payload.${key}: expected array`);
+  }
+  if (!isObject(payload.hiddenTruth)) issues.push("payload.hiddenTruth: expected object");
+  else {
+    issues.push(...exactKeys(payload.hiddenTruth, ["groundingRefs", "statement", "truthId"], "payload.hiddenTruth"));
+    issues.push(...validateNonEmptyString(payload.hiddenTruth.truthId, "payload.hiddenTruth.truthId"));
+    issues.push(...validateNonEmptyString(payload.hiddenTruth.statement, "payload.hiddenTruth.statement"));
+    if (!isStringArray(payload.hiddenTruth.groundingRefs)) issues.push("payload.hiddenTruth.groundingRefs: expected string array");
+  }
+  return issues;
+}
+
+function validateSemanticIntentPayloadV6(payload: unknown): string[] {
+  if (!isObject(payload) || !isObject(payload.intent)) {
+    return validateSemanticIntentPayloadV5(payload);
+  }
+  const withoutDirective = {
+    ...payload,
+    intent: Object.fromEntries(
+      Object.entries(payload.intent).filter(([key]) => key !== "companionDirective")
+    )
+  };
+  const issues = validateSemanticIntentPayloadV5(withoutDirective);
+  const typed = payload as unknown as AiSemanticIntentPayloadV6;
+  const directive = typed.intent.companionDirective;
+  if (directive === null) return issues;
+  if (!isObject(directive)) {
+    issues.push("payload.intent.companionDirective: expected object or null");
+    return issues;
+  }
+  issues.push(...exactKeys(directive, ["category", "requestSummary", "schemaVersion"], "payload.intent.companionDirective"));
+  if (directive.schemaVersion !== 1) issues.push("payload.intent.companionDirective.schemaVersion: expected 1");
+  if (!["FOLLOW", "SCOUT", "ASSIST", "GUARD", "SOCIAL", "PERSONAL_RISK"].includes(String(directive.category))) {
+    issues.push("payload.intent.companionDirective.category: invalid category");
+  }
+  issues.push(...validateNonEmptyString(directive.requestSummary, "payload.intent.companionDirective.requestSummary"));
+  if (typed.intent.dialogueAct?.act !== "REQUEST_ACTION") {
+    issues.push("payload.intent.companionDirective: requires dialogueAct REQUEST_ACTION");
   }
   return issues;
 }

@@ -3,9 +3,9 @@ import ReactDOM from "react-dom/client";
 import { NarrativeAppSurface } from "../../../src/narration-ui/NarrativeAppSurface";
 import {
   AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V2,
+  createBrowserPersistentNarrativeTurnControllerV1,
   createDefaultAiIntentInterpreterConfigV1,
   createDefaultNpcPerformerConfigV1,
-  createPrototypeNarrativeTurnControllerV1,
   LocalNpcPerformerProviderV1,
   PROTOTYPE_INN_BACK_ROOM_SCENE_V1,
   PROTOTYPE_SCENE_LIFECYCLE_AGGREGATE_ID_V1,
@@ -97,7 +97,8 @@ const intentProvider: ContractAiProviderV1 = {
 async function bootstrap() {
   const intentBase = createDefaultAiIntentInterpreterConfigV1();
   const performerBase = createDefaultNpcPerformerConfigV1();
-  const controller = await createPrototypeNarrativeTurnControllerV1({
+  const controller = await createBrowserPersistentNarrativeTurnControllerV1({
+    databaseName: "jdr5e-npc-return-ui-j1-quality-v1",
     initialScene: { scene: commonRoom, locationRef: "location:inn-common-room" },
     intentInterpreterConfig: {
       ...intentBase,

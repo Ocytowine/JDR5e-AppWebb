@@ -117,11 +117,14 @@ assert.equal(openAiRuntimeConfigSource.includes("buildOpenAiMjPlannerConfigV1"),
 assert.equal(narrativeSurfaceSource.includes("mjPlan: output.mjPlan"), true, "le plan MJ validé est transmis au scene_writer");
 assert.equal(narrativeSurfaceSource.includes('campaignId: "cmp-narrative-prototype"'), false, "le scene_writer reçoit l'identité de la campagne active, jamais celle du pilote en dur");
 assert.equal(
-  narrativeSurfaceSource.match(/controlDecision === "RETURN_CONTROL"/gu)?.length ?? 0,
-  4,
-  "toutes les frontières sociales automatiques attendent la restitution de la main par le bundle causal"
+  narrativeSurfaceSource.match(/\.processAutomaticBoundaries\(/gu)?.length ?? 0,
+  6,
+  "monde, transition, repos, tactique et reprise passent par l'orchestration automatique commune"
 );
-assert.equal(openAiRuntimeConfigSource.includes("AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V5"), true, "contrat de composantes ordonnées V5 explicite dans la config UI partagée");
+assert.equal(narrativeSurfaceSource.includes("processActiveCausalSceneBoundary"), false, "aucun appel causal dispersé ne reste dans la surface");
+assert.equal(narrativeSurfaceSource.includes("processActiveSceneEntrySocialBoundary"), false, "aucun appel social d'entrée dispersé ne reste dans la surface");
+assert.equal(narrativeSurfaceSource.includes("processActiveLocalTimeSocialBoundary"), false, "aucun appel social temporel dispersé ne reste dans la surface");
+assert.equal(openAiRuntimeConfigSource.includes("AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V6"), true, "contrat V6 des demandes libres au compagnon explicite dans la config UI partagée");
 assert.equal(narrativeSurfaceSource.includes("REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1"), true, "amorce UI issue du PlayableSceneStateV1 de reference");
 assert.equal(
   narrativeSurfaceSource.includes("setOpeningScene(result.value.output.sceneArrival.scene)"),

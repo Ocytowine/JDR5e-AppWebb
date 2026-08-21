@@ -37,14 +37,14 @@ La séquence ordonnée est conservée dans `semanticIntent.composition`. Le plan
 
 L'IA comprend les composantes depuis le sens complet de l'entrée. Le logiciel ne recherche ni « salue », ni « approche », ni une liste équivalente dans le texte joueur. Il vérifie le schéma, résout la cible depuis le registre visible, dérive le routage depuis les composantes et refuse toujours d'en déduire succès, réaction, temps ou mutation durable.
 
-V1 à V4 restent acceptés. Depuis le 2026-07-28, la surface OpenAI utilise V5, qui conserve la composition V3, l'orientation V4 et rend les étapes sociales ordonnées; voir `Contrat-execution-composantes-ordonnees-V5.md`.
+V1 à V5 restent acceptés. La surface OpenAI utilise désormais V6, qui conserve la composition V3, l'orientation V4 et les étapes sociales ordonnées V5, puis ajoute uniquement la demande structurée à un compagnon actif ; voir `Contrat-execution-composantes-ordonnees-V5.md` et `Contrat-compagnon-narratif-J7.md`.
 
 ## Preuves
 
 - `npm run narration-module:test:semantic-intent-v3` : une proposition principale erronée `move_near_visible_actor` est correctement dérivée en interaction sociale depuis `APPROACH_TARGET` puis `SPEECH`, sans perdre l'ordre ;
 - `npm run narration-module:test:narrative-openai-route` : schéma OpenAI strict V3 et acceptation de la nouvelle version ;
 - `npm run narration-module:test:semantic-intent-v2` : non-régression V2 ;
-- `npm run narration-module:test:archives-perception:openai-live` : la phrase « je m'avance vers l'archiviste, puis je le salue » appelle le contrat actif V5, met l'approche en scène, atteint `npc_performer` et produit une réplique de l'archiviste.
+- `npm run narration-module:test:archives-perception:openai-live` : la phrase « je m'avance vers l'archiviste, puis je le salue » appelle le contrat actif V6, met l'approche en scène, atteint `npc_performer` et produit une réplique de l'archiviste.
 
 Résultat live initial V3 puis validation aval V5 le 2026-07-28 : la compatibilité sémantique est conservée et le renderer consomme désormais l'approche.
 

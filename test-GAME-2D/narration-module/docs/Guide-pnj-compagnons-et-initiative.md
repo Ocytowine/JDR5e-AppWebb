@@ -47,18 +47,26 @@ locale depuis une préoccupation autorisée et peut aussi rester calme.
 
 ### Compagnon
 
-Le statut complet de compagnon n'est pas encore livré. Les anciens documents
-de conception imaginent un allié autonome, capable d'accepter, adapter ou
-refuser une directive et d'agir au tactique. Le runtime actuel fournit des
-briques nécessaires — PNJ durable, état social orienté, initiative et
-projection tactique — mais pas encore :
+Le noyau du compagnon narratif J7 est livré. Un PNJ de campagne peut rejoindre
+le groupe uniquement depuis une mission ou une relation réellement acceptée.
+Son appartenance, sa scène, sa séparation et son départ sont durables.
 
-- le contrat durable `compagnon` ;
-- l'appartenance active au groupe ;
-- les règles de départ et de retour ;
-- les directives joueur ;
-- la projection de sa fiche vers `GameBoard` ;
-- son tour tactique autonome.
+Lorsqu'une demande lui est transmise, sa politique personnelle décide avant la
+formulation visible : il peut accepter, adapter, poser une condition ou refuser.
+Une acceptation signifie seulement qu'il consent à essayer ; elle n'invente ni
+réussite, ni objet déplacé, ni fait découvert.
+
+Les compagnons actifs suivent les déplacements validés et peuvent être projetés
+dans la nouvelle scène. Un compagnon séparé reste à sa scène, puis ne rejoint le
+groupe qu'après une réunion confirmée. Un compagnon ayant quitté le groupe exige
+une nouvelle cause propriétaire pour revenir.
+
+La demande écrite complète passe par l'interpréteur sémantique sans liste de
+phrases imposées. Seuls les compagnons actifs dans la scène lui sont signalés.
+La décision durable précède la formulation naturelle du `npc_performer`, qui ne
+peut ni la changer ni annoncer la réussite de l'action. Le parcours navigateur
+et l'initiative sociale ciblée sont certifiés. La projection de fiche vers
+`GameBoard` et le tour tactique autonome restent entièrement réservés à J8.
 
 ## Ce que sait la mémoire
 
@@ -110,6 +118,8 @@ npm run narration-module:test:npc-return-ui
 npm run narration-module:test:social-actor-authority
 npm run narration-module:test:social-initiative-ui
 npm run narration-module:test:bastion
+npm run narration-module:test:companion-j7
+npm run narration-module:test:companion-j7-ui
 ```
 
 Ces tests couvrent les conversations longues, le retour de scène, la promotion
@@ -120,6 +130,7 @@ durable, l'état social privé, l'initiative autonome et l'affectation volontair
 profil, sa continuité, l'isolation entre deux acteurs et le refus d'une
 promotion durable proposée par le modèle.
 
-Ils ne constituent pas encore un test de compagnon jouable. Un futur guide
-compagnon spécialisé remplacera cette section lorsque son contrat et son
-parcours tactique seront réellement implémentés.
+La preuve J7 couvre le recrutement propriétaire, la volonté propre, la demande
+écrite libre, sa formulation narrative, l'initiative bornée, plusieurs scènes,
+la séparation, la réunion, le départ, la reprise et le raccord au groupe de
+voyage. Elle ne revendique aucun compagnon tactique.

@@ -16,7 +16,7 @@ mais il orchestre désormais :
 
 ```text
 opération idempotente
-→ interprétation V5 ou fallback diagnostiqué
+→ interprétation V6 ou fallback diagnostiqué
 → routage local autoritaire
 → planner MJ non autoritaire
 → propriétaire métier ou arrêt explicite

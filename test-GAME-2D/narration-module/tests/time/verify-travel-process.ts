@@ -1,11 +1,13 @@
 import { opaqueId, type CampaignId } from "../../src/core";
 import {
   createTravelProcessStatePayloadV1,
+  buildTravelProcessFromRouteCatalogV1,
   prepareTravelSegmentV1,
   validateProcessStatePayloadV1,
   validateTimeAdvanceProposalV1,
   type TravelPlanV1,
-  type TravelProcessStateV1
+  type TravelProcessStateV1,
+  type WorldTravelRouteCatalogV1
 } from "../../src/time";
 import { assert } from "../contracts/assertions";
 
@@ -88,6 +90,84 @@ function baseInput(overrides: Partial<Parameters<typeof prepareTravelSegmentV1>[
 }
 
 async function run(): Promise<void> {
+  const party = {
+    schemaVersion: 1 as const,
+    partyId: "party:j6",
+    partyRevision: 3,
+    leaderActorId: "character-001",
+    memberActorIds: ["character-001", "npc-companion-fixture"],
+    sourceRefs: ["party-registry:party:j6:3"]
+  };
+  const travelResources = [{ itemId: "item:ration", quantity: 10 }];
+  const routeCatalog: WorldTravelRouteCatalogV1 = {
+    schemaVersion: 1,
+    catalogId: "world-routes-j6",
+    catalogVersion: 1,
+    anchors: ["archives_de_lysenthe", "porte_nord", "hameau_du_torrent_froid"].map(locationId => ({
+      schemaVersion: 1, locationId, status: "AVAILABLE", sourceRefs: [`world-anchor:${locationId}`]
+    })),
+    routes: [{
+      schemaVersion: 1, routeId: "route:archives-porte", fromLocationId: "archives_de_lysenthe", toLocationId: "porte_nord",
+      direction: "BIDIRECTIONAL", status: "OPEN", distanceUnits: 2, estimatedSecondsByMode: { WALK: 1_800 }, dangerLevel: 10,
+      environmentTags: ["ville", "route_surveillee"], sourceRefs: ["world-route:archives-porte"],
+      resourceRates: [{ schemaVersion: 1, itemId: "item:ration", unitsPerPersonPerDay: 24, sourceRefs: ["rules:travel-rations"] }]
+    }, {
+      schemaVersion: 1, routeId: "route:porte-hameau", fromLocationId: "porte_nord", toLocationId: "hameau_du_torrent_froid",
+      direction: "BIDIRECTIONAL", status: "OPEN", distanceUnits: 4, estimatedSecondsByMode: { WALK: 2_400 }, dangerLevel: 20,
+      environmentTags: ["route_sauvage"], sourceRefs: ["world-route:porte-hameau"],
+      resourceRates: [{ schemaVersion: 1, itemId: "item:ration", unitsPerPersonPerDay: 24, sourceRefs: ["rules:travel-rations"] }]
+    }, {
+      schemaVersion: 1, routeId: "route:archives-hameau-longue", fromLocationId: "archives_de_lysenthe", toLocationId: "hameau_du_torrent_froid",
+      direction: "BIDIRECTIONAL", status: "OPEN", distanceUnits: 9, estimatedSecondsByMode: { WALK: 9_000 }, dangerLevel: 5,
+      environmentTags: ["route_surveillee"], sourceRefs: ["world-route:archives-hameau-longue"]
+    }]
+  };
+  const planned = buildTravelProcessFromRouteCatalogV1({
+    campaignId, characterId: "character-001", originLocationId: "archives_de_lysenthe", destinationLocationId: "hameau_du_torrent_froid",
+    mode: "WALK", createdAtGameSecond: 0, source: { kind: "PLAYER_INTENT", id: "intent:j6:travel", version: 1 }, catalog: routeCatalog, party
+  });
+  assert.equal(planned.ok, true);
+  if (!planned.ok) throw new Error("J6 route catalog did not produce a travel process");
+  assert.deepEqual(planned.value.plan.route.map(step => step.toLocationId), ["porte_nord", "hameau_du_torrent_froid"]);
+  assert.equal(planned.value.plan.totalEstimatedSeconds, 4_200);
+  const firstLeg = await prepareTravelSegmentV1({
+    ...baseInput(), process: planned.value, currentGameSecond: 0, worldSimulatedThrough: 0,
+    maxSegmentSeconds: 1_800, encounterCandidates: [], worldPressure: 0, partySnapshot: party, availableResources: travelResources
+  });
+  assert.equal(firstLeg.ok, true);
+  if (!firstLeg.ok) throw new Error("J6 first travel leg failed");
+  assert.equal(firstLeg.value.nextProcess.checkpoint.currentLocationId, "porte_nord");
+  assert.equal(firstLeg.value.nextProcess.checkpoint.nextLocationId, "hameau_du_torrent_froid");
+  const boundaryLeg = await prepareTravelSegmentV1({
+    ...baseInput(), process: firstLeg.value.nextProcess, currentGameSecond: 1_800, worldSimulatedThrough: 0,
+    maxSegmentSeconds: 2_400, encounterCandidates: [], worldPressure: 0, partySnapshot: party, availableResources: travelResources
+  });
+  assert.equal(boundaryLeg.ok, true);
+  if (!boundaryLeg.ok) throw new Error("J6 boundary travel leg failed");
+  assert.equal(boundaryLeg.value.stopReason, "WORLD_BOUNDARY");
+  const arrivalLeg = await prepareTravelSegmentV1({
+    ...baseInput(), process: boundaryLeg.value.nextProcess, currentGameSecond: 3_600, worldSimulatedThrough: 3_600,
+    maxSegmentSeconds: 600, encounterCandidates: [], worldPressure: 0, partySnapshot: party, availableResources: travelResources
+  });
+  assert.equal(arrivalLeg.ok, true);
+  if (!arrivalLeg.ok) throw new Error("J6 arrival travel leg failed");
+  assert.equal(arrivalLeg.value.nextProcess.status, "ARRIVED");
+  assert.equal(arrivalLeg.value.nextProcess.checkpoint.currentLocationId, "hameau_du_torrent_froid");
+  const unsupportedBoat = buildTravelProcessFromRouteCatalogV1({
+    campaignId, characterId: "character-001", originLocationId: "archives_de_lysenthe", destinationLocationId: "hameau_du_torrent_froid",
+    mode: "BOAT", createdAtGameSecond: 0, source: { kind: "PLAYER_INTENT", id: "intent:j6:boat", version: 1 }, catalog: routeCatalog, party
+  });
+  assert.equal(unsupportedBoat.ok, false);
+  const staleParty = await prepareTravelSegmentV1({
+    ...baseInput(), process: planned.value, partySnapshot: { ...party, partyRevision: 4 }, availableResources: travelResources
+  });
+  assert.equal(staleParty.ok, false);
+  const missingSupplies = await prepareTravelSegmentV1({
+    ...baseInput(), process: planned.value, partySnapshot: party, availableResources: []
+  });
+  assert.equal(missingSupplies.ok, false);
+  console.log("PASS [travel-process] J6 builds only world-backed routes and keeps the right anchor across multiple legs");
+
   const meta = await prepareTravelSegmentV1(baseInput({ forceNoGameTime: true }));
   assert.equal(meta.ok, true);
   if (meta.ok) {

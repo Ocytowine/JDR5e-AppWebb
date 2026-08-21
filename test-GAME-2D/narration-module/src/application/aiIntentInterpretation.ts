@@ -10,6 +10,7 @@ import type {
   AiSemanticIntentPayloadV3,
   AiSemanticIntentPayloadV4,
   AiSemanticIntentPayloadV5,
+  AiSemanticIntentPayloadV6,
   AiIntentRuntimeHandlingV1,
   AiModelRouteV1,
   AiRetryPolicyV1,
@@ -48,12 +49,14 @@ export const AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V2 = "ai-intent-semantic/
 export const AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V3 = "ai-intent-semantic/3" as const;
 export const AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V4 = "ai-intent-semantic/4" as const;
 export const AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V5 = "ai-intent-semantic/5" as const;
+export const AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V6 = "ai-intent-semantic/6" as const;
 type AiIntentInterpretationContractVersion =
   | typeof AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V1
   | typeof AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V2
   | typeof AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V3
   | typeof AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V4
-  | typeof AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V5;
+  | typeof AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V5
+  | typeof AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V6;
 const REFERENCE_SCENE_REFERENT_REGISTRY_V1 = buildSceneReferentRegistryV1(REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1);
 
 export interface AiIntentInterpreterConfigV1 {
@@ -69,7 +72,7 @@ export interface AiIntentInterpretationResultV1 {
   usedAiInterpretation: boolean;
   usedFallback: boolean;
   interpretation: NarrativeIntentInterpretationV1;
-  acceptedOutput: AiRoleOutputEnvelopeV1<AiIntentInterpretationPayloadV1 | AiSemanticIntentPayloadV2 | AiSemanticIntentPayloadV3 | AiSemanticIntentPayloadV4 | AiSemanticIntentPayloadV5> | null;
+  acceptedOutput: AiRoleOutputEnvelopeV1<AiIntentInterpretationPayloadV1 | AiSemanticIntentPayloadV2 | AiSemanticIntentPayloadV3 | AiSemanticIntentPayloadV4 | AiSemanticIntentPayloadV5 | AiSemanticIntentPayloadV6> | null;
   interpretationFailure: AiIntentInterpretationFailureV1 | null;
   incidents: AiIncidentRecordV1[];
   telemetry: AiCallTelemetryV1[];
@@ -193,6 +196,7 @@ export async function interpretNarrativeInputWithAiV1(input: {
   characterContext?: InterpreterCharacterContextV1 | null;
   playerPublicContext?: PlayerPublicContextV1 | null;
   playableScene?: PlayableSceneStateV1;
+  activeCompanionRefs?: string[];
 }): Promise<AiIntentInterpretationResultV1> {
   const playableScene = input.playableScene ?? REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1;
   const referentRegistry = buildSceneReferentRegistryV1(playableScene);
@@ -203,17 +207,20 @@ export async function interpretNarrativeInputWithAiV1(input: {
     retryPolicy: input.config.retryPolicy,
     request
   });
-  const acceptedOutput = run.acceptedOutput as AiRoleOutputEnvelopeV1<AiIntentInterpretationPayloadV1 | AiSemanticIntentPayloadV2 | AiSemanticIntentPayloadV3 | AiSemanticIntentPayloadV4 | AiSemanticIntentPayloadV5> | null;
+  const acceptedOutput = run.acceptedOutput as AiRoleOutputEnvelopeV1<AiIntentInterpretationPayloadV1 | AiSemanticIntentPayloadV2 | AiSemanticIntentPayloadV3 | AiSemanticIntentPayloadV4 | AiSemanticIntentPayloadV5 | AiSemanticIntentPayloadV6> | null;
   let mappingIssues: string[] = [];
   if (acceptedOutput !== null) {
     const mapped = request.contractVersion === AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V2 ||
       request.contractVersion === AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V3 ||
       request.contractVersion === AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V4 ||
-      request.contractVersion === AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V5
+      request.contractVersion === AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V5 ||
+      request.contractVersion === AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V6
       ? mapSemanticIntentV2ToNarrativeInterpretation({
         intentId: input.intentId,
         rawInput: input.rawInput,
-        payload: request.contractVersion === AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V5
+        payload: request.contractVersion === AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V6
+          ? canonicalizeSemanticIntentV6(acceptedOutput.payload as AiSemanticIntentPayloadV6)
+          : request.contractVersion === AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V5
           ? canonicalizeSemanticIntentV5(acceptedOutput.payload as AiSemanticIntentPayloadV5)
           : request.contractVersion === AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V4
             ? canonicalizeSemanticIntentV4(acceptedOutput.payload as AiSemanticIntentPayloadV4)
@@ -295,8 +302,8 @@ export function buildLocalIntentPayload(rawInput: string, localReferentHints: Lo
   const risky = /\b(voler|vole|ouvrir|entrer|forcer|crocheter|attaquer|attaque|frapper|prendre)\b/u.test(normalized);
   const speech = /\b(je demande|je lui demande|lui demander|je questionne|j'interroge|j interroge|je lui dis|je dis|je reponds|je réponds|parler|discuter|interroger)\b/u.test(normalized);
   const target = findTarget(rawInput, localReferentHints, speech ? "ask" : localAction, registry);
-  const explicitCommittedAction = /\b(je vole|j'attaque|j attaque|je frappe|je prends|je tente|j'essaie|j essaie|j'ouvre|j ouvre|je l'ouvre|je le force|je la force|je force|je crochete|je cherche|je fouille|j'inspecte|j inspecte|j'examine|j examine)\b/u.test(normalized);
-  const action = explicitCommittedAction || /\b(je m'avance|je m avance|je vais|je me dirige|je m'approche|je m approche|je regarde|j'observe|j observe)\b/u.test(normalized);
+  const explicitCommittedAction = /\b(je vole|j'attaque|j attaque|je frappe|je prends|je ramasse|je recupere|je depose|je pose|je place|je laisse|je donne|j'offre|j offre|je recois|j'accepte|j accepte|j'achete|j achete|je vends|je range|je mets|je sors|je retire|j'equipe|je equipe|j equipe|j'desequipe|je desequipe|j desequipe|je tente|j'essaie|j essaie|j'ouvre|j ouvre|je l'ouvre|je le force|je la force|je force|je crochete|je cherche|je fouille|j'inspecte|j inspecte|j'examine|j examine)\b/u.test(normalized);
+  const action = explicitCommittedAction || /\b(je m'avance|je m avance|je vais|je me dirige|je m'approche|je m approche|je retourne|je reviens|je rentre|je regarde|j'observe|j observe)\b/u.test(normalized);
   const implicitDoorManipulation = /\b(poignee|mecanisme|loquet|battant)\b/u.test(normalized) &&
     /\b(main|pivote|tourne|actionne|abaisse|pousse|tire)\b/u.test(normalized);
   const elliptical = normalized.length < 22 || /^(lui |le garde\s*\??$|et si|je pourrais peut-etre|je pourrais peut etre)/u.test(normalized);
@@ -350,7 +357,6 @@ function intent(
   expectedTimeEffect: AiStructuredPlayerIntentV1["expectedTimeEffect"],
   confidence: AiStructuredPlayerIntentV1["confidence"]
 ): AiStructuredPlayerIntentV1 {
-  const referentResolution = buildReferentResolution(target, rawInput);
   const semanticIntent = buildSemanticIntent({
     rawInput,
     intentType,
@@ -363,6 +369,18 @@ function intent(
     requiresClarification,
     confidence
   });
+  const referentResolution = semanticIntent.kind === "observe_environment"
+    && target === null
+    ? {
+        schemaVersion: 1 as const,
+        usedPreviousContext: false,
+        source: "none" as const,
+        resolvedTarget: null,
+        evidence: [rawInput.trim()].filter(Boolean),
+        ambiguity: "none" as const,
+        confidence: "high" as const
+      }
+    : buildReferentResolution(target, rawInput);
   const runtimeHandling = buildRuntimeHandling({
     rawInput,
     intentType,
@@ -635,7 +653,7 @@ function classifyLocalUnsupportedRuntimeDomain(rawInput: string): AiIntentRuntim
   if (/\b(attaque|attaquer|frappe|frapper|combat|tuer|poignarder)\b/u.test(normalized)) return "tactical";
   if (/\b(repos|dormir|campement|se reposer)\b/u.test(normalized)) return "rest";
   if (/\b(force|forcer|crochete|crocheter|enfonce|enfoncer)\b/u.test(normalized)) return "rules";
-  if (/\b(voler|vole|prendre|prends|ramasser|ramasse|acheter|achete|vendre|vends|donner|donne|equiper|equipe|presente|montre|utilise|mandat|ordre de passage)\b/u.test(normalized)) return "inventory";
+  if (/\b(voler|vole|prendre|prends|ramasser|ramasse|recuperer|recupere|deposer|depose|poser|pose|placer|place|laisser|laisse|ranger|range|mets|mettre|sortir|sors|retirer|retire|acheter|achete|vendre|vends|donner|donne|offrir|offre|recevoir|recois|accepter|accepte|equiper|equipe|desequiper|desequipe|presente|montre|utilise|mandat|ordre de passage)\b/u.test(normalized)) return "inventory";
   return "world";
 }
 
@@ -653,7 +671,7 @@ function semanticKind(
   if (
     intentType === "action"
     && target?.ref?.startsWith("poi:") === true
-    && /\b(je vais|je me dirige|j avance|j'avance|j entre|j'entre|je franchis)\b/u.test(normalized)
+    && /\b(je vais|je me dirige|je retourne|je reviens|je rentre|j avance|j'avance|j entre|j'entre|je franchis)\b/u.test(normalized)
   ) return "traverse_visible_boundary";
   if (intentType === "action" && isApproachOnlyText(rawInput)) return "nonverbal_signal";
   if (action === "observe") return "observe_environment";
@@ -673,6 +691,7 @@ async function buildIntentInterpreterRequestV1(input: {
   characterContext?: InterpreterCharacterContextV1 | null;
   playerPublicContext?: PlayerPublicContextV1 | null;
   playableScene?: PlayableSceneStateV1;
+  activeCompanionRefs?: string[];
 }): Promise<AiCallRequestV1> {
   const snapshotId = `${input.operationId}:snapshot:intent`;
   const packId = `${input.operationId}:pack:intent`;
@@ -681,7 +700,8 @@ async function buildIntentInterpreterRequestV1(input: {
   const usesSemanticContract = input.config.contractVersion === AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V2 ||
     input.config.contractVersion === AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V3 ||
     input.config.contractVersion === AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V4 ||
-    input.config.contractVersion === AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V5;
+    input.config.contractVersion === AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V5 ||
+    input.config.contractVersion === AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V6;
   const context = usesSemanticContract
     ? {
       schemaVersion: 1,
@@ -722,7 +742,8 @@ async function buildIntentInterpreterRequestV1(input: {
     activeDialogueTarget,
     runtimeContext,
     characterContext: input.characterContext ?? null,
-    playerPublicContext: input.playerPublicContext ?? null
+    playerPublicContext: input.playerPublicContext ?? null,
+    activeCompanionRefs: input.activeCompanionRefs ?? []
   } as unknown as JsonObject;
   return {
     schemaVersion: 1,
@@ -738,7 +759,9 @@ async function buildIntentInterpreterRequestV1(input: {
     contextFingerprint: await computeJsonFingerprint(contextFingerprintMaterial) as `sha256:${string}`,
     idempotencyKey: `${input.operationId}:ai:intent`,
     input: {
-      instructionsRef: input.config.contractVersion === AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V5
+      instructionsRef: input.config.contractVersion === AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V6
+        ? "ai-intent-interpretation/player-intent-semantic/v6"
+        : input.config.contractVersion === AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V5
         ? "ai-intent-interpretation/player-intent-semantic/v5"
         : input.config.contractVersion === AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V4
           ? "ai-intent-interpretation/player-intent-semantic/v4"
@@ -756,6 +779,7 @@ async function buildIntentInterpreterRequestV1(input: {
         runtimeContext,
         characterContext: input.characterContext ?? null,
         playerPublicContext: input.playerPublicContext ?? null,
+        activeCompanionRefs: input.activeCompanionRefs ?? [],
         outputContract: input.config.contractVersion ?? AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V1,
         forbiddenAuthority: ["commit", "time", "inventory", "tactical", "durable_lore", "social_success"]
       }
@@ -897,9 +921,12 @@ function mapAiIntentToNarrativeInterpretationV1(input: {
   if (first.intentType === "speech" && first.commitment !== "committed") return { ok: false, issues: ["speech must carry committed player intent."] };
   if (first.intentType === "action" && first.commitment !== "committed") return { ok: false, issues: ["action must carry committed player intent."] };
   if (first.riskFlags.includes("secret_reveal") || first.riskFlags.includes("social_success_granted")) return { ok: false, issues: ["Interpretation contains a forbidden authority risk flag."] };
-  const canonicalFirst = stabilizeCanonicalDialogueAct(
-    stabilizeCanonicalRuntimeSuggestion(
-      canonicalizeVisibleTargetRefs(first, REFERENCE_SCENE_REFERENT_REGISTRY_V1)
+  const canonicalFirst = stabilizeLocalPerceptionIntent(
+    stabilizeCanonicalDialogueAct(
+      stabilizeCanonicalRuntimeSuggestion(
+        canonicalizeVisibleTargetRefs(first, REFERENCE_SCENE_REFERENT_REGISTRY_V1)
+      ),
+      input.rawInput
     ),
     input.rawInput
   );
@@ -1023,7 +1050,7 @@ function intentRuntimeConsistencyIssues(intentValue: AiStructuredPlayerIntentV1)
 function mapSemanticIntentV2ToNarrativeInterpretation(input: {
   intentId: string;
   rawInput: string;
-  payload: AiSemanticIntentPayloadV2 | AiSemanticIntentPayloadV3 | AiSemanticIntentPayloadV4 | AiSemanticIntentPayloadV5;
+  payload: AiSemanticIntentPayloadV2 | AiSemanticIntentPayloadV3 | AiSemanticIntentPayloadV4 | AiSemanticIntentPayloadV5 | AiSemanticIntentPayloadV6;
   localReferentHints: LocalReferentHintV1[];
   referentRegistry: SceneReferentRegistryV1;
 }): { ok: true; interpretation: NarrativeIntentInterpretationV1 } | { ok: false; issues?: string[] } {
@@ -1085,6 +1112,11 @@ function mapSemanticIntentV2ToNarrativeInterpretation(input: {
         addresseeRef: target?.ref ?? null
       }
       : null,
+    ...("companionDirective" in proposed ? {
+      companionDirective: proposed.companionDirective === null
+        ? null
+        : { ...proposed.companionDirective }
+    } : {}),
     ...("composition" in proposed ? {
       composition: {
         schemaVersion: 1 as const,
@@ -1235,6 +1267,10 @@ function canonicalizeSemanticIntentV4(payload: AiSemanticIntentPayloadV4): AiSem
 
 function canonicalizeSemanticIntentV5(payload: AiSemanticIntentPayloadV5): AiSemanticIntentPayloadV5 {
   return canonicalizeSemanticIntentV4(payload) as AiSemanticIntentPayloadV5;
+}
+
+function canonicalizeSemanticIntentV6(payload: AiSemanticIntentPayloadV6): AiSemanticIntentPayloadV6 {
+  return canonicalizeSemanticIntentV5(payload) as AiSemanticIntentPayloadV6;
 }
 
 function canonicalizeResolvedDestinationIntentV2<
@@ -1397,6 +1433,28 @@ function stabilizeCanonicalRuntimeSuggestion(intentValue: AiStructuredPlayerInte
   };
 }
 
+function stabilizeLocalPerceptionIntent(
+  intentValue: AiStructuredPlayerIntentV1,
+  rawInput: string
+): AiStructuredPlayerIntentV1 {
+  const informationKind = localPerceptionInformationKind(rawInput);
+  if (
+    intentValue.semanticIntent.kind !== "observe_environment"
+    || intentValue.semanticIntent.perception === null
+    || informationKind === null
+  ) return intentValue;
+  return {
+    ...intentValue,
+    semanticIntent: {
+      ...intentValue.semanticIntent,
+      perception: {
+        ...intentValue.semanticIntent.perception,
+        informationKind
+      }
+    }
+  };
+}
+
 function formatProposedIntentRuntime(intentValue: AiStructuredPlayerIntentV1): string {
   const target = intentValue.referentResolution?.resolvedTarget ?? intentValue.semanticIntent.target ?? intentValue.target ?? null;
   return [
@@ -1440,7 +1498,11 @@ function canonicalizeVisibleTargetRef<T extends AiStructuredPlayerIntentV1["targ
 function findTarget(rawInput: string, localReferentHints: LocalReferentHintV1[] = [], action: string | null = null, registry: SceneReferentRegistryV1 = REFERENCE_SCENE_REFERENT_REGISTRY_V1): AiStructuredPlayerIntentV1["target"] {
   const normalized = normalize(rawInput);
   const capability = action === "ask" ? "speech" : action === "open" || action === "force" ? "manipulate" : undefined;
-  const explicit = resolveSceneReferentTextV1(registry, rawInput, capability);
+  const movement = /\b(je vais|je me dirige|je retourne|je reviens|je rentre|j avance|j'avance|j entre|j'entre|je franchis)\b/u.test(normalized);
+  const publicMatch = resolveSceneReferentTextV1(registry, rawInput, capability);
+  const explicit = movement && publicMatch.status === "NOT_FOUND"
+    ? resolveSceneReferentDescriptionV1(registry, rawInput)
+    : publicMatch;
   if (explicit.status === "RESOLVED") return toNarrativeIntentTargetV1(explicit.referent);
   if (/\b(moi|me)\b/u.test(normalized) && explicit.status === "NOT_FOUND") {
     return { kind: "self", ref: "player-character:prototype", label: "personnage joueur" };
@@ -1568,6 +1630,18 @@ function localPerceptionDepth(rawInput: string): "GLANCE" | "FOCUSED" | "SEARCH"
   }
   if (/\b(inspecte|examine|attentivement|de pres)\b/u.test(normalized)) return "FOCUSED";
   return "GLANCE";
+}
+
+function localPerceptionInformationKind(rawInput: string):
+"PRESENCE" | "VISIBLE_TRAIT" | null {
+  const normalized = normalize(rawInput);
+  if (/\b(personne|personnes|gens|quelqu un|silhouette|foule|present|presents|presence)\b/u.test(normalized)) {
+    return "PRESENCE";
+  }
+  if (/\b(apparence|allure|aspect|etat visible|signe visible|detail visible)\b/u.test(normalized)) {
+    return "VISIBLE_TRAIT";
+  }
+  return null;
 }
 
 function normalize(value: string): string {

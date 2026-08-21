@@ -97,7 +97,8 @@ après une entrée dans l'arrière-salle et un retour dans la salle commune.
   déterministes, deux PNJ, limite par acteur et absence d'engagement durable.
 - `npm run narration-module:test:narrative-render-projection` : persistance et
   reconstruction des paroles affichées.
-- `npm run narration-module:test:npc-return-ui` : acteur dynamique, sortie,
-  retour et trois couples restaurés dans la vraie surface.
+- `npm run narration-module:test:npc-return-ui` : gate J1 hors Archives avec
+  quatre échanges, variation locale bornée, une réponse par tour, sortie-retour,
+  conséquence de déplacement visible et reprise du fil depuis IndexedDB.
 - `npm run narration-module:test:complete-conversations:openai-live` : recette
   OpenAI de 14 tours et métriques séparées par rôle.

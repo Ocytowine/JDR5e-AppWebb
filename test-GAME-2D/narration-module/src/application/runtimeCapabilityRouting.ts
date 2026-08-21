@@ -32,6 +32,7 @@ export interface NarrativeRuntimeRouteV1 {
 
 export interface NarrativeRuntimeAvailabilityV2 {
   rest: boolean;
+  inventoryMutation?: boolean;
 }
 
 export interface InterpreterRuntimeCapabilityV1 extends JsonObject {
@@ -64,6 +65,7 @@ export function buildInterpreterRuntimeContextV1(input: {
   dynamicPlace: boolean;
   rest: boolean;
   inventoryAccess: boolean;
+  inventoryMutation?: boolean;
   tacticalAccess: boolean;
 }): InterpreterRuntimeContextV1 {
   return {
@@ -103,8 +105,8 @@ export function buildInterpreterRuntimeContextV1(input: {
       {
         capabilityId: "inventory.mutation",
         domain: "inventory",
-        availability: "HANDOFF_ONLY",
-        playerFacingScope: "Prendre, donner, acheter, vendre ou équiper; aucune mutation n'est autorisée par l'interpréteur."
+        availability: input.inventoryMutation ? "AVAILABLE" : "HANDOFF_ONLY",
+        playerFacingScope: "Gérer, transférer, donner, recevoir, acheter ou vendre un exemplaire réel; le propriétaire vérifie possession, lieu, PNJ, offre, prix, monnaie, contenant, capacité et emplacement."
       },
       {
         capabilityId: "tactical.access-conflict",
@@ -177,6 +179,25 @@ export function routeNarrativeSemanticIntentV2(input: {
     input.semanticIntent.commitment === "committed" &&
     input.semanticIntent.confidence !== "low" &&
     input.semanticIntent.kind !== "unclear_intent";
+  const committedInventoryMutation =
+    input.runtimeSuggestion?.requiredDomain === "inventory" &&
+    input.semanticIntent.commitment === "committed" &&
+    input.semanticIntent.confidence !== "low" &&
+    input.semanticIntent.kind !== "unclear_intent";
+  if (committedInventoryMutation && input.availability.inventoryMutation) {
+    return {
+      ...legacy,
+      registryVersion: NARRATIVE_RUNTIME_CAPABILITY_REGISTRY_VERSION_V2,
+      routeId: "capability:inventory.mutation",
+      capabilityId: "inventory.mutation",
+      disposition: "HANDLE",
+      requiredDomain: "inventory",
+      commandFamily: "SCENE_INTERACTION",
+      commitPolicy: "DOMAIN_VALIDATED",
+      noGameTime: true,
+      reason: "Le propriétaire de transaction d'inventaire est disponible et valide l'exemplaire, le contenant et l'emplacement."
+    };
+  }
   if (committedRest && input.availability.rest) {
     return {
       ...legacy,

@@ -35,12 +35,13 @@ test("interruption committée ferme le repos sans bénéfice", async ({ page }) 
   await expect(page.getByLabel("Repos en cours")).toContainText("1 h sur 8 h");
   await page.getByRole("button", { name: "Continuer le repos d’un segment" }).click();
   await expect(page.getByLabel("Repos en cours")).toHaveCount(0);
-  await expect(page.getByRole("log")).toContainText("Un bruit soudain brise le calme");
+  const interruption = page.getByRole("log").getByText(/Un bruit soudain brise le calme/);
+  await expect(interruption).toHaveCount(1);
   await expect(page.getByRole("log")).toContainText("Aucun bénéfice non validé n’est accordé");
 
   await page.reload();
   await expect(page.getByLabel("Repos en cours")).toHaveCount(0);
-  await expect(page.getByRole("log")).toContainText("Un bruit soudain brise le calme");
+  await expect(interruption).toHaveCount(1);
 });
 
 test("repos achevé attend encore les autorités de bénéfices", async ({ page }) => {
@@ -52,10 +53,11 @@ test("repos achevé attend encore les autorités de bénéfices", async ({ page 
     await page.getByRole("button", { name: "Continuer le repos d’un segment" }).click();
   }
   await expect(page.getByLabel("Repos en cours")).toHaveCount(0);
-  await expect(page.getByRole("log")).toContainText("Les bénéfices restent en attente");
+  const completion = page.getByRole("log").getByText(/Les bénéfices restent en attente/);
+  await expect(completion).toHaveCount(1);
   await expect(page.getByRole("log")).not.toContainText("bénéfices accordés");
 
   await page.reload();
   await expect(page.getByLabel("Repos en cours")).toHaveCount(0);
-  await expect(page.getByRole("log")).toContainText("Les bénéfices restent en attente");
+  await expect(completion).toHaveCount(1);
 });

@@ -59,6 +59,16 @@ const tacticalPayload = {
   equippedItemInstanceIds: ["item-instance:aube", "item-instance:soir"],
   appearance: {}
 };
+const characterPayload = {
+  schemaVersion: 1,
+  characterId: "character:aryn",
+  inventory: [
+    { instanceId: "item-instance:aube", itemId: "epee-aube", quantity: 1, equippedSlot: "main_droite", storedInInstanceId: null },
+    { instanceId: "item-instance:soir", itemId: "dague-soir", quantity: 1, equippedSlot: "main_gauche", storedInInstanceId: null },
+    { instanceId: "item-instance:potion", itemId: "potion-cachee", quantity: 2, equippedSlot: null, storedInInstanceId: null }
+  ],
+  privateSecret: "SECRET_CHARACTER_STATE_MUST_NOT_LEAK"
+};
 
 function repository(): CampaignRepository {
   return {
@@ -92,21 +102,19 @@ function repository(): CampaignRepository {
       aggregateType: string,
       aggregateId: AggregateId
     ) {
-      assert.notEqual(
-        aggregateType,
-        "character.state",
-        "the private character aggregate must never be read"
-      );
       const payload =
         aggregateType === "campaign.active-character-profile"
           ? {
               schemaVersion: 1,
               narrativeProjectionAggregateId: "aggregate:narrative",
-              tacticalProjectionAggregateId: "aggregate:tactical"
+              tacticalProjectionAggregateId: "aggregate:tactical",
+              characterStateAggregateId: "aggregate:private-character-state"
             }
           : aggregateType === "character.narrative-projection"
             ? narrativePayload
-            : tacticalPayload;
+            : aggregateType === "character.state"
+              ? characterPayload
+              : tacticalPayload;
       return {
         ok: true,
         value: {
@@ -190,8 +198,8 @@ async function run(): Promise<void> {
     context.references.some(reference =>
       reference.label === "Potion cachée"
     ),
-    false,
-    "an inventory entry that is not visible/equipped must stay private"
+    true,
+    "un objet possédé doit être projeté pour permettre sa sélection sans donner d'autorité à l'interpréteur"
   );
   const serialized = JSON.stringify(context);
   for (const forbidden of [
@@ -199,6 +207,7 @@ async function run(): Promise<void> {
     "SECRET_OBJECTIVE_MUST_NOT_LEAK",
     "secret-feature",
     "secretResource",
+    "SECRET_CHARACTER_STATE_MUST_NOT_LEAK",
     "currentHitPoints",
     "maximumHitPoints",
     "armorClass"

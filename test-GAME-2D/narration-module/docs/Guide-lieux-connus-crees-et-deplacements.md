@@ -30,6 +30,11 @@ intention de déplacement
 Un nom proche ou une phrase du MJ ne peut pas créer une connexion. Un trajet
 long utilise un processus distinct.
 
+La preuve locale J6 couvre désormais trois lieux, dont un lieu créé et un
+passage contrôlé. Elle enchaîne quatre transitions, revient au lieu initial et
+rejoue exactement le même parcours sans modifier la topologie ni doubler une
+destination.
+
 ## Lieu créé dynamiquement
 
 Lorsqu'un besoin ne correspond à aucun lieu existant, il passe d'abord par une
@@ -74,6 +79,33 @@ Un lieu créé et validé rejoint les registres du monde. Il peut être retrouv�
 après rechargement et réutilisé au lieu d'être régénéré. Une correction
 ultérieure doit être tracée ; elle ne réécrit pas silencieusement l'historique.
 
+## Premier raccord du voyage lointain
+
+`buildTravelProcessFromRouteCatalogV1` construit un `TravelProcess` uniquement
+depuis un catalogue fourni par le propriétaire du monde. Le catalogue sépare
+les ancres disponibles, les routes ouvertes, leur direction, les modes
+autorisés, leur durée, leur danger et leurs sources.
+
+Le constructeur choisit le trajet valide le plus court pour le mode demandé.
+Il refuse une destination fermée, une route absente ou un mode non prévu. Il ne
+crée jamais de raccourci pour satisfaire la phrase du joueur.
+
+Sur un trajet en plusieurs étapes, chaque checkpoint conserve maintenant
+l'ancre réellement atteinte et la prochaine destination. Les frontières de
+simulation, interruptions et rencontres restent traitées par le
+`TravelProcess` existant.
+
+Le raccord campagne J6 est maintenant livré. Le départ est sauvegardé sans faire
+avancer l'heure. Avant chaque segment, le runtime vérifie la position réelle, la
+version et les membres du groupe ainsi que les provisions disponibles. La
+consommation reste préparée par l'inventaire, puis elle est committée avec
+l'heure, la position et le checkpoint. Si le groupe a changé ou si les
+provisions manquent, le segment ne commence pas.
+
+Une rencontre interrompt le trajet et laisse au joueur le choix d'observer,
+d'éviter ou d'approcher. Sa catégorie ne suffit jamais à lancer un combat. Après
+rechargement, le trajet et la décision déjà prise sont restaurés.
+
 ## Tests disponibles
 
 ```powershell
@@ -81,6 +113,8 @@ npm run narration-module:test:lore-playable-scene
 npm run narration-module:test:scene-ephemeral-creation
 npm run narration-module:test:lore-guided-scene
 npm run narration-module:test:scene-transition
+npm run narration-module:test:local-exploration-j6
+npm run narration-module:test:time:travel
 npm run narration-module:test:transition-ui
 npm run narration-module:test:npc-return-ui
 npm run narration-module:test:indexeddb

@@ -52,7 +52,7 @@ test("lot F: second seuil régional, refus, reprise, ouverture et traversée", a
   expect(before).toMatchObject({
     ardherneState: "CONTROLLED",
     tharqualState: "CONTROLLED",
-    installedControlCount: 2,
+    installedControlCount: 3,
     activeSceneId: "wiki-location:passage_eboule_du_torrent",
     attemptCount: 0,
     elapsedGameSeconds: 0,
@@ -98,7 +98,7 @@ test("lot F: second seuil régional, refus, reprise, ouverture et traversée", a
   expect(opened).toMatchObject({
     ardherneState: "OPEN",
     tharqualState: "CONTROLLED",
-    installedControlCount: 2,
+    installedControlCount: 3,
     activeSceneId: "wiki-location:passage_eboule_du_torrent",
     attemptCount: 1,
     outcome: "SUCCESS",

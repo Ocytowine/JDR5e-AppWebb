@@ -114,6 +114,11 @@ export interface AiSemanticIntentPayloadV5 {
   intent: AiSemanticPlayerIntentV5;
 }
 
+export interface AiSemanticIntentPayloadV6 {
+  rawInputEcho: string;
+  intent: AiSemanticPlayerIntentV6;
+}
+
 export interface AiSemanticPlayerIntentV2 {
   kind: AiStructuredSemanticIntentV1["kind"];
   commitment: AiStructuredSemanticIntentV1["commitment"];
@@ -155,6 +160,14 @@ export interface AiSemanticPlayerIntentV4 extends Omit<AiSemanticPlayerIntentV3,
 
 export interface AiSemanticPlayerIntentV5 extends Omit<AiSemanticPlayerIntentV4, "composition"> {
   composition: AiSemanticIntentCompositionV3;
+}
+
+export interface AiSemanticPlayerIntentV6 extends AiSemanticPlayerIntentV5 {
+  companionDirective: {
+    schemaVersion: 1;
+    category: "FOLLOW" | "SCOUT" | "ASSIST" | "GUARD" | "SOCIAL" | "PERSONAL_RISK";
+    requestSummary: string;
+  } | null;
 }
 
 export interface AiSemanticIntentCompositionV1 {
@@ -269,6 +282,11 @@ export interface AiStructuredSemanticIntentV1 {
     act: "INITIATE_CONVERSATION" | "ASK_QUESTION" | "MAKE_STATEMENT" | "REQUEST_ACTION" | "OTHER";
     contentGoal: string;
     addresseeRef: string | null;
+  } | null;
+  companionDirective?: {
+    schemaVersion: 1;
+    category: "FOLLOW" | "SCOUT" | "ASSIST" | "GUARD" | "SOCIAL" | "PERSONAL_RISK";
+    requestSummary: string;
   } | null;
   restPlan?: {
     schemaVersion: 1;

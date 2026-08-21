@@ -7,7 +7,7 @@ avec un ancien plan de travail.
 
 1. [`Consolidation-fondations-narration.md`](Consolidation-fondations-narration.md)
    — unique état global et feuille de route active.
-2. [`TASKS.md`](../../../TASKS.md) — exécution immédiate de J1 et blocages,
+2. [`TASKS.md`](../../../TASKS.md) — exécution immédiate de J8 et blocages,
    dérivée de la consolidation.
 3. Le contrat actif du comportement à modifier.
 4. Les tests et le code correspondants.
@@ -17,11 +17,17 @@ conservées en archives pour expliquer un ancien point de reprise.
 
 ## Contrats actifs
 
+- [`Contrat-compagnon-narratif-J7.md`](Contrat-compagnon-narratif-J7.md) :
+  recrutement propriétaire, groupe, directives, séparation et reprise.
+- [`Contrat-voyage-campagne-J6.md`](Contrat-voyage-campagne-J6.md) : routes du
+  monde, groupe, ressources, temps, interruptions et reprise du voyage.
+
 ### Autorité, campagne et persistance
 
 - [`Matrice-autorite.md`](Matrice-autorite.md)
 - [`Contrat-integration-campagne-jouable-build-principal.md`](Contrat-integration-campagne-jouable-build-principal.md)
 - [`Contrat-autorite-mission-relation.md`](Contrat-autorite-mission-relation.md)
+- [`Contrat-generation-intrigue-J5.md`](Contrat-generation-intrigue-J5.md)
 - [`Contrat-projection-campagne-sur-lore.md`](Contrat-projection-campagne-sur-lore.md)
 - [`Contrat-noyau-campagne.md`](Contrat-noyau-campagne.md)
 - [`Contrat-persistance-indexeddb.md`](Contrat-persistance-indexeddb.md)
@@ -47,6 +53,7 @@ conservées en archives pour expliquer un ancien point de reprise.
 - [`Contrat-controleur-tour-narratif.md`](Contrat-controleur-tour-narratif.md)
 - [`Contrat-affirmations-temoignages-et-connaissances.md`](Contrat-affirmations-temoignages-et-connaissances.md)
 - [`Contrat-acces-par-inventaire.md`](Contrat-acces-par-inventaire.md)
+- [`Contrat-transactions-inventaire-J3.md`](Contrat-transactions-inventaire-J3.md)
 - [`Contrat-acces-social.md`](Contrat-acces-social.md)
 - [`Contrat-acces-par-perception.md`](Contrat-acces-par-perception.md)
 - [`Contrat-acces-par-regles.md`](Contrat-acces-par-regles.md)

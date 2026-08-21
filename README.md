@@ -73,7 +73,7 @@ Les simulations longues sont disponibles avec `npm run verify:world-simulation:l
 - `test-GAME-2D/src/` : application React, plateau, regles, donnees et creation de personnage.
 - `test-GAME-2D/map-module/` : carte du monde, editeur et simulation systemique.
 - `test-GAME-2D/narration-module/` : noyau narratif actif avec persistance
-  IndexedDB, intention sémantique V5, scènes guidées par le lore, populations
+  IndexedDB, intention sémantique V6, scènes guidées par le lore, populations
   locales, dialogue borné avec profils conversationnels éphémères par acteur,
   rendu narratif contrôlé et OpenAI opt-in côté serveur.
   Le premier état social durable et le premier vertical d'intrigue privée
@@ -97,7 +97,17 @@ Les simulations longues sont disponibles avec `npm run verify:world-simulation:l
   intégré atomiquement avec le temps avant une reprise narrative restaurable.
   Un constructeur catalogué peut désormais alimenter ce vertical depuis les
   agrégats personnage d'une campagne sans recopier le payload privé de la
-  cause.
+  cause. L'exploration locale multi-lieux et le voyage lointain fondé sur les
+  routes du monde disposent désormais de preuves J6. Le voyage persiste son
+  checkpoint et réunit dans un même commit le temps, la position et les
+  provisions préparées par l'inventaire, tout en laissant les rencontres au
+  choix narratif du joueur. Le noyau compagnon narratif J7 sait maintenant
+  vérifier une cause de recrutement réelle, conserver l'appartenance au groupe,
+  respecter les acceptations et refus du PNJ, suivre plusieurs scènes et gérer
+  séparation, réunion et départ sans ouvrir le compagnon tactique.
+  J7 est fermé : une demande libre au compagnon est interprétée sans mots-clés
+  métier, décidée selon sa volonté, formulée naturellement, puis restaurée dans
+  le navigateur ; son initiative sociale reste bornée par les règles existantes.
   Les causes et catalogues de bastion réellement jouables, l'économie de
   campagne et la mémoire sociale longue restent à construire.
 - `test-GAME-2D/scripts/` : generation de catalogues et scripts de verification.

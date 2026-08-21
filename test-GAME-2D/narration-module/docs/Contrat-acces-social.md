@@ -1,6 +1,6 @@
 # Contrat d'accès social
 
-Statut : `REPRISE_TEST_SOCIAL_CERTIFIEE_LOCALEMENT_2026-08-04`
+Statut : `ACTIF — MAPPINGS THARQUAL ET ARCHIVES CERTIFIÉS 2026-08-19`
 
 Ce contrat traite une approche adressée à un interlocuteur qui contrôle ou
 représente un seuil. Il complète l'enregistrement des paroles : une phrase du
@@ -67,13 +67,19 @@ Le dé ne modifie donc jamais directement le registre d'accès.
 ## Limites de composition
 
 Le moteur, l'adaptateur de scène et le raccord au contrôleur sont disponibles.
-La campagne installée fournit un premier mapping concret pour la connexion
-Caserne centrale → Château Tharqual : l'officier de quart visible répond et
-peut demander un test difficile de Charisme (Persuasion). Une réussite accorde
-une audience sous sa responsabilité ; un échec maintient le contrôle. Les
-autres seuils doivent encore fournir leur mapping et leur politique. Le raccord
-refuse toute proposition incomplète, sans contexte personnage, DD résolu,
-branches sourcées ou exigence sociale valide.
+La campagne installée fournit deux mappings concrets :
+
+- Caserne centrale → Château Tharqual : l'officier de quart visible répond et
+  peut demander un test difficile de Charisme (Persuasion). Une réussite
+  accorde une audience sous sa responsabilité ; un échec maintient le contrôle ;
+- fonds réservés des Archives de Lysenthe : une demande explicitement adressée
+  à l'archiviste produit `CONDITION_OFFERED`, car le lore public exige un mandat
+  de haut rang. Le contrôle reste fermé, aucun jet n'est proposé et une simple
+  conversation ne déclenche pas cette voie d'accès.
+
+Les autres seuils doivent encore fournir leur mapping et leur politique. Le
+raccord refuse toute proposition incomplète, sans contexte personnage, DD
+résolu lorsque nécessaire, branches sourcées ou exigence sociale valide.
 
 ## Preuves
 

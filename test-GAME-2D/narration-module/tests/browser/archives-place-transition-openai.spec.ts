@@ -65,13 +65,48 @@ test("campagne propre: transition OpenAI des Archives vers la Place des Archives
   expect(statuses.every(status => status === 200)).toBe(true);
   expect(pageErrors).toEqual([]);
 
+  const atPlace = await inspectSceneAndTime(page);
+  expect(atPlace.activeSceneId).toMatch(/place[-_]des[-_]archives/u);
+  expect(atPlace.elapsedGameSeconds).toBe(8);
+
+  await page.getByRole("radio", { name: "Local" }).check();
+  await expect(input).toBeEnabled({ timeout: 30_000 });
+  const returnInput = "Je retourne aux Archives de Lysenthe.";
+  await input.fill(returnInput);
+  await send.click();
+  await expect(input).toBeEnabled({ timeout: 60_000 });
+  await expect(log).toContainText(returnInput);
+  await expect(log).toContainText(/tu arrives à Archives de Lysenthe/iu, {
+    timeout: 30_000
+  });
+  const returned = await inspectSceneAndTime(page);
+  expect(returned).toEqual({
+    activeSceneId: "wiki-location:archives_de_lysenthe",
+    elapsedGameSeconds: 16
+  });
+
   await page.reload();
   await page.getByRole("button", { name: "Reprendre", exact: true }).click();
   await expect(log).toContainText(/Destination=place:place[-_]des[-_]archives/u, { timeout: 30_000 });
-  await expect(log).toContainText(/Tu te trouves (?:désormais )?à Place des Archives/u, { timeout: 30_000 });
+  await expect(log.locator('[data-narrative-block-kind="RAW_INPUT"]', {
+    hasText: returnInput
+  })).toHaveCount(1);
+  await expect(log).toContainText(/tu arrives à Archives de Lysenthe/iu, {
+    timeout: 30_000
+  });
+  expect(await inspectSceneAndTime(page)).toEqual(returned);
   await expect(page.getByRole("alert")).toHaveCount(0);
   expect(roles.filter(role => role === "scene_creator")).toHaveLength(1);
   expect(pageErrors).toEqual([]);
 
   console.log(`[archives-place-transition-live] roles=${roles.join(",")} statuses=${statuses.join(",")} log=${logText.replace(/\s+/gu, " ").slice(-1200)}`);
 });
+
+async function inspectSceneAndTime(page: import("@playwright/test").Page) {
+  return page.evaluate(async () => {
+    const modulePath =
+      "/narration-module/tests/browser/campaign-adventure-j2-inspection.ts";
+    const module = await import(/* @vite-ignore */ modulePath);
+    return module.inspectCampaignSceneAndTimeJ2V1();
+  });
+}

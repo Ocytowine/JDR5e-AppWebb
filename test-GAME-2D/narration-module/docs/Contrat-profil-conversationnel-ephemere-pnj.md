@@ -100,8 +100,8 @@ subjective bornée suffit.
   l'amorçage, les révisions, l'isolation et la reprise ;
 - la gate dédiée rejette `durable=true`, puis prouve que la révision rejetée
   n'est pas mémorisée ;
-- `narration-module:test:npc-return-ui` conserve identité et mémoire après une
-  sortie-retour ;
+- `narration-module:test:npc-return-ui` conserve identité, formulations et
+  mémoire après une sortie-retour puis un rechargement réel ;
 - les schémas TypeScript et serveur imposent le même profil strict ;
 - `narration-module:test:ai-intent-interpretation`,
   `verify-narrative-render-projection.ts`, les contrats campagne et le build
