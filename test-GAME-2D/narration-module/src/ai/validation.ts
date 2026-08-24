@@ -9,6 +9,7 @@ import type {
   AiSemanticIntentPayloadV4,
   AiSemanticIntentPayloadV5,
   AiSemanticIntentPayloadV6,
+  AiSemanticIntentPayloadV7,
   AiModelRouteV1,
   AiOutputValidationResultV1,
   AiRoleOutputEnvelopeV1,
@@ -971,7 +972,9 @@ export function validateAiRoleOutputEnvelopeV1(output: unknown, request: AiCallR
   if (issues.length === 0) {
     if (request.role === "intent_interpreter") issues.push(...validateIntentPayload(envelope.payload));
     if (request.role === "player_intent_interpreter") issues.push(...(
-      request.contractVersion === "ai-intent-semantic/6"
+      request.contractVersion === "ai-intent-semantic/7"
+        ? validateSemanticIntentPayloadV7(envelope.payload)
+        : request.contractVersion === "ai-intent-semantic/6"
         ? validateSemanticIntentPayloadV6(envelope.payload)
         : request.contractVersion === "ai-intent-semantic/5"
         ? validateSemanticIntentPayloadV5(envelope.payload)
@@ -1145,6 +1148,29 @@ function validateSemanticIntentPayloadV6(payload: unknown): string[] {
   issues.push(...validateNonEmptyString(directive.requestSummary, "payload.intent.companionDirective.requestSummary"));
   if (typed.intent.dialogueAct?.act !== "REQUEST_ACTION") {
     issues.push("payload.intent.companionDirective: requires dialogueAct REQUEST_ACTION");
+  }
+  return issues;
+}
+
+function validateSemanticIntentPayloadV7(payload: unknown): string[] {
+  if (!isObject(payload) || !isObject(payload.intent)) {
+    return validateSemanticIntentPayloadV6(payload);
+  }
+  const directive = (payload as unknown as AiSemanticIntentPayloadV7).intent.companionDirective;
+  const v6Compatible = {
+    ...payload,
+    intent: {
+      ...payload.intent,
+      companionDirective: directive === null || !isObject(directive)
+        ? directive
+        : Object.fromEntries(Object.entries(directive).filter(([key]) => key !== "presenceIntent"))
+    }
+  };
+  const issues = validateSemanticIntentPayloadV6(v6Compatible);
+  if (directive === null || !isObject(directive)) return issues;
+  issues.push(...exactKeys(directive, ["category", "presenceIntent", "requestSummary", "schemaVersion"], "payload.intent.companionDirective"));
+  if (!["UNCHANGED", "SEPARATE", "REJOIN", "LEAVE"].includes(String(directive.presenceIntent))) {
+    issues.push("payload.intent.companionDirective.presenceIntent: invalid presence intent");
   }
   return issues;
 }

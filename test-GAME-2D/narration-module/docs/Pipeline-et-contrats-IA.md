@@ -222,12 +222,15 @@ Une confiance déclarée par le modèle ne remplace jamais une validation. Une c
 
 ## Contrat de l'interpréteur
 
-Le contrat actif V6 porte une intention principale structurée `intent`, avec
+Le contrat actif V7 porte une intention principale structurée `intent`, avec
 des composantes ordonnées pour les micro-actions sociales bornées. Il ajoute
-une `companionDirective` uniquement pour une demande d'action visant une
-référence présente dans `activeCompanionRefs`. Cette projection classe la
-demande (`FOLLOW`, `SCOUT`, `ASSIST`, `GUARD`, `SOCIAL` ou `PERSONAL_RISK`) sans
-décider la réponse du PNJ. Il ne porte
+une `companionDirective` pour une demande de compagnon adressée à un PNJ
+visible, qu'il soit déjà membre ou candidat au recrutement. Cette projection
+classe la demande (`FOLLOW`, `SCOUT`, `ASSIST`, `GUARD`, `SOCIAL` ou
+`PERSONAL_RISK`) et son intention de présence (`UNCHANGED`, `SEPARATE`, `REJOIN`
+ou `LEAVE`) sans décider la réponse du PNJ ni présupposer son appartenance au
+groupe. V6 reste accepté pour compatibilité et limite la directive aux
+`activeCompanionRefs`. Il ne porte
 pas `intents[]`. Le contrat V1 historique utilisait une autre projection et
 reste accepté uniquement pour compatibilité.
 

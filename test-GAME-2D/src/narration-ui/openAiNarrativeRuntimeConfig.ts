@@ -5,6 +5,7 @@ import {
   AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V4,
   AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V5,
   AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V6,
+  AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V7,
   MJ_PLANNER_CONTRACT_VERSION_V1,
   NPC_PERFORMER_CONTRACT_VERSION_V1,
   type AiIntentInterpreterConfigV1,
@@ -19,7 +20,7 @@ import { ServerOpenAiEnhancementProviderV1 } from "./serverOpenAiEnhancementClie
 export function buildOpenAiIntentInterpreterConfigV1(endpoint?: string): AiIntentInterpreterConfigV1 {
   return {
     provider: new ServerOpenAiEnhancementProviderV1(endpoint),
-    contractVersion: AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V6,
+    contractVersion: AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V7,
     route: {
       schemaVersion: 1,
       routeId: "prototype-ui-openai-player-intent-interpreter",
@@ -27,9 +28,9 @@ export function buildOpenAiIntentInterpreterConfigV1(endpoint?: string): AiInten
       providerKind: "FAKE_CONTRACT",
       providerId: "server-openai-route",
       modelId: "server-selected-openai-intent-model",
-      modelConfigVersion: "companion-directive-v6",
+      modelConfigVersion: "companion-presence-v7",
       certified: true,
-      allowedContractVersions: [AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V1, AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V2, AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V3, AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V4, AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V5, AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V6],
+      allowedContractVersions: [AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V1, AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V2, AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V3, AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V4, AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V5, AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V6, AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V7],
       inputTokenLimit: 2_000,
       outputTokenLimit: 900,
       timeoutMs: 30_000,

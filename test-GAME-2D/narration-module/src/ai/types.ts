@@ -119,6 +119,11 @@ export interface AiSemanticIntentPayloadV6 {
   intent: AiSemanticPlayerIntentV6;
 }
 
+export interface AiSemanticIntentPayloadV7 {
+  rawInputEcho: string;
+  intent: AiSemanticPlayerIntentV7;
+}
+
 export interface AiSemanticPlayerIntentV2 {
   kind: AiStructuredSemanticIntentV1["kind"];
   commitment: AiStructuredSemanticIntentV1["commitment"];
@@ -167,6 +172,15 @@ export interface AiSemanticPlayerIntentV6 extends AiSemanticPlayerIntentV5 {
     schemaVersion: 1;
     category: "FOLLOW" | "SCOUT" | "ASSIST" | "GUARD" | "SOCIAL" | "PERSONAL_RISK";
     requestSummary: string;
+  } | null;
+}
+
+export interface AiSemanticPlayerIntentV7 extends Omit<AiSemanticPlayerIntentV6, "companionDirective"> {
+  companionDirective: {
+    schemaVersion: 1;
+    category: "FOLLOW" | "SCOUT" | "ASSIST" | "GUARD" | "SOCIAL" | "PERSONAL_RISK";
+    requestSummary: string;
+    presenceIntent: "UNCHANGED" | "SEPARATE" | "REJOIN" | "LEAVE";
   } | null;
 }
 
@@ -287,6 +301,7 @@ export interface AiStructuredSemanticIntentV1 {
     schemaVersion: 1;
     category: "FOLLOW" | "SCOUT" | "ASSIST" | "GUARD" | "SOCIAL" | "PERSONAL_RISK";
     requestSummary: string;
+    presenceIntent?: "UNCHANGED" | "SEPARATE" | "REJOIN" | "LEAVE";
   } | null;
   restPlan?: {
     schemaVersion: 1;

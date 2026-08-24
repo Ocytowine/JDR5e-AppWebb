@@ -98,7 +98,7 @@ export async function prepareCampaignTravelStartCommitV1(input: {
       writerLease: input.writerLease,
       acceptedCommands: [{
         schemaVersion: 1,
-        contractId: CAMPAIGN_TRAVEL_RUNTIME_CONTRACT_V1,
+        contractId: "campaign.travel-runtime",
         contractVersion: 1,
         commandId: input.commandId,
         campaignId: input.campaign.campaignId,
@@ -125,7 +125,7 @@ export async function prepareCampaignTravelStartCommitV1(input: {
         origin: "PLAYER_INTENT",
         causation: { kind: "COMMAND", id: input.commandId },
         aggregateRefs: [{ aggregateType: "process.state", aggregateId: input.processAggregateId, aggregateRevision: 0 }],
-        visibility: { scope: "PLAYER_VISIBLE", actorIds: input.process.plan.party?.memberActorIds ?? [input.process.plan.characterId] },
+        visibility: { scope: "ACTOR_SCOPED", actorIds: input.process.plan.party?.memberActorIds ?? [input.process.plan.characterId] },
         occurredAtGameSecond: input.process.plan.createdAtGameSecond,
         payloadSchemaVersion: 1,
         payload: { processId: input.process.processId, processAggregateId: input.processAggregateId, destinationLocationId: input.process.plan.destinationLocationId }
@@ -187,6 +187,11 @@ export async function prepareCampaignTravelSegmentV1(input: {
   processAggregate: AggregateRecord;
   processAggregateId: AggregateId;
   positionAggregate: AggregateRecord;
+  arrivalProjection?: {
+    sceneLifecycleAggregate: AggregateRecord;
+    sceneId: string;
+    locationRef: string;
+  } | null;
   travel: Omit<PrepareTravelSegmentInputV1, "currentGameSecond" | "worldSimulatedThrough">;
   resourceReservation: TravelResourceReservationV1;
   eventId: EventId;
@@ -253,10 +258,22 @@ export async function prepareCampaignTravelSegmentV1(input: {
     expectedCampaignRevision: input.campaign.campaignRevision + 1
   });
   if (!processPayload.ok) return processPayload;
+  const arrival = segment.value.nextProcess.status === "ARRIVED"
+    ? input.arrivalProjection ?? null
+    : null;
+  if (segment.value.nextProcess.status === "ARRIVED" && arrival === null) {
+    return fail("/arrival", "arrived travel requires an authoritative scene projection");
+  }
+  if (arrival !== null && (
+    arrival.sceneLifecycleAggregate.aggregateType !== "scene.lifecycle"
+    || !arrival.sceneId.trim()
+    || !arrival.locationRef.trim()
+  )) return fail("/arrival", "arrival scene projection is invalid");
   const positionPayload: JsonObject = {
     ...input.positionAggregate.payload,
     characterId: segment.value.nextProcess.plan.characterId,
     locationId: segment.value.nextProcess.checkpoint.currentLocationId,
+    ...(arrival === null ? {} : { canonicalLocationRef: arrival.locationRef }),
     nextLocationId: segment.value.nextProcess.checkpoint.nextLocationId,
     elapsedTravelSeconds: segment.value.nextProcess.checkpoint.elapsedTravelSeconds,
     travelProcessId: segment.value.nextProcess.processId
@@ -267,7 +284,27 @@ export async function prepareCampaignTravelSegmentV1(input: {
     expectedAggregateRevision: input.positionAggregate.aggregateRevision,
     payloadSchemaVersion: input.positionAggregate.payloadSchemaVersion,
     payload: positionPayload
-  }, ...(reservation.inventoryWrite === null ? [] : [reservation.inventoryWrite])];
+  }, ...(reservation.inventoryWrite === null ? [] : [reservation.inventoryWrite]),
+  ...(arrival === null ? [] : [{
+    aggregateType: "scene.lifecycle",
+    aggregateId: arrival.sceneLifecycleAggregate.aggregateId,
+    expectedAggregateRevision:
+      arrival.sceneLifecycleAggregate.aggregateRevision,
+    payloadSchemaVersion:
+      arrival.sceneLifecycleAggregate.payloadSchemaVersion,
+    payload: {
+      ...arrival.sceneLifecycleAggregate.payload,
+      activeSceneId: arrival.sceneId,
+      activeLocationRef: arrival.locationRef,
+      previousSceneId:
+        String(arrival.sceneLifecycleAggregate.payload.activeSceneId),
+      enteredAtGameSecond:
+        currentGameSecond
+        + segment.value.timeProposal.duration.recommendedSeconds,
+      lastTransitionRequestId: input.operation.operationId,
+      version: Number(arrival.sceneLifecycleAggregate.payload.version ?? 0) + 1
+    }
+  }])];
   if (new Set(additionalWrites.map(write => `${write.aggregateType}:${write.aggregateId}`)).size !== additionalWrites.length) {
     return fail("/resources", "inventory reservation conflicts with the position write");
   }
@@ -290,7 +327,7 @@ export async function prepareCampaignTravelSegmentV1(input: {
       eventId: input.eventId,
       eventType: "travel.segment-advanced",
       origin: "PROCESS",
-      visibility: { scope: "PLAYER_VISIBLE", actorIds: segment.value.nextProcess.plan.party?.memberActorIds ?? [] },
+      visibility: { scope: "ACTOR_SCOPED", actorIds: segment.value.nextProcess.plan.party?.memberActorIds ?? [] },
       payload: {
         stopReason: segment.value.stopReason,
         currentLocationId: segment.value.nextProcess.checkpoint.currentLocationId,
@@ -319,5 +356,123 @@ export async function prepareCampaignTravelSegmentV1(input: {
 }
 
 export function campaignTravelProcessAggregateIdV1(processId: string): AggregateId {
-  return opaqueId<AggregateId>(`agg_travel_${processId.replace(/[^a-zA-Z0-9_-]+/g, "-").slice(-120)}`);
+  const normalizedProcessId = processId
+    .toLowerCase()
+    .replace(/[^a-z0-9._:-]+/g, "-")
+    .slice(-117);
+  return opaqueId<AggregateId>(`agg_travel_${normalizedProcessId}`);
+}
+
+export type TravelInterruptionApproachV1 = "OBSERVE" | "AVOID" | "APPROACH";
+
+export async function prepareCampaignTravelInterruptionResolutionCommitV1(input: {
+  campaign: CampaignRecord;
+  operation: OperationRecord;
+  writerLease: WriterLease;
+  processAggregate: AggregateRecord;
+  processAggregateId: AggregateId;
+  process: PrepareTravelSegmentInputV1["process"];
+  pendingDecision: JsonObject;
+  approach: TravelInterruptionApproachV1;
+  occurredAtGameSecond: number;
+  eventId: EventId;
+  commitId: CommitId;
+  commandId: CommandId;
+}): Promise<TemporalResultV1<CommitRequest>> {
+  if (
+    input.operation.phase !== "READY_TO_COMMIT"
+    || input.operation.operationKind !== "travel.interruption.resolve"
+    || input.operation.observedCampaignRevision !== input.campaign.campaignRevision
+    || input.processAggregate.aggregateType !== "process.state"
+    || input.process.status !== "INTERRUPTED"
+    || input.process.checkpoint.status !== "INTERRUPTED"
+    || !["TRAVEL_ENCOUNTER_DECISION", "TRAVEL_INTERRUPTION_DECISION"]
+      .includes(String(input.pendingDecision.kind ?? ""))
+    || !["OBSERVE", "AVOID", "APPROACH"].includes(input.approach)
+    || !Number.isInteger(input.occurredAtGameSecond)
+    || input.occurredAtGameSecond < 0
+  ) return fail("/interruption", "travel interruption resolution is invalid");
+  const nextProcess = {
+    ...input.process,
+    status: "ACTIVE" as const,
+    checkpoint: {
+      ...input.process.checkpoint,
+      checkpointId:
+        `${input.process.checkpoint.checkpointId}:resolved:${input.approach.toLowerCase()}`,
+      checkpointRevision: input.process.checkpoint.checkpointRevision + 1,
+      status: "ACTIVE" as const
+    }
+  };
+  const processPayload = await createTravelProcessStatePayloadV1({
+    process: nextProcess,
+    pendingDecision: null,
+    lastAppliedEventId: input.eventId,
+    expectedCampaignRevision: input.campaign.campaignRevision + 1
+  });
+  if (!processPayload.ok) return processPayload;
+  const decisionId = String(
+    input.pendingDecision.encounterDecisionId
+      ?? input.pendingDecision.interruptionDecisionId
+      ?? ""
+  );
+  if (!decisionId) return fail("/interruption", "pending decision identity is missing");
+  return {
+    ok: true,
+    value: {
+      campaignId: input.campaign.campaignId,
+      operationId: input.operation.operationId,
+      commitId: input.commitId,
+      idempotencyKey: input.operation.idempotencyKey,
+      requestFingerprint: input.operation.requestFingerprint,
+      expectedCampaignRevision: input.campaign.campaignRevision,
+      writerLease: input.writerLease,
+      acceptedCommands: [{
+        schemaVersion: 1,
+        contractId: "campaign.travel-runtime",
+        contractVersion: 1,
+        commandId: input.commandId,
+        campaignId: input.campaign.campaignId,
+        operationId: input.operation.operationId,
+        commandType: "travel.interruption.resolve",
+        target: {
+          aggregateType: "process.state",
+          aggregateId: input.processAggregateId,
+          expectedAggregateRevision: input.processAggregate.aggregateRevision
+        },
+        payloadSchemaVersion: 1,
+        payload: { processId: input.process.processId, decisionId, approach: input.approach },
+        acceptedAtGameSecond: input.occurredAtGameSecond
+      }],
+      aggregateWrites: [{
+        aggregateType: "process.state",
+        aggregateId: input.processAggregateId,
+        expectedAggregateRevision: input.processAggregate.aggregateRevision,
+        payloadSchemaVersion: 1,
+        payload: processPayload.value as unknown as JsonObject
+      }],
+      events: [{
+        schemaVersion: 1,
+        eventId: input.eventId,
+        campaignId: input.campaign.campaignId,
+        operationId: input.operation.operationId,
+        eventType: "travel.interruption-resolved",
+        origin: "PLAYER_INTENT",
+        causation: { kind: "COMMAND", id: input.commandId },
+        aggregateRefs: [{
+          aggregateType: "process.state",
+          aggregateId: input.processAggregateId,
+          aggregateRevision: input.processAggregate.aggregateRevision + 1
+        }],
+        visibility: {
+          scope: "ACTOR_SCOPED",
+          actorIds: input.process.plan.party?.memberActorIds
+            ?? [input.process.plan.characterId]
+        },
+        occurredAtGameSecond: input.occurredAtGameSecond,
+        payloadSchemaVersion: 1,
+        payload: { processId: input.process.processId, decisionId, approach: input.approach }
+      }],
+      outboxTasks: []
+    }
+  };
 }

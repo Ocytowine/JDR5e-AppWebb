@@ -171,6 +171,7 @@ async function run(): Promise<void> {
   assert.equal(context.presentActors.some(actor => actor.label === "Voyageuse"), true);
   assert.deepEqual(context.visibleEquipmentRefs, ["character-equipped-item:sword-aube"]);
   assert.equal(context.knownFacts.some(fact => fact.status === "HEARD"), true);
+  assert.equal(context.deliberatelyExcluded.includes("player_private_notebook"), true);
   assert.equal(
     context.knownFacts.find(fact => fact.status === "HEARD")
       ?.attributedSpeakerRefs[0],

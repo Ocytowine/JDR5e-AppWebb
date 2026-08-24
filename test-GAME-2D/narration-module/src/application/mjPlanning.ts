@@ -13,6 +13,7 @@ import type {
 } from "../ai/types";
 import { isNarrativeRuntimeDecisionV1, isNarrativeSemanticIntentV1, type NarrativeIntentInterpretationV1 } from "./intentClarification";
 import type { NarrativeDomainCommandV1 } from "./domainCommands";
+import type { PlayableSceneStateV1 } from "./playableScene";
 
 export const MJ_PLANNER_CONTRACT_VERSION_V1 = "mj-planner/1" as const;
 
@@ -111,6 +112,7 @@ export async function planNarrativeTurnWithMjV1(input: {
   rawInput: string;
   interpretation: NarrativeIntentInterpretationV1;
   domainCommand?: NarrativeDomainCommandV1 | null;
+  activeScene: PlayableSceneStateV1;
   config: MjPlannerConfigV1;
 }): Promise<MjPlanningResultV1> {
   if (!shouldCallMjPlannerV1(input.interpretation)) {
@@ -278,6 +280,7 @@ async function buildMjPlannerRequestV1(input: {
   rawInput: string;
   interpretation: NarrativeIntentInterpretationV1;
   domainCommand?: NarrativeDomainCommandV1 | null;
+  activeScene: PlayableSceneStateV1;
   config: MjPlannerConfigV1;
 }): Promise<AiCallRequestV1> {
   const snapshotId = `${input.operationId}:snapshot:mj-plan`;
@@ -286,7 +289,9 @@ async function buildMjPlannerRequestV1(input: {
     schemaVersion: 1,
     role: "mj_planner",
     authority: "PLAN_ONLY",
-    visibleScene: "reference-inn-rain-001",
+    visibleScene: input.activeScene.sceneId,
+    visibleLocationName: input.activeScene.locationName,
+    perceptibleSituation: input.activeScene.perceptibleSituation,
     forbiddenAuthority: ["commit", "time", "inventory", "tactical", "rest", "durable_lore", "secret_reveal"]
   };
   const task = {

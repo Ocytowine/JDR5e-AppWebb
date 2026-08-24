@@ -122,6 +122,7 @@ export interface DecideCompanionDirectiveCommandV1 extends JsonObject {
   campaignNpcId: string;
   category: CompanionDirectiveCategoryV1;
   requestSummary: string;
+  presenceAction: "SEPARATE" | "REJOIN" | "LEAVE" | null;
   occurredAtGameSecond: number;
 }
 
@@ -298,8 +299,13 @@ function decideDirectiveMutation(
     return { ok: false, issues: ["directiveId already exists"] };
   }
   const member = registry.members.find(value => value.campaignNpcId === command.campaignNpcId);
-  if (member === undefined || member.status !== "ACTIVE" || member.currentSceneId !== registry.currentSceneId) {
-    return { ok: false, issues: ["companion is not active in the party scene"] };
+  if (
+    member === undefined
+    || member.currentSceneId !== registry.currentSceneId
+    || member.status === "LEFT"
+    || (member.status === "SEPARATED" && command.category !== "FOLLOW")
+  ) {
+    return { ok: false, issues: ["companion is not available for this request in the party scene"] };
   }
   const rule = member.autonomyPolicy.rules.find(value => value.category === command.category);
   const directive: CompanionDirectiveV1 = {
@@ -316,17 +322,44 @@ function decideDirectiveMutation(
     sourceRefs: unique([...(rule?.sourceRefs ?? member.autonomyPolicy.sourceRefs), `companion-policy:${member.autonomyPolicy.policyId}:${member.autonomyPolicy.policyRevision}`]),
     version: 1
   };
+  const presenceAction = command.presenceAction ?? null;
+  let updatedMember = member;
+  if (presenceAction !== null && ["ACCEPTED", "ADAPTED"].includes(directive.disposition)) {
+    if (presenceAction === "SEPARATE" && member.status !== "ACTIVE") {
+      return { ok: false, issues: ["only an active companion can separate"] };
+    }
+    if (presenceAction === "REJOIN" && member.status !== "SEPARATED") {
+      return { ok: false, issues: ["only a separated companion can rejoin"] };
+    }
+    const status: CompanionMembershipStatusV1 = presenceAction === "REJOIN"
+      ? "ACTIVE"
+      : presenceAction === "LEAVE"
+        ? "LEFT"
+        : "SEPARATED";
+    updatedMember = {
+      ...member,
+      status,
+      separatedAtGameSecond: status === "ACTIVE" ? null : command.occurredAtGameSecond,
+      separationReason: status === "ACTIVE" ? null : command.requestSummary,
+      sourceRefs: unique([...member.sourceRefs, ...directive.sourceRefs, `companion-directive:${directive.directiveId}`]),
+      version: member.version + 1
+    };
+  }
+  const members = registry.members.map(value =>
+    value.campaignNpcId === updatedMember.campaignNpcId ? updatedMember : value
+  );
   return {
     ok: true,
-    registry: { ...registry, directives: [...registry.directives, directive], version: registry.version + 1 },
-    member,
+    registry: { ...registry, members, directives: [...registry.directives, directive], version: registry.version + 1 },
+    member: updatedMember,
     directive,
     eventPayload: {
       directiveId: directive.directiveId,
       campaignNpcId: directive.campaignNpcId,
       disposition: directive.disposition,
       adaptation: directive.adaptation,
-      conditions: directive.conditions
+      conditions: directive.conditions,
+      presenceStatus: updatedMember.status
     }
   };
 }
@@ -472,6 +505,20 @@ export function companionDirectiveNarrationV1(input: {
 export function companionRecruitmentNarrationV1(companionName: string): string {
   const name = companionName.trim() || "Ton interlocuteur";
   return `${name} choisit de poursuivre la route avec toi. Ce choix vous lie pour le voyage, sans lui retirer sa propre volonté.`;
+}
+
+export function companionPresenceNarrationV1(input: {
+  companionName: string;
+  action: "SEPARATE" | "REJOIN" | "LEAVE";
+}): string {
+  const name = input.companionName.trim() || "Ton compagnon";
+  if (input.action === "SEPARATE") {
+    return `${name} acquiesce et reste ici, libre de ses mouvements, tandis que tu poursuis sans lui.`;
+  }
+  if (input.action === "REJOIN") {
+    return `${name} revient Ã  tes cÃ´tÃ©s et reprend la route avec toi.`;
+  }
+  return `${name} accepte que vos routes se sÃ©parent ici et prend congÃ©.`;
 }
 
 export async function loadCompanionPartyRegistryV1(input: {
@@ -640,7 +687,9 @@ function validPolicy(policy: CompanionAutonomyPolicyV1): boolean {
 
 function validDirectiveCommand(command: DecideCompanionDirectiveCommandV1): boolean {
   return command.schemaVersion === 1 && [command.clientRequestId, command.directiveId, command.campaignNpcId, command.requestSummary].every(nonEmpty)
-    && ["FOLLOW", "SCOUT", "ASSIST", "GUARD", "SOCIAL", "PERSONAL_RISK"].includes(command.category) && gameSecond(command.occurredAtGameSecond);
+    && ["FOLLOW", "SCOUT", "ASSIST", "GUARD", "SOCIAL", "PERSONAL_RISK"].includes(command.category)
+    && (command.presenceAction === null || ["SEPARATE", "REJOIN", "LEAVE"].includes(command.presenceAction))
+    && gameSecond(command.occurredAtGameSecond);
 }
 
 function validateRegistry(registry: CompanionPartyRegistryV1, campaignId: string): string[] {

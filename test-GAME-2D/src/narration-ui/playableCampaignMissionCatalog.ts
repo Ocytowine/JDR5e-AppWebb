@@ -4,9 +4,21 @@ import {
 } from "../../narration-module/src/application";
 
 const policy: MissionRelationDialogueDecisionPolicyV1 = {
-  decide({ rawInput, actor, scene }) {
+  decide({ rawInput, interpretation, actor, scene }) {
     const normalized = normalize(rawInput);
     const sourceRefs = [`playable-scene:${scene.sceneId}`, `actor:${actor.actorId}`];
+    const directive = interpretation.semanticIntent.companionDirective ?? null;
+    if (directive?.category === "FOLLOW") {
+      const eligible = scene.sceneId === "wiki-location:archives_de_lysenthe"
+        && actor.actorId === "wiki-location:archives_de_lysenthe:ambient:1";
+      return {
+        disposition: eligible ? "ACCEPTED" : "REFUSED",
+        conditions: [],
+        publicSourceRefs: eligible
+          ? [...sourceRefs, "playable-content:companion:archives-careful-archivist"]
+          : [...sourceRefs, "playable-content:companion:not-recruitable"]
+      };
+    }
     if (/\b(voler|derober|trahir|mentir|falsifier|contourner|forcer)\b/u.test(normalized)) {
       return { disposition: "REFUSED", conditions: [], publicSourceRefs: sourceRefs };
     }

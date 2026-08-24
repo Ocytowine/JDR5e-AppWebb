@@ -581,7 +581,16 @@ export async function prepareTravelSegmentV1(
     ...checkpointBase,
     checkpointId: `travel.checkpoint.${fingerprint.slice("sha256:".length, "sha256:".length + 24)}`
   };
-  const pendingDecision = encounter.value.requiresPlayerDecision ? {
+  const pendingDecision: JsonObject | null = stopReason === "INTERRUPTION" ? {
+    schemaVersion: 1,
+    kind: "TRAVEL_INTERRUPTION_DECISION",
+    interruptionDecisionId:
+      `travel.interruption.${fingerprint.slice("sha256:".length, "sha256:".length + 24)}`,
+    reasonRef: input.interruption?.reason ?? "travel.interruption",
+    canObserve: true,
+    canAvoid: true,
+    canApproach: true
+  } : encounter.value.requiresPlayerDecision ? {
     schemaVersion: 1,
     kind: "TRAVEL_ENCOUNTER_DECISION",
     encounterDecisionId: encounter.value.decisionId,
@@ -589,7 +598,7 @@ export async function prepareTravelSegmentV1(
     canObserve: true,
     canAvoid: true,
     canApproach: true
-  } satisfies JsonObject : null;
+  } : null;
   const nextProcess: TravelProcessStateV1 = {
     schemaVersion: 1,
     processId: input.process.processId,

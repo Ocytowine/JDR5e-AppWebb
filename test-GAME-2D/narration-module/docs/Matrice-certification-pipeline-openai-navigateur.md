@@ -1,6 +1,6 @@
 # Matrice de certification du pipeline OpenAI navigateur
 
-Statut : `CERTIFIE_LIVE_2026-08-04`
+Statut : `CERTIFIE_LIVE_2026-08-24 — J9-D FERMÉ`
 
 ## Objet
 
@@ -58,3 +58,11 @@ La certification live a révélé trois écarts :
 
 La passe finale a observé treize appels répartis sur cinq tours, jamais plus de
 trois sur un tour, tous avec un statut HTTP 200.
+
+## Revalidation J9-D du 2026-08-24
+
+La même commande a repassé en 1,7 minute après accord explicite : treize appels
+réels, tous en HTTP 200, avec exactement les séquences attendues par la matrice.
+La clarification a utilisé un seul interpréteur ; chacun des quatre autres tours
+a utilisé l'interpréteur, le planner, puis l'unique performer ou writer attendu.
+Aucun incident UI, rôle dupliqué ou dépassement du budget n'a été observé.

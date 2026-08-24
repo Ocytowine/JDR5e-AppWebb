@@ -46,6 +46,11 @@ export interface InterpreterRuntimeContextV1 extends JsonObject {
   schemaVersion: 1;
   contractVersion: "interpreter-runtime-context/1";
   capabilities: InterpreterRuntimeCapabilityV1[];
+  activeTravel: {
+    status: "PLANNED" | "ACTIVE" | "INTERRUPTED";
+    destinationLocationId: string;
+    awaitingPlayerDecision: boolean;
+  } | null;
 }
 
 export interface NarrativeRuntimeRouteV2 extends Omit<NarrativeRuntimeRouteV1, "registryVersion" | "noGameTime"> {
@@ -67,10 +72,13 @@ export function buildInterpreterRuntimeContextV1(input: {
   inventoryAccess: boolean;
   inventoryMutation?: boolean;
   tacticalAccess: boolean;
+  travel?: boolean;
+  activeTravel?: InterpreterRuntimeContextV1["activeTravel"];
 }): InterpreterRuntimeContextV1 {
   return {
     schemaVersion: 1,
     contractVersion: "interpreter-runtime-context/1",
+    activeTravel: input.activeTravel ?? null,
     capabilities: [
       ...NARRATIVE_RUNTIME_CAPABILITIES_V1.map(capability => ({
         capabilityId: capability.capabilityId,
@@ -78,6 +86,12 @@ export function buildInterpreterRuntimeContextV1(input: {
         availability: "AVAILABLE" as const,
         playerFacingScope: playerFacingScope(capability.capabilityId)
       })),
+      {
+        capabilityId: "world.narrative-travel",
+        domain: "world",
+        availability: input.travel ? "AVAILABLE" : "HANDOFF_ONLY",
+        playerFacingScope: "DÃ©part ou reprise d'un trajet par intention libre; une interruption active attend une rÃ©ponse dans la fiction."
+      },
       {
         capabilityId: "world.scene-transition",
         domain: "world",

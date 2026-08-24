@@ -175,6 +175,7 @@ async function main(): Promise<void> {
     runtimeContext: {
       schemaVersion: 1,
       contractVersion: "interpreter-runtime-context/1",
+      activeTravel: null,
       capabilities: [{
         capabilityId: "rest.process",
         domain: "rest",
@@ -196,6 +197,7 @@ async function main(): Promise<void> {
   assert.deepEqual(capturedRuntimeContext, {
     schemaVersion: 1,
     contractVersion: "interpreter-runtime-context/1",
+    activeTravel: null,
     capabilities: [{
       capabilityId: "rest.process",
       domain: "rest",
@@ -215,6 +217,7 @@ async function main(): Promise<void> {
     runtimeContext: {
       schemaVersion: 1,
       contractVersion: "interpreter-runtime-context/1",
+      activeTravel: null,
       capabilities: [{
         capabilityId: "rest.process",
         domain: "rest",

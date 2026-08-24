@@ -8,6 +8,7 @@ const SEMANTIC_INTENT_CONTRACT_VERSION_V3 = "ai-intent-semantic/3";
 const SEMANTIC_INTENT_CONTRACT_VERSION_V4 = "ai-intent-semantic/4";
 const SEMANTIC_INTENT_CONTRACT_VERSION_V5 = "ai-intent-semantic/5";
 const SEMANTIC_INTENT_CONTRACT_VERSION_V6 = "ai-intent-semantic/6";
+const SEMANTIC_INTENT_CONTRACT_VERSION_V7 = "ai-intent-semantic/7";
 const MJ_PLANNER_CONTRACT_VERSION = "mj-planner/1";
 const NPC_PERFORMER_CONTRACT_VERSION = "npc-performer/1";
 const SCENE_CREATOR_CONTRACT_VERSION_V1 = "lore-guided-place-candidate/1";
@@ -196,6 +197,9 @@ function buildRolePayloadSchema(requestOrRole) {
     };
   }
   if (role === "player_intent_interpreter") {
+    if (typeof requestOrRole === "object" && requestOrRole.contractVersion === SEMANTIC_INTENT_CONTRACT_VERSION_V7) {
+      return buildSemanticIntentPayloadSchemaV7();
+    }
     if (typeof requestOrRole === "object" && requestOrRole.contractVersion === SEMANTIC_INTENT_CONTRACT_VERSION_V6) {
       return buildSemanticIntentPayloadSchemaV6();
     }
@@ -1253,6 +1257,14 @@ function buildSemanticIntentPayloadSchemaV6() {
   return schema;
 }
 
+function buildSemanticIntentPayloadSchemaV7() {
+  const schema = buildSemanticIntentPayloadSchemaV6();
+  const directive = schema.properties.intent.properties.companionDirective.anyOf[0];
+  directive.required.push("presenceIntent");
+  directive.properties.presenceIntent = { enum: ["UNCHANGED", "SEPARATE", "REJOIN", "LEAVE"] };
+  return schema;
+}
+
 function normalizeProviderEnvelope(output, request) {
   if (
     request?.role !== "player_intent_interpreter" ||
@@ -1265,7 +1277,8 @@ function normalizeProviderEnvelope(output, request) {
     SEMANTIC_INTENT_CONTRACT_VERSION_V3,
     SEMANTIC_INTENT_CONTRACT_VERSION_V4,
     SEMANTIC_INTENT_CONTRACT_VERSION_V5,
-    SEMANTIC_INTENT_CONTRACT_VERSION_V6
+    SEMANTIC_INTENT_CONTRACT_VERSION_V6,
+    SEMANTIC_INTENT_CONTRACT_VERSION_V7
   ].includes(request?.contractVersion)) {
     const composition = intent.composition;
     if (!composition || typeof composition !== "object" || Array.isArray(composition)) return output;
@@ -1387,7 +1400,7 @@ function normalizeAiCallRequest(value) {
   if (!ALLOWED_ROLES.has(request.role)) issues.push("role is not allowed for narrative enhancement.");
   const expectedContractVersion = contractVersionForRole(request.role);
   const acceptedContractVersions = request.role === "player_intent_interpreter"
-    ? [INTENT_CONTRACT_VERSION, SEMANTIC_INTENT_CONTRACT_VERSION_V2, SEMANTIC_INTENT_CONTRACT_VERSION_V3, SEMANTIC_INTENT_CONTRACT_VERSION_V4, SEMANTIC_INTENT_CONTRACT_VERSION_V5, SEMANTIC_INTENT_CONTRACT_VERSION_V6]
+    ? [INTENT_CONTRACT_VERSION, SEMANTIC_INTENT_CONTRACT_VERSION_V2, SEMANTIC_INTENT_CONTRACT_VERSION_V3, SEMANTIC_INTENT_CONTRACT_VERSION_V4, SEMANTIC_INTENT_CONTRACT_VERSION_V5, SEMANTIC_INTENT_CONTRACT_VERSION_V6, SEMANTIC_INTENT_CONTRACT_VERSION_V7]
     : request.role === "scene_creator"
       ? [SCENE_CREATOR_CONTRACT_VERSION_V1, SCENE_CREATOR_CONTRACT_VERSION_V2, PLOT_CANDIDATE_CONTRACT_VERSION_V1]
       : [expectedContractVersion];
@@ -1606,7 +1619,8 @@ function buildRoleInstructions(request) {
       request.contractVersion === SEMANTIC_INTENT_CONTRACT_VERSION_V3 ||
       request.contractVersion === SEMANTIC_INTENT_CONTRACT_VERSION_V4 ||
       request.contractVersion === SEMANTIC_INTENT_CONTRACT_VERSION_V5 ||
-      request.contractVersion === SEMANTIC_INTENT_CONTRACT_VERSION_V6
+      request.contractVersion === SEMANTIC_INTENT_CONTRACT_VERSION_V6 ||
+      request.contractVersion === SEMANTIC_INTENT_CONTRACT_VERSION_V7
     ) {
       return [
         "Tu interprètes librement le sens de l'intention du joueur sans produire de conséquence ni de narration.",
@@ -1622,21 +1636,21 @@ function buildRoleInstructions(request) {
         "kind=move_near_visible_actor pour se placer, s'approcher ou se déplacer vers un acteur visible sans lui parler ni lui adresser de signal. Sa cible doit donc être candidateKind=npc. Ce n'est ni address_visible_actor, ni nonverbal_signal, ni manipulate_visible_object, ni un déplacement vers un lieu.",
         "Si la même entrée combine une approche et une parole ou salutation immédiate, la communication est l'intention principale: utilise address_visible_actor et conserve l'approche dans playerGoal/evidenceFromInput. N'utilise move_near_visible_actor que lorsque aucune parole ni salutation n'est engagée.",
         "Une salutation formulée sans geste explicite ouvre une conversation: utilise address_visible_actor avec dialogueAct=INITIATE_CONVERSATION. Réserve nonverbal_signal aux gestes effectivement décrits, par exemple signe de tête, geste de la main ou regard, sans parole ni salutation verbale.",
-        ...([SEMANTIC_INTENT_CONTRACT_VERSION_V3, SEMANTIC_INTENT_CONTRACT_VERSION_V4, SEMANTIC_INTENT_CONTRACT_VERSION_V5, SEMANTIC_INTENT_CONTRACT_VERSION_V6].includes(request.contractVersion) ? [
+        ...([SEMANTIC_INTENT_CONTRACT_VERSION_V3, SEMANTIC_INTENT_CONTRACT_VERSION_V4, SEMANTIC_INTENT_CONTRACT_VERSION_V5, SEMANTIC_INTENT_CONTRACT_VERSION_V6, SEMANTIC_INTENT_CONTRACT_VERSION_V7].includes(request.contractVersion) ? [
           "composition analyse séparément une éventuelle amorce spatiale et une éventuelle communication; ce champ ne décrit jamais une conséquence.",
           "spatialLeadIn=APPROACH_TARGET seulement si le joueur veut réellement se rapprocher de la cible; sinon null.",
           "communication.mode=SPEECH pour toute parole, question, déclaration, demande ou salutation verbale. Son act décrit l'acte de dialogue. communication.mode=NONVERBAL seulement pour un signal explicitement non verbal et act doit alors être null.",
           "Une approche suivie d'une salutation utilise spatialLeadIn puis communication avec les ordres 1 et 2. Une approche sans communication utilise communication=null. Une salutation sans approche utilise spatialLeadIn=null.",
           "Les champs kind, dialogueAct, scope et domainHint décrivent l'intention principale, mais le logiciel les recalcule depuis composition: ne supprime donc aucune composante exprimée pour forcer une catégorie unique."
         ] : []),
-        ...([SEMANTIC_INTENT_CONTRACT_VERSION_V4, SEMANTIC_INTENT_CONTRACT_VERSION_V5, SEMANTIC_INTENT_CONTRACT_VERSION_V6].includes(request.contractVersion) ? [
+        ...([SEMANTIC_INTENT_CONTRACT_VERSION_V4, SEMANTIC_INTENT_CONTRACT_VERSION_V5, SEMANTIC_INTENT_CONTRACT_VERSION_V6, SEMANTIC_INTENT_CONTRACT_VERSION_V7].includes(request.contractVersion) ? [
           "composition.orientation=LOCATE_VISIBLE_TARGET lorsque le joueur veut repérer, sélectionner ou rejoindre ensuite un référent publiquement visible, sans chercher un indice caché. Sinon orientation=null.",
           "Une proposition d'orientation conserve son but ultérieur dans playerGoal, mais ne transforme pas ce but en méthode perceptive: vouloir poursuivre des recherches après avoir trouvé un archiviste ne signifie pas rechercher perceptivement un indice.",
           "Pour observe_environment, informationKind=PRESENCE si la question porte sur l'existence ou la localisation immédiate d'une présence; VISIBLE_TRAIT pour un signe public perceptible; UNCERTAIN_CLUE seulement pour une information non déjà visible qui peut justifier une vérification.",
           "Une orientation vers un référent visible utilise perception.informationKind=PRESENCE et ne doit pas demander SEARCH. Une investigation de dissimulation, de trace cachée ou d'information incertaine utilise UNCERTAIN_CLUE.",
           "Le logiciel recalcule l'observation immédiate depuis orientation et le registre visible; ne force jamais SEARCH à cause du seul objectif futur exprimé par le joueur."
         ] : []),
-        ...([SEMANTIC_INTENT_CONTRACT_VERSION_V5, SEMANTIC_INTENT_CONTRACT_VERSION_V6].includes(request.contractVersion) ? [
+        ...([SEMANTIC_INTENT_CONTRACT_VERSION_V5, SEMANTIC_INTENT_CONTRACT_VERSION_V6, SEMANTIC_INTENT_CONTRACT_VERSION_V7].includes(request.contractVersion) ? [
           "composition.spatialFollowUp=REPOSITION_AWAY lorsque le joueur s'écarte de la cible après sa communication; sinon null.",
           "REPOSITION_AWAY est une étape locale réversible demandée par le joueur, jamais une réaction ni une conséquence inventée.",
           "spatialFollowUp exige une communication dans ce contrat borné. Place les ordres selon la séquence réellement exprimée, par exemple communication=1 puis spatialFollowUp=2.",
@@ -1647,6 +1661,12 @@ function buildRoleInstructions(request) {
           "companionDirective est renseigné uniquement quand dialogueAct.act=REQUEST_ACTION et que la cible résolue figure exactement dans task.activeCompanionRefs; sinon companionDirective=null.",
           "Classe le sens complet de la demande sans mots-clés: FOLLOW pour accompagner ou rester avec le joueur, SCOUT pour reconnaître ou observer en avant, ASSIST pour aider directement une action, GUARD pour protéger ou surveiller, SOCIAL pour intervenir auprès d'autrui, PERSONAL_RISK lorsque la demande expose personnellement le compagnon à un danger important.",
           "requestSummary reformule brièvement ce que le joueur demande, sans annoncer acceptation, réussite, exécution ni conséquence."
+        ] : []),
+        ...(request.contractVersion === SEMANTIC_INTENT_CONTRACT_VERSION_V7 ? [
+          "companionDirective est renseignÃ© quand dialogueAct.act=REQUEST_ACTION et que la cible est un PNJ visible auquel le joueur demande de rejoindre le groupe, d'agir comme compagnon, de se sÃ©parer, de revenir ou de quitter durablement le groupe. Il reste null pour les autres demandes.",
+          "Classe le sens complet sans mots-clÃ©s: FOLLOW pour accompagner, rejoindre, rester ou changer sa prÃ©sence dans le groupe; SCOUT pour reconnaÃ®tre en avant; ASSIST pour aider directement; GUARD pour protÃ©ger ou surveiller; SOCIAL pour intervenir auprÃ¨s d'autrui; PERSONAL_RISK pour un danger personnel important.",
+          "presenceIntent=UNCHANGED pour une demande d'action sans changement de prÃ©sence; SEPARATE lorsque le joueur demande au compagnon de rester Ã  part ou sur place; REJOIN lorsqu'il lui demande de revenir dans le groupe; LEAVE uniquement pour un dÃ©part durable. Une premiÃ¨re demande de recrutement utilise FOLLOW avec UNCHANGED.",
+          "requestSummary reformule briÃ¨vement la demande. Ne prÃ©juge jamais de l'appartenance au groupe, de l'acceptation, de l'exÃ©cution ni de la consÃ©quence; le propriÃ©taire local vÃ©rifie la cible et dÃ©cide."
         ] : []),
         "Si task.activeDialogueTarget est renseigné, une demande, question ou déclaration qui poursuit naturellement cet échange reste une communication SPEECH adressée à cette cible avec contextLink=RECENT_FOCUS, même si la nouvelle phrase ne répète ni le nom du PNJ ni un verbe comme parler. Ne conserve pas ce dialogue si le joueur change explicitement d'interlocuteur, met fin à l'échange ou engage une action physique distincte.",
         "kind=nonverbal_signal seulement si le joueur cherche à communiquer par un geste, un regard, une posture ou un autre signal sans parole.",
@@ -1956,6 +1976,7 @@ function validateRolePayload(payload, role, request = null) {
     return validateDestinationArbiterPayload(payload, request);
   }
   if (role === "player_intent_interpreter") {
+    if (request?.contractVersion === SEMANTIC_INTENT_CONTRACT_VERSION_V7) return validateSemanticIntentPayloadV7(payload);
     if (request?.contractVersion === SEMANTIC_INTENT_CONTRACT_VERSION_V6) return validateSemanticIntentPayloadV6(payload);
     if (request?.contractVersion === SEMANTIC_INTENT_CONTRACT_VERSION_V5) return validateSemanticIntentPayloadV5(payload);
     if (request?.contractVersion === SEMANTIC_INTENT_CONTRACT_VERSION_V4) return validateSemanticIntentPayloadV4(payload);
@@ -2237,6 +2258,16 @@ function validateSemanticIntentPayloadV6(payload) {
   }
   if (payload?.intent?.dialogueAct?.act !== "REQUEST_ACTION") {
     issues.push("payload.intent.companionDirective requires dialogueAct REQUEST_ACTION.");
+  }
+  return issues;
+}
+
+function validateSemanticIntentPayloadV7(payload) {
+  const issues = validateSemanticIntentPayloadV6(payload);
+  const directive = payload?.intent?.companionDirective;
+  if (directive === null || !directive || typeof directive !== "object" || Array.isArray(directive)) return issues;
+  if (!["UNCHANGED", "SEPARATE", "REJOIN", "LEAVE"].includes(directive.presenceIntent)) {
+    issues.push("payload.intent.companionDirective.presenceIntent is invalid.");
   }
   return issues;
 }

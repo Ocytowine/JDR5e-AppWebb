@@ -106,9 +106,11 @@ Le combat n'est pas rejoué et aucun demi-résultat n'est appliqué.
 Un second appel avec le même outcome restaure le résultat du premier commit. Il
 ne redéduit pas la victoire et ne retire pas une seconde fois les PV.
 
-Les compagnons contrôlables, la surprise et une carte persistée cellule par
-cellule restent également à raccorder avant de pouvoir les accepter dans une
-graine.
+Les compagnons tactiques, la surprise et une carte persistée cellule par cellule
+restent également à raccorder avant de pouvoir les accepter dans une graine. Un
+futur compagnon sera autonome par défaut ; le contrôle direct restera un cas
+mécanique autoritaire exceptionnel. La reprise est cadrée dans
+[`Guide-reprise-future-module-tactique.md`](Guide-reprise-future-module-tactique.md).
 
 ## Tests automatisés
 

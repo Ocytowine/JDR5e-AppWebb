@@ -134,3 +134,7 @@ La preuve J7 couvre le recrutement propriétaire, la volonté propre, la demande
 écrite libre, sa formulation narrative, l'initiative bornée, plusieurs scènes,
 la séparation, la réunion, le départ, la reprise et le raccord au groupe de
 voyage. Elle ne revendique aucun compagnon tactique.
+J8 conserve cette frontière et prépare sa reprise ultérieure dans
+[`Contrat-frontiere-compagnon-tactique-J8.md`](Contrat-frontiere-compagnon-tactique-J8.md) :
+autonomie par défaut, contrôle direct uniquement depuis une capacité mécanique
+autoritaire réelle.

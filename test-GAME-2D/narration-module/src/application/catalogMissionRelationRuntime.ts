@@ -29,6 +29,7 @@ export interface MissionRelationDialogueDecisionV1 {
 export interface MissionRelationDialogueDecisionPolicyV1 {
   decide(input: {
     rawInput: string;
+    interpretation: NarrativeIntentInterpretationV1;
     actor: PlayableSceneStateV1["presentNpc"][number] | PlayableSceneStateV1["ambientPopulation"][number];
     scene: PlayableSceneStateV1;
   }): MissionRelationDialogueDecisionV1 | null;
@@ -89,6 +90,7 @@ export function createCatalogMissionRelationRuntimeV1(options: {
       if (!proposed.ok || proposed.value === null) return proposed;
       const decision = options.decisionPolicy?.decide({
         rawInput: input.rawInput,
+        interpretation: input.interpretation,
         actor,
         scene: input.activeScene
       }) ?? null;

@@ -330,21 +330,21 @@ async function run(): Promise<void> {
 
   const accepted = ok(await decideCompanionDirectiveV1({
     repository, campaignId,
-    command: { schemaVersion: 1, clientRequestId: "j7:directive:assist", directiveId: "directive:j7:assist", campaignNpcId, category: "ASSIST", requestSummary: "Aide-moi à comparer ces notes.", occurredAtGameSecond: 0 }
+    command: { schemaVersion: 1, clientRequestId: "j7:directive:assist", directiveId: "directive:j7:assist", campaignNpcId, category: "ASSIST", requestSummary: "Aide-moi à comparer ces notes.", presenceAction: null, occurredAtGameSecond: 0 }
   }));
   assert.equal(accepted.directive?.disposition, "ACCEPTED");
   assert.equal(accepted.directive?.executionStatus, "NOT_STARTED");
   assert.doesNotMatch(companionDirectiveNarrationV1({ companionName: "Marel", directive: accepted.directive! }), /ACCEPTED|NOT_STARTED|directive/iu);
   const adapted = ok(await decideCompanionDirectiveV1({
     repository, campaignId,
-    command: { schemaVersion: 1, clientRequestId: "j7:directive:scout", directiveId: "directive:j7:scout", campaignNpcId, category: "SCOUT", requestSummary: "Va voir seul ce qui se passe devant.", occurredAtGameSecond: 0 }
+    command: { schemaVersion: 1, clientRequestId: "j7:directive:scout", directiveId: "directive:j7:scout", campaignNpcId, category: "SCOUT", requestSummary: "Va voir seul ce qui se passe devant.", presenceAction: null, occurredAtGameSecond: 0 }
   }));
   assert.equal(adapted.directive?.disposition, "ADAPTED");
   assert.match(adapted.directive?.adaptation ?? "", /sans s'éloigner/u);
   assert.match(companionDirectiveNarrationV1({ companionName: "Marel", directive: adapted.directive! }), /à sa manière/iu);
   const refused = ok(await decideCompanionDirectiveV1({
     repository, campaignId,
-    command: { schemaVersion: 1, clientRequestId: "j7:directive:risk", directiveId: "directive:j7:risk", campaignNpcId, category: "PERSONAL_RISK", requestSummary: "Expose-toi seul au danger pour faire diversion.", occurredAtGameSecond: 0 }
+    command: { schemaVersion: 1, clientRequestId: "j7:directive:risk", directiveId: "directive:j7:risk", campaignNpcId, category: "PERSONAL_RISK", requestSummary: "Expose-toi seul au danger pour faire diversion.", presenceAction: null, occurredAtGameSecond: 0 }
   }));
   assert.equal(refused.directive?.disposition, "REFUSED");
   assert.match(companionDirectiveNarrationV1({ companionName: "Marel", directive: refused.directive! }), /refuse/iu);

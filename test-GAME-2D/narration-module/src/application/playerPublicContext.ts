@@ -80,6 +80,7 @@ const DELIBERATELY_EXCLUDED = [
   "npc_private_goals_pressures_and_intentions",
   "private_perspectives_and_deception_causes",
   "private_character_mechanics_resources_and_inventory",
+  "player_private_notebook",
   "knowledge_owned_only_by_other_actors",
   "success_failure_commit_and_time_authority"
 ];

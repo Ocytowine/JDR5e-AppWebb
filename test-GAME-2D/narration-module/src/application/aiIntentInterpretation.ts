@@ -11,6 +11,7 @@ import type {
   AiSemanticIntentPayloadV4,
   AiSemanticIntentPayloadV5,
   AiSemanticIntentPayloadV6,
+  AiSemanticIntentPayloadV7,
   AiIntentRuntimeHandlingV1,
   AiModelRouteV1,
   AiRetryPolicyV1,
@@ -50,13 +51,15 @@ export const AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V3 = "ai-intent-semantic/
 export const AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V4 = "ai-intent-semantic/4" as const;
 export const AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V5 = "ai-intent-semantic/5" as const;
 export const AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V6 = "ai-intent-semantic/6" as const;
+export const AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V7 = "ai-intent-semantic/7" as const;
 type AiIntentInterpretationContractVersion =
   | typeof AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V1
   | typeof AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V2
   | typeof AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V3
   | typeof AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V4
   | typeof AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V5
-  | typeof AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V6;
+  | typeof AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V6
+  | typeof AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V7;
 const REFERENCE_SCENE_REFERENT_REGISTRY_V1 = buildSceneReferentRegistryV1(REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1);
 
 export interface AiIntentInterpreterConfigV1 {
@@ -72,7 +75,7 @@ export interface AiIntentInterpretationResultV1 {
   usedAiInterpretation: boolean;
   usedFallback: boolean;
   interpretation: NarrativeIntentInterpretationV1;
-  acceptedOutput: AiRoleOutputEnvelopeV1<AiIntentInterpretationPayloadV1 | AiSemanticIntentPayloadV2 | AiSemanticIntentPayloadV3 | AiSemanticIntentPayloadV4 | AiSemanticIntentPayloadV5 | AiSemanticIntentPayloadV6> | null;
+  acceptedOutput: AiRoleOutputEnvelopeV1<AiIntentInterpretationPayloadV1 | AiSemanticIntentPayloadV2 | AiSemanticIntentPayloadV3 | AiSemanticIntentPayloadV4 | AiSemanticIntentPayloadV5 | AiSemanticIntentPayloadV6 | AiSemanticIntentPayloadV7> | null;
   interpretationFailure: AiIntentInterpretationFailureV1 | null;
   incidents: AiIncidentRecordV1[];
   telemetry: AiCallTelemetryV1[];
@@ -207,18 +210,21 @@ export async function interpretNarrativeInputWithAiV1(input: {
     retryPolicy: input.config.retryPolicy,
     request
   });
-  const acceptedOutput = run.acceptedOutput as AiRoleOutputEnvelopeV1<AiIntentInterpretationPayloadV1 | AiSemanticIntentPayloadV2 | AiSemanticIntentPayloadV3 | AiSemanticIntentPayloadV4 | AiSemanticIntentPayloadV5 | AiSemanticIntentPayloadV6> | null;
+  const acceptedOutput = run.acceptedOutput as AiRoleOutputEnvelopeV1<AiIntentInterpretationPayloadV1 | AiSemanticIntentPayloadV2 | AiSemanticIntentPayloadV3 | AiSemanticIntentPayloadV4 | AiSemanticIntentPayloadV5 | AiSemanticIntentPayloadV6 | AiSemanticIntentPayloadV7> | null;
   let mappingIssues: string[] = [];
   if (acceptedOutput !== null) {
     const mapped = request.contractVersion === AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V2 ||
       request.contractVersion === AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V3 ||
       request.contractVersion === AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V4 ||
       request.contractVersion === AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V5 ||
-      request.contractVersion === AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V6
+      request.contractVersion === AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V6 ||
+      request.contractVersion === AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V7
       ? mapSemanticIntentV2ToNarrativeInterpretation({
         intentId: input.intentId,
         rawInput: input.rawInput,
-        payload: request.contractVersion === AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V6
+        payload: request.contractVersion === AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V7
+          ? canonicalizeSemanticIntentV7(acceptedOutput.payload as AiSemanticIntentPayloadV7)
+          : request.contractVersion === AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V6
           ? canonicalizeSemanticIntentV6(acceptedOutput.payload as AiSemanticIntentPayloadV6)
           : request.contractVersion === AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V5
           ? canonicalizeSemanticIntentV5(acceptedOutput.payload as AiSemanticIntentPayloadV5)
@@ -228,7 +234,8 @@ export async function interpretNarrativeInputWithAiV1(input: {
             ? canonicalizeSemanticCompositionV3(acceptedOutput.payload as AiSemanticIntentPayloadV3)
           : acceptedOutput.payload as AiSemanticIntentPayloadV2,
         localReferentHints: input.localReferentHints ?? [],
-        referentRegistry
+        referentRegistry,
+        characterContext: input.characterContext ?? null
       })
       : mapAiIntentToNarrativeInterpretationV1({
       intentId: input.intentId,
@@ -701,7 +708,8 @@ async function buildIntentInterpreterRequestV1(input: {
     input.config.contractVersion === AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V3 ||
     input.config.contractVersion === AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V4 ||
     input.config.contractVersion === AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V5 ||
-    input.config.contractVersion === AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V6;
+    input.config.contractVersion === AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V6 ||
+    input.config.contractVersion === AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V7;
   const context = usesSemanticContract
     ? {
       schemaVersion: 1,
@@ -733,7 +741,8 @@ async function buildIntentInterpreterRequestV1(input: {
   const runtimeContext = input.runtimeContext ?? {
     schemaVersion: 1,
     contractVersion: "interpreter-runtime-context/1",
-    capabilities: []
+    capabilities: [],
+    activeTravel: null
   };
   const contextFingerprintMaterial = {
     roleContextPack: context,
@@ -759,7 +768,9 @@ async function buildIntentInterpreterRequestV1(input: {
     contextFingerprint: await computeJsonFingerprint(contextFingerprintMaterial) as `sha256:${string}`,
     idempotencyKey: `${input.operationId}:ai:intent`,
     input: {
-      instructionsRef: input.config.contractVersion === AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V6
+      instructionsRef: input.config.contractVersion === AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V7
+        ? "ai-intent-interpretation/player-intent-semantic/v7"
+        : input.config.contractVersion === AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V6
         ? "ai-intent-interpretation/player-intent-semantic/v6"
         : input.config.contractVersion === AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V5
         ? "ai-intent-interpretation/player-intent-semantic/v5"
@@ -1050,9 +1061,10 @@ function intentRuntimeConsistencyIssues(intentValue: AiStructuredPlayerIntentV1)
 function mapSemanticIntentV2ToNarrativeInterpretation(input: {
   intentId: string;
   rawInput: string;
-  payload: AiSemanticIntentPayloadV2 | AiSemanticIntentPayloadV3 | AiSemanticIntentPayloadV4 | AiSemanticIntentPayloadV5 | AiSemanticIntentPayloadV6;
+  payload: AiSemanticIntentPayloadV2 | AiSemanticIntentPayloadV3 | AiSemanticIntentPayloadV4 | AiSemanticIntentPayloadV5 | AiSemanticIntentPayloadV6 | AiSemanticIntentPayloadV7;
   localReferentHints: LocalReferentHintV1[];
   referentRegistry: SceneReferentRegistryV1;
+  characterContext: InterpreterCharacterContextV1 | null;
 }): { ok: true; interpretation: NarrativeIntentInterpretationV1 } | { ok: false; issues?: string[] } {
   const providerProposal = input.payload.intent;
   const providerProposalWithCanonicalCommitment = {
@@ -1065,7 +1077,8 @@ function mapSemanticIntentV2ToNarrativeInterpretation(input: {
     providerProposalWithCanonicalCommitment.targetMention,
     input.localReferentHints,
     providerProposalWithCanonicalCommitment.kind,
-    input.referentRegistry
+    input.referentRegistry,
+    input.characterContext
   );
   const proposed = canonicalizeResolvedDestinationIntentV2(
     providerProposalWithCanonicalCommitment,
@@ -1081,7 +1094,8 @@ function mapSemanticIntentV2ToNarrativeInterpretation(input: {
       proposed.targetMention,
       input.localReferentHints,
       proposed.kind,
-      input.referentRegistry
+      input.referentRegistry,
+      input.characterContext
     ) ?? initiallyResolvedTarget;
   const needsTarget = ["address_visible_actor", "move_near_visible_actor", "manipulate_visible_object", "nonverbal_signal"].includes(proposed.kind);
   const requiresClarification = proposed.kind === "unclear_intent" ||
@@ -1273,6 +1287,10 @@ function canonicalizeSemanticIntentV6(payload: AiSemanticIntentPayloadV6): AiSem
   return canonicalizeSemanticIntentV5(payload) as AiSemanticIntentPayloadV6;
 }
 
+function canonicalizeSemanticIntentV7(payload: AiSemanticIntentPayloadV7): AiSemanticIntentPayloadV7 {
+  return canonicalizeSemanticIntentV5(payload) as AiSemanticIntentPayloadV7;
+}
+
 function canonicalizeResolvedDestinationIntentV2<
   TIntent extends AiSemanticIntentPayloadV2["intent"]
 >(
@@ -1307,7 +1325,8 @@ function resolveSemanticTargetMentionV2(
   mention: AiSemanticIntentPayloadV2["intent"]["targetMention"],
   hints: LocalReferentHintV1[],
   semanticKind: AiSemanticIntentPayloadV2["intent"]["kind"],
-  referentRegistry: SceneReferentRegistryV1
+  referentRegistry: SceneReferentRegistryV1,
+  characterContext: InterpreterCharacterContextV1 | null
 ): AiStructuredPlayerIntentV1["target"] {
   if (mention === null) return null;
   if (mention.contextLink === "RECENT_FOCUS") {
@@ -1320,6 +1339,12 @@ function resolveSemanticTargetMentionV2(
   if (mention.proposedRef !== null) {
     const referent = findSceneReferentByRefV1(referentRegistry, mention.proposedRef);
     if (referent !== null) return toNarrativeIntentTargetV1(referent);
+    const characterTarget = resolveCharacterTargetV1(
+      mention.proposedRef,
+      mention.candidateKind,
+      characterContext
+    );
+    if (characterTarget !== null) return characterTarget;
   }
   if (mention.contextLink === "SCENE_DESCRIPTION" || semanticKind === "traverse_visible_boundary") {
     const candidateKind = mention.candidateKind === "npc" || mention.candidateKind === "object" || mention.candidateKind === "place"
@@ -1332,6 +1357,32 @@ function resolveSemanticTargetMentionV2(
     }
   }
   return null;
+}
+
+function resolveCharacterTargetV1(
+  proposedRef: string,
+  candidateKind: "npc" | "place" | "object" | "self" | "unknown",
+  context: InterpreterCharacterContextV1 | null
+): AiStructuredPlayerIntentV1["target"] {
+  if (context === null) return null;
+  if (
+    candidateKind === "self"
+    && proposedRef === context.character.ref
+  ) return {
+    kind: "self",
+    ref: context.character.ref,
+    label: context.character.label
+  };
+  if (candidateKind !== "object") return null;
+  const reference = context.references.find(candidate =>
+    candidate.ref === proposedRef
+    && (candidate.kind === "INVENTORY_ITEM" || candidate.kind === "EQUIPPED_ITEM")
+  );
+  return reference === undefined ? null : {
+    kind: "object",
+    ref: reference.ref,
+    label: reference.label
+  };
 }
 
 function semanticKindToLegacyIntentType(kind: AiStructuredSemanticIntentV1["kind"]): AiStructuredPlayerIntentV1["intentType"] {

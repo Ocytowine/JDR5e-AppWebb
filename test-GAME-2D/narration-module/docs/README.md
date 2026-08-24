@@ -7,7 +7,7 @@ avec un ancien plan de travail.
 
 1. [`Consolidation-fondations-narration.md`](Consolidation-fondations-narration.md)
    — unique état global et feuille de route active.
-2. [`TASKS.md`](../../../TASKS.md) — exécution immédiate de J8 et blocages,
+2. [`TASKS.md`](../../../TASKS.md) — exécution immédiate de J10 et blocages,
    dérivée de la consolidation.
 3. Le contrat actif du comportement à modifier.
 4. Les tests et le code correspondants.
@@ -17,6 +17,12 @@ conservées en archives pour expliquer un ancien point de reprise.
 
 ## Contrats actifs
 
+- [`Contrat-confidentialite-carnet-joueur-J10.md`](Contrat-confidentialite-carnet-joueur-J10.md) :
+  carnet local non autoritaire, stockage séparé et exclusion absolue des rôles IA.
+- [`Contrat-recapitulatif-public-J10.md`](Contrat-recapitulatif-public-J10.md) :
+  composition du résumé depuis des projecteurs publics sans lecture des registres privés.
+- [`Contrat-interruption-voyage-narrative-J10.md`](Contrat-interruption-voyage-narrative-J10.md) :
+  voyage joué par saisie libre, interruption persistée et reprise idempotente.
 - [`Contrat-compagnon-narratif-J7.md`](Contrat-compagnon-narratif-J7.md) :
   recrutement propriétaire, groupe, directives, séparation et reprise.
 - [`Contrat-voyage-campagne-J6.md`](Contrat-voyage-campagne-J6.md) : routes du
@@ -100,6 +106,9 @@ conservées en archives pour expliquer un ancien point de reprise.
 - [`Contrat-integration-jouable-bastion-tactique.md`](Contrat-integration-jouable-bastion-tactique.md)
 - [`Contrat-alimentation-campagne-bastion-tactique.md`](Contrat-alimentation-campagne-bastion-tactique.md)
 - [`Contrat-handoffs-tactique-repos.md`](Contrat-handoffs-tactique-repos.md)
+- [`Contrat-frontiere-compagnon-tactique-J8.md`](Contrat-frontiere-compagnon-tactique-J8.md)
+  fixe l'autonomie par défaut du compagnon, le contrôle mécanique exceptionnel
+  et la frontière différée avec `GameBoard`.
 - [`Integration-domaines.md`](Integration-domaines.md)
 - [`Coherence-intrigues.md`](Coherence-intrigues.md)
 - [`Creations-dynamiques.md`](Creations-dynamiques.md)
@@ -107,6 +116,13 @@ conservées en archives pour expliquer un ancien point de reprise.
 
 ## Guides en français
 
+- [`Plan-integration-narrative-immersive-J10.md`](Plan-integration-narrative-immersive-J10.md)
+  cadre le prochain lot : voyage sans carte mais toujours autoritaire, groupe et
+  missions vécus par dialogue, carnet privé, aides-mémoire et récapitulatif sans
+  fuite de secrets.
+- [`Audit-frontieres-immersives-J10A.md`](Audit-frontieres-immersives-J10A.md)
+  inventorie les projections, les huit sorties IA, les traces visibles et les
+  migrations avant toute modification de l'interface ou du stockage.
 - [`Guide-personnel-scenario-fonctionnement-global.md`](Guide-personnel-scenario-fonctionnement-global.md)
 - [`Recette-transverse-temoignages-lieu-acces.md`](Recette-transverse-temoignages-lieu-acces.md)
   est le document vivant destiné au propriétaire du projet : un scénario
@@ -127,6 +143,9 @@ conservées en archives pour expliquer un ancien point de reprise.
   explique la restauration d'une défense, son adaptation vérifiée à
   `GameBoard`, les refus protecteurs, l'intégration complète du lot 7C et la
   certification navigateur de campagne du lot 8.
+- [`Guide-reprise-future-module-tactique.md`](Guide-reprise-future-module-tactique.md)
+  conserve l'ordre de refonte futur : participants neutres, génération de
+  carte, placement, tours, autonomie, checkpoints et outcome multi-acteurs.
 - [`Guide-creer-et-reprendre-une-campagne.md`](Guide-creer-et-reprendre-une-campagne.md)
   explique la fiche active, les diagnostics, la création, la reprise et
   l'isolement du pilote Archives.
@@ -142,6 +161,11 @@ conservées en archives pour expliquer un ancien point de reprise.
 
 ## Scénarios et preuves
 
+- [`Matrice-certification-finale-narration-J9.md`](Matrice-certification-finale-narration-J9.md)
+  distingue la verticale narrative continue J1 à J7, les preuves tactiques
+  spécialisées ainsi que les gates J9-B locale, J9-C Chromium/IndexedDB et J9-D
+  OpenAI live désormais fermées. J1 à J9 sont terminés dans leur périmètre
+  narratif.
 - [`Benchmark-destination-arbiter-V1.md`](Benchmark-destination-arbiter-V1.md)
   certifie la matrice OpenAI de plausibilité et le parcours persistant de
   création puis retour.

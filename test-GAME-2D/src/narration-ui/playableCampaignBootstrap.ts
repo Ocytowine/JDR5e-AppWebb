@@ -15,7 +15,11 @@ import {
   resolveSceneV1,
   activateCampaignInitialSceneV1,
   CAMPAIGN_RUNTIME_BINDINGS_CONTRACT_V1,
-  type CampaignRuntimeBindingsV1
+  type CampaignRuntimeBindingsV1,
+  type AiIntentInterpreterConfigV1,
+  type NarrativeCompanionRecruitmentRuntimeV1,
+  type NarrativeMissionRelationRuntimeV1,
+  type PlotCandidateGeneratorConfigV1
 } from "../../narration-module/src/application";
 import {
   CampaignBootstrapServiceV1,
@@ -77,6 +81,10 @@ import { createInstalledInventoryTransactionRuntimeV1 } from
   "./playableCampaignInventoryCatalog";
 import { createInstalledMissionRelationRuntimeV1 } from
   "./playableCampaignMissionCatalog";
+import { createInstalledCompanionRecruitmentRuntimeV1 } from
+  "./playableCampaignCompanionCatalog";
+import { createInstalledPlayableTravelRuntimeV1 } from
+  "./playableCampaignTravelCatalog";
 import { WORLD_MAP_LAYOUT } from "../../map-module/data/worldMapLayout";
 import { createWorldStateFromMapLayout } from
   "../../map-module/world-simulation/mapAdapter";
@@ -100,6 +108,19 @@ export interface PlayableCampaignInspectionV1 {
     code: string;
     message: string;
   }>;
+}
+
+export interface PlayableCampaignControllerOptionsV1 {
+  /**
+   * Port de certification : permet au mode local d'exercer le pipeline J5
+   * normal avec un fournisseur deterministe. Aucun fournisseur de test n'est
+   * embarque dans la composition de production.
+   */
+  plotGeneratorConfig?: PlotCandidateGeneratorConfigV1 | null;
+  intentInterpreterConfig?: AiIntentInterpreterConfigV1 | null;
+  missionRelationRuntime?: NarrativeMissionRelationRuntimeV1 | null;
+  companionRecruitmentRuntime?: NarrativeCompanionRecruitmentRuntimeV1 | null;
+  narrativeTravelInterruption?: boolean;
 }
 
 interface StoredBootstrapEnvelopeV1 {
@@ -153,7 +174,8 @@ Promise<PlayableCampaignInspectionV1> {
 
 export async function createPlayableCampaignControllerV1(
   sheet: ActiveCharacterSheetV1,
-  mode: PlayableNarrativeModeV1
+  mode: PlayableNarrativeModeV1,
+  options: PlayableCampaignControllerOptionsV1 = {}
 ): Promise<NarrativeAppSurfaceBootstrapV1> {
   const clock = systemClock;
   const campaignId = await campaignIdForSheetV1(sheet);
@@ -450,7 +472,9 @@ export async function createPlayableCampaignControllerV1(
       idPrefix: `nar:${campaignId}`,
       runtimeBindings,
       intentInterpreterConfig:
-        mode === "openai"
+        options.intentInterpreterConfig !== undefined
+          ? options.intentInterpreterConfig
+          : mode === "openai"
           ? buildOpenAiIntentInterpreterConfigV1()
           : createDefaultAiIntentInterpreterConfigV1(),
       mjPlannerConfig:
@@ -463,14 +487,24 @@ export async function createPlayableCampaignControllerV1(
         ),
       inventoryAccessRuntime: accessRuntimes.inventoryAccessRuntime,
       inventoryTransactionRuntime: createInstalledInventoryTransactionRuntimeV1(),
-      missionRelationRuntime: createInstalledMissionRelationRuntimeV1(),
-      plotCreationRuntime: mode === "openai"
-        ? createCatalogPlotCreationRuntimeV1({ generatorConfig: buildOpenAiPlotCandidateConfigV1() })
+      missionRelationRuntime: options.missionRelationRuntime
+        ?? createInstalledMissionRelationRuntimeV1(),
+      companionRecruitmentRuntime:
+        options.companionRecruitmentRuntime
+        ?? createInstalledCompanionRecruitmentRuntimeV1(),
+      plotCreationRuntime: mode === "openai" || options.plotGeneratorConfig
+        ? createCatalogPlotCreationRuntimeV1({
+            generatorConfig: options.plotGeneratorConfig
+              ?? buildOpenAiPlotCandidateConfigV1()
+          })
         : null,
       socialAccessRuntime: accessRuntimes.socialAccessRuntime,
       rulesAccessRuntime: accessRuntimes.rulesAccessRuntime,
       tacticalAccessRuntime: accessRuntimes.tacticalAccessRuntime,
       sceneTransitionRuntime,
+      travelRuntime: createInstalledPlayableTravelRuntimeV1(runtimeBindings, {
+        narrativeInterruption: options.narrativeTravelInterruption
+      }),
       dynamicPlaceRuntime: mode === "openai"
         ? createCampaignLoreGuidedDynamicPlaceRuntimeV1({
             runtimeBindings,
@@ -547,6 +581,10 @@ export async function createPlayableCampaignControllerV1(
     return {
       controller,
       openingScene: opening.value,
+      privateNotebookScope: {
+        campaignId,
+        characterRef: `character-sheet:${sheet.sheetId}`
+      },
       worldSimulationRuntime,
       readCommittedAvailability: scene =>
         availabilityReader.read(scene)

@@ -1,6 +1,6 @@
 # État actuel et feuille de route unique du module narration
 
-Date de référence : 2026-08-20
+Date de référence : 2026-08-24
 
 Statut : `SOURCE_CANONIQUE_ACTIVE`
 
@@ -41,8 +41,9 @@ Construire un jeu de rôle narratif solo dans lequel un humain peut :
   volontés écrites ;
 - voir le monde, les intrigues et les PNJ évoluer sans être leur déclencheur
   unique ;
-- créer des relations durables pouvant, dans un lot ultérieur explicitement
-  contracté, conduire à un compagnon narratif puis tactique.
+- créer des relations durables pouvant conduire à un compagnon narratif doté
+  d'une volonté propre, puis préparer sa future projection tactique sans
+  l'implémenter dans le cycle narration J1 à J9.
 
 Le modèle IA interprète, propose et rédige. Il n'est jamais la base de données,
 le moteur de règles, l'autorité d'inventaire, la vérité d'intrigue ou la volonté
@@ -105,7 +106,7 @@ l'action.
 | Repos et progression | `LIVRÉ_DANS_PÉRIMÈTRE` | options texte libre volontairement non annoncées |
 | Bastion | `LIVRÉ_DANS_PÉRIMÈTRE` | économie de campagne et ordres texte libre absents |
 | Tactique | `LIVRÉ_SPÉCIALISÉ` | accès et défense de bastion couverts ; combat générique fermé |
-| Compagnon | `NON_OUVERT` | fondations présentes, contrat et parcours jouable absents |
+| Compagnon | `LIVRÉ_J7_NARRATIF` | autonomie narrative certifiée ; frontière tactique J8 documentée, projection `GameBoard` différée |
 
 ## Dernier point de contrôle livré
 
@@ -526,42 +527,135 @@ Référence :
 
 ### J8 — Compagnon tactique
 
-Statut : `PROCHAIN LOT — CONTRAT REQUIS AVANT CODE`
+Statut : `FERMÉ — FRONTIÈRE VALIDÉE, AUCUN CODE GAMEBOARD`
 
-Objectif : projeter un compagnon narratif validé vers le plateau sans en faire
-un personnage d'exemple ou une seconde autorité.
+Objectif : figer la frontière qui permettra plus tard de projeter un compagnon
+narratif validé vers le plateau, sans ouvrir maintenant la refonte tactique.
 
-Le lot devra décider contrôle joueur ou autonomie, projection mécanique,
-placement, initiative, tour tactique, ressources, blessures, fuite, incapacité
-et intégration des conséquences. Les alliés contrôlables restent refusés tant
-que `GameBoard` et la graine ne savent pas les représenter complètement.
+Décision propriétaire : un compagnon est autonome par défaut. Le joueur ne peut
+le contrôler directement que si une capacité mécanique autoritaire réellement
+active — par exemple un effet magique valide — produit ce droit, sa durée et ses
+limites. Une relation, une directive acceptée ou une phrase de l'IA ne créent
+jamais ce contrôle.
+
+J8 attribue projection, autonomie, carte, placement, initiative, tour,
+ressources, blessures, fuite, incapacité et retour narratif à leurs futurs
+propriétaires. Il maintient le refus actuel des alliés dans `GameBoard` et
+publie le guide de reprise tactique. Le cadrage propriétaire a été validé le
+2026-08-24 et J8 est fermé sans implémentation d'un compagnon tactique.
 
 Références :
 
+- [`Contrat-frontiere-compagnon-tactique-J8.md`](Contrat-frontiere-compagnon-tactique-J8.md) ;
+- [`Guide-reprise-future-module-tactique.md`](Guide-reprise-future-module-tactique.md) ;
 - [`Contrat-handoffs-tactique-repos.md`](Contrat-handoffs-tactique-repos.md) ;
 - [`Guide-defense-bastion-et-plateau-tactique.md`](Guide-defense-bastion-et-plateau-tactique.md).
 
-### J9 — Certification du parcours de jeu complet
+### J9 — Certification du parcours narratif complet
 
-Statut : `GATE_FINALE_PLANIFIÉE`
+Statut : `J9-A/J9-B/J9-C/J9-D FERMÉS — CYCLE J1 À J9 TERMINÉ`
 
-La certification étend `NAR-ACC-002` et doit prouver :
+J9 ferme le cycle narration J1 à J9. Il compose dans une même campagne réelle
+les capacités déjà livrées, sans élargir le moteur tactique :
 
 ```text
 campagne réelle
 → dialogue multi-PNJ
 → mission ou relation propriétaire
+→ recrutement d'un compagnon narratif et décision autonome
 → intrigue contextuelle validée
 → découverte et revisite de lieux
 → inventaire par volonté écrite, avec transaction atomique
+→ voyage avec photographie versionnée du groupe
 → indices, conséquences et évolution hors écran
 → résolution
 → ellipse, sauvegarde et reprise
 ```
 
-Le compagnon narratif rejoint cette gate après J7 ; le compagnon tactique reste
-une extension après J8. Leur absence ne doit pas bloquer la première fermeture
-du parcours de jeu solo.
+Plan de reprise J9 :
+
+1. composer une gate déterministe unique depuis l'entrée réelle du build ;
+2. réutiliser les autorités et catalogues J1 à J7 sans événement métier
+   artificiel destiné à forcer le scénario ;
+3. prouver recrutement, directive acceptée ou adaptée, déplacement du groupe,
+   inventaire, mission, intrigue, temps, reprise et absence de doublon ;
+4. conserver les handoffs tactiques spécialisés déjà certifiés comme preuves
+   séparées, sans imposer un combat ni un compagnon tactique à la gate ;
+5. exécuter une recette OpenAI ciblée uniquement après passage local et accord
+   sur la dépense ;
+6. publier la matrice finale J9, mettre à jour l'état global et fermer J1 à J9.
+
+J9-A est fermé par
+[`Matrice-certification-finale-narration-J9.md`](Matrice-certification-finale-narration-J9.md).
+Les trois raccords fonctionnels identifiés sont désormais livrés : départ et
+arrivée J6 depuis le contrôleur réel, recrutement J7 issu d'une confirmation J4,
+et génération J5 locale par un fournisseur déterministe passant par les ports et
+autorités normaux. La preuve `j9b-continuous` les compose dans une même campagne
+et rejoue leurs requêtes après l'arrivée. `j9b-full-local` ferme ensuite J9-B
+depuis le bootstrap installé : deux PNJ, inventaire personnel et externe,
+acceptation puis refus autonome, intrigue créée, découverte, hypothèse, évolution
+et résolution, voyage, reconstruction globale et rejeux stables. La gate
+`j9c-browser` ferme J9-C dans Chromium : création par l'interface réelle,
+dialogues et inventaire depuis la saisie UI, composition J4–J7 par le contrôleur
+installé sur la même base IndexedDB, arrivée aux Halles, rechargements,
+inspection des autorités durables et rejeux critiques sans doublon. Le pilote
+déterministe reste une dépendance de test et aucune fixture n'entre en production.
+
+J9-D est fermé le 2026-08-24 après accord explicite. La gate
+`narrative-pipeline-roles:openai-live` a exécuté cinq familles de tours et treize
+appels réels, tous en HTTP 200. Aucun tour n'a dépassé trois appels, aucun rôle
+n'a été dupliqué et leur ordre canonique a été respecté. La clé est restée côté
+serveur. Le cycle J1 à J9 est terminé dans son périmètre narratif.
+
+Tout prochain développement exige maintenant l'ouverture explicite d'un nouveau
+lot. La reprise tactique reste régie par le guide J8 et commence par le cadrage
+de la carte, du placement multi-acteurs et des responsabilités, sans modifier
+opportunément `GameBoard`.
+
+### J10 — Intégration narrative immersive
+
+Statut : `J10-A À J10-D FERMÉS — J10-E AIDES-MÉMOIRE AUTORISÉ`
+
+J10 est le prochain lot produit. Il rend la verticale J1 à J9 entièrement
+pilotable depuis la saisie narrative sans carte de voyage, panneau de commande
+du groupe, jauge relationnelle ou popup de quête. Le moteur de voyage, les
+autorités du groupe, les missions, les intrigues et l'inventaire restent actifs
+sous la surface : la prose ne remplace jamais leurs commits.
+
+Le lot ajoute également un carnet multi-intercalaires strictement privé au
+joueur, un inventaire compact en lecture seule et un récapitulatif de reprise
+composé uniquement depuis les connaissances et engagements publics. Les traces
+techniques sont masquées par défaut mais restent accessibles en mode
+développeur. L'ordre, les refus et les critères complets sont définis dans
+[`Plan-integration-narrative-immersive-J10.md`](Plan-integration-narrative-immersive-J10.md).
+
+J10 ne rouvre pas le chantier tactique J8. J10-A est fermé par les trois
+contrats J10, l'audit des projections, des huit sorties IA et des traces UI,
+l'exclusion explicite du carnet dans `PlayerPublicContextV1` et la commande
+`narration-module:test:j10a-boundaries`. Aucun composant React ou schéma
+IndexedDB n'a été modifié. J10-B raccorde ensuite le voyage actif à la saisie
+libre, ajoute la résolution idempotente de la décision pendante, sa projection
+publique et l'interruption installée Archives → Halles. La gate locale
+`narration-module:test:j10b-travel` couvre rechargement et rejeux sans second
+temps. Aucun composant de carte ou bouton de trajet n'a été ajouté. J10-C
+installe ensuite hors tests les politiques de recrutement et d'autonomie,
+active le contrat sémantique V7 et certifie refus, recrutement, demande risquée,
+séparation, réunion et rejeu depuis le seul dialogue. Le prochain sous-lot est
+J10-D ferme ensuite le carnet privé multi-intercalaires : base IndexedDB dédiée,
+port extérieur au `CampaignRepository`, autosauvegarde sérialisée, réouverture,
+conflits de révision et canari absent des appels IA et du noyau narratif. Le
+prochain sous-lot est J10-E : récapitulatif public et inventaire compact en
+lecture seule.
+
+Le compagnon tactique, la génération de carte et le placement multi-acteurs
+appartiennent au futur chantier tactique décrit par le guide J8. Leur absence ne
+bloque pas la fermeture narrative J9.
+
+J9 ne prétend donc pas fermer seul l'intégralité historique de `NAR-ACC-002`,
+dont le checkpoint C exige un combat continu dans le même scénario. Sa matrice
+finale distingue explicitement la verticale narrative continue J1 à J7 de la
+preuve tactique spécialisée déjà certifiée. La réunion de ces deux preuves dans
+un unique parcours avec compagnon actif appartient à la reprise tactique future.
 
 ## Hors périmètre tant qu'aucun lot ne les ouvre
 
@@ -592,7 +686,8 @@ du parcours de jeu solo.
 ## Règles documentaires
 
 - Une seule feuille de route active : ce document.
-- `TASKS.md` contient uniquement J1, sa prochaine action et les blocages.
+- `TASKS.md` contient uniquement le lot actif, sa prochaine action et les
+  blocages.
 - Un contrat décrit un comportement ; il ne replanifie pas les lots suivants.
 - Un guide explique l'expérience ; il ne transforme pas `Prévu` en `Disponible`.
 - Une passation est un instantané historique daté et n'est jamais une lecture

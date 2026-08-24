@@ -73,7 +73,7 @@ Les simulations longues sont disponibles avec `npm run verify:world-simulation:l
 - `test-GAME-2D/src/` : application React, plateau, regles, donnees et creation de personnage.
 - `test-GAME-2D/map-module/` : carte du monde, editeur et simulation systemique.
 - `test-GAME-2D/narration-module/` : noyau narratif actif avec persistance
-  IndexedDB, intention sémantique V6, scènes guidées par le lore, populations
+  IndexedDB, intention sémantique V7, scènes guidées par le lore, populations
   locales, dialogue borné avec profils conversationnels éphémères par acteur,
   rendu narratif contrôlé et OpenAI opt-in côté serveur.
   Le premier état social durable et le premier vertical d'intrigue privée
@@ -108,6 +108,18 @@ Les simulations longues sont disponibles avec `npm run verify:world-simulation:l
   J7 est fermé : une demande libre au compagnon est interprétée sans mots-clés
   métier, décidée selon sa volonté, formulée naturellement, puis restaurée dans
   le navigateur ; son initiative sociale reste bornée par les règles existantes.
+  J8 fixe désormais la frontière future avec le tactique : compagnon autonome
+  par défaut, contrôle direct seulement depuis une capacité mécanique réelle,
+  et refonte de la carte, du placement et des acteurs différée après la
+  certification narrative J9.
+  J9-B est fermé par une campagne locale continue issue du bootstrap installé :
+  deux PNJ, inventaire personnel et externe, recrutement et refus autonome,
+  intrigue créée puis résolue, voyage avec compagnon, reconstruction et rejeux
+  stables. J9-C ferme aussi cette verticale dans Chromium et IndexedDB depuis
+  une campagne créée par l'interface, avec rechargements et rejeux critiques.
+  J9-D ferme enfin la certification OpenAI live ciblée : cinq familles de tours,
+  treize appels HTTP 200, rôles ordonnés et budget respecté. J1 à J9 sont donc
+  terminés dans leur périmètre narratif.
   Les causes et catalogues de bastion réellement jouables, l'économie de
   campagne et la mémoire sociale longue restent à construire.
 - `test-GAME-2D/scripts/` : generation de catalogues et scripts de verification.

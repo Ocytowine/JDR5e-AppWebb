@@ -236,6 +236,21 @@ async function run(): Promise<void> {
     assert.equal(interrupted.value.stopReason, "INTERRUPTION");
     assert.equal(interrupted.value.timeProposal.duration.recommendedSeconds, 600);
     assert.equal(interrupted.value.nextProcess.status, "INTERRUPTED");
+    assert.equal(
+      interrupted.value.pendingDecision?.kind,
+      "TRAVEL_INTERRUPTION_DECISION"
+    );
+    assert.equal(
+      interrupted.value.pendingDecision?.reasonRef,
+      "scheduled-effect-before-arrival"
+    );
+    const forbiddenAdvance = await prepareTravelSegmentV1({
+      ...baseInput(),
+      process: interrupted.value.nextProcess,
+      currentGameSecond: 600,
+      worldSimulatedThrough: 3_600
+    });
+    assert.equal(forbiddenAdvance.ok, false);
   }
   console.log("PASS [travel-process] NAR-ACC-020 earlier interruption stops before later travel completion");
 }

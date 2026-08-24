@@ -70,6 +70,8 @@ import type {
 } from "./campaignFeatureComposition";
 import { buildInstalledInterpreterCharacterReferenceCatalogV1 } from
   "./interpreterCharacterContextCatalog";
+import { PlayerPrivateNotebookPanel } from "./PlayerPrivateNotebookPanel";
+import type { PlayerPrivateNotebookScopeV1 } from "./playerPrivateNotebook";
 
 export type NarrativeEnhancementMode = "local" | "openai";
 let systemErrorSequence = 0;
@@ -77,6 +79,7 @@ let systemErrorSequence = 0;
 export interface NarrativeAppSurfaceBootstrapV1 {
   controller: NarrativeTurnControllerV1;
   openingScene: PlayableSceneStateV1;
+  privateNotebookScope?: PlayerPrivateNotebookScopeV1;
   worldSimulationRuntime?: CampaignWorldSimulationRuntimeV1;
   readCommittedAvailability?: (
     scene: PlayableSceneStateV1
@@ -134,6 +137,8 @@ export function NarrativeAppSurface(props: {
   const [enhancementMode, setEnhancementMode] = useState<NarrativeEnhancementMode>("local");
   const [openingScene, setOpeningScene] = useState<PlayableSceneStateV1 | null>(null);
   const [currentScene, setCurrentScene] = useState<PlayableSceneStateV1 | null>(null);
+  const [privateNotebookScope, setPrivateNotebookScope] =
+    useState<PlayerPrivateNotebookScopeV1 | null>(null);
   const [committedAvailability, setCommittedAvailability] =
     useState<CommittedCampaignFeatureAvailabilityV1 | null>(null);
   const [readCommittedAvailability, setReadCommittedAvailability] =
@@ -158,6 +163,7 @@ export function NarrativeAppSurface(props: {
     setReadCommittedAvailability(undefined);
     setOpeningScene(null);
     setCurrentScene(null);
+    setPrivateNotebookScope(null);
     const activateController = async (nextController: NarrativeTurnControllerV1, refreshOpening = false) => {
       const [
         restored,
@@ -329,6 +335,7 @@ export function NarrativeAppSurface(props: {
         if (!cancelled) {
           setOpeningScene(result.openingScene);
           setCurrentScene(result.openingScene);
+          setPrivateNotebookScope(result.privateNotebookScope ?? null);
           setReadCommittedAvailability(
             () => result.readCommittedAvailability
           );
@@ -1013,6 +1020,10 @@ export function NarrativeAppSurface(props: {
               </p>
             ))}
           </section>
+        )}
+
+        {privateNotebookScope !== null && (
+          <PlayerPrivateNotebookPanel scope={privateNotebookScope} />
         )}
 
         <div

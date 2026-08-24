@@ -669,6 +669,23 @@ function semanticIntentRequestV6(overrides = {}) {
   });
 }
 
+function semanticIntentRequestV7(overrides = {}) {
+  return intentRequest({
+    contractVersion: "ai-intent-semantic/7",
+    input: {
+      instructionsRef: "ai-intent-interpretation/player-intent-semantic/v7",
+      roleContextPack: {},
+      task: {
+        rawInput: "Archiviste, reste ici pendant que je poursuis.",
+        activeCompanionRefs: ["npc:archiviste"],
+        outputContract: "ai-intent-semantic/7"
+      }
+    },
+    limits: { inputTokenBudget: 1_000, outputTokenBudget: 900, timeoutMs: 30_000 },
+    ...overrides
+  });
+}
+
 function assertEveryArraySchemaHasItems(schema, path = "schema") {
   if (!schema || typeof schema !== "object" || Array.isArray(schema)) return;
   if (schema.type === "array") {
@@ -720,7 +737,7 @@ async function main() {
   assert.equal(normalizedContact.payload.intent.dialogueAct.act, "INITIATE_CONVERSATION");
   assert.equal(validateEnvelope(normalizedContact, semanticRequest).ok, true);
 
-  [request(), intentRequest(), semanticIntentRequestV3(), semanticIntentRequestV4(), semanticIntentRequestV5(), semanticIntentRequestV6(), mjPlannerRequest(), npcPerformerRequest(), sceneCreatorRequest(), sceneCreatorRequestV2(), destinationArbiterRequest()].forEach(roleRequest => {
+  [request(), intentRequest(), semanticIntentRequestV3(), semanticIntentRequestV4(), semanticIntentRequestV5(), semanticIntentRequestV6(), semanticIntentRequestV7(), mjPlannerRequest(), npcPerformerRequest(), sceneCreatorRequest(), sceneCreatorRequestV2(), destinationArbiterRequest()].forEach(roleRequest => {
     const schema = buildStrictAiOutputSchema(roleRequest).schema;
     assertEveryArraySchemaHasItems(schema);
     assertOpenAiStrictObjectShape(schema);
@@ -788,6 +805,14 @@ async function main() {
   const companionInstructions = buildRoleInstructions(semanticIntentRequestV6());
   assert.equal(companionInstructions.includes("task.activeCompanionRefs"), true);
   assert.equal(companionInstructions.includes("sans mots-clés"), true);
+  const normalizedCompanionPresence = normalizeAiCallRequest(semanticIntentRequestV7());
+  assert.equal(normalizedCompanionPresence.ok, true);
+  const companionPresenceSchema = buildStrictAiOutputSchema(semanticIntentRequestV7()).schema.properties.payload.properties.intent.properties.companionDirective.anyOf[0];
+  assert.equal(companionPresenceSchema.required.includes("presenceIntent"), true);
+  assert.deepEqual(companionPresenceSchema.properties.presenceIntent.enum, ["UNCHANGED", "SEPARATE", "REJOIN", "LEAVE"]);
+  const companionPresenceInstructions = buildRoleInstructions(semanticIntentRequestV7());
+  assert.equal(companionPresenceInstructions.includes("PNJ visible"), true);
+  assert.equal(companionPresenceInstructions.includes("presenceIntent=UNCHANGED"), true);
   const focusedRequest = semanticIntentRequestV5({
     input: {
       instructionsRef: "ai-intent-interpretation/player-intent-semantic/v5",

@@ -1,5 +1,9 @@
 import { strict as assert } from "node:assert";
-import { prepareCampaignTravelSegmentV1, prepareCampaignTravelStartCommitV1 } from "../../src/application";
+import {
+  campaignTravelProcessAggregateIdV1,
+  prepareCampaignTravelSegmentV1,
+  prepareCampaignTravelStartCommitV1
+} from "../../src/application";
 import {
   computeJsonFingerprint,
   computeRequestFingerprint,
@@ -17,6 +21,12 @@ import {
 import { createTravelProcessStatePayloadV1, type TravelProcessStateV1 } from "../../src/time";
 
 async function run(): Promise<void> {
+  const boundedAggregateId = campaignTravelProcessAggregateIdV1(
+    `TRAVEL-PROCESS:${"A".repeat(180)}`
+  );
+  assert.equal(boundedAggregateId.length, 128);
+  assert.match(boundedAggregateId, /^[a-z][a-z0-9._:-]{2,127}$/);
+
   const campaignId = opaqueId<CampaignId>("campaign-j6-runtime");
   const party = {
     schemaVersion: 1 as const,
