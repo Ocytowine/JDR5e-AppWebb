@@ -856,10 +856,9 @@ function resolutionNotice(resolution: NarrativeResolutionResultV1): string {
   }
   if (resolution.resultKind === "CLARIFICATION_REQUIRED") {
     return [
-      "Clarification requise - aucun commit",
-      ...diagnostic,
-      "Raison: l'intention n'est pas suffisamment confirmée pour être exécutée.",
-      "Effet: aucun temps de jeu ni commit métier n'a été déclenché."
+      resolution.interpretation.clarificationQuestion
+        ?? "Je ne suis pas certain d'avoir compris ce que tu veux faire. Peux-tu préciser ton intention ?",
+      "Rien ne change encore dans la scène ; elle reste suspendue à ta réponse."
     ].join("\n");
   }
   if (resolution.resultKind === "NO_COMMIT_RESPONSE") {

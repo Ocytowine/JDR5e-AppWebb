@@ -77,6 +77,17 @@ assert.deepEqual(
   ["Tu réduis la distance qui te sépare du clerc."],
   "les options techniques ne réinjectent jamais une notice de moteur dans le fil narratif"
 );
+const historicalClarificationPacket = structuredClone(immersivePacket);
+historicalClarificationPacket.displayBlocks = [{
+  ...immersivePacket.displayBlocks[1]!,
+  kind: "CLARIFICATION",
+  text: "Clarification requise - aucun commit\nIntention canonique: address_visible_actor.",
+  sourceRefs: ["resolution-kind:CLARIFICATION_REQUIRED"]
+}];
+const historicalClarification = sanitizePlayerFacingPacketsV1([historicalClarificationPacket], false)[0]!;
+assert.equal(historicalClarification.displayBlocks.length, 1);
+assert.match(historicalClarification.displayBlocks[0]?.text ?? "", /préciser ton intention/iu);
+assert.doesNotMatch(historicalClarification.displayBlocks[0]?.text ?? "", /commit|Intention canonique/iu);
 
 const validationPacket = createRuntimeFailurePacket({
   error: {

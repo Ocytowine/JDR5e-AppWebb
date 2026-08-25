@@ -1274,10 +1274,12 @@ export function sanitizePlayerFacingPacketsV1(
     ...packet,
     rhythmDiagnostics: developerMode ? packet.rhythmDiagnostics : null,
     displayBlocks: packet.displayBlocks
-      .filter(block => !isTechnicalSystemBlockV1(block))
+      .filter(block => block.kind === "CLARIFICATION" || !isTechnicalSystemBlockV1(block))
       .map(block => ({
         ...block,
-        text: stripTechnicalTraceV1(block.text)
+        text: block.kind === "CLARIFICATION" && isTechnicalSystemBlockV1(block)
+          ? "Je ne suis pas certain d'avoir compris ce que tu veux faire. Peux-tu préciser ton intention ? Rien ne change encore dans la scène."
+          : stripTechnicalTraceV1(block.text)
       }))
   }));
 }

@@ -66,6 +66,11 @@ gestion. Voir
   la conservation de la cible V8 entre deux tours : une reprise pronominale
   reçoit désormais le focus structuré précédent, tandis que les diagnostics de
   résolution restent hors du fil narratif même avec les options techniques.
+  Le diagnostic complet du dernier échange est maintenant consultable et
+  copiable dans un panneau séparé. Le PNJ validé par une capacité de dialogue
+  est transmis directement au performer OpenAI sans dépendre d'une assignation
+  facultative du planner ; les anciennes clarifications restent lisibles sans
+  exposer leur diagnostic interne.
   Les corrections locales sont vertes ; la fluidité doit continuer à être
   observée dans la vraie UI.
 

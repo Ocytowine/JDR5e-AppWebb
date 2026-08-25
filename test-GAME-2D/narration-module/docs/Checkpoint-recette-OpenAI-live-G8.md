@@ -97,6 +97,17 @@ après une approche sans dialogue, et le fil narratif filtre toujours les blocs
 techniques. Une gate locale enchaîne désormais l'approche du clerc et une demande
 utilisant « lui ».
 
+Le troisième retour manuel a montré que la disparition totale des diagnostics
+empêchait de transmettre un échec précis et que le performer PNJ dépendait encore
+d'une assignation facultative du planner, malgré une cible sociale déjà validée.
+Les options techniques exposent désormais le diagnostic complet du dernier tour
+dans une zone séparée et copiable, sans le réinjecter dans le récit. Pour une
+capacité exacte `scene.visible-dialogue`, la cible PNJ structurée est directement
+assignée au performer. Le prompt de ce dernier doit traiter sémantiquement le
+`contentGoal`, même lorsque l'adaptateur ouvert ne peut le réduire sans perte à
+un acte de dialogue fermé. Les clarifications historiques filtrées reçoivent en
+outre un texte joueur immersif afin de ne plus laisser une entrée brute orpheline.
+
 La contre-recette dédiée a été exécutée avec la commande :
 
 ```text
