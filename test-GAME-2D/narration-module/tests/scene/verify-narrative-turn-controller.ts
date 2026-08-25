@@ -15,6 +15,7 @@ import {
 import {
   NarrativeTurnControllerV1,
   REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1,
+  createDefaultAiIntentInterpreterConfigV1,
   createInitialReferenceSceneStateV1,
   normalizeSurfaceTyposV1,
   validateNpcPerformanceAgainstVisibleSceneV1
@@ -70,7 +71,8 @@ async function main(): Promise<void> {
     repository,
     campaignId,
     clock,
-    idPrefix: "test"
+    idPrefix: "test",
+    intentInterpreterConfig: createDefaultAiIntentInterpreterConfigV1()
   });
 
   const first = await controller.submit({
@@ -305,7 +307,7 @@ async function main(): Promise<void> {
     }
     return originalGetAggregate(...args);
   };
-  const failureController = new NarrativeTurnControllerV1({ repository: failureRepository, campaignId: failureCampaignId, clock, idPrefix: "failure-release" });
+  const failureController = new NarrativeTurnControllerV1({ repository: failureRepository, campaignId: failureCampaignId, clock, idPrefix: "failure-release", intentInterpreterConfig: createDefaultAiIntentInterpreterConfigV1() });
   const failedTurn = await failureController.submit({ schemaVersion: 1, clientRequestId: "req-failure-release-1", rawInput: "Je regarde la serveuse." });
   assert.equal(failedTurn.ok, false, "échec pré-commit forcé attendu");
   const cancelledOperation = await failureRepository.getOperation(opaqueId("failure-release-op-req-failure-release-1"));
@@ -319,6 +321,7 @@ async function main(): Promise<void> {
     campaignId,
     clock,
     idPrefix: "dynamic-route",
+    intentInterpreterConfig: createDefaultAiIntentInterpreterConfigV1(),
     dynamicPlaceRuntime: {
       canHandle() { dynamicCapabilityCalled = true; return true; },
       async execute(input) {
@@ -364,6 +367,7 @@ async function main(): Promise<void> {
     campaignId,
     clock,
     idPrefix: "destination-decision",
+    intentInterpreterConfig: createDefaultAiIntentInterpreterConfigV1(),
     dynamicPlaceRuntime: {
       canHandle() { return true; },
       async evaluateDestination() {
@@ -398,6 +402,7 @@ async function main(): Promise<void> {
     campaignId,
     clock,
     idPrefix: "controlled-destination",
+    intentInterpreterConfig: createDefaultAiIntentInterpreterConfigV1(),
     dynamicPlaceRuntime: {
       canHandle() { return true; },
       async evaluateDestination() {
@@ -430,6 +435,7 @@ async function main(): Promise<void> {
     campaignId,
     clock,
     idPrefix: "inventory-access-route",
+    intentInterpreterConfig: createDefaultAiIntentInterpreterConfigV1(),
     inventoryAccessRuntime: {
       canHandle() { return true; },
       async execute(input) {
@@ -483,6 +489,7 @@ async function main(): Promise<void> {
     campaignId,
     clock,
     idPrefix: "social-access-route",
+    intentInterpreterConfig: createDefaultAiIntentInterpreterConfigV1(),
     socialAccessRuntime: {
       canHandle() { return true; },
       async execute(input) {
@@ -552,6 +559,7 @@ async function main(): Promise<void> {
     campaignId: recoveryCampaignId,
     clock,
     idPrefix: "recovery",
+    intentInterpreterConfig: createDefaultAiIntentInterpreterConfigV1(),
     activeSceneResolver: {
       async resolve() {
         return { ok: true as const, value: recoveryCommitted ? destinationScene : REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1 };

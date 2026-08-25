@@ -8,9 +8,11 @@ Statut : `ACTIF`
 personnage sans recevoir sa fiche complète et sans décider si l'action est
 possible.
 
-Le contrat actif est `interpreter-character-context/1`. Il s'agit d'une
-projection minimale de compréhension, jamais d'une projection mécanique ni
-d'une autorité d'exécution.
+Le chargeur produit désormais `interpreter-character-context/2`; la lecture de
+V1 reste compatible. V2 ajoute un profil incarné explicitement public et des
+capacités nommables cataloguées. Pour V8, cette projection rejoint
+`interpreter-embodied-public-context/1`, jamais une projection mécanique ni une
+autorité d'exécution.
 
 ## Source et contenu autorisé
 
@@ -18,21 +20,26 @@ Le contexte est reconstruit à chaque tour. Le profil de personnage actif
 committé désigne les projections courantes ; le premier événement de bootstrap
 reste un repli de compatibilité pour les anciennes campagnes :
 
-- `character.narrative-projection` fournit l'identité, les langues et
-  `observable.visibleEquipment` ;
+- `character.narrative-projection` fournit l'identité, les langues,
+  `observable.visibleEquipment`, `observable.physicalDescription` et les seuls
+  champs publics nommés `biography`, `personality`, `objectives`, `flaws` ;
 - `character.tactical-projection` fournit uniquement les identifiants déclarés
   d'actions et de sorts ;
 - `character.state` fournit depuis J3 une projection bornée des exemplaires
   possédés, de leur quantité et de leur état de rangement ou d'équipement ;
-- le catalogue installé fournit les libellés et alias publics correspondants.
+- le catalogue installé fournit les libellés et alias publics correspondants ;
+- un `featureId` privé n'est projeté que si le catalogue public `features`
+  injecté possède une entrée explicite correspondante.
 
 La sortie contient :
 
 - `character.ref` et `character.label` ;
-- des références `LANGUAGE`, `ACTION`, `SPELL`, `INVENTORY_ITEM` et
+- des références `LANGUAGE`, `ACTION`, `SPELL`, `FEATURE`, `INVENTORY_ITEM` et
   `EQUIPPED_ITEM` ;
 - leurs libellés, alias de catalogue et mots significatifs de libellé bornés ;
 - les alias ambigus avec la liste de leurs candidats ;
+- `embodiedProfile` avec identité, historique, récit personnel et apparence
+  auto-déclarés ;
 - `authority=INTERPRETATION_ONLY` et
   `ownerValidationRequired=true`.
 
@@ -49,29 +56,28 @@ possédés nécessaires à leur sélection. Il ne transmet pas :
 - caractéristiques, modificateurs, PV, CA ou difficultés ;
 - quantités de ressources, charges ou délais de récupération ;
 - valeurs marchandes, offres, inventaires externes ou contreparties privées ;
-- biographie, personnalité, objectifs ou défauts ;
+- toute clé libre de `knownToPlayer` autre que les quatre clés publiques
+  explicitement listées ;
 - secrets de campagne ou connaissances privées ;
 - décision de réussite, d'échec, de mutation ou de handoff.
 
-Le nom historique `knownToPlayer` ne suffit pas à autoriser une transmission à
-l'IA : ce bloc est libre, potentiellement long et mêle actuellement biographie,
-objectifs et autres données sans classification de confidentialité. Il est donc
-entièrement exclu de V1.
+Le nom historique `knownToPlayer` ne suffit toujours pas à autoriser une
+transmission en bloc. V2 lit uniquement quatre chaînes connues, les normalise et
+les borne à 800 caractères. Toute clé supplémentaire reste exclue.
 
-De même, `observable` reste un objet libre. V1 ne lit que son champ structuré
-`visibleEquipment`. Une blessure visible, un état de forme ou une connaissance
-personnelle ne pourront être ajoutés qu'après création d'une projection
-publique typée et maintenue par leur propriétaire.
+De même, `observable` reste un objet libre. V2 ne lit que
+`visibleEquipment` et `physicalDescription`. Une blessure visible ou un état de
+forme ne pourra être ajouté qu'après création d'une projection publique typée
+et maintenue par son propriétaire.
 
 ## Ambiguïté et clarification
 
 Le contexte calcule les alias partagés. Si la saisie emploie un alias ambigu et
 qu'aucun libellé ou autre alias ne distingue exactement un candidat :
 
-1. l'interpréteur reçoit l'instruction de produire `unclear_intent` ;
-2. une garde locale vérifie encore le résultat accepté ;
-3. cette garde remplace toute interprétation trop affirmative par une
-   clarification ;
+1. V8 reçoit les alias et leurs candidats dans `referenceAmbiguities` ;
+2. OpenAI déclare `NEEDS_CLARIFICATION` si le contexte public ne suffit pas ;
+3. le runtime transmet ce statut sans second interpréteur lexical ;
 4. le tour reste `noCommit` et `noGameTime`.
 
 Exemple : si deux objets équipés acceptent l'alias « lame », « je prends ma
@@ -88,14 +94,15 @@ Le contexte exact est inclus dans le matériau de `contextFingerprint` de
 l'appel `player_intent_interpreter`. Une évolution de la fiche projetée ou du
 catalogue produit donc une identité de contexte différente.
 
-Le contexte n'est pas mémorisé dans la mémoire sémantique des cinq derniers
-tours : il est relu depuis les agrégats courants à chaque nouvelle saisie. Une
+Le profil n'est pas mémorisé dans la mémoire sémantique : il est relu depuis les
+agrégats courants à chaque nouvelle saisie. Une
 reprise après rechargement ne conserve ainsi pas une ancienne disponibilité.
 
 ## Vérification
 
 ```powershell
 npm run narration-module:test:interpreter-character-context
+npm run narration-module:test:interpreter-embodied-context-g4
 npm run narration-module:test:ai-intent-interpretation
 npm run narration-module:test:narrative-openai-route
 npm run narration-module:build
@@ -104,17 +111,16 @@ npm run narration-module:build
 La première vérification prouve :
 
 - la sélection des seuls champs autorisés ;
-- l'absence de lecture de `character.state` ;
-- l'exclusion d'un objet non équipé et de données privées sentinelles ;
+- la lecture bornée des objets possédés et des champs narratifs publics ;
+- l'exclusion des valeurs mécaniques, champs libres et données privées sentinelles ;
 - la présence du contexte dans la requête IA et son empreinte ;
 - la clarification locale d'un alias ambigu ;
 - l'absence de commit et de temps de jeu pendant cette clarification.
 
 ## Limites actuelles
 
-- Les aptitudes `featureIds` sont encore rangées dans
-  `privateMechanical` : elles restent exclues tant qu'une projection publique
-  dédiée ne les classe pas comme références interprétables.
+- Les aptitudes `featureIds` restent privées par défaut. Seules celles disposant
+  d'une entrée dans le catalogue public `features` deviennent nommables.
 - Le contexte public J1 possède désormais son contrat séparé
   `player-public-context/1`. Les blessures visibles et autres nouveaux états du
   personnage restent exclus tant que leur propriétaire ne les projette pas de

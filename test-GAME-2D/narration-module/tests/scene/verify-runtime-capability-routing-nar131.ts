@@ -26,7 +26,7 @@ function suggestion(domain: AiIntentRuntimeHandlingV1["requiredDomain"], hint: s
 }
 
 const sceneWithoutHint = routeNarrativeSemanticIntentV1({ semanticIntent: baseSemantic, runtimeSuggestion: suggestion("scene_resolution", null) });
-assert.equal(sceneWithoutHint.capabilityId, "scene.visible-interaction", "la cible de scène suffit sans action canonique open/force");
+assert.equal(sceneWithoutHint.capabilityId, "scene.visible-object-interaction", "la cible de scène suffit sans action canonique open/force");
 assert.equal(sceneWithoutHint.disposition, "HANDLE");
 assert.equal(sceneWithoutHint.requiredDomain, "scene_resolution");
 
@@ -34,7 +34,7 @@ const sceneWithIrrelevantHint = routeNarrativeSemanticIntentV1({ semanticIntent:
 assert.equal(sceneWithIrrelevantHint.routeId, sceneWithoutHint.routeId, "canonicalActionHint ne doit pas changer le routage sémantique");
 
 const sceneDespiteIncompatibleWorldSuggestion = routeNarrativeSemanticIntentV1({ semanticIntent: baseSemantic, runtimeSuggestion: suggestion("world", "open") });
-assert.equal(sceneDespiteIncompatibleWorldSuggestion.capabilityId, "scene.visible-interaction", "une suggestion world incompatible ne détourne pas une cible de scène visible");
+assert.equal(sceneDespiteIncompatibleWorldSuggestion.capabilityId, "scene.visible-object-interaction", "une suggestion world incompatible ne détourne pas une cible de scène visible");
 
 const inventory = routeNarrativeSemanticIntentV1({
   semanticIntent: { ...baseSemantic, target: { kind: "object", ref: "item:healing-potion", label: "Potion" } },
@@ -64,7 +64,7 @@ const approach = routeNarrativeSemanticIntentV1({
   semanticIntent: { ...baseSemantic, kind: "move_near_visible_actor", target: { kind: "npc", ref: "npc:npc-garde-blesse", label: "Garde blessé" } },
   runtimeSuggestion: suggestion("scene_resolution", "approcher")
 });
-assert.equal(approach.capabilityId, "scene.visible-interaction");
+assert.equal(approach.capabilityId, "scene.visible-actor-approach");
 assert.equal(approach.commandFamily, "SCENE_INTERACTION");
 
 const transition = routeNarrativeSemanticIntentV1({

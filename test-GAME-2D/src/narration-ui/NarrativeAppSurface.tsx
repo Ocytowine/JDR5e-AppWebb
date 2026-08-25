@@ -32,7 +32,8 @@ import {
   isAccessTacticalSessionSummaryV1,
   type CampaignWorldSimulationRuntimeV1,
   type CampaignWorldSimulationSnapshotV1,
-  type CampaignWorldSimulationAdvanceResultV1
+  type CampaignWorldSimulationAdvanceResultV1,
+  type PlayerCampaignRecapV1
 } from "../../narration-module/src/application";
 import type {
   ProcessCheckpointV1,
@@ -72,6 +73,7 @@ import { buildInstalledInterpreterCharacterReferenceCatalogV1 } from
   "./interpreterCharacterContextCatalog";
 import { PlayerPrivateNotebookPanel } from "./PlayerPrivateNotebookPanel";
 import type { PlayerPrivateNotebookScopeV1 } from "./playerPrivateNotebook";
+import { PlayerCampaignRecapPanel } from "./PlayerCampaignRecapPanel";
 
 export type NarrativeEnhancementMode = "local" | "openai";
 let systemErrorSequence = 0;
@@ -80,6 +82,7 @@ export interface NarrativeAppSurfaceBootstrapV1 {
   controller: NarrativeTurnControllerV1;
   openingScene: PlayableSceneStateV1;
   privateNotebookScope?: PlayerPrivateNotebookScopeV1;
+  readPlayerCampaignRecap?: () => Promise<Result<PlayerCampaignRecapV1>>;
   worldSimulationRuntime?: CampaignWorldSimulationRuntimeV1;
   readCommittedAvailability?: (
     scene: PlayableSceneStateV1
@@ -134,23 +137,29 @@ export function NarrativeAppSurface(props: {
     useState<BastionTacticalSessionV1 | null>(null);
   const [advancingRest, setAdvancingRest] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [enhancementMode, setEnhancementMode] = useState<NarrativeEnhancementMode>("local");
+  const enhancementMode: NarrativeEnhancementMode = "openai";
+  const [developerMode, setDeveloperMode] = useState(false);
+  const [latestTechnicalDiagnostic, setLatestTechnicalDiagnostic] = useState<string | null>(null);
+  const [technicalCopyStatus, setTechnicalCopyStatus] = useState<string | null>(null);
   const [openingScene, setOpeningScene] = useState<PlayableSceneStateV1 | null>(null);
   const [currentScene, setCurrentScene] = useState<PlayableSceneStateV1 | null>(null);
   const [privateNotebookScope, setPrivateNotebookScope] =
     useState<PlayerPrivateNotebookScopeV1 | null>(null);
+  const [readPlayerCampaignRecap, setReadPlayerCampaignRecap] =
+    useState<NarrativeAppSurfaceBootstrapV1["readPlayerCampaignRecap"]>(undefined);
   const [committedAvailability, setCommittedAvailability] =
     useState<CommittedCampaignFeatureAvailabilityV1 | null>(null);
   const [readCommittedAvailability, setReadCommittedAvailability] =
     useState<NarrativeAppSurfaceBootstrapV1[
       "readCommittedAvailability"
     ]>(undefined);
-  const modeStatus = enhancementMode === "openai"
-    ? "Mode OpenAI actif. Un fallback local reste disponible si une sortie distante est inutilisable."
-    : "Mode local actif pour l'interprétation et l'enrichissement.";
+  const modeStatus = "OpenAI interprète les saisies du joueur. En cas d'indisponibilité, le tour reste sans conséquence et demande une reformulation.";
   const packets = useMemo(
-    () => [createWelcomePacket(openingScene ?? REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1), ...packetsFromController],
-    [openingScene, packetsFromController]
+    () => sanitizePlayerFacingPacketsV1([
+      createWelcomePacket(openingScene ?? REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1),
+      ...packetsFromController
+    ], developerMode),
+    [developerMode, openingScene, packetsFromController]
   );
 
   useEffect(() => {
@@ -164,6 +173,9 @@ export function NarrativeAppSurface(props: {
     setOpeningScene(null);
     setCurrentScene(null);
     setPrivateNotebookScope(null);
+    setLatestTechnicalDiagnostic(null);
+    setTechnicalCopyStatus(null);
+    setReadPlayerCampaignRecap(undefined);
     const activateController = async (nextController: NarrativeTurnControllerV1, refreshOpening = false) => {
       const [
         restored,
@@ -336,6 +348,7 @@ export function NarrativeAppSurface(props: {
           setOpeningScene(result.openingScene);
           setCurrentScene(result.openingScene);
           setPrivateNotebookScope(result.privateNotebookScope ?? null);
+          setReadPlayerCampaignRecap(() => result.readPlayerCampaignRecap);
           setReadCommittedAvailability(
             () => result.readCommittedAvailability
           );
@@ -553,7 +566,8 @@ export function NarrativeAppSurface(props: {
           operationId: payload.clientRequestId,
           sceneId: currentScene?.sceneId ?? openingScene?.sceneId ?? "unknown-scene",
           context: "Résolution de l'action",
-          rawInput: payload.rawInput
+          rawInput: payload.rawInput,
+          includeDiagnostics: developerMode
         })]);
         return;
       }
@@ -591,19 +605,7 @@ export function NarrativeAppSurface(props: {
           ? [enhancement.status]
           : [])
       ];
-      const packetBeforeProjection = appendNarrativeSystemTrace({
-        packet: enhancement.displayPacket,
-        output: result.value.output,
-        priorPackets: packetsFromController,
-        turnDiagnostics,
-        enhancementTelemetry: enhancement.finalEnhancement.telemetry ?? [],
-        timings: {
-          controllerMs: controllerFinishedAt - submittedAt,
-          enhancementMs: enhancementFinishedAt - controllerFinishedAt,
-          projectionMs: 0,
-          totalMs: enhancementFinishedAt - submittedAt
-        }
-      });
+      const packetBeforeProjection = enhancement.displayPacket as DisplayPacketV1 & JsonObject;
       const recorded = await controller.recordRenderedProjection({
         schemaVersion: 1,
         clientRequestId: result.value.output.clientRequestId,
@@ -622,7 +624,7 @@ export function NarrativeAppSurface(props: {
         return;
       }
       const projectionFinishedAt = performance.now();
-      const enhanced = appendNarrativeSystemTrace({
+      const diagnosticPacket = appendNarrativeSystemTrace({
         packet: enhancement.displayPacket,
         output: result.value.output,
         priorPackets: packetsFromController,
@@ -635,6 +637,34 @@ export function NarrativeAppSurface(props: {
           totalMs: projectionFinishedAt - submittedAt
         }
       });
+      setLatestTechnicalDiagnostic(JSON.stringify({
+        generatedAt: new Date().toISOString(),
+        operationId: result.value.output.operationId,
+        clientRequestId: result.value.output.clientRequestId,
+        rawInput: payload.rawInput,
+        interpretation: result.value.output.interpretation,
+        domainCommand: result.value.output.domainCommand,
+        resolution: result.value.output.resolution,
+        mjPlan: result.value.output.mjPlan,
+        mjPlannerFailure: result.value.output.mjPlannerFailure,
+        npcPerformance: result.value.output.npcPerformance,
+        npcPerformanceFailure: result.value.output.npcPerformanceFailure,
+        stageTimings: result.value.output.stageTimings,
+        aiTelemetry: result.value.output.aiTelemetry,
+        narrativeEnhancement: {
+          status: enhancement.status,
+          enhanced: enhancement.finalEnhancement.enhanced,
+          fallbackKind: enhancement.finalEnhancement.fallbackKind,
+          incidents: enhancement.finalEnhancement.incidents,
+          safetyNotes: enhancement.finalEnhancement.safetyNotes,
+          telemetry: enhancement.finalEnhancement.telemetry ?? []
+        },
+        technicalBlocks: diagnosticPacket.displayBlocks
+          .filter(block => isTechnicalSystemBlockV1(block))
+          .map(block => ({ kind: block.kind, text: block.text, sourceRefs: block.sourceRefs }))
+      }, null, 2));
+      setTechnicalCopyStatus(null);
+      const enhanced = enhancement.displayPacket;
       const automaticBoundaries = result.value.output.sceneArrival === null
         ? null
         : await controller.processAutomaticBoundaries({
@@ -818,7 +848,8 @@ export function NarrativeAppSurface(props: {
       error,
       operationId,
       sceneId: currentScene?.sceneId ?? openingScene?.sceneId ?? "unknown-scene",
-      context
+      context,
+      includeDiagnostics: developerMode
     })]);
   }
 
@@ -841,7 +872,8 @@ export function NarrativeAppSurface(props: {
       sceneId: currentScene?.sceneId ?? openingScene?.sceneId ?? "unknown-scene",
       context,
       sourceOperationId,
-      primaryActionCommitted: true
+      primaryActionCommitted: true,
+      includeDiagnostics: developerMode
     })]);
   }
 
@@ -878,7 +910,7 @@ export function NarrativeAppSurface(props: {
         }}
       >
         <section
-          aria-label="Statut du module narration"
+          aria-label="En-tête de l’aventure"
           style={{
             borderRadius: 16,
             border: "1px solid rgba(255,255,255,0.12)",
@@ -887,15 +919,24 @@ export function NarrativeAppSurface(props: {
             boxShadow: "0 18px 60px rgba(0,0,0,0.30)"
           }}
         >
-          <h1 style={{ margin: "0 0 6px", fontSize: 22 }}>Narration</h1>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+            <h1 style={{ margin: 0, fontSize: 22 }}>L’aventure</h1>
+            <button
+              type="button"
+              aria-expanded={developerMode}
+              aria-controls="narrative-developer-options"
+              onClick={() => setDeveloperMode(value => !value)}
+              style={{ border: "1px solid rgba(255,255,255,0.16)", borderRadius: 9, background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.72)", padding: "6px 9px", cursor: "pointer", fontSize: 11 }}
+            >
+              Options techniques
+            </button>
+          </div>
           <p style={{ margin: 0, color: "rgba(255,255,255,0.72)", fontSize: 13, lineHeight: 1.5 }}>
-            Surface dédiée au module narration. Ce prototype affiche des projections typées et remonte la saisie
-            libre via le contrôleur applicatif prototype. L'enrichissement IA peut rester local ou passer par la route
-            serveur OpenAI opt-in, sans clé navigateur, sans écrire de transcript local et sans dépendre du plateau
-            tactique.
+            Décris librement ce que ton personnage fait, dit ou cherche à comprendre.
           </p>
-          <fieldset
-            aria-label="Mode IA narrative"
+          {developerMode && <section
+            id="narrative-developer-options"
+            aria-label="Interprétation narrative"
             style={{
               margin: "12px 0 0",
               padding: 10,
@@ -903,33 +944,44 @@ export function NarrativeAppSurface(props: {
               border: "1px solid rgba(255,255,255,0.12)"
             }}
           >
-            <legend style={{ padding: "0 6px", color: "rgba(255,255,255,0.76)", fontSize: 12 }}>
-              IA narrative
-            </legend>
-            <label style={{ marginRight: 12, fontSize: 13 }}>
-              <input
-                type="radio"
-                name="narrative-ai-mode"
-                value="local"
-                checked={enhancementMode === "local"}
-                onChange={() => setEnhancementMode("local")}
-              />{" "}
-              Locale
-            </label>
-            <label style={{ fontSize: 13 }}>
-              <input
-                type="radio"
-                name="narrative-ai-mode"
-                value="openai"
-                checked={enhancementMode === "openai"}
-                onChange={() => setEnhancementMode("openai")}
-              />{" "}
-              OpenAI
-            </label>
+            <strong style={{ color: "rgba(255,255,255,0.76)", fontSize: 12 }}>
+              Interpréteur joueur : OpenAI uniquement
+            </strong>
             <p style={{ margin: "8px 0 0", color: "rgba(255,255,255,0.62)", fontSize: 12 }}>
               {modeStatus}
             </p>
-          </fieldset>
+            <div style={{ marginTop: 10 }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                <strong style={{ fontSize: 12 }}>Diagnostic du dernier échange</strong>
+                <button
+                  type="button"
+                  disabled={latestTechnicalDiagnostic === null}
+                  onClick={() => {
+                    if (latestTechnicalDiagnostic === null) return;
+                    void navigator.clipboard.writeText(latestTechnicalDiagnostic).then(
+                      () => setTechnicalCopyStatus("Diagnostic copié."),
+                      () => setTechnicalCopyStatus("Copie impossible : sélectionne le texte ci-dessous.")
+                    );
+                  }}
+                  style={{ border: "1px solid rgba(255,255,255,0.16)", borderRadius: 8, background: "rgba(255,255,255,0.06)", color: "inherit", padding: "5px 8px", cursor: latestTechnicalDiagnostic === null ? "not-allowed" : "pointer", fontSize: 11 }}
+                >
+                  Copier
+                </button>
+              </div>
+              {technicalCopyStatus !== null && (
+                <p role="status" style={{ margin: "5px 0", fontSize: 11, color: "rgba(255,255,255,0.68)" }}>
+                  {technicalCopyStatus}
+                </p>
+              )}
+              <textarea
+                aria-label="Diagnostic technique du dernier échange"
+                readOnly
+                value={latestTechnicalDiagnostic ?? "Aucun échange diagnostiqué dans cette session."}
+                rows={10}
+                style={{ width: "100%", boxSizing: "border-box", marginTop: 6, resize: "vertical", borderRadius: 8, border: "1px solid rgba(255,255,255,0.12)", background: "rgba(0,0,0,0.28)", color: "rgba(255,255,255,0.78)", padding: 8, fontFamily: "monospace", fontSize: 11 }}
+              />
+            </div>
+          </section>}
           {errorMessage && (
             <p role="alert" style={{ margin: "8px 0 0", color: "#ffb4b4", fontSize: 12 }}>
               {errorMessage}
@@ -977,7 +1029,6 @@ export function NarrativeAppSurface(props: {
         {committedAvailability !== null
           && (
             committedAvailability.rest.allowed
-            || committedAvailability.progression.length > 0
             || committedAvailability.bastions.length > 0
           ) && (
           <section
@@ -997,14 +1048,6 @@ export function NarrativeAppSurface(props: {
                 Repos autorisé — {committedAvailability.rest.placeDisplayName}
               </p>
             )}
-            {committedAvailability.progression.map(award => (
-              <p key={award.awardId} style={{ margin: "5px 0", fontSize: 13 }}>
-                Progression en attente
-                {award.requiredChoices.length > 0
-                  ? ` — choix requis : ${award.requiredChoices.join(", ")}`
-                  : ""}
-              </p>
-            ))}
             {committedAvailability.bastions.map(bastion => (
               <p key={bastion.bastionId} style={{ margin: "5px 0", fontSize: 13 }}>
                 Bastion — {bastion.placeDisplayName}
@@ -1026,6 +1069,13 @@ export function NarrativeAppSurface(props: {
           <PlayerPrivateNotebookPanel scope={privateNotebookScope} />
         )}
 
+        {readPlayerCampaignRecap !== undefined && (
+          <PlayerCampaignRecapPanel
+            readRecap={readPlayerCampaignRecap}
+            refreshKey={`${currentScene?.sceneId ?? "none"}:${packetsFromController.length}`}
+          />
+        )}
+
         <div
           style={{
             height: activeTacticalSession === null
@@ -1036,6 +1086,7 @@ export function NarrativeAppSurface(props: {
         >
           <NarrativeConversationPanel
             packets={packets}
+            developerMode={developerMode}
             pending={pending || controller === null}
             title="Fil narratif"
             onSubmit={handleSubmit}
@@ -1082,6 +1133,7 @@ export function createRuntimeFailurePacket(input: {
   rawInput?: string;
   sourceOperationId?: string;
   primaryActionCommitted?: boolean;
+  includeDiagnostics?: boolean;
 }): DisplayPacketV1 {
   const guidance = narrativeErrorGuidance(input.error);
   const incident = input.error.incidentId === null ? "aucun" : input.error.incidentId;
@@ -1124,7 +1176,9 @@ export function createRuntimeFailurePacket(input: {
       blockId: `${input.operationId}:runtime-failure`,
       kind: "SYSTEM_NOTICE",
       speaker: { speakerId: "speaker-system", kind: "SYSTEM", displayName: "Système", roleLabel: "Notification système", ariaLabel: "Notification système", visualToken: "speaker-system" },
-      text: `${failureHeading}\n${failureSummary}\nAide : ${guidance.action}\nDiagnostic sûr : ${input.error.messageKey}; code=${input.error.code}; catégorie=${input.error.category}; reprise=${input.error.retry}; incident=${incident}.${validationDetail}`,
+      text: `${failureHeading}\n${failureSummary}\nAide : ${guidance.action}${input.includeDiagnostics === true
+        ? `\nDiagnostic sûr : ${input.error.messageKey}; code=${input.error.code}; catégorie=${input.error.category}; reprise=${input.error.retry}; incident=${incident}.${validationDetail}`
+        : ""}`,
       ariaLabel: "Notification système: échec runtime diagnostiqué",
       roleLabel: "Notification système",
       visualStyleToken: "speaker-system",
@@ -1210,6 +1264,39 @@ function mergeDisplayPacketsV1(packets: DisplayPacketV1[]): DisplayPacketV1[] {
   const byOperationId = new Map<string, DisplayPacketV1>();
   for (const packet of packets) byOperationId.set(packet.operationId, packet);
   return [...byOperationId.values()];
+}
+
+export function sanitizePlayerFacingPacketsV1(
+  packets: DisplayPacketV1[],
+  developerMode: boolean
+): DisplayPacketV1[] {
+  return packets.map(packet => ({
+    ...packet,
+    rhythmDiagnostics: developerMode ? packet.rhythmDiagnostics : null,
+    displayBlocks: packet.displayBlocks
+      .filter(block => !isTechnicalSystemBlockV1(block))
+      .map(block => ({
+        ...block,
+        text: stripTechnicalTraceV1(block.text)
+      }))
+  }));
+}
+
+function isTechnicalSystemBlockV1(block: DisplayPacketV1["displayBlocks"][number]): boolean {
+  if (
+    block.kind === "SYSTEM_NOTICE"
+    && block.sourceRefs.some(ref => ref.startsWith("resolution-kind:"))
+  ) return true;
+  return /Intention canonique:|projection de compatibilité|Éligibilité NAR-|Décision runtime locale:|Trace système et mémoire|Diagnostic du tour:|Transition locale confirmée|\bd20=|\bcommit=/iu.test(block.text);
+}
+
+function stripTechnicalTraceV1(text: string): string {
+  const traceMarker = "\n\nTrace système et mémoire";
+  const diagnosticMarker = "\nDiagnostic sûr :";
+  const traceIndex = text.indexOf(traceMarker);
+  const diagnosticIndex = text.indexOf(diagnosticMarker);
+  const indexes = [traceIndex, diagnosticIndex].filter(index => index >= 0);
+  return indexes.length === 0 ? text : text.slice(0, Math.min(...indexes)).trimEnd();
 }
 
 function appendNarrativeSystemTrace(input: {
@@ -1417,6 +1504,26 @@ async function enhancePrototypePacket(
   finalEnhancement: AiNarrativeEnhancementResultV1;
   attemptedEnhancement: AiNarrativeEnhancementResultV1 | null;
 }> {
+  const hasAuthoritativeTravelPresentation = output.displayPacket.displayBlocks
+    .some(block => block.sourceRefs.some(ref => ref.startsWith("travel-process:")));
+  if (hasAuthoritativeTravelPresentation) {
+    const finalEnhancement: AiNarrativeEnhancementResultV1 = {
+      schemaVersion: 1,
+      contractVersion: "narrative-ai-resolution/1",
+      enhanced: false,
+      usedFallback: false,
+      fallbackKind: "NONE",
+      displayPacket: output.displayPacket,
+      incidents: [],
+      safetyNotes: ["Présentation narrative propriétaire du voyage conservée sans réécriture."]
+    };
+    return {
+      displayPacket: output.displayPacket,
+      status: "Suite narrative du voyage conservée.",
+      finalEnhancement,
+      attemptedEnhancement: null
+    };
+  }
   if (output.sceneArrival !== null && output.activeScene.sceneId !== output.sceneArrival.scene.sceneId) {
     const finalEnhancement: AiNarrativeEnhancementResultV1 = {
       schemaVersion: 1,
@@ -1556,7 +1663,7 @@ async function enhancePrototypePacket(
     }).displayPacket;
     return {
       displayPacket: variedFallback,
-      status: `OpenAI indisponible ou sortie refusée (${summarizeOpenAiFallback(enhanced)}) : fallback local utilisé.`,
+      status: `Enrichissement OpenAI indisponible ou refusé (${summarizeOpenAiFallback(enhanced)}) : rendu déterministe conservé.`,
       finalEnhancement: { ...fallback, displayPacket: variedFallback },
       attemptedEnhancement: enhanced
     };

@@ -124,6 +124,67 @@ export interface AiSemanticIntentPayloadV7 {
   intent: AiSemanticPlayerIntentV7;
 }
 
+export interface AiSemanticIntentPayloadV8 {
+  rawInputEcho: string;
+  semanticFrame: AiOpenSemanticFrameV8;
+}
+
+export type AiSemanticUnderstandingStatusV8 =
+  | "UNDERSTOOD"
+  | "NEEDS_CLARIFICATION";
+
+export type AiSemanticCommitmentV8 =
+  | "none"
+  | "hypothetical"
+  | "conditional"
+  | "committed"
+  | "mixed"
+  | "unclear";
+
+export interface AiOpenSemanticFrameV8 {
+  schemaVersion: 1;
+  understandingStatus: AiSemanticUnderstandingStatusV8;
+  overallMeaning: string;
+  overallCommitment: AiSemanticCommitmentV8;
+  globalConditions: string[];
+  components: AiOpenSemanticComponentV8[];
+  ambiguities: Array<{
+    ambiguityId: string;
+    summary: string;
+    affectedComponentIds: string[];
+  }>;
+  clarificationQuestion: string | null;
+  confidence: "low" | "medium" | "high";
+}
+
+export interface AiOpenSemanticComponentV8 {
+  componentId: string;
+  order: number;
+  meaning: string;
+  commitment: AiSemanticCommitmentV8;
+  conditions: string[];
+  negated: boolean;
+  quoted: boolean;
+  relationToPrevious:
+    | "NONE"
+    | "THEN"
+    | "SIMULTANEOUS"
+    | "ALTERNATIVE"
+    | "CORRECTION"
+    | "CONDITION_RESULT";
+  alternativeGroupId: string | null;
+  dependsOnComponentIds: string[];
+  simultaneousWithComponentIds: string[];
+  supersedesComponentIds: string[];
+  mentionedTargets: Array<{
+    surface: string;
+    proposedRef: string | null;
+  }>;
+  suggestedDomain: string | null;
+  suggestedAction: string | null;
+  suggestedCapabilityId: string | null;
+}
+
 export interface AiSemanticPlayerIntentV2 {
   kind: AiStructuredSemanticIntentV1["kind"];
   commitment: AiStructuredSemanticIntentV1["commitment"];

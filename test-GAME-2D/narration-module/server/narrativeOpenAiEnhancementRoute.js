@@ -9,6 +9,7 @@ const SEMANTIC_INTENT_CONTRACT_VERSION_V4 = "ai-intent-semantic/4";
 const SEMANTIC_INTENT_CONTRACT_VERSION_V5 = "ai-intent-semantic/5";
 const SEMANTIC_INTENT_CONTRACT_VERSION_V6 = "ai-intent-semantic/6";
 const SEMANTIC_INTENT_CONTRACT_VERSION_V7 = "ai-intent-semantic/7";
+const SEMANTIC_INTENT_CONTRACT_VERSION_V8 = "ai-intent-semantic/8";
 const MJ_PLANNER_CONTRACT_VERSION = "mj-planner/1";
 const NPC_PERFORMER_CONTRACT_VERSION = "npc-performer/1";
 const SCENE_CREATOR_CONTRACT_VERSION_V1 = "lore-guided-place-candidate/1";
@@ -197,6 +198,9 @@ function buildRolePayloadSchema(requestOrRole) {
     };
   }
   if (role === "player_intent_interpreter") {
+    if (typeof requestOrRole === "object" && requestOrRole.contractVersion === SEMANTIC_INTENT_CONTRACT_VERSION_V8) {
+      return buildSemanticIntentPayloadSchemaV8(requestOrRole);
+    }
     if (typeof requestOrRole === "object" && requestOrRole.contractVersion === SEMANTIC_INTENT_CONTRACT_VERSION_V7) {
       return buildSemanticIntentPayloadSchemaV7();
     }
@@ -1265,6 +1269,103 @@ function buildSemanticIntentPayloadSchemaV7() {
   return schema;
 }
 
+function buildSemanticIntentPayloadSchemaV8(request) {
+  const nullableOpenString = { anyOf: [{ type: "string", minLength: 1 }, { type: "null" }] };
+  const stringArray = { type: "array", items: { type: "string", minLength: 1 } };
+  const commitment = { enum: ["none", "hypothetical", "conditional", "committed", "mixed", "unclear"] };
+  const runtimeCapabilityIds = Array.from(new Set(
+    (request?.input?.task?.embodiedContext?.runtimeCapabilities ?? [])
+      .filter((capability) => capability?.availability === "AVAILABLE" || capability?.availability === "HANDOFF_ONLY")
+      .map((capability) => capability?.capabilityId)
+      .filter((capabilityId) => typeof capabilityId === "string" && capabilityId.length > 0)
+  ));
+  const nullableRuntimeCapabilityId = runtimeCapabilityIds.length > 0
+    ? { anyOf: [{ type: "string", enum: runtimeCapabilityIds }, { type: "null" }] }
+    : { type: "null" };
+  return {
+    type: "object",
+    additionalProperties: false,
+    required: ["rawInputEcho", "semanticFrame"],
+    properties: {
+      rawInputEcho: { type: "string" },
+      semanticFrame: {
+        type: "object",
+        additionalProperties: false,
+        required: [
+          "schemaVersion", "understandingStatus", "overallMeaning",
+          "overallCommitment", "globalConditions", "components", "ambiguities",
+          "clarificationQuestion", "confidence"
+        ],
+        properties: {
+          schemaVersion: { enum: [1] },
+          understandingStatus: { enum: ["UNDERSTOOD", "NEEDS_CLARIFICATION"] },
+          overallMeaning: { type: "string", minLength: 1 },
+          overallCommitment: commitment,
+          globalConditions: stringArray,
+          components: {
+            type: "array",
+            items: {
+              type: "object",
+              additionalProperties: false,
+              required: [
+                "componentId", "order", "meaning", "commitment", "conditions",
+                "negated", "quoted", "relationToPrevious", "alternativeGroupId",
+                "dependsOnComponentIds", "simultaneousWithComponentIds",
+                "supersedesComponentIds", "mentionedTargets", "suggestedDomain",
+                "suggestedAction", "suggestedCapabilityId"
+              ],
+              properties: {
+                componentId: { type: "string", minLength: 1 },
+                order: { type: "integer", minimum: 1 },
+                meaning: { type: "string", minLength: 1 },
+                commitment,
+                conditions: stringArray,
+                negated: { type: "boolean" },
+                quoted: { type: "boolean" },
+                relationToPrevious: { enum: ["NONE", "THEN", "SIMULTANEOUS", "ALTERNATIVE", "CORRECTION", "CONDITION_RESULT"] },
+                alternativeGroupId: nullableOpenString,
+                dependsOnComponentIds: stringArray,
+                simultaneousWithComponentIds: stringArray,
+                supersedesComponentIds: stringArray,
+                mentionedTargets: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    additionalProperties: false,
+                    required: ["surface", "proposedRef"],
+                    properties: {
+                      surface: { type: "string", minLength: 1 },
+                      proposedRef: nullableOpenString
+                    }
+                  }
+                },
+                suggestedDomain: nullableOpenString,
+                suggestedAction: nullableOpenString,
+                suggestedCapabilityId: nullableRuntimeCapabilityId
+              }
+            }
+          },
+          ambiguities: {
+            type: "array",
+            items: {
+              type: "object",
+              additionalProperties: false,
+              required: ["ambiguityId", "summary", "affectedComponentIds"],
+              properties: {
+                ambiguityId: { type: "string", minLength: 1 },
+                summary: { type: "string", minLength: 1 },
+                affectedComponentIds: stringArray
+              }
+            }
+          },
+          clarificationQuestion: nullableOpenString,
+          confidence: { enum: ["low", "medium", "high"] }
+        }
+      }
+    }
+  };
+}
+
 function normalizeProviderEnvelope(output, request) {
   if (
     request?.role !== "player_intent_interpreter" ||
@@ -1400,7 +1501,7 @@ function normalizeAiCallRequest(value) {
   if (!ALLOWED_ROLES.has(request.role)) issues.push("role is not allowed for narrative enhancement.");
   const expectedContractVersion = contractVersionForRole(request.role);
   const acceptedContractVersions = request.role === "player_intent_interpreter"
-    ? [INTENT_CONTRACT_VERSION, SEMANTIC_INTENT_CONTRACT_VERSION_V2, SEMANTIC_INTENT_CONTRACT_VERSION_V3, SEMANTIC_INTENT_CONTRACT_VERSION_V4, SEMANTIC_INTENT_CONTRACT_VERSION_V5, SEMANTIC_INTENT_CONTRACT_VERSION_V6, SEMANTIC_INTENT_CONTRACT_VERSION_V7]
+    ? [INTENT_CONTRACT_VERSION, SEMANTIC_INTENT_CONTRACT_VERSION_V2, SEMANTIC_INTENT_CONTRACT_VERSION_V3, SEMANTIC_INTENT_CONTRACT_VERSION_V4, SEMANTIC_INTENT_CONTRACT_VERSION_V5, SEMANTIC_INTENT_CONTRACT_VERSION_V6, SEMANTIC_INTENT_CONTRACT_VERSION_V7, SEMANTIC_INTENT_CONTRACT_VERSION_V8]
     : request.role === "scene_creator"
       ? [SCENE_CREATOR_CONTRACT_VERSION_V1, SCENE_CREATOR_CONTRACT_VERSION_V2, PLOT_CANDIDATE_CONTRACT_VERSION_V1]
       : [expectedContractVersion];
@@ -1614,6 +1715,30 @@ function buildRoleInstructions(request) {
   }
 
   if (request.role === "player_intent_interpreter") {
+    if (request.contractVersion === SEMANTIC_INTENT_CONTRACT_VERSION_V8) {
+      return [
+        "Tu interprètes le sens de la saisie du joueur sans produire de conséquence, de narration ni de décision de réussite.",
+        "Le schéma Structured Output porte le contrat : ne répète pas sa structure et remplis chaque champ selon le sens complet et le contexte public fourni.",
+        "task.embodiedContext est l'unique contexte incarné V8 : utilise son identité, récit personnel public, références nommables, connaissances acquises, scène, interlocuteur, focus, intentions récentes, compagnons et processus actif pour comprendre les ellipses et formulations contextuelles.",
+        "Quand un pronom ou une ellipse désigne naturellement l'unique cible compatible du recentFocus ou de la recentIntention la plus récente, conserve cette continuité et recopie son targetRef dans proposedRef. Une approche, une observation ou une autre attention explicite peut établir ce focus sans constituer encore un dialogue. Demande une clarification seulement si plusieurs cibles compatibles restent réellement plausibles.",
+        "Quand activeInterlocutor et recentIntentions établissent clairement un échange en cours, une relance elliptique reste adressée à cet interlocuteur sauf si le joueur change explicitement de destinataire ou formule réellement une demande hors fiction au MJ. Ne transforme pas une parole contextuelle en question générale au décor.",
+        "Les références namedReferences sont REFERENCE_ONLY. Elles aident à reconnaître le sens mais ne prouvent jamais possession accessible, ressource, disponibilité, réussite ou droit d'exécution.",
+        "Respecte deliberatelyExcluded et n'infère aucune donnée absente, mécanique privée, secret, pensée de PNJ, relation cachée ou contenu du carnet joueur.",
+        "understandingStatus=UNDERSTOOD seulement si le sens, l'engagement, les conditions et les référents nécessaires sont suffisamment établis. Sinon utilise NEEDS_CLARIFICATION et pose une seule clarificationQuestion minimale.",
+        "overallMeaning conserve l'ensemble de la demande, y compris négation, citation, alternative, simultanéité, condition, séquence et changement d'avis.",
+        "components contient toutes les composantes exprimées dans leur ordre. Il n'existe aucune liste fermée d'actions qui limite meaning : toute intention comprise doit rester présente même si le runtime ne sait pas l'exécuter.",
+        "suggestedAction reste une description naturelle et ouverte de l'action comprise; n'y place jamais un identifiant technique de capacité.",
+        "Pour chaque composante, compare son sens complet au playerFacingScope des entrées AVAILABLE ou HANDOFF_ONLY de runtimeCapabilities. Si une entrée couvre entièrement la composante, tu dois recopier son capabilityId exact dans suggestedCapabilityId et son domain dans suggestedDomain. La correspondance porte sur le sens et le périmètre, pas sur des mots identiques ni sur la forme de l'identifiant.",
+        "Laisse suggestedCapabilityId à null uniquement lorsqu'aucune capacité publiée ne couvre entièrement la composante; conserve alors librement le sens, l'action et le domaine proposés. Le logiciel la gardera comprise mais non exécutable au lieu de la forcer dans une capacité proche.",
+        "Ne fusionne pas deux composantes distinctes et n'en supprime aucune pour correspondre aux capacités actuelles du runtime.",
+        "negated signifie que la composante est explicitement niée; quoted qu'elle est citée ou rapportée sans devenir automatiquement une volonté du joueur.",
+        "Utilise relationToPrevious, alternativeGroupId, dependsOnComponentIds, simultaneousWithComponentIds et supersedesComponentIds pour préserver les liens réellement exprimés, jamais pour inventer une stratégie.",
+        "Attache chaque condition uniquement aux composantes qu'elle gouverne selon le sens et la portée de la phrase. Une condition introduite après une composante indépendante ne doit jamais suspendre rétroactivement cette composante précédente; globalConditions ne contient que les conditions qui portent réellement sur tout le tour.",
+        "proposedRef peut seulement recopier une référence du contexte public. Laisse null si la mention ne permet pas de choisir sans ambiguïté.",
+        "La correspondance suggestedCapabilityId est une proposition sémantique obligatoire lorsqu'un playerFacingScope couvre entièrement la composante; elle n'est pas un routage définitif, car le runtime et le propriétaire local la valident encore. Tu n'as aucune autorité de commit, de temps, de coût, de disponibilité, de succès, de réaction PNJ ni de secret.",
+        ...shared
+      ].join("\n");
+    }
     if (
       request.contractVersion === SEMANTIC_INTENT_CONTRACT_VERSION_V2 ||
       request.contractVersion === SEMANTIC_INTENT_CONTRACT_VERSION_V3 ||
@@ -1822,7 +1947,7 @@ function buildRoleInstructions(request) {
       "Tu peux exprimer un avis personnel avec epistemicBasis=believed et la référence task.conversationProfileContract.outputProfileRef. Cet avis reste une parole attribuée, jamais une vérité du monde.",
       "Réponds naturellement aux sujets ordinaires ou personnels compatibles avec le profil. Tu peux rebondir sur un détail, ouvrir un sujet adjacent ou poser occasionnellement une question en retour; ne transforme pas chaque réponse en interrogatoire.",
       "La réplique peut compter une à quatre phrases lorsque l'échange le mérite. N'énumère jamais les champs du profil et évite les formules administratives génériques lorsqu'une réaction subjective bornée est possible.",
-      "Lis task.dialogueAct comme contrat du tour: INITIATE_CONVERSATION ouvre seulement le contact et ne doit inventer aucune question; ASK_QUESTION répond à contentGoal; MAKE_STATEMENT accuse réception sans la transformer en question; REQUEST_ACTION accepte, refuse ou hésite sans décider un succès; OTHER reste prudent.",
+      "Lis task.dialogueAct comme contrat du tour: INITIATE_CONVERSATION ouvre seulement le contact et ne doit inventer aucune question; ASK_QUESTION répond à contentGoal; MAKE_STATEMENT accuse réception sans la transformer en question; REQUEST_ACTION accepte, refuse ou hésite sans décider un succès. Pour OTHER, comprends sémantiquement contentGoal et réponds naturellement à la parole qui y est décrite; reste prudent sur les faits non autorisés, mais ne remplace jamais une demande claire par un simple accusé de réception générique.",
       "Si task.ownerCompanionDecision est fourni, sa disposition, son adaptation et ses conditions sont déjà décidées par l'autorité du compagnon. Incarne exactement cette décision en langage naturel; ne l'inverse pas, ne cite aucun statut technique et ne prétends jamais que l'action demandée a réussi ou a déjà été exécutée.",
       "Avant d'écrire la prose, remplis reactionFrame: sourceDialogueAct recopie exactement task.dialogueAct.act, addressedContentGoal recopie exactement task.dialogueAct.contentGoal, et responseMode vaut respectivement ACKNOWLEDGE_CONTACT, ANSWER_QUESTION, ACKNOWLEDGE_STATEMENT, RESPOND_TO_REQUEST ou CAUTIOUS_RESPONSE.",
       "La réaction doit répondre au but sémantique du tour courant, ou exprimer clairement un refus, une ignorance ou une esquive portant sur ce but.",
@@ -1976,6 +2101,7 @@ function validateRolePayload(payload, role, request = null) {
     return validateDestinationArbiterPayload(payload, request);
   }
   if (role === "player_intent_interpreter") {
+    if (request?.contractVersion === SEMANTIC_INTENT_CONTRACT_VERSION_V8) return validateSemanticIntentPayloadV8(payload);
     if (request?.contractVersion === SEMANTIC_INTENT_CONTRACT_VERSION_V7) return validateSemanticIntentPayloadV7(payload);
     if (request?.contractVersion === SEMANTIC_INTENT_CONTRACT_VERSION_V6) return validateSemanticIntentPayloadV6(payload);
     if (request?.contractVersion === SEMANTIC_INTENT_CONTRACT_VERSION_V5) return validateSemanticIntentPayloadV5(payload);
@@ -2269,6 +2395,54 @@ function validateSemanticIntentPayloadV7(payload) {
   if (!["UNCHANGED", "SEPARATE", "REJOIN", "LEAVE"].includes(directive.presenceIntent)) {
     issues.push("payload.intent.companionDirective.presenceIntent is invalid.");
   }
+  return issues;
+}
+
+function validateSemanticIntentPayloadV8(payload) {
+  const issues = [];
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) return ["payload must be an object."];
+  if (typeof payload.rawInputEcho !== "string") issues.push("payload.rawInputEcho must be a string.");
+  const frame = payload.semanticFrame;
+  if (!frame || typeof frame !== "object" || Array.isArray(frame)) return [...issues, "payload.semanticFrame must be an object."];
+  if (frame.schemaVersion !== 1) issues.push("payload.semanticFrame.schemaVersion must be 1.");
+  if (!["UNDERSTOOD", "NEEDS_CLARIFICATION"].includes(frame.understandingStatus)) issues.push("payload.semanticFrame.understandingStatus is invalid.");
+  if (typeof frame.overallMeaning !== "string" || frame.overallMeaning.trim().length === 0) issues.push("payload.semanticFrame.overallMeaning must be non-empty.");
+  const commitments = ["none", "hypothetical", "conditional", "committed", "mixed", "unclear"];
+  if (!commitments.includes(frame.overallCommitment)) issues.push("payload.semanticFrame.overallCommitment is invalid.");
+  if (!Array.isArray(frame.globalConditions) || frame.globalConditions.some(value => typeof value !== "string" || value.trim().length === 0)) issues.push("payload.semanticFrame.globalConditions is invalid.");
+  if (!Array.isArray(frame.components)) issues.push("payload.semanticFrame.components must be an array.");
+  else {
+    const ids = new Set();
+    const orders = new Set();
+    for (const component of frame.components) {
+      if (!component || typeof component !== "object" || Array.isArray(component)) {
+        issues.push("payload.semanticFrame.components contains an invalid component.");
+        continue;
+      }
+      if (typeof component.componentId !== "string" || component.componentId.trim().length === 0 || ids.has(component.componentId)) issues.push("payload.semanticFrame.components componentId is invalid or duplicated.");
+      else ids.add(component.componentId);
+      if (!Number.isInteger(component.order) || component.order < 1 || orders.has(component.order)) issues.push("payload.semanticFrame.components order is invalid or duplicated.");
+      else orders.add(component.order);
+      if (typeof component.meaning !== "string" || component.meaning.trim().length === 0) issues.push("payload.semanticFrame.components meaning must be non-empty.");
+      if (!commitments.includes(component.commitment)) issues.push("payload.semanticFrame.components commitment is invalid.");
+      if (!Array.isArray(component.conditions) || component.conditions.some(value => typeof value !== "string" || value.trim().length === 0)) issues.push("payload.semanticFrame.components conditions are invalid.");
+      if (typeof component.negated !== "boolean" || typeof component.quoted !== "boolean") issues.push("payload.semanticFrame.components negated and quoted must be boolean.");
+      if (!["NONE", "THEN", "SIMULTANEOUS", "ALTERNATIVE", "CORRECTION", "CONDITION_RESULT"].includes(component.relationToPrevious)) issues.push("payload.semanticFrame.components relationToPrevious is invalid.");
+      for (const key of ["dependsOnComponentIds", "simultaneousWithComponentIds", "supersedesComponentIds"]) if (!Array.isArray(component[key]) || component[key].some(value => typeof value !== "string")) issues.push(`payload.semanticFrame.components ${key} is invalid.`);
+      if (!Array.isArray(component.mentionedTargets) || component.mentionedTargets.some(target => !target || typeof target !== "object" || typeof target.surface !== "string" || !(target.proposedRef === null || typeof target.proposedRef === "string"))) issues.push("payload.semanticFrame.components mentionedTargets is invalid.");
+      for (const key of ["suggestedDomain", "suggestedAction", "suggestedCapabilityId", "alternativeGroupId"]) if (!(component[key] === null || typeof component[key] === "string" && component[key].trim().length > 0)) issues.push(`payload.semanticFrame.components ${key} is invalid.`);
+    }
+    if (frame.understandingStatus === "UNDERSTOOD" && frame.components.length === 0) issues.push("UNDERSTOOD requires at least one component.");
+    for (const component of frame.components) {
+      if (!component || typeof component !== "object") continue;
+      for (const key of ["dependsOnComponentIds", "simultaneousWithComponentIds", "supersedesComponentIds"]) if (Array.isArray(component[key]) && component[key].some(ref => !ids.has(ref))) issues.push(`payload.semanticFrame.components ${key} references an unknown component.`);
+    }
+  }
+  if (!Array.isArray(frame.ambiguities)) issues.push("payload.semanticFrame.ambiguities must be an array.");
+  if (!(frame.clarificationQuestion === null || typeof frame.clarificationQuestion === "string" && frame.clarificationQuestion.trim().length > 0)) issues.push("payload.semanticFrame.clarificationQuestion is invalid.");
+  if (frame.understandingStatus === "NEEDS_CLARIFICATION" && typeof frame.clarificationQuestion !== "string") issues.push("NEEDS_CLARIFICATION requires clarificationQuestion.");
+  if (frame.understandingStatus === "UNDERSTOOD" && frame.clarificationQuestion !== null) issues.push("UNDERSTOOD requires clarificationQuestion=null.");
+  if (!["low", "medium", "high"].includes(frame.confidence)) issues.push("payload.semanticFrame.confidence is invalid.");
   return issues;
 }
 

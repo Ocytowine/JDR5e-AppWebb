@@ -128,7 +128,7 @@ export function buildPlayerPublicContextV1(input: {
   const presentActors = [
     ...input.activeScene.presentNpc.map(npc => ({
       schemaVersion: 1 as const,
-      actorRef: canonicalActorRef(npc.actorId),
+      actorRef: sceneActorRef(npc.actorId),
       label: npc.displayName,
       publicRole: npc.publicRole,
       visibleState: npc.visibleState,
@@ -136,7 +136,7 @@ export function buildPlayerPublicContextV1(input: {
     })),
     ...input.activeScene.ambientPopulation.map(presence => ({
       schemaVersion: 1 as const,
-      actorRef: canonicalActorRef(presence.actorId),
+      actorRef: sceneActorRef(presence.actorId),
       label: presence.displayName,
       publicRole: presence.publicRole,
       visibleState: [presence.visibleAppearance, presence.visibleActivity]
@@ -263,6 +263,10 @@ function playerActorRef(characterRef: string): string {
 
 function canonicalActorRef(actorId: string): string {
   return `actor:${actorId.replace(/^(actor:|npc:)/u, "")}`;
+}
+
+function sceneActorRef(actorId: string): string {
+  return `npc:${actorId}`;
 }
 
 function unique(values: readonly string[]): string[] {

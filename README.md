@@ -73,9 +73,18 @@ Les simulations longues sont disponibles avec `npm run verify:world-simulation:l
 - `test-GAME-2D/src/` : application React, plateau, regles, donnees et creation de personnage.
 - `test-GAME-2D/map-module/` : carte du monde, editeur et simulation systemique.
 - `test-GAME-2D/narration-module/` : noyau narratif actif avec persistance
-  IndexedDB, intention sémantique V7, scènes guidées par le lore, populations
+  IndexedDB et cadre sémantique ouvert V8 désormais actif dans l'UI produit,
+  conservé fidèlement par le runtime et alimenté par un contexte incarné public
+  versionné et borné puis routé par G5 vers des ports propriétaires ordonnés,
+  sans texte brut ni commit avant leur prévalidation ; G6 certifie désormais un
+  corpus de 24 cas dans le mapper, le contrôleur et Chromium ; G7 raccorde les
+  propriétaires installés sans saisie brute et certifie la surface React ; G8
+  valide déjà en live le dialogue dépendant du contexte incarné complet et
+  laisse ellipse, condition et séquence sous un nouveau budget explicite, scènes
+  guidées par le lore, populations
   locales, dialogue borné avec profils conversationnels éphémères par acteur,
-  rendu narratif contrôlé et OpenAI opt-in côté serveur.
+  rendu narratif contrôlé et interprétation joueur exclusivement OpenAI côté
+  serveur ; une indisponibilité demande une reformulation sans fallback local.
   Le premier état social durable et le premier vertical d'intrigue privée
   évoluant hors écran sont actifs. Les signaux perceptibles committés par la
   simulation mondiale peuvent rejoindre le même flux causal sans exposer ses
@@ -120,6 +129,12 @@ Les simulations longues sont disponibles avec `npm run verify:world-simulation:l
   J9-D ferme enfin la certification OpenAI live ciblée : cinq familles de tours,
   treize appels HTTP 200, rôles ordonnés et budget respecté. J1 à J9 sont donc
   terminés dans leur périmètre narratif.
+  J10-A à J10-F raccordent désormais les frontières immersives : voyage et
+  compagnons pilotés par la narration, carnet joueur isolé, puis récapitulatif
+  public déterministe et inventaire personnel compact en lecture seule. La
+  surface masque les diagnostics par défaut et sa gate Chrome réelle ferme le
+  parcours continu. J10-G reste une recette OpenAI optionnelle soumise à un
+  nouvel accord explicite.
   Les causes et catalogues de bastion réellement jouables, l'économie de
   campagne et la mémoire sociale longue restent à construire.
 - `test-GAME-2D/scripts/` : generation de catalogues et scripts de verification.

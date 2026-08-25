@@ -26,7 +26,9 @@ Le registre `narrative-runtime-capability-registry/1` déclare un identifiant st
 
 | Capacité | Intentions | Domaine | Commande | Commit |
 |---|---|---|---|---|
-| `scene.visible-interaction` | manipulation visible, signal non verbal | `scene_resolution` | `SCENE_INTERACTION` | validation du domaine |
+| `scene.visible-actor-approach` | approche près d'un acteur visible | `scene_resolution` | `SCENE_INTERACTION` | validation du domaine |
+| `scene.visible-object-interaction` | manipulation d'un objet visible | `scene_resolution` | `SCENE_INTERACTION` | validation du domaine |
+| `scene.visible-nonverbal-signal` | signal non verbal à un acteur visible | `scene_resolution` | `SCENE_INTERACTION` | validation du domaine |
 | `scene.visible-dialogue` | adresse à un acteur visible | `social` | `SPEECH` | validation du domaine |
 | `scene.visible-perception` | observation | `perception` | `PERCEPTION` | interdit |
 | `scene.context-response` | contexte, méta, hypothèse | `scene_resolution` | aucune commande engagée | interdit |
@@ -73,6 +75,13 @@ reçoit séparément les propriétaires réellement injectés et reste autoritai
 - `NarrativeDomainCommandV1.payload` conserve la route et la capacité pour le diagnostic.
 
 Une intention incertaine ou sans capacité correspondante produit `CLARIFY`. Le registre ne doit pas employer `scene_resolution` comme défaut pour faire progresser artificiellement le tour. Ajouter une capacité exige une entrée déclarative, un domaine propriétaire, une famille de commande et des tests; ajouter des mots-clés au routeur est interdit.
+
+Les trois capacités locales sont volontairement distinctes dans le manifeste
+fourni à OpenAI. Cette précision concerne uniquement l'exécution : le cadre V8
+conserve toujours le sens naturel ouvert dans `meaning`, même si aucune
+capacité ne convient. Elle évite que l'adaptateur propriétaire transforme une
+approche d'acteur en manipulation d'objet sans réintroduire un interpréteur
+lexical local.
 
 La compatibilité des domaines potentiellement concurrents est structurelle. Une manipulation d'objet peut légitimement demander `inventory`; une interaction visant un PNJ peut demander `tactical`; une entrée ou transition peut demander `world`. En revanche, une suggestion `world` ne détourne pas une manipulation locale dont `forbiddenInterpretations` interdit explicitement `scene_transition`. Cette matrice consulte uniquement les champs structurés de `semanticIntent`, le type canonique de cible et le domaine proposé.
 

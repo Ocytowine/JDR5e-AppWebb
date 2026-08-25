@@ -23,12 +23,14 @@ import { SCENE_SOCIAL_UI_CONTRACT_VERSION_V1 } from "../scene";
 import {
   createSuspendedIntentRecordV1,
   interpretNarrativeInputV1,
+  isAiInterpretationFailureDiagnosticV1,
   upgradeLegacyNarrativeIntentInterpretationV1,
   type NarrativeIntentInterpretationV1,
+  type NarrativeIntentTargetV1,
   type SuspendedIntentRecordV1
 } from "./intentClarification";
 import {
-  createDefaultAiIntentInterpreterConfigV1,
+  buildUnavailableAiIntentInterpretationV1,
   interpretNarrativeInputWithAiV1,
   semanticIntentReleasesFocusV1,
   type AiIntentInterpreterConfigV1,
@@ -78,6 +80,7 @@ import {
 import { createInitialReferenceSceneStateV1, type ReferenceSceneStateV1 } from "./referenceSceneState";
 import { applyPersistedSceneActorsV1 } from "./sceneActorRegistry";
 import { buildNarrativeDomainCommandV1, type NarrativeDomainCommandV1 } from "./domainCommands";
+import { buildOpenSemanticLegacyOwnerAdapterProjectionV1 } from "./openSemanticLegacyOwnerAdapter";
 import { buildSceneArrivalAfterCommitV1, type SceneArrivalStateV1 } from "./sceneArrival";
 import type { DestinationPlausibilityDecisionV1 } from "./destinationPlausibility";
 import type { InventoryAccessResolutionResultV1 } from "./inventoryAccessAuthority";
@@ -660,9 +663,7 @@ export class NarrativeTurnControllerV1 {
     this.campaignId = options.campaignId;
     this.clock = options.clock ?? systemClock;
     this.idPrefix = options.idPrefix ?? "nar";
-    this.intentInterpreterConfig = options.intentInterpreterConfig === undefined
-      ? createDefaultAiIntentInterpreterConfigV1()
-      : options.intentInterpreterConfig;
+    this.intentInterpreterConfig = options.intentInterpreterConfig ?? null;
     this.mjPlannerConfig = options.mjPlannerConfig === undefined
       ? createDefaultMjPlannerConfigV1()
       : options.mjPlannerConfig;
@@ -1626,26 +1627,39 @@ export class NarrativeTurnControllerV1 {
         value: { missionResult: null, companionResult: null }
       };
     }
+    const ownerAdapter = buildOpenSemanticLegacyOwnerAdapterProjectionV1(
+      input.output.interpretation
+    );
+    const ownerInterpretation = ownerAdapter?.interpretation
+      ?? input.output.interpretation;
+    const ownerInputText = ownerAdapter?.semanticInputText ?? input.rawInput;
     let missionResult = input.missionResult;
     if (missionResult === undefined) {
       if (this.missionRelationRuntime === null) return {
         ok: true,
         value: { missionResult: null, companionResult: null }
       };
+      if (
+        input.output.interpretation.semanticSource === "OPEN_SEMANTIC_FRAME_V8"
+        && ownerAdapter?.capabilityId !== "companion.follow-request"
+      ) {
+        missionResult = null;
+      } else {
       const replayedMission = await this.missionRelationRuntime.proposeFromDialogue({
         repository: this.repository,
         campaignId: this.campaignId,
         operation: input.operation,
-        rawInput: input.rawInput,
-        interpretation: input.output.interpretation,
+        rawInput: ownerInputText,
+        interpretation: ownerInterpretation,
         activeScene: input.output.activeScene
       });
       if (!replayedMission.ok) return replayedMission;
       missionResult = replayedMission.value;
+      }
     }
     if (
       this.companionRecruitmentRuntime === null
-      || input.output.interpretation.semanticIntent.companionDirective?.category
+      || ownerInterpretation.semanticIntent.companionDirective?.category
         !== "FOLLOW"
     ) return {
       ok: true,
@@ -1660,7 +1674,7 @@ export class NarrativeTurnControllerV1 {
       repository: this.repository,
       campaignId: this.campaignId,
       operation: input.operation,
-      interpretation: input.output.interpretation,
+      interpretation: ownerInterpretation,
       activeScene: input.output.activeScene,
       playerActorRef: profile.ok
         ? `actor:${profile.value.actorId}`
@@ -1683,6 +1697,11 @@ export class NarrativeTurnControllerV1 {
     output: NarrativeTurnControllerOutputV1;
   }): Promise<Result<NarrativeTurnControllerOutputV1>> {
     if (this.travelRuntime === null) return { ok: true, value: input.output };
+    const ownerAdapter = buildOpenSemanticLegacyOwnerAdapterProjectionV1(
+      input.output.interpretation
+    );
+    const ownerInterpretation = ownerAdapter?.interpretation
+      ?? input.output.interpretation;
     const normalizedTravelRequest =
       `${input.operation.clientRequestId}:travel-advance`
         .replace(/[^a-zA-Z0-9:_-]+/g, "-");
@@ -1725,14 +1744,14 @@ export class NarrativeTurnControllerV1 {
     });
     if (!active.ok) return active;
     if (active.value?.status === "INTERRUPTED") {
-      if (travelInterruptionApproachV1(input.output.interpretation) === null) {
+      if (travelInterruptionApproachV1(ownerInterpretation) === null) {
         return { ok: true, value: input.output };
       }
       const resolved = await this.travelRuntime.respondToInterruption({
         repository: this.repository,
         campaignId: this.campaignId,
         sourceOperation: input.operation,
-        interpretation: input.output.interpretation,
+        interpretation: ownerInterpretation,
         activeScene: input.output.activeScene
       });
       return resolved.ok
@@ -1748,10 +1767,10 @@ export class NarrativeTurnControllerV1 {
     if (
       active.value !== null
       && ["PLANNED", "ACTIVE"].includes(active.value.status)
-      && input.output.interpretation.semanticIntent.kind
+      && ownerInterpretation.semanticIntent.kind
         === "traverse_visible_boundary"
-      && input.output.interpretation.semanticIntent.commitment === "committed"
-      && !input.output.interpretation.requiresClarification
+      && ownerInterpretation.semanticIntent.commitment === "committed"
+      && !ownerInterpretation.requiresClarification
     ) {
       const advanced = await this.travelRuntime.advance({
         repository: this.repository,
@@ -1782,7 +1801,7 @@ export class NarrativeTurnControllerV1 {
     const canHandle = await this.travelRuntime.canHandle({
       repository: this.repository,
       campaignId: this.campaignId,
-      interpretation: input.output.interpretation,
+      interpretation: ownerInterpretation,
       domainCommand: input.output.domainCommand,
       activeScene: input.output.activeScene
     });
@@ -1791,7 +1810,7 @@ export class NarrativeTurnControllerV1 {
       repository: this.repository,
       campaignId: this.campaignId,
       sourceOperation: input.operation,
-      interpretation: input.output.interpretation,
+      interpretation: ownerInterpretation,
       activeScene: input.output.activeScene
     });
     return started.ok
@@ -2405,7 +2424,7 @@ export class NarrativeTurnControllerV1 {
   }
 
   private rememberLocalReferent(output: NarrativeTurnControllerOutputV1, activeScene: PlayableSceneStateV1): void {
-    const target = output.interpretation.referentResolution?.resolvedTarget ?? output.interpretation.semanticIntent.target ?? null;
+    const target = rememberedTargetFromInterpretationV1(output.interpretation);
     if (target === null || target.ref === null || target.kind === "unknown" || target.kind === "self") return;
     const releasesFocus = semanticIntentReleasesFocusV1(output.interpretation.semanticIntent);
     if (releasesFocus) {
@@ -2430,14 +2449,16 @@ export class NarrativeTurnControllerV1 {
   private rememberSemanticTurn(output: NarrativeTurnControllerOutputV1): void {
     if (output.interpretation.runtimeDecision.status === "AI_INTERPRETATION_FAILED") return;
     const releasesFocus = semanticIntentReleasesFocusV1(output.interpretation.semanticIntent);
+    const openFrame = output.interpretation.openSemanticFrame ?? null;
     const turn: RecentSemanticTurnV1 = {
       schemaVersion: 1,
       operationId: output.operationId,
       semanticKind: output.interpretation.semanticIntent.kind,
-      playerGoal: output.interpretation.semanticIntent.playerGoal,
-      primaryTarget: output.interpretation.referentResolution?.resolvedTarget ?? output.interpretation.semanticIntent.target,
+      playerGoal: openFrame?.overallMeaning ?? output.interpretation.semanticIntent.playerGoal,
+      primaryTarget: rememberedTargetFromInterpretationV1(output.interpretation),
       topic: typeof output.interpretation.topic === "string" ? output.interpretation.topic : null,
-      commitment: output.interpretation.semanticIntent.commitment,
+      commitment: openFrame?.overallCommitment ?? output.interpretation.semanticIntent.commitment,
+      ...(openFrame === null ? {} : { understandingStatus: openFrame.understandingStatus }),
       focusDisposition: releasesFocus ? "RELEASE" : "RETAIN"
     };
     this.recentSemanticTurns = [
@@ -2478,6 +2499,32 @@ export class NarrativeTurnControllerV1 {
     }
     return { ok: true, value: null };
   }
+}
+
+function rememberedTargetFromInterpretationV1(
+  interpretation: NarrativeIntentInterpretationV1
+): NarrativeIntentTargetV1 | null {
+  const projectedTarget = interpretation.referentResolution?.resolvedTarget
+    ?? interpretation.semanticIntent.target;
+  if (projectedTarget !== null) return projectedTarget;
+  const frame = interpretation.openSemanticFrame;
+  if (frame === null || frame === undefined || frame.understandingStatus !== "UNDERSTOOD") return null;
+  const mentionedTargets = frame.components.flatMap(component => component.mentionedTargets)
+    .filter((target): target is typeof target & { proposedRef: string } => target.proposedRef !== null);
+  const targetRefs = [...new Set(mentionedTargets.map(target => target.proposedRef))];
+  if (targetRefs.length !== 1) return null;
+  const ref = targetRefs[0]!;
+  const label = mentionedTargets.find(target => target.proposedRef === ref)?.surface ?? null;
+  const kind: NarrativeIntentTargetV1["kind"] = ref.startsWith("npc:")
+    ? "npc"
+    : ref.startsWith("poi:") || ref.startsWith("element:") || ref.startsWith("item:")
+      ? "object"
+      : ref.startsWith("location:") || ref.startsWith("wiki-location:")
+        ? "place"
+        : ref.startsWith("actor:") || ref.startsWith("player-character:")
+          ? "self"
+          : "unknown";
+  return { kind, ref, label };
 }
 
 async function cancelUncommittedOperationAfterFailure(repository: CampaignRepository, operationId: OperationId): Promise<void> {
@@ -3030,7 +3077,10 @@ async function buildResolvedOutput(input: {
           activeTravelResult.value.status === "INTERRUPTED"
       };
   const interpretationResult = input.intentInterpreterConfig === null
-    ? null
+    ? buildUnavailableAiIntentInterpretationV1({
+        intentId,
+        rawInput: input.input.rawInput
+      })
     : await interpretNarrativeInputWithAiV1({
       campaignId: input.campaignId,
       operationId: input.operation.operationId,
@@ -3047,6 +3097,7 @@ async function buildResolvedOutput(input: {
         inventoryMutation: input.inventoryTransactionRuntime !== null,
         tacticalAccess: input.tacticalAccessRuntime !== null,
         travel: input.travelRuntime !== null,
+        companionRequests: input.companionRecruitmentRuntime !== null,
         activeTravel: activeTravelContext
       }),
       characterContext: characterContextResult.value,
@@ -3054,94 +3105,171 @@ async function buildResolvedOutput(input: {
       playableScene: input.activeScene,
       activeCompanionRefs
     });
-  const interpretation = interpretationResult === null
-    ? interpretNarrativeInputV1({
-      intentId,
-      rawInput: input.input.rawInput
-    }) as NarrativeIntentInterpretationV1 & JsonObject
-    : interpretationResult.interpretation as NarrativeIntentInterpretationV1 & JsonObject;
+  const interpretation = interpretationResult.interpretation as
+    NarrativeIntentInterpretationV1 & JsonObject;
+  const openSemanticOwnerAdapter =
+    buildOpenSemanticLegacyOwnerAdapterProjectionV1(interpretation);
+  const ownerInterpretation = openSemanticOwnerAdapter?.interpretation
+    ?? interpretation;
+  const ownerInputText = openSemanticOwnerAdapter?.semanticInputText
+    ?? input.input.rawInput;
+  const legacyOwnerInvocationAllowed = interpretation.semanticSource !== "OPEN_SEMANTIC_FRAME_V8"
+    || openSemanticOwnerAdapter !== null;
   const interpretationMs = Date.now() - interpretationStartedAt;
-  const domainCommand = buildNarrativeDomainCommandV1(interpretation);
-  const dynamicPlaceCanHandle = input.dynamicPlaceRuntime !== null && await input.dynamicPlaceRuntime.canHandle({
+  if (isAiInterpretationFailureDiagnosticV1(interpretation)) {
+    const suspendedIntent = createSuspendedIntentRecordV1({
+      suspendedIntentId: `${input.operation.operationId}:suspended:interpreter`,
+      operationId: input.operation.operationId,
+      rawInput: input.input.rawInput,
+      interpretation,
+      createdAt: input.createdAt,
+      missingField: "meaning",
+      question: interpretation.clarificationQuestion
+        ?? "Peux-tu reformuler ton intention ?"
+    }) as SuspendedIntentRecordV1 & JsonObject;
+    const resolutionStartedAt = Date.now();
+    const resolution = await resolveNarrativeTurnV1({
+      repository: input.repository,
+      campaignId: input.campaignId,
+      operation: input.operation,
+      rawInput: input.input.rawInput,
+      interpretation,
+      domainCommand: null,
+      suspendedIntent,
+      playableScene: input.activeScene,
+      playerPublicContext: playerPublicContextResult.value
+    });
+    if (!resolution.ok) return resolution;
+    return {
+      ok: true,
+      value: {
+        commit: null,
+        output: {
+          schemaVersion: 1,
+          contractVersion: "narrative-turn-controller/1",
+          operationId: input.operation.operationId,
+          clientRequestId: input.input.clientRequestId,
+          noCommit: true,
+          noGameTime: true,
+          interpretation,
+          domainCommand: null,
+          mjPlan: null,
+          mjPlannerFailure: null,
+          npcPerformance: null,
+          npcPerformanceFailure: null,
+          suspendedIntent,
+          pendingSkillCheck: null,
+          resolution: resolution.value.result,
+          sceneState: resolution.value.sceneState,
+          sceneArrival: null,
+          activeScene: resolution.value.playableScene,
+          displayPacket: resolution.value.displayPacket,
+          stageTimings: {
+            interpretationMs,
+            planningMs: 0,
+            resolutionMs: Date.now() - resolutionStartedAt,
+            npcPerformanceMs: 0,
+            resolvedOutputMs: Date.now() - resolvedOutputStartedAt
+          },
+          aiTelemetry: interpretationResult.telemetry
+        }
+      }
+    };
+  }
+  const domainCommand = openSemanticOwnerAdapter?.domainCommand
+    ?? buildNarrativeDomainCommandV1(interpretation);
+  const dynamicPlaceCanHandle = legacyOwnerInvocationAllowed && input.dynamicPlaceRuntime !== null && await input.dynamicPlaceRuntime.canHandle({
     repository: input.repository,
     campaignId: input.campaignId,
-    interpretation,
+    interpretation: ownerInterpretation,
     domainCommand,
     activeScene: input.activeScene
   });
-  const travelCanHandle = input.travelRuntime !== null
+  const travelCanHandle = legacyOwnerInvocationAllowed && input.travelRuntime !== null
     && await input.travelRuntime.canHandle({
       repository: input.repository,
       campaignId: input.campaignId,
-      interpretation,
+      interpretation: ownerInterpretation,
       domainCommand,
       activeScene: input.activeScene
     });
-  const inventoryAccessCanHandle = input.inventoryAccessRuntime !== null && (
+  const inventoryAccessCanHandle = legacyOwnerInvocationAllowed && input.inventoryAccessRuntime !== null && (
     input.inventoryAccessRuntime.canHandle === undefined
-      ? interpretation.runtimeDecision.requiredDomain === "inventory"
+      ? ownerInterpretation.runtimeDecision.requiredDomain === "inventory"
       : await input.inventoryAccessRuntime.canHandle({
           repository: input.repository,
           campaignId: input.campaignId,
-          rawInput: input.input.rawInput,
-          interpretation,
+          rawInput: ownerInputText,
+          interpretation: ownerInterpretation,
           domainCommand,
           activeScene: input.activeScene
         })
   );
-  const inventoryTransactionCanHandle = input.inventoryTransactionRuntime !== null &&
+  const inventoryTransactionCanHandle = legacyOwnerInvocationAllowed && input.inventoryTransactionRuntime !== null &&
     await input.inventoryTransactionRuntime.canHandle({
       repository: input.repository,
       campaignId: input.campaignId,
-      rawInput: input.input.rawInput,
-      interpretation,
+      rawInput: ownerInputText,
+      interpretation: ownerInterpretation,
       domainCommand,
       activeScene: input.activeScene
     });
-  const socialAccessCanHandle = input.socialAccessRuntime !== null && (
+  const socialAccessCanHandle = legacyOwnerInvocationAllowed && input.socialAccessRuntime !== null && (
     input.socialAccessRuntime.canHandle === undefined
-      ? interpretation.runtimeDecision.requiredDomain === "social"
+      ? ownerInterpretation.runtimeDecision.requiredDomain === "social"
       : await input.socialAccessRuntime.canHandle({
           repository: input.repository,
           campaignId: input.campaignId,
-          rawInput: input.input.rawInput,
-          interpretation,
+          rawInput: ownerInputText,
+          interpretation: ownerInterpretation,
           domainCommand,
           activeScene: input.activeScene
         })
   );
-  const rulesAccessCanHandle = input.rulesAccessRuntime !== null && (
+  const rulesAccessCanHandle = legacyOwnerInvocationAllowed && input.rulesAccessRuntime !== null && (
     input.rulesAccessRuntime.canHandle === undefined
-      ? interpretation.runtimeDecision.requiredDomain === "rules"
+      ? ownerInterpretation.runtimeDecision.requiredDomain === "rules"
       : await input.rulesAccessRuntime.canHandle({
           repository: input.repository,
           campaignId: input.campaignId,
-          rawInput: input.input.rawInput,
-          interpretation,
+          rawInput: ownerInputText,
+          interpretation: ownerInterpretation,
           domainCommand,
           activeScene: input.activeScene
         })
   );
-  const tacticalAccessCanHandle = input.tacticalAccessRuntime !== null && (
+  const tacticalAccessCanHandle = legacyOwnerInvocationAllowed && input.tacticalAccessRuntime !== null && (
     input.tacticalAccessRuntime.canHandle === undefined
-      ? interpretation.runtimeDecision.requiredDomain === "tactical"
+      ? ownerInterpretation.runtimeDecision.requiredDomain === "tactical"
       : await input.tacticalAccessRuntime.canHandle({
           repository: input.repository,
           campaignId: input.campaignId,
-          rawInput: input.input.rawInput,
-          interpretation,
+          rawInput: ownerInputText,
+          interpretation: ownerInterpretation,
           domainCommand,
           activeScene: input.activeScene
         })
   );
+  const planningCompanionDirective = ownerInterpretation.semanticIntent.companionDirective ?? null;
+  const planningCompanionTargetRef = ownerInterpretation.semanticIntent.target?.ref ?? null;
+  const companionOwnerCanHandle = planningCompanionDirective !== null && (
+    (
+      planningCompanionDirective.category === "FOLLOW"
+      && input.companionRecruitmentRuntime !== null
+    )
+    || (
+      planningCompanionTargetRef !== null
+      && activeCompanionRefs.includes(planningCompanionTargetRef)
+    )
+  );
   const planningStartedAt = Date.now();
-  const planning = input.mjPlannerConfig === null || dynamicPlaceCanHandle || travelCanHandle || inventoryAccessCanHandle || inventoryTransactionCanHandle || socialAccessCanHandle || rulesAccessCanHandle || tacticalAccessCanHandle || (interpretation.semanticIntent.companionDirective ?? null) !== null
+  const planning = input.mjPlannerConfig === null || (interpretation.semanticSource === "OPEN_SEMANTIC_FRAME_V8" && openSemanticOwnerAdapter === null) || dynamicPlaceCanHandle || travelCanHandle || inventoryAccessCanHandle || inventoryTransactionCanHandle || socialAccessCanHandle || rulesAccessCanHandle || tacticalAccessCanHandle || companionOwnerCanHandle
     ? null
     : await planNarrativeTurnWithMjV1({
       campaignId: input.campaignId,
       operationId: input.operation.operationId,
-      rawInput: input.input.rawInput,
-      interpretation,
+      rawInput: ownerInputText,
+      interpretation: ownerInterpretation,
       domainCommand,
       activeScene: input.activeScene,
       config: input.mjPlannerConfig
@@ -3158,16 +3286,16 @@ async function buildResolvedOutput(input: {
     : null;
   const resolutionStartedAt = Date.now();
   const runtimeRoute = routeNarrativeSemanticIntentV2({
-    semanticIntent: interpretation.semanticIntent,
-    runtimeSuggestion: interpretation.runtimeHandling ?? null,
+    semanticIntent: ownerInterpretation.semanticIntent,
+    runtimeSuggestion: ownerInterpretation.runtimeHandling ?? null,
     availability: {
       rest: input.restRuntime !== null,
       inventoryMutation: input.inventoryTransactionRuntime !== null
     }
   });
-  const companionDirective = interpretation.semanticIntent.companionDirective ?? null;
+  const companionDirective = ownerInterpretation.semanticIntent.companionDirective ?? null;
   const targetActorId = normalizeCompanionTargetActorIdV1(
-    interpretation.semanticIntent.target?.ref ?? null
+    ownerInterpretation.semanticIntent.target?.ref ?? null
   );
   const activeCompanion = companionDirective === null || targetActorId === null
     ? null
@@ -3185,8 +3313,8 @@ async function buildResolvedOutput(input: {
   if (
     companionDirective !== null
     && activeCompanion !== null
-    && interpretation.semanticIntent.dialogueAct?.act === "REQUEST_ACTION"
-    && ["committed", "conditional"].includes(interpretation.semanticIntent.commitment)
+    && ownerInterpretation.semanticIntent.dialogueAct?.act === "REQUEST_ACTION"
+    && ["committed", "conditional"].includes(ownerInterpretation.semanticIntent.commitment)
   ) {
     const campaign = await input.repository.getCampaign(input.campaignId);
     if (!campaign.ok) return campaign;
@@ -3362,29 +3490,44 @@ async function buildResolvedOutput(input: {
     } } };
   }
   if (runtimeRoute.capabilityId === "rest.process" && input.restRuntime !== null) {
-    return input.restRuntime.execute({
+    const restResult = await input.restRuntime.execute({
       repository: input.repository,
       campaignId: input.campaignId,
       operation: input.operation,
-      rawInput: input.input.rawInput,
-      interpretation,
+      rawInput: ownerInputText,
+      interpretation: ownerInterpretation,
       domainCommand,
       activeScene: input.activeScene,
       createdAt: input.createdAt,
       aiTelemetry: interpretationResult?.telemetry ?? []
     });
+    if (!restResult.ok || openSemanticOwnerAdapter === null) return restResult;
+    return {
+      ok: true,
+      value: {
+        ...restResult.value,
+        output: {
+          ...restResult.value.output,
+          interpretation,
+          resolution: {
+            ...restResult.value.output.resolution,
+            interpretation
+          }
+        }
+      }
+    };
   }
   if (
     input.tacticalAccessRuntime !== null
     && tacticalAccessCanHandle
-    && interpretation.semanticIntent.commitment === "committed"
+    && ownerInterpretation.semanticIntent.commitment === "committed"
   ) {
     const tactical = await input.tacticalAccessRuntime.execute({
       repository: input.repository,
       campaignId: input.campaignId,
       operation: input.operation,
-      rawInput: input.input.rawInput,
-      interpretation,
+      rawInput: ownerInputText,
+      interpretation: ownerInterpretation,
       domainCommand,
       activeScene: input.activeScene
     });
@@ -3490,14 +3633,14 @@ async function buildResolvedOutput(input: {
   }
   if (
     input.rulesAccessRuntime !== null && rulesAccessCanHandle &&
-    interpretation.semanticIntent.commitment === "committed"
+    ownerInterpretation.semanticIntent.commitment === "committed"
   ) {
     const rules = await input.rulesAccessRuntime.execute({
       repository: input.repository,
       campaignId: input.campaignId,
       operation: input.operation,
-      rawInput: input.input.rawInput,
-      interpretation,
+      rawInput: ownerInputText,
+      interpretation: ownerInterpretation,
       domainCommand,
       activeScene: input.activeScene
     });
@@ -3586,14 +3729,14 @@ async function buildResolvedOutput(input: {
   }
   if (
     input.socialAccessRuntime !== null && socialAccessCanHandle &&
-    interpretation.semanticIntent.commitment === "committed"
+    ownerInterpretation.semanticIntent.commitment === "committed"
   ) {
     const social = await input.socialAccessRuntime.execute({
       repository: input.repository,
       campaignId: input.campaignId,
       operation: input.operation,
-      rawInput: input.input.rawInput,
-      interpretation,
+      rawInput: ownerInputText,
+      interpretation: ownerInterpretation,
       domainCommand,
       activeScene: input.activeScene
     });
@@ -3670,14 +3813,14 @@ async function buildResolvedOutput(input: {
   }
   if (
     input.inventoryTransactionRuntime !== null && inventoryTransactionCanHandle &&
-    interpretation.semanticIntent.commitment === "committed"
+    ownerInterpretation.semanticIntent.commitment === "committed"
   ) {
     const inventory = await input.inventoryTransactionRuntime.execute({
       repository: input.repository,
       campaignId: input.campaignId,
       operation: input.operation,
-      rawInput: input.input.rawInput,
-      interpretation,
+      rawInput: ownerInputText,
+      interpretation: ownerInterpretation,
       domainCommand,
       activeScene: input.activeScene
     });
@@ -3770,14 +3913,14 @@ async function buildResolvedOutput(input: {
 
   if (
     input.inventoryAccessRuntime !== null && inventoryAccessCanHandle &&
-    interpretation.semanticIntent.commitment === "committed"
+    ownerInterpretation.semanticIntent.commitment === "committed"
   ) {
     const inventory = await input.inventoryAccessRuntime.execute({
       repository: input.repository,
       campaignId: input.campaignId,
       operation: input.operation,
-      rawInput: input.input.rawInput,
-      interpretation,
+      rawInput: ownerInputText,
+      interpretation: ownerInterpretation,
       domainCommand,
       activeScene: input.activeScene
     });
@@ -3863,8 +4006,8 @@ async function buildResolvedOutput(input: {
           repository: input.repository,
           campaignId: input.campaignId,
           operation: input.operation,
-          rawInput: input.input.rawInput,
-          interpretation,
+          rawInput: ownerInputText,
+          interpretation: ownerInterpretation,
           domainCommand,
           activeScene: input.activeScene
         });
@@ -3906,8 +4049,8 @@ async function buildResolvedOutput(input: {
       repository: input.repository,
       campaignId: input.campaignId,
       operation: input.operation,
-      rawInput: input.input.rawInput,
-      interpretation,
+      rawInput: ownerInputText,
+      interpretation: ownerInterpretation,
       domainCommand,
       activeScene: input.activeScene,
       destinationDecision: destinationEvaluation?.value.decision
@@ -3934,15 +4077,15 @@ async function buildResolvedOutput(input: {
     input.sceneTransitionRuntime !== null &&
     !travelCanHandle &&
     domainCommand !== null &&
-    interpretation.semanticIntent.kind === "traverse_visible_boundary" &&
-    interpretation.runtimeDecision.requiredDomain === "world"
+    ownerInterpretation.semanticIntent.kind === "traverse_visible_boundary" &&
+    ownerInterpretation.runtimeDecision.requiredDomain === "world"
   ) {
     const transition = await input.sceneTransitionRuntime.execute({
       repository: input.repository,
       campaignId: input.campaignId,
       operation: input.operation,
-      rawInput: input.input.rawInput,
-      interpretation,
+      rawInput: ownerInputText,
+      interpretation: ownerInterpretation,
       domainCommand,
       activeScene: input.activeScene
     });
@@ -4012,14 +4155,23 @@ async function buildResolvedOutput(input: {
     repository: input.repository,
     campaignId: input.campaignId,
     operation: input.operation,
-    rawInput: input.input.rawInput,
-    interpretation,
+    rawInput: ownerInputText,
+    interpretation: ownerInterpretation,
     domainCommand,
     suspendedIntent,
     playableScene: input.activeScene,
     playerPublicContext: playerPublicContextResult.value
   });
   if (!resolution.ok) return resolution;
+  const canonicalResolutionResult = openSemanticOwnerAdapter === null
+    ? resolution.value.result
+    : { ...resolution.value.result, interpretation };
+  const canonicalResolutionDisplay = openSemanticOwnerAdapter === null
+    ? resolution.value.displayPacket
+    : restoreOriginalPlayerInputV1(
+        resolution.value.displayPacket,
+        input.input.rawInput
+      );
   const resolutionMs = Date.now() - resolutionStartedAt;
   // Une relation J4 ouvre ses propres opérations autoritaires. Elle est donc
   // finalisée par submit() après la fermeture du tour narratif principal.
@@ -4030,18 +4182,23 @@ async function buildResolvedOutput(input: {
       repository: input.repository,
       campaignId: input.campaignId,
       operationId: input.operation.operationId,
-      rawInput: input.input.rawInput,
-      interpretation,
+      rawInput: ownerInputText,
+      interpretation: ownerInterpretation,
       mjPlan: planning?.plan ?? null,
-      resolution: resolution.value.result,
+      resolution: canonicalResolutionResult,
       sceneState: resolution.value.sceneState,
       activeScene: resolution.value.playableScene,
       config: input.npcPerformerConfig,
+      ...(openSemanticOwnerAdapter?.capabilityId === "scene.visible-dialogue"
+        && ownerInterpretation.semanticIntent.target?.kind === "npc"
+        && ownerInterpretation.semanticIntent.target.ref !== null
+        ? { assignedActorId: ownerInterpretation.semanticIntent.target.ref }
+        : {}),
       missionRelationEngagement: null
     });
   const npcPerformanceMs = Date.now() - npcPerformanceStartedAt;
   let displayPacket = applyNpcPerformanceToDisplayPacketV1({
-    displayPacket: resolution.value.displayPacket,
+    displayPacket: canonicalResolutionDisplay,
     performance: npcPerformance?.performance ?? null,
     performanceFailure: npcPerformance?.performanceFailure as (NpcPerformanceFailureV1 & JsonObject) | null ?? null,
     activeScene: resolution.value.playableScene
@@ -4069,9 +4226,9 @@ async function buildResolvedOutput(input: {
           operationId: input.operation.operationId,
           sceneId: resolution.value.playableScene.sceneId,
           createdAt: input.createdAt,
-          perception: resolution.value.result.perception
+          perception: canonicalResolutionResult.perception
         }),
-        resolution: resolution.value.result,
+        resolution: canonicalResolutionResult,
         sceneState: resolution.value.sceneState,
         sceneArrival: null,
         activeScene: resolution.value.playableScene,
@@ -4095,6 +4252,18 @@ async function buildResolvedOutput(input: {
 function normalizeCompanionTargetActorIdV1(targetRef: string | null): string | null {
   if (targetRef === null || !targetRef.trim()) return null;
   return targetRef.replace(/^(?:npc|actor):/u, "");
+}
+
+function restoreOriginalPlayerInputV1(
+  packet: DisplayPacketV1 & JsonObject,
+  rawInput: string
+): DisplayPacketV1 & JsonObject {
+  return {
+    ...packet,
+    displayBlocks: packet.displayBlocks.map(block =>
+      block.kind === "RAW_INPUT" ? { ...block, text: rawInput } : block
+    )
+  } as DisplayPacketV1 & JsonObject;
 }
 
 function buildDestinationDecisionControllerResult(input: {

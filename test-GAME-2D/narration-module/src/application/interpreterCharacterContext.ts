@@ -13,11 +13,14 @@ import {
 
 export const INTERPRETER_CHARACTER_CONTEXT_CONTRACT_V1 =
   "interpreter-character-context/1" as const;
+export const INTERPRETER_CHARACTER_CONTEXT_CONTRACT_V2 =
+  "interpreter-character-context/2" as const;
 
 export type InterpreterCharacterReferenceKindV1 =
   | "LANGUAGE"
   | "ACTION"
   | "SPELL"
+  | "FEATURE"
   | "INVENTORY_ITEM"
   | "EQUIPPED_ITEM";
 
@@ -42,7 +45,9 @@ export interface InterpreterCharacterAmbiguityV1 extends JsonObject {
 
 export interface InterpreterCharacterContextV1 extends JsonObject {
   schemaVersion: 1;
-  contractVersion: typeof INTERPRETER_CHARACTER_CONTEXT_CONTRACT_V1;
+  contractVersion:
+    | typeof INTERPRETER_CHARACTER_CONTEXT_CONTRACT_V1
+    | typeof INTERPRETER_CHARACTER_CONTEXT_CONTRACT_V2;
   character: JsonObject & {
     ref: string;
     label: string;
@@ -52,6 +57,25 @@ export interface InterpreterCharacterContextV1 extends JsonObject {
   authority: "INTERPRETATION_ONLY";
   ownerValidationRequired: true;
   deliberatelyExcluded: string[];
+  embodiedProfile: InterpreterCharacterEmbodiedProfileV2 | null;
+}
+
+export interface InterpreterCharacterEmbodiedProfileV2 extends JsonObject {
+  schemaVersion: 1;
+  identity: JsonObject & {
+    characterRef: string;
+    label: string;
+    raceRef: string;
+    backgroundRef: string;
+  };
+  selfNarrative: JsonObject & {
+    biography: string | null;
+    personality: string | null;
+    objectives: string | null;
+    flaws: string | null;
+    physicalDescription: string | null;
+  };
+  classification: "PLAYER_AUTHORED_PUBLIC_SELF_CONTEXT";
 }
 
 export interface InterpreterCharacterReferenceCatalogEntryV1 {
@@ -64,6 +88,7 @@ export interface InterpreterCharacterReferenceCatalogV1 {
   languages?: readonly InterpreterCharacterReferenceCatalogEntryV1[];
   actions?: readonly InterpreterCharacterReferenceCatalogEntryV1[];
   spells?: readonly InterpreterCharacterReferenceCatalogEntryV1[];
+  features?: readonly InterpreterCharacterReferenceCatalogEntryV1[];
   items?: readonly InterpreterCharacterReferenceCatalogEntryV1[];
 }
 
@@ -77,8 +102,16 @@ export interface InterpreterCharacterContextResolverV1 {
 interface MinimalNarrativeProjectionV1 {
   characterId: string;
   name: string;
+  raceId: string;
+  backgroundId: string;
   languages: string[];
   visibleEquipment: Array<{ instanceId: string; itemId: string }>;
+  physicalDescription: string | null;
+  biography: string | null;
+  personality: string | null;
+  objectives: string | null;
+  flaws: string | null;
+  featureIds: string[];
 }
 
 interface MinimalTacticalProjectionV1 {
@@ -102,6 +135,7 @@ const REFERENCE_LIMITS: Record<InterpreterCharacterReferenceKindV1, number> = {
   LANGUAGE: 12,
   ACTION: 24,
   SPELL: 24,
+  FEATURE: 24,
   INVENTORY_ITEM: 32,
   EQUIPPED_ITEM: 12
 };
@@ -111,7 +145,7 @@ const DELIBERATELY_EXCLUDED_V1 = [
   "hit_points_armor_class_and_difficulty",
   "resource_amounts_and_cooldowns",
   "merchant_prices_counterparties_and_private_external_inventories",
-  "biography_personality_objectives_and_flaws",
+  "unclassified_known_to_player_fields",
   "campaign_secrets_and_private_knowledge",
   "success_failure_and_execution_authority"
 ];
@@ -296,6 +330,7 @@ function buildInterpreterCharacterContextV1(input: {
     LANGUAGE: catalogIndex(input.catalog.languages),
     ACTION: catalogIndex(input.catalog.actions),
     SPELL: catalogIndex(input.catalog.spells),
+    FEATURE: catalogIndex(input.catalog.features),
     INVENTORY_ITEM: catalogIndex(input.catalog.items),
     EQUIPPED_ITEM: catalogIndex(input.catalog.items)
   } satisfies Record<
@@ -321,6 +356,12 @@ function buildInterpreterCharacterContextV1(input: {
     "SPELL",
     input.tactical.spellIds,
     indexes.SPELL
+  );
+  addReferences(
+    references,
+    "FEATURE",
+    input.narrative.featureIds.filter(id => indexes.FEATURE.has(id)),
+    indexes.FEATURE
   );
   for (
     const item of input.narrative.visibleEquipment
@@ -370,13 +411,30 @@ function buildInterpreterCharacterContextV1(input: {
   );
   return {
     schemaVersion: 1,
-    contractVersion: INTERPRETER_CHARACTER_CONTEXT_CONTRACT_V1,
+    contractVersion: INTERPRETER_CHARACTER_CONTEXT_CONTRACT_V2,
     character: {
       ref: `player-character:${input.narrative.characterId}`,
       label: safeLabel(input.narrative.name, "personnage joueur")
     },
     references,
     ambiguities: buildAmbiguities(references),
+    embodiedProfile: {
+      schemaVersion: 1,
+      identity: {
+        characterRef: `player-character:${input.narrative.characterId}`,
+        label: safeLabel(input.narrative.name, "personnage joueur"),
+        raceRef: `race:${input.narrative.raceId}`,
+        backgroundRef: `background:${input.narrative.backgroundId}`
+      },
+      selfNarrative: {
+        biography: input.narrative.biography,
+        personality: input.narrative.personality,
+        objectives: input.narrative.objectives,
+        flaws: input.narrative.flaws,
+        physicalDescription: input.narrative.physicalDescription
+      },
+      classification: "PLAYER_AUTHORED_PUBLIC_SELF_CONTEXT"
+    },
     authority: "INTERPRETATION_ONLY",
     ownerValidationRequired: true,
     deliberatelyExcluded: [...DELIBERATELY_EXCLUDED_V1]
@@ -437,12 +495,17 @@ function parseNarrativeProjection(
 ): MinimalNarrativeProjectionV1 | null {
   const candidate = payload as Record<string, unknown>;
   const observable = object(candidate.observable);
+  const knownToPlayer = object(candidate.knownToPlayer);
+  const privateMechanical = object(candidate.privateMechanical);
   if (
     candidate.schemaVersion !== 1
     || typeof candidate.characterId !== "string"
     || typeof candidate.name !== "string"
+    || typeof candidate.raceId !== "string"
+    || typeof candidate.backgroundId !== "string"
     || !stringArray(candidate.languages)
     || observable === null
+    || knownToPlayer === null
   ) return null;
   const visibleEquipmentValue = observable.visibleEquipment;
   if (!Array.isArray(visibleEquipmentValue)) return null;
@@ -457,8 +520,18 @@ function parseNarrativeProjection(
   return {
     characterId: candidate.characterId,
     name: candidate.name,
+    raceId: candidate.raceId,
+    backgroundId: candidate.backgroundId,
     languages: candidate.languages,
-    visibleEquipment
+    visibleEquipment,
+    physicalDescription: boundedPublicText(observable.physicalDescription),
+    biography: boundedPublicText(knownToPlayer.biography),
+    personality: boundedPublicText(knownToPlayer.personality),
+    objectives: boundedPublicText(knownToPlayer.objectives),
+    flaws: boundedPublicText(knownToPlayer.flaws),
+    featureIds: privateMechanical !== null && stringArray(privateMechanical.featureIds)
+      ? privateMechanical.featureIds
+      : []
   };
 }
 
@@ -535,6 +608,12 @@ function referenceAliases(
 function safeLabel(value: string | undefined, fallback: string): string {
   const trimmed = value?.trim() ?? "";
   return (trimmed || fallback.replaceAll(/[-_]+/gu, " ")).slice(0, 120);
+}
+
+function boundedPublicText(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const normalized = value.trim().replace(/\s+/gu, " ");
+  return normalized.length === 0 ? null : normalized.slice(0, 800);
 }
 
 function sortedUnique(values: string[]): string[] {

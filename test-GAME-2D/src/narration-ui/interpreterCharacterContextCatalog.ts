@@ -14,6 +14,7 @@ import { loadToolItemsFromIndex } from
   "../PlayerCharacterCreator/catalogs/toolCatalog";
 import { loadActionTypesFromIndex } from "../game/actionCatalog";
 import { spellCatalog } from "../game/spellCatalog";
+import featuresIndex from "../data/characters/features/index.json";
 
 export function buildInstalledInterpreterCharacterReferenceCatalogV1():
 InterpreterCharacterReferenceCatalogV1 {
@@ -27,6 +28,7 @@ InterpreterCharacterReferenceCatalogV1 {
       .filter(entry => !spellIds.has(entry.id))
       .map(entry => reference(entry.id, entry.name)),
     spells,
+    features: featureReferencesFromIndex(),
     items: [
       ...loadWeaponTypesFromIndex()
         .map(entry => reference(entry.id, entry.label ?? entry.name)),
@@ -38,6 +40,17 @@ InterpreterCharacterReferenceCatalogV1 {
         .map(entry => reference(entry.id, entry.label))
     ]
   };
+}
+
+function featureReferencesFromIndex(): InterpreterCharacterReferenceCatalogEntryV1[] {
+  const paths = Array.isArray((featuresIndex as { features?: unknown }).features)
+    ? (featuresIndex as { features: unknown[] }).features
+    : [];
+  return paths
+    .filter((entry): entry is string => typeof entry === "string")
+    .map(path => path.split("/").at(-1)?.replace(/\.json$/u, "") ?? "")
+    .filter(Boolean)
+    .map(id => reference(id, id.replaceAll(/[-_]+/gu, " ")));
 }
 
 function reference(

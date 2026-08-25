@@ -10,6 +10,7 @@ import type {
   AiSemanticIntentPayloadV5,
   AiSemanticIntentPayloadV6,
   AiSemanticIntentPayloadV7,
+  AiSemanticIntentPayloadV8,
   AiModelRouteV1,
   AiOutputValidationResultV1,
   AiRoleOutputEnvelopeV1,
@@ -972,7 +973,9 @@ export function validateAiRoleOutputEnvelopeV1(output: unknown, request: AiCallR
   if (issues.length === 0) {
     if (request.role === "intent_interpreter") issues.push(...validateIntentPayload(envelope.payload));
     if (request.role === "player_intent_interpreter") issues.push(...(
-      request.contractVersion === "ai-intent-semantic/7"
+      request.contractVersion === "ai-intent-semantic/8"
+        ? validateSemanticIntentPayloadV8(envelope.payload)
+        : request.contractVersion === "ai-intent-semantic/7"
         ? validateSemanticIntentPayloadV7(envelope.payload)
         : request.contractVersion === "ai-intent-semantic/6"
         ? validateSemanticIntentPayloadV6(envelope.payload)
@@ -1172,6 +1175,97 @@ function validateSemanticIntentPayloadV7(payload: unknown): string[] {
   if (!["UNCHANGED", "SEPARATE", "REJOIN", "LEAVE"].includes(String(directive.presenceIntent))) {
     issues.push("payload.intent.companionDirective.presenceIntent: invalid presence intent");
   }
+  return issues;
+}
+
+function validateSemanticIntentPayloadV8(payload: unknown): string[] {
+  if (!isObject(payload)) return ["payload: expected object"];
+  const issues = exactKeys(payload, ["rawInputEcho", "semanticFrame"], "payload");
+  if (typeof payload.rawInputEcho !== "string") issues.push("payload.rawInputEcho: expected string");
+  if (!isObject(payload.semanticFrame)) return [...issues, "payload.semanticFrame: expected object"];
+  const frame = payload.semanticFrame as unknown as AiSemanticIntentPayloadV8["semanticFrame"];
+  issues.push(...exactKeys(payload.semanticFrame, [
+    "ambiguities", "clarificationQuestion", "components", "confidence",
+    "globalConditions", "overallCommitment", "overallMeaning", "schemaVersion",
+    "understandingStatus"
+  ], "payload.semanticFrame"));
+  if (frame.schemaVersion !== 1) issues.push("payload.semanticFrame.schemaVersion: expected 1");
+  if (!["UNDERSTOOD", "NEEDS_CLARIFICATION"].includes(String(frame.understandingStatus))) issues.push("payload.semanticFrame.understandingStatus: invalid status");
+  issues.push(...validateNonEmptyString(frame.overallMeaning, "payload.semanticFrame.overallMeaning"));
+  if (!["none", "hypothetical", "conditional", "committed", "mixed", "unclear"].includes(String(frame.overallCommitment))) issues.push("payload.semanticFrame.overallCommitment: invalid commitment");
+  if (!isStringArray(frame.globalConditions) || frame.globalConditions.some(value => value.trim().length === 0)) issues.push("payload.semanticFrame.globalConditions: expected non-empty string values");
+  if (!Array.isArray(frame.components)) issues.push("payload.semanticFrame.components: expected array");
+  else {
+    const ids = new Set<string>();
+    const orders = new Set<number>();
+    frame.components.forEach((component, index) => {
+      const path = `payload.semanticFrame.components[${index}]`;
+      if (!isObject(component)) {
+        issues.push(`${path}: expected object`);
+        return;
+      }
+      issues.push(...exactKeys(component, [
+        "alternativeGroupId", "commitment", "componentId", "conditions",
+        "dependsOnComponentIds", "meaning", "mentionedTargets", "negated", "order",
+        "quoted", "relationToPrevious", "simultaneousWithComponentIds",
+        "suggestedAction", "suggestedCapabilityId", "suggestedDomain", "supersedesComponentIds"
+      ], path));
+      issues.push(...validateNonEmptyString(component.componentId, `${path}.componentId`));
+      issues.push(...validateNonEmptyString(component.meaning, `${path}.meaning`));
+      if (typeof component.componentId === "string") {
+        if (ids.has(component.componentId)) issues.push(`${path}.componentId: duplicate`);
+        ids.add(component.componentId);
+      }
+      if (!Number.isInteger(component.order) || component.order < 1) issues.push(`${path}.order: expected positive integer`);
+      else {
+        if (orders.has(component.order)) issues.push(`${path}.order: duplicate`);
+        orders.add(component.order);
+      }
+      if (!["none", "hypothetical", "conditional", "committed", "mixed", "unclear"].includes(String(component.commitment))) issues.push(`${path}.commitment: invalid commitment`);
+      if (!isStringArray(component.conditions) || component.conditions.some(value => value.trim().length === 0)) issues.push(`${path}.conditions: expected non-empty string values`);
+      if (typeof component.negated !== "boolean" || typeof component.quoted !== "boolean") issues.push(`${path}: negated and quoted must be boolean`);
+      if (!["NONE", "THEN", "SIMULTANEOUS", "ALTERNATIVE", "CORRECTION", "CONDITION_RESULT"].includes(String(component.relationToPrevious))) issues.push(`${path}.relationToPrevious: invalid relation`);
+      if (!(component.alternativeGroupId === null || typeof component.alternativeGroupId === "string" && component.alternativeGroupId.trim().length > 0)) issues.push(`${path}.alternativeGroupId: expected null or non-empty string`);
+      for (const key of ["dependsOnComponentIds", "simultaneousWithComponentIds", "supersedesComponentIds"] as const) {
+        if (!isStringArray(component[key])) issues.push(`${path}.${key}: expected string array`);
+      }
+      if (!Array.isArray(component.mentionedTargets)) issues.push(`${path}.mentionedTargets: expected array`);
+      else component.mentionedTargets.forEach((target, targetIndex) => {
+        const targetPath = `${path}.mentionedTargets[${targetIndex}]`;
+        if (!isObject(target)) issues.push(`${targetPath}: expected object`);
+        else {
+          issues.push(...exactKeys(target, ["proposedRef", "surface"], targetPath));
+          issues.push(...validateNonEmptyString(target.surface, `${targetPath}.surface`));
+          if (!(target.proposedRef === null || typeof target.proposedRef === "string" && target.proposedRef.trim().length > 0)) issues.push(`${targetPath}.proposedRef: expected null or non-empty string`);
+        }
+      });
+      for (const key of ["suggestedDomain", "suggestedAction", "suggestedCapabilityId"] as const) {
+        if (!(component[key] === null || typeof component[key] === "string" && component[key]!.trim().length > 0)) issues.push(`${path}.${key}: expected null or non-empty string`);
+      }
+    });
+    if (frame.understandingStatus === "UNDERSTOOD" && frame.components.length === 0) issues.push("payload.semanticFrame.components: UNDERSTOOD requires at least one component");
+    for (const component of frame.components) {
+      if (!isObject(component)) continue;
+      for (const key of ["dependsOnComponentIds", "simultaneousWithComponentIds", "supersedesComponentIds"] as const) {
+        if (isStringArray(component[key]) && component[key].some(ref => !ids.has(ref))) issues.push(`payload.semanticFrame.components.${key}: unknown component reference`);
+      }
+    }
+  }
+  if (!Array.isArray(frame.ambiguities)) issues.push("payload.semanticFrame.ambiguities: expected array");
+  else frame.ambiguities.forEach((ambiguity, index) => {
+    const path = `payload.semanticFrame.ambiguities[${index}]`;
+    if (!isObject(ambiguity)) issues.push(`${path}: expected object`);
+    else {
+      issues.push(...exactKeys(ambiguity, ["affectedComponentIds", "ambiguityId", "summary"], path));
+      issues.push(...validateNonEmptyString(ambiguity.ambiguityId, `${path}.ambiguityId`));
+      issues.push(...validateNonEmptyString(ambiguity.summary, `${path}.summary`));
+      if (!isStringArray(ambiguity.affectedComponentIds)) issues.push(`${path}.affectedComponentIds: expected string array`);
+    }
+  });
+  if (!(frame.clarificationQuestion === null || typeof frame.clarificationQuestion === "string" && frame.clarificationQuestion.trim().length > 0)) issues.push("payload.semanticFrame.clarificationQuestion: expected null or non-empty string");
+  if (frame.understandingStatus === "NEEDS_CLARIFICATION" && typeof frame.clarificationQuestion !== "string") issues.push("payload.semanticFrame.clarificationQuestion: required for clarification");
+  if (frame.understandingStatus === "UNDERSTOOD" && frame.clarificationQuestion !== null) issues.push("payload.semanticFrame.clarificationQuestion: must be null when understood");
+  if (!["low", "medium", "high"].includes(String(frame.confidence))) issues.push("payload.semanticFrame.confidence: invalid confidence");
   return issues;
 }
 

@@ -17,6 +17,14 @@ const html = renderToStaticMarkup(
     onSubmit: () => undefined
   })
 );
+const developerHtml = renderToStaticMarkup(
+  React.createElement(NarrativeConversationPanel, {
+    packets: [narrativePanelFixture],
+    developerMode: true,
+    title: "Narration de campagne",
+    onSubmit: () => undefined
+  })
+);
 
 assert.match(html, /Narration de campagne/, "titre rendu");
 assert.match(html, /Aryn/, "locuteur joueur rendu");
@@ -28,18 +36,19 @@ assert.match(html, /role="log"/, "fil rendu comme log accessible");
 assert.match(html, /aria-label="Saisie narrative libre"/, "saisie libre accessible");
 assert.match(html, /data-narrative-block-kind="PLAYER_EXPRESSION"/, "type de bloc rendu hors couleur");
 assert.match(html, /data-narrative-speaker-kind="NPC"/, "type de locuteur rendu hors couleur");
-assert.match(html, /data-narrative-ux-badge="Expression validée"/, "badge expression joueur rendu hors couleur");
-assert.match(html, /data-narrative-ux-badge="PNJ"/, "badge PNJ rendu hors couleur");
-assert.match(html, /data-narrative-ux-badge="Sans commit"/, "badge sans commit rendu hors couleur");
-assert.match(html, /data-narrative-ux-badge="Action non/, "badge action non executee rendu hors couleur");
-assert.match(html, /data-narrative-ux-badge="Possibilit/, "badge possibilite rendu hors couleur");
-assert.match(html, /data-narrative-ux-badge="Contexte"/, "badge contexte rendu hors couleur");
-assert.match(html, /data-narrative-ux-badge="Parole enregistr/, "badge parole enregistree rendu hors couleur");
-assert.match(html, /data-narrative-ux-badge="Aucun temps"/, "badge aucun temps rendu hors couleur");
-assert.match(html, /data-narrative-ux-badge="Clarification"/, "badge clarification rendu hors couleur");
-assert.match(html, /data-narrative-ux-badge="IA"/, "badge IA rendu depuis sourceRefs");
-assert.match(html, /data-narrative-ux-badge="Fallback"/, "badge fallback rendu hors couleur");
-assert.match(html, /Indicateurs UX:/, "badges décrits par aria-label");
+assert.doesNotMatch(html, /Indicateurs UX:|data-narrative-ux-badge|data-narrative-ux-notice|Rendu de secours/, "instrumentation masquée par défaut");
+assert.match(developerHtml, /data-narrative-ux-badge="Expression validée"/, "badge expression joueur accessible en mode développeur");
+assert.match(developerHtml, /data-narrative-ux-badge="PNJ"/, "badge PNJ accessible en mode développeur");
+assert.match(developerHtml, /data-narrative-ux-badge="Sans commit"/, "badge sans commit accessible en mode développeur");
+assert.match(developerHtml, /data-narrative-ux-badge="Action non/, "badge action non executee accessible en mode développeur");
+assert.match(developerHtml, /data-narrative-ux-badge="Possibilit/, "badge possibilite accessible en mode développeur");
+assert.match(developerHtml, /data-narrative-ux-badge="Contexte"/, "badge contexte accessible en mode développeur");
+assert.match(developerHtml, /data-narrative-ux-badge="Parole enregistr/, "badge parole enregistree accessible en mode développeur");
+assert.match(developerHtml, /data-narrative-ux-badge="Aucun temps"/, "badge aucun temps accessible en mode développeur");
+assert.match(developerHtml, /data-narrative-ux-badge="Clarification"/, "badge clarification accessible en mode développeur");
+assert.match(developerHtml, /data-narrative-ux-badge="IA"/, "badge IA accessible en mode développeur");
+assert.match(developerHtml, /data-narrative-ux-badge="Fallback"/, "badge fallback accessible en mode développeur");
+assert.match(developerHtml, /Indicateurs UX:/, "badges développeur décrits par aria-label");
 
 const pendingCheckHtml = renderToStaticMarkup(
   React.createElement(NarrativeConversationPanel, {
@@ -70,19 +79,19 @@ assert.match(pendingCheckHtml, /DD 15/, "difficulté affichée");
 assert.match(pendingCheckHtml, /Lancer le dé/, "commande explicite de lancer affichée");
 assert.match(pendingCheckHtml, /textarea[^>]*disabled/u, "nouvelle intention bloquée pendant le jet");
 
-assert.match(html, /data-narrative-ux-notice="possibility-no-commit"/, "encart possibilite sans commit rendu");
-assert.match(html, /data-narrative-ux-notice="context-no-commit"/, "encart contexte sans commit rendu");
-assert.match(html, /data-narrative-ux-notice="clarification-no-commit"/, "encart clarification sans commit rendu");
-assert.match(html, /data-narrative-ux-notice="bounded-speech-commit"/, "encart parole enregistree rendu");
-assert.match(html, /aucune action exécutée/, "notice explicite sans action exécutée");
-assert.match(html, /question de contexte sans action/, "notice explicite contexte sans action");
+assert.match(developerHtml, /data-narrative-ux-notice="possibility-no-commit"/, "encart possibilite disponible en mode développeur");
+assert.match(developerHtml, /data-narrative-ux-notice="context-no-commit"/, "encart contexte disponible en mode développeur");
+assert.match(developerHtml, /data-narrative-ux-notice="clarification-no-commit"/, "encart clarification disponible en mode développeur");
+assert.match(developerHtml, /data-narrative-ux-notice="bounded-speech-commit"/, "encart parole disponible en mode développeur");
+assert.match(developerHtml, /aucune action exécutée/, "notice développeur explicite sans action exécutée");
+assert.match(developerHtml, /question de contexte sans action/, "notice développeur explicite contexte sans action");
 assert.doesNotMatch(
-  html,
+  developerHtml,
   /block-system-context[\s\S]*data-narrative-ux-badge="Action non/u,
   "une question de contexte ne doit pas afficher le badge action non executee"
 );
-assert.match(html, /scène et le temps restent suspendus/, "notice explicite temps suspendu");
-assert.match(html, /sans succès social automatique/, "notice explicite effet social borné");
+assert.match(developerHtml, /scène et le temps restent suspendus/, "notice développeur explicite temps suspendu");
+assert.match(developerHtml, /sans succès social automatique/, "notice développeur explicite effet social borné");
 
 const requestId = createNarrativeClientRequestId("test");
 assert.match(requestId, /^test-/, "clientRequestId préfixé");

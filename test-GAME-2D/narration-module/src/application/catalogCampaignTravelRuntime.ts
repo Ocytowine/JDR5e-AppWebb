@@ -205,6 +205,17 @@ export function createCatalogCampaignTravelRuntimeV1(input: {
         request.interpretation.semanticIntent.kind !== "traverse_visible_boundary"
         || request.interpretation.runtimeDecision.requiredDomain !== "world"
       ) return false;
+      const activeTravel = await restoreActiveCampaignTravelV1({
+        repository: request.repository,
+        campaignId: request.campaignId
+      });
+      if (!activeTravel.ok) return false;
+      if (
+        activeTravel.value !== null
+        && ["PLANNED", "ACTIVE", "INTERRUPTED"].includes(activeTravel.value.status)
+        && request.interpretation.semanticIntent.commitment === "committed"
+        && !request.interpretation.requiresClarification
+      ) return true;
       const destinationId = destination(request.interpretation);
       if (destinationId === null) return false;
       const position = await request.repository.getAggregate(
@@ -986,7 +997,7 @@ function departurePresentation(
     schemaVersion: 1,
     kind: "DEPARTURE",
     playerFacingText:
-      `Vous quittez ${label(process.plan.originLocationId)} et prenez la route de ${label(process.plan.destinationLocationId)}.`,
+      `Vous quittez ${label(process.plan.originLocationId)} et prenez la route vers ${label(process.plan.destinationLocationId)}.`,
     sourceRefs: [
       `travel-process:${process.processId}`,
       `travel-plan:${process.plan.planId}`
@@ -1009,7 +1020,7 @@ function travelAdvancePresentation(
     schemaVersion: 1,
     kind: "ARRIVAL",
     playerFacingText:
-      `Le trajet s'achÃ¨ve : vous atteignez ${label(result.process.plan.destinationLocationId)}.`,
+      `Le trajet s'achève : vous atteignez ${label(result.process.plan.destinationLocationId)}.`,
     sourceRefs: baseRefs,
     interruption: null
   };
@@ -1044,7 +1055,7 @@ function travelAdvancePresentation(
   return {
     schemaVersion: 1,
     kind: "PROGRESS",
-    playerFacingText: "Vous poursuivez votre route jusqu'Ã  ce que le voyage impose une nouvelle pause.",
+    playerFacingText: "Vous poursuivez votre route jusqu'à ce que le voyage impose une nouvelle pause.",
     sourceRefs: baseRefs,
     interruption: null
   };
@@ -1054,10 +1065,10 @@ function interruptionResolutionText(
   approach: TravelInterruptionApproachV1
 ): string {
   if (approach === "OBSERVE") {
-    return "Vous prenez le temps d'observer la situation. Ce que vous percevez vous permet de reprendre la route sans prÃ©cipitation.";
+    return "Vous prenez le temps d'observer la situation. Ce que vous percevez vous permet de reprendre la route sans précipitation.";
   }
   if (approach === "AVOID") {
-    return "Vous choisissez de contourner la difficultÃ©. Une fois l'obstacle laissÃ© derriÃ¨re vous, la route redevient praticable.";
+    return "Vous choisissez de contourner la difficulté. Une fois l'obstacle laissé derrière vous, la route redevient praticable.";
   }
   return "Vous allez au-devant de la situation et la traversez. Le passage est de nouveau libre.";
 }

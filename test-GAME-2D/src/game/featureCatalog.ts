@@ -1,3 +1,5 @@
+/// <reference types="vite/client" />
+
 import type { FeatureDefinition } from "./featureTypes";
 
 import featuresIndex from "../data/characters/features/index.json";

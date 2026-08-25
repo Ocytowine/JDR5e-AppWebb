@@ -4,19 +4,8 @@ import {
   NarrativeAppSurface,
   type NarrativeAppSurfaceBootstrapV1,
   type NarrativeEnhancementMode,
-  type NarrativeTacticalCheckpointBridgeV1,
-  type NarrativeWorldSimulationBridgeV1
+  type NarrativeTacticalCheckpointBridgeV1
 } from "./narration-ui/NarrativeAppSurface";
-import {
-  WorldMapScreen
-} from "../map-module/ui/WorldMapScreen";
-import type {
-  CampaignWorldSimulationUiPortV1
-} from "../map-module/ui/WorldMapSimulationScreen";
-import type {
-  TickOutput,
-  WorldState
-} from "../map-module/world-simulation";
 import { CampaignGateway } from "./narration-ui/CampaignGateway";
 import type { ActiveCharacterSheetV1 } from "./narration-ui/activeCharacterSheetAdapter";
 import {
@@ -38,7 +27,7 @@ import {
   type GameBoardTerminalReportV1
 } from "./tactical-integration/gameBoardTacticalOutcome";
 
-type AppSurface = "narration" | "world" | "tactical";
+type AppSurface = "narration" | "tactical";
 type NarrativeEntry =
   | { kind: "PILOT" }
   | { kind: "PLAYER"; sheet: ActiveCharacterSheetV1 }
@@ -67,48 +56,13 @@ export function App(props: {
     useState<GameBoardTacticalStateV1 | null>(null);
   const [tacticalCheckpointBridge, setTacticalCheckpointBridge] =
     useState<NarrativeTacticalCheckpointBridgeV1 | null>(null);
-  const [worldSimulationBridge, setWorldSimulationBridge] =
-    useState<NarrativeWorldSimulationBridgeV1 | null>(null);
   const tacticalCheckpointQueueRef = useRef<Promise<unknown>>(Promise.resolve());
-  const worldSimulationPort = useMemo<
-    CampaignWorldSimulationUiPortV1 | undefined
-  >(() => {
-    if (worldSimulationBridge === null) return undefined;
-    return {
-      async restore() {
-        const restored = await worldSimulationBridge.restore();
-        if (!restored.ok) throw new Error(restored.error.messageKey);
-        return {
-          worldState: restored.value.worldState as unknown as WorldState,
-          elapsedGameSeconds: restored.value.elapsedGameSeconds,
-          worldSimulatedThrough: restored.value.worldSimulatedThrough
-        };
-      },
-      async advance(input) {
-        const advanced = await worldSimulationBridge.advance(input);
-        if (!advanced.ok) throw new Error(advanced.error.messageKey);
-        if (advanced.value.snapshot.lastTickOutput === null) {
-          throw new Error("campaign.world-simulation.tick-output-missing");
-        }
-        return {
-          worldState:
-            advanced.value.snapshot.worldState as unknown as WorldState,
-          tickOutput:
-            advanced.value.snapshot.lastTickOutput as unknown as TickOutput,
-          elapsedGameSeconds:
-            advanced.value.snapshot.elapsedGameSeconds,
-          worldSimulatedThrough:
-            advanced.value.snapshot.worldSimulatedThrough
-        };
-      }
-    };
-  }, [worldSimulationBridge]);
   const activeNarrativeBootstrap = useMemo(() => {
     if (narrativeEntry?.kind === "INJECTED") {
       return props.narrativeBootstrapController;
     }
     if (narrativeEntry?.kind === "PLAYER") {
-      return (mode: NarrativeEnhancementMode = "local") =>
+      return (mode: NarrativeEnhancementMode = "openai") =>
         import("./narration-ui/playableCampaignBootstrap").then(module =>
           module.createPlayableCampaignControllerV1(
             narrativeEntry.sheet,
@@ -225,24 +179,16 @@ export function App(props: {
         <SurfaceButton active={surface === "narration"} onClick={() => setSurface("narration")}>
           Narration
         </SurfaceButton>
-        {narrativeEntry.kind === "PLAYER" && worldSimulationPort !== undefined && (
-          <SurfaceButton active={surface === "world"} onClick={() => setSurface("world")}>
-            Monde
-          </SurfaceButton>
-        )}
-        <SurfaceButton active={surface === "tactical"} onClick={() => setSurface("tactical")}>
-          {tacticalSession === null
-            ? "Tactique"
-            : isAccessTacticalSessionSummaryV1(tacticalSession.summary)
+        {tacticalSession !== null && <SurfaceButton active={surface === "tactical"} onClick={() => setSurface("tactical")}>
+          {isAccessTacticalSessionSummaryV1(tacticalSession.summary)
               ? "Tactique · conflit d'accès en attente"
               : "Tactique · défense en attente"}
-        </SurfaceButton>
+        </SurfaceButton>}
         {narrativeEntry.kind !== "INJECTED" && (
           <SurfaceButton
             active={false}
             onClick={() => {
               setTacticalSession(null);
-              setWorldSimulationBridge(null);
               setSurface("narration");
               setNarrativeEntry(null);
             }}
@@ -257,20 +203,11 @@ export function App(props: {
           bootstrapController={activeNarrativeBootstrap}
           onTacticalHandoffChange={setTacticalSession}
           onTacticalCheckpointBridgeChange={setTacticalCheckpointBridge}
-          onWorldSimulationBridgeChange={setWorldSimulationBridge}
           onOpenTacticalHandoff={session => {
             setTacticalSession(session);
             setSurface("tactical");
           }}
         />
-      ) : surface === "world" ? (
-        <div style={{ padding: "76px 16px 16px" }}>
-          <WorldMapScreen
-            onBack={() => setSurface("narration")}
-            backLabel="Retour narration"
-            campaignSimulationPort={worldSimulationPort}
-          />
-        </div>
       ) : (
         <GameBoard
           tacticalSession={tacticalSession}

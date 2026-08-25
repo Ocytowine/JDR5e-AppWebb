@@ -9,7 +9,10 @@ import {
   type EventCursor,
   type RepositoryClock
 } from "../../src/core";
-import { NarrativeTurnControllerV1 } from "../../src/application";
+import {
+  createDefaultAiIntentInterpreterConfigV1,
+  NarrativeTurnControllerV1
+} from "../../src/application";
 
 class FixedClock implements RepositoryClock {
   constructor(private readonly instant = new Date("2026-07-07T12:00:00.000Z")) {}
@@ -50,7 +53,13 @@ async function main(): Promise<void> {
   });
   if (!created.ok) throw new Error(created.error.messageKey);
 
-  const controller = new NarrativeTurnControllerV1({ repository, campaignId, clock, idPrefix: "res" });
+  const controller = new NarrativeTurnControllerV1({
+    repository,
+    campaignId,
+    clock,
+    idPrefix: "res",
+    intentInterpreterConfig: createDefaultAiIntentInterpreterConfigV1()
+  });
 
   const possibility = await controller.submit({
     schemaVersion: 1,

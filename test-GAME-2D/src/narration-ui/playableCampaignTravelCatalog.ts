@@ -60,7 +60,7 @@ export function createInstalledPlayableTravelRuntimeV1(
       afterSeconds: 900,
       reasonRef: "world-signal:lysenthe-street-procession",
       perceptibleSign:
-        "Au dÃ©tour d'une rue, un cortÃ¨ge compact dÃ©bouche entre les faÃ§ades et coupe votre chemin. Les voix et les pas se rapprochent ; il faut d'abord comprendre la situation ou choisir comment la traverser.",
+        "Au détour d'une rue, un cortège compact débouche entre les façades et coupe votre chemin. Les voix et les pas se rapprochent ; il faut d'abord comprendre la situation ou choisir comment la traverser.",
       sourceRefs: [
         "wiki-location:archives_de_lysenthe",
         "wiki-location:halles_des_commerces",

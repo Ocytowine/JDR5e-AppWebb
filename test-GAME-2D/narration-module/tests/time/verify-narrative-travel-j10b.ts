@@ -93,15 +93,15 @@ function intentFor(rawInput: string): AiSemanticPlayerIntentV6 {
   if (observes) return {
     ...base,
     kind: "observe_environment",
-    playerGoal: "Observer le cortÃ¨ge avant d'agir.",
-    actionHint: "observer attentivement le cortÃ¨ge",
+    playerGoal: "Observer le cortège avant d'agir.",
+    actionHint: "observer attentivement le cortège",
     domainHint: "scene_resolution",
     scope: "PERCEPTION",
     targetMention: null,
     perception: {
       schemaVersion: 1,
       depth: "FOCUSED",
-      focus: "le cortÃ¨ge qui coupe la rue",
+      focus: "le cortège qui coupe la rue",
       soughtInformation: "un passage praticable",
       informationKind: "VISIBLE_TRAIT"
     },
@@ -273,7 +273,7 @@ async function main(): Promise<void> {
     "j10b:continue:1",
     "Nous reprenons la route vers les Halles."
   );
-  assert.match(lastNarration(interruption), /cortÃ¨ge compact/u);
+  assert.match(lastNarration(interruption), /cortège compact/u);
   const suspended = await controller.restoreActiveTravel();
   if (!suspended.ok || suspended.value === null) throw new Error("suspended travel missing");
   assert.equal(suspended.value.status, "INTERRUPTED");
@@ -304,7 +304,7 @@ async function main(): Promise<void> {
   const response = await submit(
     resumed,
     "j10b:interruption:observe",
-    "J'observe attentivement le cortÃ¨ge et cherche un passage."
+    "J'observe attentivement le cortège et cherche un passage."
   );
   assert.match(lastNarration(response), /reprendre la route/u);
   assert.equal(await elapsedGameSeconds(repository), clockAfterInterruption);
@@ -315,7 +315,7 @@ async function main(): Promise<void> {
   await submit(
     resumed,
     "j10b:interruption:observe",
-    "J'observe attentivement le cortÃ¨ge et cherche un passage."
+    "J'observe attentivement le cortège et cherche un passage."
   );
   assert.equal(await elapsedGameSeconds(repository), clockAfterInterruption);
 

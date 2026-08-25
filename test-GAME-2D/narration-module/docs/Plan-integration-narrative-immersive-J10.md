@@ -1,6 +1,6 @@
 # Plan d'intégration narrative immersive J10
 
-Statut : `J10-A À J10-D FERMÉS — J10-E AUTORISÉ`
+Statut : `J10-A À J10-F FERMÉS — J10-G OPTIONNEL EN ATTENTE D'ACCORD`
 
 Date : 2026-08-24
 
@@ -238,6 +238,14 @@ canari privé, absence réseau et audit des frontières IA/campagne.
 Terminé lorsque la reprise après rechargement restitue les informations utiles
 sans score privé, vérité cachée, note personnelle ou mutation métier.
 
+Fermeture du 2026-08-25 : la surface installée compose lieu, faits avec statut,
+compagnons, engagements, découvertes, hypothèses exprimées, chronique rendue et
+inventaire personnel depuis des projections publiques bornées. Le panneau est
+repliable, déterministe, sans IA ni stockage supplémentaire. La gate
+`npm run narration-module:test:j10e-recap` couvre les canaris privés, la
+reconstruction et Chromium. J10-F peut désormais traiter l'effacement des
+traces techniques et la gate UI continue.
+
 ### J10-F — Surface immersive et certification navigateur
 
 - masquer les diagnostics détaillés par défaut et conserver un mode développeur
@@ -251,6 +259,18 @@ sans score privé, vérité cachée, note personnelle ou mutation métier.
 
 Terminé lorsque le parcours manuel et la gate utilisent les mêmes interactions
 joueur, sans carte de voyage, panneau de commande du groupe ou popup de quête.
+
+Fermeture du 2026-08-25 : les diagnostics détaillés, badges UX, notices de
+fallback et contrôles IA sont cachés par défaut et restent disponibles depuis
+« Options techniques ». La navigation ne propose plus de carte du monde ni de
+surface tactique hors handoff réel, et les panneaux de progression ont disparu
+de la surface joueur. L'interpréteur local installé reconnaît désormais les
+demandes de compagnon et les formulations libres de voyage ; les présentations
+propriétaires du voyage ne sont plus réécrites par l'enrichisseur de scène. La
+gate `npm run narration-module:test:j10f-immersive-ui` part de l'entrée réelle,
+n'appelle aucun pilote métier direct et couvre clavier, carnet privé,
+inventaire/récapitulatif, autonomie du compagnon, interruption persistée,
+rechargement, choix narratif, reprise et arrivée sans doublon.
 
 ### J10-G — Certification OpenAI optionnelle
 
@@ -282,5 +302,7 @@ fonctionnement local.
 - `npm run build` et `git diff --check` ;
 - recette OpenAI seulement après accord explicite.
 
-J10 ne sera déclaré livré qu'après la gate locale complète. Chaque sous-lot doit
-mettre à jour le contrat proche du code et `TASKS.md` sans dupliquer ce plan.
+La verticale locale J10 est livrée par la gate complète J10-F. J10-G demeure
+une preuve distante facultative et ne doit être lancée qu'après accord explicite.
+Chaque sous-lot doit mettre à jour le contrat proche du code et `TASKS.md` sans
+dupliquer ce plan.

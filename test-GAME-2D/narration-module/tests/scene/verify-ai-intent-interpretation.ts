@@ -335,10 +335,35 @@ async function main(): Promise<void> {
   if (!diagnosticTurn.ok) throw new Error(diagnosticTurn.error.messageKey);
   const diagnosticBlocks = diagnosticTurn.value.output.displayPacket.displayBlocks;
   assert.equal(diagnosticBlocks.some(block => block.kind === "GM_NARRATION"), false, "un échec IA ne doit pas produire une fausse réponse MJ de contexte");
-  const diagnosticNotice = diagnosticBlocks.find(block => block.kind === "SYSTEM_NOTICE")?.text ?? "";
-  assert.match(diagnosticNotice, /Interprétation IA refusée/u);
+  const diagnosticNotice = diagnosticBlocks.find(block => block.kind === "CLARIFICATION")?.text ?? "";
+  assert.match(diagnosticNotice, /reformuler/u);
   assert.doesNotMatch(diagnosticNotice, /question de contexte/iu);
-  assert.match(diagnosticNotice, /Issue:/u, "la cause de rejet doit être visible dans le diagnostic système");
+  assert.doesNotMatch(diagnosticNotice, /Issue:|transport|provider/iu, "la cause technique ne doit pas fuir dans la narration joueur");
+
+  let absentConfigDomainCalls = 0;
+  const absentConfigController = await createPrototypeNarrativeTurnControllerV1({
+    intentInterpreterConfig: null,
+    inventoryAccessRuntime: {
+      canHandle() {
+        absentConfigDomainCalls += 1;
+        return true;
+      },
+      async execute() {
+        absentConfigDomainCalls += 1;
+        throw new Error("un domaine ne doit pas exécuter une saisie non interprétée");
+      }
+    }
+  });
+  const absentConfigTurn = await absentConfigController.submit({
+    schemaVersion: 1,
+    clientRequestId: "req-ai-interpreter-config-absent",
+    rawInput: "Je prends la bourse du garde."
+  });
+  if (!absentConfigTurn.ok) throw new Error(absentConfigTurn.error.messageKey);
+  assert.equal(absentConfigTurn.value.output.noCommit, true);
+  assert.equal(absentConfigTurn.value.output.noGameTime, true);
+  assert.equal(absentConfigTurn.value.output.resolution.resultKind, "CLARIFICATION_REQUIRED");
+  assert.equal(absentConfigDomainCalls, 0, "configuration absente: aucun propriétaire de domaine appelé");
 
   const invalidImplicitPossibility = await interpret("quel temps fait il ?", invalidImplicitPossibilityConfig());
   assert.equal(invalidImplicitPossibility.usedAiInterpretation, false, "possibility_query sans demande explicite rejetee");
@@ -1441,7 +1466,8 @@ async function runRestoredInterpreterContextCase() {
     repository,
     campaignId,
     clock,
-    idPrefix: "restored-context:first"
+    idPrefix: "restored-context:first",
+    intentInterpreterConfig: createDefaultAiIntentInterpreterConfigV1()
   });
   const focus = await firstController.submit({
     schemaVersion: 1,
@@ -1516,7 +1542,8 @@ async function runControllerSpeechCase() {
     repository,
     campaignId,
     clock,
-    idPrefix: "i06x"
+    idPrefix: "i06x",
+    intentInterpreterConfig: createDefaultAiIntentInterpreterConfigV1()
   });
   const submitted = await controller.submit({
     schemaVersion: 1,
@@ -1563,7 +1590,8 @@ async function runControllerLocalReferentCase() {
     repository,
     campaignId,
     clock,
-    idPrefix: "i06ze"
+    idPrefix: "i06ze",
+    intentInterpreterConfig: createDefaultAiIntentInterpreterConfigV1()
   });
   const focus = await controller.submit({
     schemaVersion: 1,
@@ -1581,7 +1609,9 @@ async function runControllerLocalReferentCase() {
 }
 
 async function runControllerApproachOnlyCase() {
-  const controller = await createPrototypeNarrativeTurnControllerV1();
+  const controller = await createPrototypeNarrativeTurnControllerV1({
+    intentInterpreterConfig: createDefaultAiIntentInterpreterConfigV1()
+  });
   const submitted = await controller.submit({
     schemaVersion: 1,
     clientRequestId: "req-i06zk-approach-only",
@@ -1603,7 +1633,9 @@ async function runControllerDirectedApproachCase() {
 }
 
 async function runControllerApproachWaitressThenAskCase() {
-  const controller = await createPrototypeNarrativeTurnControllerV1();
+  const controller = await createPrototypeNarrativeTurnControllerV1({
+    intentInterpreterConfig: createDefaultAiIntentInterpreterConfigV1()
+  });
   const approach = await controller.submit({
     schemaVersion: 1,
     clientRequestId: "req-i06zl-approach-waitress",
@@ -1620,7 +1652,9 @@ async function runControllerApproachWaitressThenAskCase() {
 }
 
 async function runControllerApproachWomanThenAskCase() {
-  const controller = await createPrototypeNarrativeTurnControllerV1();
+  const controller = await createPrototypeNarrativeTurnControllerV1({
+    intentInterpreterConfig: createDefaultAiIntentInterpreterConfigV1()
+  });
   const approach = await controller.submit({
     schemaVersion: 1,
     clientRequestId: "req-i06zl-approach-woman",
@@ -1654,7 +1688,9 @@ async function runControllerUnprefixedWaitressCase() {
 }
 
 async function runControllerApproachWoundedManThenAskCase() {
-  const controller = await createPrototypeNarrativeTurnControllerV1();
+  const controller = await createPrototypeNarrativeTurnControllerV1({
+    intentInterpreterConfig: createDefaultAiIntentInterpreterConfigV1()
+  });
   const approach = await controller.submit({
     schemaVersion: 1,
     clientRequestId: "req-i06zl-approach-wounded-man",
@@ -1754,7 +1790,8 @@ async function runControllerIncompatibleReferentCase() {
     repository,
     campaignId,
     clock,
-    idPrefix: "i06ze-neg"
+    idPrefix: "i06ze-neg",
+    intentInterpreterConfig: createDefaultAiIntentInterpreterConfigV1()
   });
   const focus = await controller.submit({
     schemaVersion: 1,

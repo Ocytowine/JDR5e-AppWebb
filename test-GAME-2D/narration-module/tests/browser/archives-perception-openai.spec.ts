@@ -70,7 +70,7 @@ test("intention composée aux Archives: l'approche puis la salutation atteint le
   const system = page.locator('[data-narrative-block-kind="SYSTEM_NOTICE"]').last();
   await expect(system).toContainText("Intention canonique: address_visible_actor", { timeout: 30_000 });
   await expect(system).toContainText("1:APPROACH_TARGET → 2:SPEECH");
-  expect(roles).toContain("player_intent_interpreter:ai-intent-semantic/7");
+  expect(roles).toContain("player_intent_interpreter:ai-intent-semantic/8");
   expect(roles.some(role => role.startsWith("npc_performer:"))).toBe(true);
 
   await input.fill("je le remercie puis je m'écarte pour le laisser travailler");
@@ -155,7 +155,7 @@ test("orientation aux Archives: un archiviste déjà visible ne demande aucun je
   await expect(system).toContainText("Arbitrage contextuel: AUTOMATIC_SUCCESS", { timeout: 30_000 });
   await expect(system).toContainText("Perception: profondeur=GLANCE, information=PRESENCE");
   await expect(system).toContainText("Scene writer non appelé: orientation immédiate vers une présence déjà visible");
-  expect(roles).toContain("player_intent_interpreter:ai-intent-semantic/7");
+  expect(roles).toContain("player_intent_interpreter:ai-intent-semantic/8");
   expect(roles.some(role => role.startsWith("scene_writer:"))).toBe(false);
   expect(roles.some(role => role.startsWith("coherence_critic:"))).toBe(false);
   console.log(`[archives-live-orientation] narration=${narrativeText.replace(/\s+/gu, " ").trim()}`);
@@ -185,7 +185,7 @@ test("référence pronominale sans focus: clarification sûre sans panne IA", as
   await expect(clarification).not.toContainText("Interprétation IA refusée");
   await expect(page.locator('[data-narrative-block-kind="NPC_SPEECH"]')).toHaveCount(0);
   expect(pageErrors).toEqual([]);
-  expect(roles).toContain("player_intent_interpreter:ai-intent-semantic/7");
+  expect(roles).toContain("player_intent_interpreter:ai-intent-semantic/8");
   expect(roles.some(role => role.startsWith("npc_performer:"))).toBe(false);
   console.log(`[archives-live-no-focus] roles=${roles.join(",")}`);
 });

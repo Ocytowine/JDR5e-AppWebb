@@ -47,6 +47,7 @@ conservées en archives pour expliquer un ancien point de reprise.
 - [`Contrat-intention-composee-V3.md`](Contrat-intention-composee-V3.md)
 - [`Contrat-orientation-visible-et-recherche-V4.md`](Contrat-orientation-visible-et-recherche-V4.md)
 - [`Contrat-execution-composantes-ordonnees-V5.md`](Contrat-execution-composantes-ordonnees-V5.md)
+- [`Contrat-execution-cadre-semantique-G5.md`](Contrat-execution-cadre-semantique-G5.md)
 - [`Contrat-gate-realiste-semantique-V5.md`](Contrat-gate-realiste-semantique-V5.md)
 - [`Contrat-registre-referents-scene.md`](Contrat-registre-referents-scene.md)
 - [`Contrat-contexte-personnage-interpreteur.md`](Contrat-contexte-personnage-interpreteur.md)
@@ -161,6 +162,22 @@ conservées en archives pour expliquer un ancien point de reprise.
 
 ## Scénarios et preuves
 
+- [`Recette-manuelle-UI-post-G8.md`](Recette-manuelle-UI-post-G8.md)
+  détaille les tests produit utiles après la clarification live G8 et les
+  fonctions volontairement trop incomplètes pour être évaluées maintenant.
+- [`Checkpoint-recette-OpenAI-live-G8.md`](Checkpoint-recette-OpenAI-live-G8.md)
+  consigne la recette réelle, le chemin critique V8 validé, les six appels
+  consommés, le défaut sémantique observé et la contre-recette d'un appel
+  restant sous nouvel accord de dépense.
+- [`Checkpoint-gate-locale-G7.md`](Checkpoint-gate-locale-G7.md)
+  certifie la configuration produit V8, les adaptateurs propriétaires sans
+  saisie brute, la suspension sûre des compositions et la surface React/Chrome.
+- [`Checkpoint-corpus-evaluation-G6.md`](Checkpoint-corpus-evaluation-G6.md)
+  installe 24 cas sémantiques, un fournisseur OpenAI simulé réservé aux tests
+  et les preuves contrôleur/Chromium sans mutation.
+- [`Checkpoint-routage-proprietaires-G5.md`](Checkpoint-routage-proprietaires-G5.md)
+  certifie le routage exact, la prévalidation propriétaire ordonnée, les arrêts
+  et le rejeu sans saisie brute.
 - [`Matrice-certification-finale-narration-J9.md`](Matrice-certification-finale-narration-J9.md)
   distingue la verticale narrative continue J1 à J7, les preuves tactiques
   spécialisées ainsi que les gates J9-B locale, J9-C Chromium/IndexedDB et J9-D

@@ -1,6 +1,6 @@
 # Contrat du récapitulatif public de campagne J10
 
-Statut : `RETENU — IMPLÉMENTATION J10-E NON DÉMARRÉE`
+Statut : `IMPLÉMENTÉ — J10-E FERMÉ`
 
 ## Objet
 
@@ -74,3 +74,21 @@ pas être injecté dans le compositeur.
   visibles ;
 - version locale disponible sans fournisseur IA ;
 - reconstruction identique après rechargement, sans nouveau commit.
+
+## Implémentation et gate
+
+`playerCampaignRecap.ts` porte les cinq projections publiques prévues, la
+chronique bornée et le compositeur déterministe. Les adaptateurs propriétaires
+lisent les registres, puis ne transmettent au compositeur que leurs DTO publics.
+Le personnage actif fournit uniquement son inventaire personnel ; les
+inventaires externes, prix, ressources privées et identifiants d'instance ne
+rejoignent pas la projection.
+
+La composition installée expose un lecteur sans écriture à la surface React.
+Le panneau `Reprendre le fil` reste replié par défaut, se reconstruit à la
+demande et affiche un inventaire sans contrôle de mutation. Aucun store, cache
+autoritaire, appel IA, commit ou avance de temps n'a été ajouté.
+
+`npm run narration-module:test:j10e-recap` certifie les canaris privés, la
+conservation des statuts épistémiques, l'exclusion du carnet, la reconstruction
+déterministe et la surface Chromium en lecture seule.

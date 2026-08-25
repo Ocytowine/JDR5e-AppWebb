@@ -516,7 +516,7 @@ export function companionPresenceNarrationV1(input: {
     return `${name} acquiesce et reste ici, libre de ses mouvements, tandis que tu poursuis sans lui.`;
   }
   if (input.action === "REJOIN") {
-    return `${name} revient Ã  tes cÃ´tÃ©s et reprend la route avec toi.`;
+    return `${name} revient à tes côtés et reprend la route avec toi.`;
   }
   return `${name} accepte que vos routes se sÃ©parent ici et prend congÃ©.`;
 }

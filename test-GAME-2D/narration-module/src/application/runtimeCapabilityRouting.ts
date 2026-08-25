@@ -59,7 +59,9 @@ export interface NarrativeRuntimeRouteV2 extends Omit<NarrativeRuntimeRouteV1, "
 }
 
 export const NARRATIVE_RUNTIME_CAPABILITIES_V1: readonly NarrativeRuntimeCapabilityV1[] = [
-  { capabilityId: "scene.visible-interaction", domain: "scene_resolution", semanticKinds: ["move_near_visible_actor", "manipulate_visible_object", "nonverbal_signal"], disposition: "HANDLE", commandFamily: "SCENE_INTERACTION", commitPolicy: "DOMAIN_VALIDATED", noGameTime: true },
+  { capabilityId: "scene.visible-actor-approach", domain: "scene_resolution", semanticKinds: ["move_near_visible_actor"], disposition: "HANDLE", commandFamily: "SCENE_INTERACTION", commitPolicy: "DOMAIN_VALIDATED", noGameTime: true },
+  { capabilityId: "scene.visible-object-interaction", domain: "scene_resolution", semanticKinds: ["manipulate_visible_object"], disposition: "HANDLE", commandFamily: "SCENE_INTERACTION", commitPolicy: "DOMAIN_VALIDATED", noGameTime: true },
+  { capabilityId: "scene.visible-nonverbal-signal", domain: "scene_resolution", semanticKinds: ["nonverbal_signal"], disposition: "HANDLE", commandFamily: "SCENE_INTERACTION", commitPolicy: "DOMAIN_VALIDATED", noGameTime: true },
   { capabilityId: "scene.visible-dialogue", domain: "social", semanticKinds: ["address_visible_actor"], disposition: "HANDLE", commandFamily: "SPEECH", commitPolicy: "DOMAIN_VALIDATED", noGameTime: true },
   { capabilityId: "scene.visible-perception", domain: "perception", semanticKinds: ["observe_environment"], disposition: "HANDLE", commandFamily: "PERCEPTION", commitPolicy: "FORBIDDEN", noGameTime: true },
   { capabilityId: "scene.context-response", domain: "scene_resolution", semanticKinds: ["context_question", "meta_request", "hypothetical_action"], disposition: "HANDLE", commandFamily: "PERCEPTION", commitPolicy: "FORBIDDEN", noGameTime: true }
@@ -73,6 +75,7 @@ export function buildInterpreterRuntimeContextV1(input: {
   inventoryMutation?: boolean;
   tacticalAccess: boolean;
   travel?: boolean;
+  companionRequests?: boolean;
   activeTravel?: InterpreterRuntimeContextV1["activeTravel"];
 }): InterpreterRuntimeContextV1 {
   return {
@@ -111,6 +114,18 @@ export function buildInterpreterRuntimeContextV1(input: {
         playerFacingScope: "Demande engagée de repos court ou long; le propriétaire vérifie ensuite le lieu et les règles."
       },
       {
+        capabilityId: "rest.short",
+        domain: "rest",
+        availability: input.rest ? "AVAILABLE" : "HANDOFF_ONLY",
+        playerFacingScope: "Commencer explicitement un repos court; le propriétaire vérifie le lieu et les règles."
+      },
+      {
+        capabilityId: "rest.long",
+        domain: "rest",
+        availability: input.rest ? "AVAILABLE" : "HANDOFF_ONLY",
+        playerFacingScope: "Commencer explicitement un repos long; le propriétaire vérifie le lieu et les règles."
+      },
+      {
         capabilityId: "inventory.access-credential",
         domain: "inventory",
         availability: input.inventoryAccess ? "AVAILABLE" : "HANDOFF_ONLY",
@@ -134,6 +149,18 @@ export function buildInterpreterRuntimeContextV1(input: {
         availability: "HANDOFF_ONLY",
         playerFacingScope: "Intention violente ou combat libre; aucun résultat tactique n'est autorisé par l'interpréteur."
       },
+      ...[
+        ["companion.autonomous-request", "Demande libre adressée à un compagnon autonome."],
+        ["companion.follow-request", "Proposition faite à un PNJ de rejoindre le groupe; le PNJ reste libre."],
+        ["companion.separate-request", "Demande faite à un compagnon de rester ou de se séparer temporairement."],
+        ["companion.rejoin-request", "Demande faite à un compagnon séparé de rejoindre le personnage."],
+        ["companion.leave-request", "Demande faite à un compagnon de quitter durablement le groupe."]
+      ].map(([capabilityId, playerFacingScope]) => ({
+        capabilityId,
+        domain: "social" as const,
+        availability: input.companionRequests ? "AVAILABLE" as const : "HANDOFF_ONLY" as const,
+        playerFacingScope
+      })),
       {
         capabilityId: "campaign.autonomous-boundaries",
         domain: "world",
@@ -249,8 +276,12 @@ function shouldHonorClosedDomain(semantic: AiStructuredSemanticIntentV1, domain:
 
 function playerFacingScope(capabilityId: string): string {
   switch (capabilityId) {
-    case "scene.visible-interaction":
-      return "Interactions locales avec les acteurs, objets et signes visibles de la scène.";
+    case "scene.visible-actor-approach":
+      return "Se déplacer localement pour se placer près d'un acteur visible, sans lui parler ni lui imposer de réaction.";
+    case "scene.visible-object-interaction":
+      return "Manipuler ou agir localement sur un objet ou un élément visible de la scène.";
+    case "scene.visible-nonverbal-signal":
+      return "Adresser un geste ou un signe non verbal à un acteur visible.";
     case "scene.visible-dialogue":
       return "Paroles, questions, déclarations et demandes adressées à un acteur visible.";
     case "scene.visible-perception":

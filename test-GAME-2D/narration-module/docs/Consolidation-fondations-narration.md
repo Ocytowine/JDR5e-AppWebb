@@ -614,7 +614,7 @@ opportunément `GameBoard`.
 
 ### J10 — Intégration narrative immersive
 
-Statut : `J10-A À J10-D FERMÉS — J10-E AIDES-MÉMOIRE AUTORISÉ`
+Statut : `J10-A À J10-G7 FERMÉS — G8 PARTIEL, OBSERVATION UI CIBLÉE`
 
 J10 est le prochain lot produit. Il rend la verticale J1 à J9 entièrement
 pilotable depuis la saisie narrative sans carte de voyage, panneau de commande
@@ -640,12 +640,66 @@ publique et l'interruption installée Archives → Halles. La gate locale
 temps. Aucun composant de carte ou bouton de trajet n'a été ajouté. J10-C
 installe ensuite hors tests les politiques de recrutement et d'autonomie,
 active le contrat sémantique V7 et certifie refus, recrutement, demande risquée,
-séparation, réunion et rejeu depuis le seul dialogue. Le prochain sous-lot est
-J10-D ferme ensuite le carnet privé multi-intercalaires : base IndexedDB dédiée,
+séparation, réunion et rejeu depuis le seul dialogue. J10-D ferme ensuite le
+carnet privé multi-intercalaires : base IndexedDB dédiée,
 port extérieur au `CampaignRepository`, autosauvegarde sérialisée, réouverture,
-conflits de révision et canari absent des appels IA et du noyau narratif. Le
-prochain sous-lot est J10-E : récapitulatif public et inventaire compact en
-lecture seule.
+conflits de révision et canari absent des appels IA et du noyau narratif.
+J10-E ferme ensuite les aides-mémoire publiques : cinq projections propriétaires
+bornées, un compositeur déterministe, une chronique issue des seuls blocs rendus
+et un inventaire personnel compact en lecture seule. Le panneau installé ne
+crée aucun stockage, commit, temps de jeu ou appel IA ; les sentinelles de vérité
+cachée, pression sociale, autonomie, inventaire tiers et carnet restent absentes.
+La gate `narration-module:test:j10e-recap` couvre le contrat et Chromium. J10-F
+ferme ensuite la surface immersive : diagnostics et contrôles IA sont cachés par
+défaut derrière un mode développeur explicite, les entrées Monde et Tactique ne
+sont plus proposées hors handoff réel et la présentation propriétaire du voyage
+reste intacte. La gate Chrome
+`narration-module:test:j10f-immersive-ui`, pilotée uniquement par l'interface,
+couvre une même campagne depuis sa création jusqu'à l'arrivée après interruption
+et rechargement, avec carnet, récapitulatif, inventaire et compagnon autonome.
+J10-G0 fige ensuite la baseline et les seize consommateurs lexicaux. J10-G1
+rend OpenAI obligatoire pour interpréter une saisie réelle : l'interface ne
+propose plus de mode lexical, le contrôleur n'en installe plus par défaut et
+une panne devient une clarification immersive sans domaine, commit ni temps.
+La fixture lexicale ne subsiste que par injection explicite dans les tests.
+G2 ouvre désormais le contrat `ai-intent-semantic/8` au-delà des catégories V7 :
+statut de compréhension explicite, sens global et composantes ordonnées sans
+plafond ni catalogue fermé. Le schéma Structured Outputs, les validations locale
+et serveur et l'absence de recanonicalisation sont certifiés par la gate G2.
+G3 conserve désormais ce cadre intégral dans `NarrativeIntentInterpretation`.
+La projection canonique historique est explicitement non autoritaire pour V8 ;
+une clarification reste sans domaine et chaque composante comprise conservait
+son statut technique avant le raccordement G5. La gate G3 prouve que deux
+textes bruts trompeurs ne changent pas un même cadre fourni par OpenAI, que les
+références proposées restent publiques et qu'aucun commit ni temps n'est ouvert.
+G4 réunit désormais dans `interpreter-embodied-public-context/1` le profil
+joueur explicitement public, les références nommables, les connaissances
+acquises, la scène, l'interlocuteur, les focus et intentions récents, les
+compagnons présents, les capacités et le processus actif. Pour V8, cet objet
+unique remplace les blocs historiques dupliqués et entre dans l'empreinte de
+contexte. Les champs sont bornés et les canaris privés sont absents de la
+requête. G5 livre désormais `open-semantic-execution-plan/1` : seules les
+correspondances exactes entre capacité et domaine publics deviennent routables,
+chaque propriétaire prévalide son étape sans recevoir la saisie brute, et tout
+arrêt interdit les étapes suivantes tout en conservant les reçus antérieurs.
+Les conditions, alternatives et simultanéités sans propriétaire atomique restent
+en attente. G6 installe désormais un corpus permanent de 24 cas sur 20 axes,
+évalué sur des propriétés sémantiques partielles et non sur des mots attendus.
+Son fournisseur OpenAI simulé reste une fixture exacte réservée aux tests ; cinq
+cas traversent le contrôleur et cinq traversent Chrome réel sans mutation ni
+temps. G7 installe désormais l'adaptateur propriétaire V8 : une unique étape
+routable est projetée sans saisie brute vers le domaine exact, tandis que les
+compositions sans coordinateur natif restent suspendues sans mutation. L'UI
+produit utilise V8 et la surface React/Chrome ainsi que le build complet sont
+verts. G8 valide désormais en live le dialogue dépendant du contexte incarné
+public complet. La recette a séparé l'action naturelle ouverte du nouvel
+`suggestedCapabilityId`, borné aux capacités publiées et seul utilisé par G5.
+Les plafonds autorisés de six puis trois appels sont consommés. La seconde
+recette a exposé une ellipse sortie de l'échange actif et une condition étendue
+à une composante antérieure ; les instructions et le 24e cas local corrigent
+ces portées. La contre-recette finale retourne une clarification V8 sûre ; la
+fluidité des tours naturels doit maintenant être évaluée dans la vraie UI sans
+attendre l'exécution du coordinateur multi-domaines encore absent.
 
 Le compagnon tactique, la génération de carte et le placement multi-acteurs
 appartiennent au futur chantier tactique décrit par le guide J8. Leur absence ne

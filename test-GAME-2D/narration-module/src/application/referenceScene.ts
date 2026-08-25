@@ -732,11 +732,12 @@ function actionNarration(
   ) {
     if (target.ref !== "npc:npc-serveuse-nerveuse" && target.ref !== "npc-serveuse-nerveuse" &&
       target.ref !== "npc:npc-garde-blesse" && target.ref !== "npc-garde-blesse") {
-      return `Tu te places près de ${target.label?.toLowerCase() ?? "l'interlocuteur visible"}, à portée de voix. Aucune parole n'est encore échangée et aucune réaction de sa part n'est résolue.`;
+      const mention = speechTarget("", interpretation, playableScene).narrativeMention;
+      return `Tu te places près ${dePhrase(mention)}, à portée de voix. Tu ne dis encore rien ; le moment reste suspendu à ce que tu feras ensuite.`;
     }
     return target.ref === "npc:npc-serveuse-nerveuse" || target.ref === "npc-serveuse-nerveuse"
-      ? "Tu te places près de la serveuse nerveuse, à portée de voix. Aucune parole n'est encore échangée et aucune réaction de sa part n'est résolue."
-      : "Tu te places près du garde blessé, à portée de voix. Aucune parole n'est encore échangée et aucune réaction de sa part n'est résolue.";
+      ? "Tu te places près de la serveuse nerveuse, à portée de voix. Tu ne dis encore rien ; le moment reste suspendu à ce que tu feras ensuite."
+      : "Tu te places près du garde blessé, à portée de voix. Tu ne dis encore rien ; le moment reste suspendu à ce que tu feras ensuite.";
   }
   if (
     resolution.preparedEffects.some(effect => effect.effectType === "LOCAL_SCENE_ACTION_RECORDED") &&

@@ -1,5 +1,14 @@
-import type { AiIntentRuntimeHandlingV1, AiStructuredSemanticIntentV1 } from "../ai/types";
+import type {
+  AiIntentRuntimeHandlingV1,
+  AiOpenSemanticFrameV8,
+  AiStructuredSemanticIntentV1
+} from "../ai/types";
 import { routeNarrativeSemanticIntentV1 } from "./runtimeCapabilityRouting";
+import type {
+  OpenSemanticExecutionPlanV1,
+  OpenSemanticStepDispositionV1
+} from "./openSemanticExecution";
+import { validateOpenSemanticExecutionPlanV1 } from "./openSemanticExecution";
 
 export const INTENT_CLARIFICATION_CONTRACT_VERSION_V1 = "intent-clarification/1" as const;
 
@@ -58,6 +67,26 @@ export interface NarrativeIntentInterpretationV1 {
   clarificationQuestion: string | null;
   expectedTimeEffect: "NO_GAME_TIME" | "DOMAIN_TO_DECIDE";
   safetyNotes: string[];
+  /** Source sémantique primaire. Absent sur les anciennes données persistées. */
+  semanticSource?: "LEGACY_CANONICAL" | "OPEN_SEMANTIC_FRAME_V8" | "OPEN_SEMANTIC_OWNER_ADAPTER_V1";
+  /** Cadre OpenAI V8 conservé intégralement, sans projection métier. */
+  openSemanticFrame?: AiOpenSemanticFrameV8 | null;
+  /** Plan technique des composantes avant toute validation propriétaire. */
+  openSemanticRuntime?: NarrativeOpenSemanticRuntimeV1 | null;
+}
+
+export interface NarrativeOpenSemanticRuntimeV1 {
+  schemaVersion: 1;
+  understandingStatus: AiOpenSemanticFrameV8["understandingStatus"];
+  executionPlan: OpenSemanticExecutionPlanV1;
+  components: Array<{
+    componentId: string;
+    status: OpenSemanticStepDispositionV1;
+    capabilityId: string | null;
+    requiredDomain: NarrativeRuntimeDecisionV1["requiredDomain"];
+    noCommit: true;
+    noGameTime: true;
+  }>;
 }
 
 export interface SuspendedIntentRecordV1 {
@@ -237,6 +266,12 @@ function intent(
 export function validateCanonicalIntentAuthorityV1(
   interpretation: NarrativeIntentInterpretationV1
 ): { ok: true } | { ok: false; issues: string[] } {
+  if (interpretation.semanticSource === "OPEN_SEMANTIC_FRAME_V8") {
+    return validateOpenSemanticFrameAuthorityV1(interpretation);
+  }
+  if (interpretation.semanticSource === "OPEN_SEMANTIC_OWNER_ADAPTER_V1") {
+    return validateOpenSemanticOwnerAdapterAuthorityV1(interpretation);
+  }
   const issues: string[] = [];
   const semantic = interpretation.semanticIntent;
   const isFailureDiagnostic = interpretation.runtimeHandling?.status === "AI_INTERPRETATION_FAILED";
@@ -275,6 +310,110 @@ export function validateCanonicalIntentAuthorityV1(
     interpretation.runtimeDecision.noCommit !== expectedRuntime.noCommit ||
     interpretation.runtimeDecision.noGameTime !== expectedRuntime.noGameTime
   ) issues.push("runtimeDecision contradicts local evaluation of semanticIntent");
+  return issues.length === 0 ? { ok: true } : { ok: false, issues };
+}
+
+function validateOpenSemanticOwnerAdapterAuthorityV1(
+  interpretation: NarrativeIntentInterpretationV1
+): { ok: true } | { ok: false; issues: string[] } {
+  const issues: string[] = [];
+  const frame = interpretation.openSemanticFrame;
+  const plan = interpretation.openSemanticRuntime?.executionPlan;
+  if (frame === undefined || frame === null) issues.push("owner adapter requires openSemanticFrame");
+  if (plan === undefined) issues.push("owner adapter requires executionPlan");
+  if (frame === undefined || frame === null || plan === undefined) return { ok: false, issues };
+  const planValidation = validateOpenSemanticExecutionPlanV1({ frame, plan });
+  if (!planValidation.ok) issues.push(...planValidation.issues.map(issue => `owner adapter execution plan: ${issue}`));
+  if (frame.understandingStatus !== "UNDERSTOOD" || frame.confidence === "low") {
+    issues.push("owner adapter requires a sufficiently confident understood frame");
+  }
+  const routable = plan.steps.filter(step => step.disposition === "ROUTABLE");
+  const blocking = plan.steps.filter(step => ![
+    "ROUTABLE",
+    "SKIPPED_NON_EXECUTABLE",
+    "SKIPPED_SUPERSEDED"
+  ].includes(step.disposition));
+  if (routable.length !== 1 || blocking.length > 0) issues.push("owner adapter requires exactly one unblocked routable step");
+  const step = routable[0];
+  const component = step === undefined
+    ? undefined
+    : frame.components.find(entry => entry.componentId === step.componentId);
+  if (step === undefined || component === undefined) issues.push("owner adapter component mismatch");
+  if (step !== undefined && interpretation.runtimeDecision.requiredDomain !== step.requiredDomain) {
+    issues.push("owner adapter runtime domain mismatch");
+  }
+  if (step !== undefined && interpretation.runtimeHandling?.requiredDomain !== step.requiredDomain) {
+    issues.push("owner adapter runtime suggestion domain mismatch");
+  }
+  if (interpretation.runtimeDecision.status !== "SUPPORTED_BY_CURRENT_RUNTIME") {
+    issues.push("owner adapter must expose an installed supported capability");
+  }
+  if (component !== undefined && interpretation.semanticIntent.playerGoal !== component.meaning) {
+    issues.push("owner adapter semantic goal mismatch");
+  }
+  if (component !== undefined) {
+    const expectedCommitment = component.commitment === "mixed" ? "unclear" : component.commitment;
+    if (interpretation.semanticIntent.commitment !== expectedCommitment || interpretation.commitment !== expectedCommitment) {
+      issues.push("owner adapter commitment mismatch");
+    }
+    if (interpretation.coreMeaning !== component.meaning) issues.push("owner adapter core meaning mismatch");
+  }
+  if (step !== undefined) {
+    const expectedNoCommit = step.capabilityId === "scene.visible-perception"
+      || step.capabilityId === "scene.context-response";
+    if (interpretation.runtimeDecision.noCommit !== expectedNoCommit) issues.push("owner adapter commit policy mismatch");
+  }
+  if (!interpretation.runtimeDecision.noGameTime) issues.push("owner adapter preflight must not advance game time");
+  if (interpretation.semanticIntent.evidenceFromInput.length !== 0) {
+    issues.push("owner adapter must not receive raw input evidence");
+  }
+  if (plan.rawInputAccess !== "FORBIDDEN") issues.push("owner adapter execution plan must forbid raw input access");
+  if (interpretation.requiresClarification) issues.push("owner adapter cannot route a clarification");
+  return issues.length === 0 ? { ok: true } : { ok: false, issues };
+}
+
+function validateOpenSemanticFrameAuthorityV1(
+  interpretation: NarrativeIntentInterpretationV1
+): { ok: true } | { ok: false; issues: string[] } {
+  const issues: string[] = [];
+  const frame = interpretation.openSemanticFrame;
+  const runtime = interpretation.openSemanticRuntime;
+  if (frame === undefined || frame === null) issues.push("openSemanticFrame is required for V8");
+  if (runtime === undefined || runtime === null) issues.push("openSemanticRuntime is required for V8");
+  if (frame === undefined || frame === null || runtime === undefined || runtime === null) {
+    return { ok: false, issues };
+  }
+  const needsClarification = frame.understandingStatus === "NEEDS_CLARIFICATION";
+  const expectedRuntimeStatus = needsClarification ? "NEEDS_CLARIFICATION" : "UNSUPPORTED_DOMAIN";
+  if (interpretation.coreMeaning !== frame.overallMeaning) issues.push("coreMeaning must preserve V8 overallMeaning");
+  if (interpretation.requiresClarification !== needsClarification) issues.push("requiresClarification must preserve V8 understandingStatus");
+  if (interpretation.clarificationQuestion !== frame.clarificationQuestion) issues.push("clarificationQuestion must preserve the V8 question");
+  if (interpretation.target !== null || interpretation.action !== null) issues.push("V8 compatibility projection must not select a target or action");
+  if (interpretation.runtimeDecision.status !== expectedRuntimeStatus) issues.push("runtimeDecision must preserve the V8 pre-routing status");
+  if (interpretation.runtimeDecision.requiredDomain !== null) issues.push("V8 compatibility projection must not select a runtime domain");
+  if (!interpretation.runtimeDecision.noCommit || !interpretation.runtimeDecision.noGameTime) issues.push("V8 compatibility projection must forbid commit and game time");
+  if (runtime.understandingStatus !== frame.understandingStatus) issues.push("openSemanticRuntime understandingStatus mismatch");
+  if (runtime.executionPlan.understandingStatus !== frame.understandingStatus) issues.push("openSemanticRuntime execution plan status mismatch");
+  if (runtime.executionPlan.steps.length !== frame.components.length) issues.push("openSemanticRuntime execution plan count mismatch");
+  if (runtime.executionPlan.rawInputAccess !== "FORBIDDEN") issues.push("openSemanticRuntime execution plan must forbid raw input access");
+  const planValidation = validateOpenSemanticExecutionPlanV1({ frame, plan: runtime.executionPlan });
+  if (!planValidation.ok) issues.push(...planValidation.issues.map(issue => `openSemanticRuntime execution plan: ${issue}`));
+  if (runtime.components.length !== frame.components.length) issues.push("openSemanticRuntime component count mismatch");
+  [...frame.components]
+    .sort((left, right) => left.order - right.order)
+    .forEach((component, index) => {
+      const componentRuntime = runtime.components[index];
+      const step = runtime.executionPlan.steps[index];
+      if (componentRuntime?.componentId !== component.componentId) issues.push(`openSemanticRuntime component ${index} identity mismatch`);
+      if (step?.componentId !== component.componentId) issues.push(`openSemanticRuntime execution step ${index} identity mismatch`);
+      if (componentRuntime?.status !== step?.disposition) issues.push(`openSemanticRuntime component ${component.componentId} status mismatch`);
+      if (componentRuntime?.capabilityId !== step?.capabilityId || componentRuntime?.requiredDomain !== step?.requiredDomain) {
+        issues.push(`openSemanticRuntime component ${component.componentId} route mismatch`);
+      }
+      if (componentRuntime?.noCommit !== true || componentRuntime?.noGameTime !== true) {
+        issues.push(`openSemanticRuntime component ${component.componentId} exceeds preflight authority`);
+      }
+    });
   return issues.length === 0 ? { ok: true } : { ok: false, issues };
 }
 

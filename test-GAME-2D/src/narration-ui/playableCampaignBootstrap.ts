@@ -2,7 +2,6 @@ import {
   buildCampaignProjectedPlayableLoreSceneV1,
   createCampaignLoreGuidedDynamicPlaceRuntimeV1,
   createCatalogSceneTransitionRuntimeV1,
-  createDefaultAiIntentInterpreterConfigV1,
   createCatalogPlotCreationRuntimeV1,
   DYNAMIC_PLACE_FACTS_AGGREGATE_ID_V1,
   DYNAMIC_PLACE_REGISTRY_AGGREGATE_ID_V1,
@@ -77,8 +76,11 @@ import {
   createInstalledPlayableAccessRuntimesV1,
   ensureInstalledPlayableAccessControlsV1
 } from "./playableCampaignAccessCatalog";
-import { createInstalledInventoryTransactionRuntimeV1 } from
-  "./playableCampaignInventoryCatalog";
+import {
+  buildInstalledInventoryTransactionCatalogV1,
+  createInstalledInventoryTransactionRuntimeV1
+} from "./playableCampaignInventoryCatalog";
+import { createPlayerCampaignRecapReaderV1 } from "./playerCampaignRecapReader";
 import { createInstalledMissionRelationRuntimeV1 } from
   "./playableCampaignMissionCatalog";
 import { createInstalledCompanionRecruitmentRuntimeV1 } from
@@ -465,6 +467,12 @@ export async function createPlayableCampaignControllerV1(
     const accessRuntimes = createInstalledPlayableAccessRuntimesV1({
       repository
     });
+    const characterContextResolver = createInterpreterCharacterContextResolverV1(
+      buildInstalledInterpreterCharacterReferenceCatalogV1()
+    );
+    const travelRuntime = createInstalledPlayableTravelRuntimeV1(runtimeBindings, {
+      narrativeInterruption: options.narrativeTravelInterruption
+    });
     const controller = new NarrativeTurnControllerV1({
       repository,
       campaignId,
@@ -474,17 +482,12 @@ export async function createPlayableCampaignControllerV1(
       intentInterpreterConfig:
         options.intentInterpreterConfig !== undefined
           ? options.intentInterpreterConfig
-          : mode === "openai"
-          ? buildOpenAiIntentInterpreterConfigV1()
-          : createDefaultAiIntentInterpreterConfigV1(),
+          : buildOpenAiIntentInterpreterConfigV1(),
       mjPlannerConfig:
         mode === "openai" ? buildOpenAiMjPlannerConfigV1() : undefined,
       npcPerformerConfig:
         mode === "openai" ? buildOpenAiNpcPerformerConfigV1() : null,
-      interpreterCharacterContextResolver:
-        createInterpreterCharacterContextResolverV1(
-          buildInstalledInterpreterCharacterReferenceCatalogV1()
-        ),
+      interpreterCharacterContextResolver: characterContextResolver,
       inventoryAccessRuntime: accessRuntimes.inventoryAccessRuntime,
       inventoryTransactionRuntime: createInstalledInventoryTransactionRuntimeV1(),
       missionRelationRuntime: options.missionRelationRuntime
@@ -502,9 +505,7 @@ export async function createPlayableCampaignControllerV1(
       rulesAccessRuntime: accessRuntimes.rulesAccessRuntime,
       tacticalAccessRuntime: accessRuntimes.tacticalAccessRuntime,
       sceneTransitionRuntime,
-      travelRuntime: createInstalledPlayableTravelRuntimeV1(runtimeBindings, {
-        narrativeInterruption: options.narrativeTravelInterruption
-      }),
+      travelRuntime,
       dynamicPlaceRuntime: mode === "openai"
         ? createCampaignLoreGuidedDynamicPlaceRuntimeV1({
             runtimeBindings,
@@ -585,6 +586,13 @@ export async function createPlayableCampaignControllerV1(
         campaignId,
         characterRef: `character-sheet:${sheet.sheetId}`
       },
+      readPlayerCampaignRecap: createPlayerCampaignRecapReaderV1({
+        repository,
+        campaignId,
+        controller,
+        characterContextResolver,
+        inventoryCatalog: buildInstalledInventoryTransactionCatalogV1()
+      }),
       worldSimulationRuntime,
       readCommittedAvailability: scene =>
         availabilityReader.read(scene)

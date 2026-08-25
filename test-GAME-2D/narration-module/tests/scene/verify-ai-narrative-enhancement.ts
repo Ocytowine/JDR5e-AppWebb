@@ -10,6 +10,7 @@ import {
 import {
   NarrativeTurnControllerV1,
   buildNarrativeRenderAuthorityV1,
+  createDefaultAiIntentInterpreterConfigV1,
   enhanceNarrativeDisplayWithAiV1,
   requiresNarrativeCoherenceCriticV1,
   type NarrativeRenderAuthorityV1
@@ -121,7 +122,13 @@ async function setup() {
   if (!created.ok) throw new Error(created.error.messageKey);
   return {
     campaignId,
-    controller: new NarrativeTurnControllerV1({ repository, campaignId, clock, idPrefix: "ai" })
+    controller: new NarrativeTurnControllerV1({
+      repository,
+      campaignId,
+      clock,
+      idPrefix: "ai",
+      intentInterpreterConfig: createDefaultAiIntentInterpreterConfigV1()
+    })
   };
 }
 

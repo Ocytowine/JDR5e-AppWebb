@@ -848,13 +848,10 @@ function block(
 function resolutionNotice(resolution: NarrativeResolutionResultV1): string {
   const diagnostic = resolutionDiagnosticLines(resolution);
   if (isAiInterpretationFailureDiagnosticV1(resolution.interpretation)) {
-    const issues = resolution.interpretation.safetyNotes.filter(note => note.startsWith("Issue:"));
     return [
-      "Interprétation IA refusée - aucune action exécutée",
-      ...diagnostic,
-      ...(issues.length === 0 ? [] : ["Détails du rejet:", ...issues]),
-      `Raison: ${resolution.interpretation.runtimeDecision.reason}`,
-      "Effet: aucune intention de jeu n'a été déduite, aucun commit et aucun temps de jeu n'ont été déclenchés."
+      resolution.interpretation.clarificationQuestion
+        ?? "Je n'ai pas réussi à interpréter ta dernière intention. Peux-tu la reformuler ?",
+      "Rien ne s'est encore produit dans la fiction."
     ].join("\n");
   }
   if (resolution.resultKind === "CLARIFICATION_REQUIRED") {

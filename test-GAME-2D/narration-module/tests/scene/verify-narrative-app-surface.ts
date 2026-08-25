@@ -6,22 +6,22 @@ import { renderToStaticMarkup } from "react-dom/server";
 import {
   NarrativeAppSurface,
   createRuntimeFailurePacket,
-  narrativeErrorGuidance
+  narrativeErrorGuidance,
+  sanitizePlayerFacingPacketsV1
 } from "../../../src/narration-ui/NarrativeAppSurface";
 import type { CoreError } from "../../src/core";
 
 const surfaceHtml = renderToStaticMarkup(React.createElement(NarrativeAppSurface));
 
-assert.match(surfaceHtml, /Surface dédiée au module narration/, "surface narration rendue");
+assert.match(surfaceHtml, /Décris librement ce que ton personnage/, "surface joueur immersive rendue");
 assert.match(surfaceHtml, /Auberge du Seuil/, "amorce de scene jouable rendue");
 assert.match(surfaceHtml, /scène est ouverte/, "le fil initial attend une intention joueur");
 assert.equal(surfaceHtml.includes("La surface narration est pr"), false, "ancien message prototype absent du fil rendu");
 assert.equal(surfaceHtml.includes("Mode prototype"), false, "ancienne notification prototype absente du fil rendu");
 assert.match(surfaceHtml, /Fil narratif/, "panneau narratif rendu");
 assert.match(surfaceHtml, /Saisie narrative libre/, "saisie libre présente");
-assert.match(surfaceHtml, /IA narrative/, "sélecteur IA rendu");
-assert.match(surfaceHtml, /Locale/, "mode local rendu");
-assert.match(surfaceHtml, /OpenAI/, "mode OpenAI rendu");
+assert.match(surfaceHtml, /Options techniques/, "accès explicite au mode développeur rendu");
+assert.doesNotMatch(surfaceHtml, /IA narrative|Mode local actif|Mode OpenAI actif/, "options techniques masquées par défaut");
 
 const safeError: CoreError = {
   code: "NOT_FOUND",
@@ -35,7 +35,8 @@ const failurePacket = createRuntimeFailurePacket({
   error: safeError,
   operationId: "operation:error-display",
   sceneId: "scene:test",
-  context: "Promotion du PNJ"
+  context: "Promotion du PNJ",
+  includeDiagnostics: true
 });
 const failureText = failurePacket.displayBlocks[0]?.text ?? "";
 assert.match(failureText, /Un élément nécessaire/, "bulle système explique l'erreur");
@@ -44,6 +45,38 @@ assert.match(failureText, /campaign-npc\.scene-actor-not-found/, "code diagnosti
 assert.equal(failureText.includes("secret player input"), false, "entrée brute privée non exposée");
 assert.equal(failureText.includes("secret:hidden-actor"), false, "détail privé non exposé");
 assert.match(narrativeErrorGuidance({ ...safeError, code: "IDEMPOTENCY_CONFLICT" }).summary, /contenu différent/);
+
+const immersivePacket = structuredClone(failurePacket);
+immersivePacket.displayBlocks = [{
+  ...immersivePacket.displayBlocks[0]!,
+  blockId: "operation:immersive:gm",
+  kind: "GM_NARRATION",
+  speaker: {
+    ...immersivePacket.displayBlocks[0]!.speaker,
+    speakerId: "speaker-gm",
+    kind: "GM",
+    displayName: "MJ"
+  },
+  text: "Tu réduis la distance qui te sépare du clerc.",
+  sourceRefs: ["ai-output:scene-writer:approach"]
+}, {
+  ...immersivePacket.displayBlocks[0]!,
+  blockId: "operation:immersive:technical-resolution",
+  kind: "SYSTEM_NOTICE",
+  text: "Action locale enregistrée - effet borné.",
+  sourceRefs: ["resolution:operation:immersive", "resolution-kind:COMMIT_APPLIED"]
+}];
+const playerFacingImmersive = sanitizePlayerFacingPacketsV1([immersivePacket], false)[0]!;
+assert.deepEqual(
+  playerFacingImmersive.displayBlocks.map(block => block.text),
+  ["Tu réduis la distance qui te sépare du clerc."],
+  "le joueur ne voit que la narration finale; le diagnostic de résolution reste hors du fil narratif"
+);
+assert.deepEqual(
+  sanitizePlayerFacingPacketsV1([immersivePacket], true)[0]?.displayBlocks.map(block => block.text),
+  ["Tu réduis la distance qui te sépare du clerc."],
+  "les options techniques ne réinjectent jamais une notice de moteur dans le fil narratif"
+);
 
 const validationPacket = createRuntimeFailurePacket({
   error: {
@@ -62,7 +95,8 @@ const validationPacket = createRuntimeFailurePacket({
   operationId: "operation:validation-display",
   sceneId: "scene:test",
   context: "Résolution de l'action",
-  rawInput: "Je tente une action précise."
+  rawInput: "Je tente une action précise.",
+  includeDiagnostics: true
 });
 assert.equal(validationPacket.displayBlocks[0]?.kind, "RAW_INPUT");
 assert.equal(validationPacket.displayBlocks[0]?.text, "Je tente une action précise.");
@@ -70,6 +104,13 @@ assert.match(
   validationPacket.displayBlocks[1]?.text ?? "",
   /Détail validation : \/acceptedCommands\/0\/commandId must match pattern/
 );
+const playerFailurePacket = createRuntimeFailurePacket({
+  error: safeError,
+  operationId: "operation:player-error-display",
+  sceneId: "scene:test",
+  context: "Promotion du PNJ"
+});
+assert.doesNotMatch(playerFailurePacket.displayBlocks[0]?.text ?? "", /campaign-npc|Diagnostic sûr|code=/u, "le joueur ne voit aucun identifiant technique par défaut");
 
 const postCommitFailurePacket = createRuntimeFailurePacket({
   error: safeError,
@@ -148,6 +189,8 @@ assert.equal(narrativeSurfaceSource.includes("Diagnostic du tour:"), true, "les 
 assert.equal(narrativeSurfaceSource.includes("IA enrichissement ${metric.role}"), true, "la latence de chaque rôle d'enrichissement rejoint la trace système");
 assert.equal(narrativeSurfaceSource.includes("Diagnostic sûr :"), true, "les erreurs runtime rejoignent une bulle système expurgée");
 assert.equal(narrativeSurfaceSource.includes("Trace système et mémoire"), true, "trace mémoire intégrée à la notification système existante");
+assert.equal(narrativeSurfaceSource.includes("const packetBeforeProjection = enhancement.displayPacket"), true, "la projection persistée reste sans trace développeur ajoutée");
+assert.equal(narrativeSurfaceSource.includes("sanitizePlayerFacingPacketsV1"), true, "les anciennes traces persistées sont filtrées côté joueur");
 assert.equal(narrativeSurfaceSource.includes("total avant affichage"), true, "latence de bout en bout visible dans la notification système");
 assert.equal(narrativeSurfaceSource.includes("Détail contrôleur"), true, "latence interne détaillée dans la notification système existante");
 assert.equal(narrativeSurfaceSource.includes("output.aiTelemetry"), true, "métriques fournisseur intégrées à la notification système existante");

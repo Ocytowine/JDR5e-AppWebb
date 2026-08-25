@@ -39,6 +39,7 @@ const characterContext: InterpreterCharacterContextV1 = {
   ambiguities: [],
   authority: "INTERPRETATION_ONLY",
   ownerValidationRequired: true,
+  embodiedProfile: null,
   deliberatelyExcluded: ["PRIVATE_CHARACTER_SENTINEL"]
 };
 
@@ -131,6 +132,7 @@ async function verifyInterpreterFingerprint(context: PlayerPublicContextV1): Pro
 
 async function verifyControllerAnswers(): Promise<void> {
   const controller = await createPrototypeNarrativeTurnControllerV1({
+    intentInterpreterConfig: createDefaultAiIntentInterpreterConfigV1(),
     interpreterCharacterContextResolver: {
       async resolve() {
         return { ok: true, value: characterContext };
@@ -169,6 +171,11 @@ async function run(): Promise<void> {
   assert.equal(context.character.actorRef, "actor:aryn");
   assert.equal(context.location.label, "Auberge du Seuil");
   assert.equal(context.presentActors.some(actor => actor.label === "Voyageuse"), true);
+  assert.equal(
+    context.presentActors.find(actor => actor.label === "Voyageuse")?.actorRef,
+    "npc:npc-voyageuse",
+    "un acteur visible doit publier la même référence canonique que le registre de scène"
+  );
   assert.deepEqual(context.visibleEquipmentRefs, ["character-equipped-item:sword-aube"]);
   assert.equal(context.knownFacts.some(fact => fact.status === "HEARD"), true);
   assert.equal(context.deliberatelyExcluded.includes("player_private_notebook"), true);

@@ -16,17 +16,17 @@ mais il orchestre désormais :
 
 ```text
 opération idempotente
-→ interprétation V6 ou fallback diagnostiqué
-→ routage local autoritaire
+→ interprétation OpenAI ou échec clarifié sans fallback produit
+→ cadre V8 intact et plan G5 par capacités exactes
 → planner MJ non autoritaire
-→ propriétaire métier ou arrêt explicite
+→ prévalidation propriétaire ordonnée ou arrêt explicite
 → performer PNJ conditionnel
 → résultat et projection de rendu persistables
 ```
 
 Avant chaque interprétation, il fournit la scène visible, les référents
-publics, la projection minimale `interpreter-character-context/1`, les focus et
-tours sémantiques récents ainsi que `interpreter-runtime-context/1`. La
+publics, la projection `interpreter-character-context/2`, les focus et
+tours sémantiques récents ainsi que le contexte incarné public G4. La
 projection personnage est relue depuis les agrégats courants ; elle n'est pas
 une copie mémorisée de la fiche. Une garde locale transforme un alias personnage
 encore ambigu en clarification sans commit ni temps de jeu.
@@ -38,6 +38,21 @@ applicative.
 Le contrôleur n'accorde aucune autorité supplémentaire à l'IA. Les commits, le
 temps, les règles, les secrets, les handoffs et les mutations restent validés
 par le registre et les domaines propriétaires.
+
+Pour V8, le contrôleur construit `open-semantic-execution-plan/1`. La projection
+canonique historique reste non exécutable. Le plan ne route qu'un identifiant
+exact de capacité publié avec son domaine exact ; les ports propriétaires ne
+reçoivent jamais `rawInput`. Chaque étape possède sa propre prévalidation, sa
+clé d'idempotence et son reçu. Un choix, un refus, une condition non établie ou
+un propriétaire absent arrête la suite avant toute prévalidation ultérieure.
+
+Dans la surface joueur, une résolution locale réussie doit être racontée par un
+bloc `GM_NARRATION` ou `NPC_SPEECH`. Les notices de résolution structurées
+restent disponibles en mode développeur mais sont retirées de la projection
+joueur par leurs références typées, indépendamment de leur formulation. Une
+narration finale `scene_writer` acceptée remplace la narration MJ locale ; elle
+ne doit jamais être remplacée dans le fil par des termes tels que « moteur »,
+« capacité », « commit » ou « action enregistrée ».
 
 ## Objectif historique I-06D
 

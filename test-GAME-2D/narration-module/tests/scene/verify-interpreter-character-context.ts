@@ -29,12 +29,15 @@ const narrativePayload = {
     clothingState: "UNKNOWN"
   },
   knownToPlayer: {
-    biography: "SECRET_BIOGRAPHY_MUST_NOT_LEAK",
-    objectives: "SECRET_OBJECTIVE_MUST_NOT_LEAK"
+    biography: "PUBLIC_BIOGRAPHY_FOR_INTERPRETATION",
+    personality: "PUBLIC_PERSONALITY_FOR_INTERPRETATION",
+    objectives: "PUBLIC_OBJECTIVE_FOR_INTERPRETATION",
+    flaws: "PUBLIC_FLAW_FOR_INTERPRETATION",
+    unclassifiedPrivateMemory: "SECRET_UNCLASSIFIED_KNOWN_TO_PLAYER_MUST_NOT_LEAK"
   },
   privateMechanical: {
     abilityScores: { FOR: 20 },
-    featureIds: ["secret-feature"]
+    featureIds: ["public-feature", "secret-feature"]
   }
 };
 const tacticalPayload = {
@@ -147,6 +150,9 @@ async function run(): Promise<void> {
       spells: [
         { id: "rayon-de-feu", label: "Rayon de feu" }
       ],
+      features: [
+        { id: "public-feature", label: "Instinct du veilleur" }
+      ],
       items: [
         {
           id: "epee-aube",
@@ -172,6 +178,7 @@ async function run(): Promise<void> {
   }
   const context = loaded.value;
   assert.equal(context.authority, "INTERPRETATION_ONLY");
+  assert.equal(context.contractVersion, "interpreter-character-context/2");
   assert.equal(context.ownerValidationRequired, true);
   assert.equal(context.character.label, "Aryn");
   assert.deepEqual(
@@ -189,6 +196,18 @@ async function run(): Promise<void> {
   );
   assert.equal(
     context.references.some(reference =>
+      reference.kind === "FEATURE"
+      && reference.label === "Instinct du veilleur"
+    ),
+    true
+  );
+  assert.equal(context.embodiedProfile?.selfNarrative.biography, "PUBLIC_BIOGRAPHY_FOR_INTERPRETATION");
+  assert.equal(context.embodiedProfile?.selfNarrative.personality, "PUBLIC_PERSONALITY_FOR_INTERPRETATION");
+  assert.equal(context.embodiedProfile?.selfNarrative.objectives, "PUBLIC_OBJECTIVE_FOR_INTERPRETATION");
+  assert.equal(context.embodiedProfile?.selfNarrative.flaws, "PUBLIC_FLAW_FOR_INTERPRETATION");
+  assert.equal(context.embodiedProfile?.selfNarrative.physicalDescription, "Une cicatrice au menton.");
+  assert.equal(
+    context.references.some(reference =>
       reference.kind === "SPELL"
       && reference.label === "Rayon de feu"
     ),
@@ -203,8 +222,7 @@ async function run(): Promise<void> {
   );
   const serialized = JSON.stringify(context);
   for (const forbidden of [
-    "SECRET_BIOGRAPHY_MUST_NOT_LEAK",
-    "SECRET_OBJECTIVE_MUST_NOT_LEAK",
+    "SECRET_UNCLASSIFIED_KNOWN_TO_PLAYER_MUST_NOT_LEAK",
     "secret-feature",
     "secretResource",
     "SECRET_CHARACTER_STATE_MUST_NOT_LEAK",
