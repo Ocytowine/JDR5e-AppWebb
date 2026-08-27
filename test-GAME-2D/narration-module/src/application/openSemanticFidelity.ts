@@ -12,6 +12,7 @@ export interface OpenSemanticComponentFidelityReceiptV1 extends JsonObject {
   componentId: string;
   order: number;
   meaning: string;
+  informationNeed: NonNullable<AiOpenSemanticFrameV8["components"][number]["informationNeed"]> | null;
   commitment: AiOpenSemanticFrameV8["components"][number]["commitment"];
   conditions: string[];
   relationToPrevious: AiOpenSemanticFrameV8["components"][number]["relationToPrevious"];
@@ -32,6 +33,7 @@ export interface OpenSemanticFidelityReceiptV1 extends JsonObject {
   orderedComponents: OpenSemanticComponentFidelityReceiptV1[];
   validatedTargetRefs: string[];
   dialogueAct: NonNullable<AiStructuredSemanticIntentV1["dialogueAct"]> | null;
+  informationNeeds: NonNullable<AiOpenSemanticFrameV8["components"][number]["informationNeed"]>[];
   characterExpressionSource: "RAW_PLAYER_INPUT";
   rawInputAccessByOwner: "FORBIDDEN";
 }
@@ -124,6 +126,9 @@ export function applyOpenSemanticFidelityV1(input: {
           componentId: component.componentId,
           order: component.order,
           meaning: component.meaning,
+          informationNeed: component.informationNeed === undefined || component.informationNeed === null
+            ? null
+            : structuredClone(component.informationNeed),
           commitment: component.commitment,
           conditions: [...component.conditions],
           relationToPrevious: component.relationToPrevious,
@@ -138,6 +143,11 @@ export function applyOpenSemanticFidelityV1(input: {
       }),
     validatedTargetRefs,
     dialogueAct: effectiveDialogueAct,
+    informationNeeds: frame.components.flatMap(component =>
+      component.informationNeed === undefined || component.informationNeed === null
+        ? []
+        : [structuredClone(component.informationNeed)]
+    ),
     characterExpressionSource: "RAW_PLAYER_INPUT",
     rawInputAccessByOwner: "FORBIDDEN"
   };

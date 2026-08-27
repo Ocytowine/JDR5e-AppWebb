@@ -5,10 +5,10 @@ Dernière mise à jour : 2026-08-27
 Ce fichier reste volontairement court. L'unique état global et feuille de route
 du module narration est
 [`Consolidation-fondations-narration.md`](test-GAME-2D/narration-module/docs/Consolidation-fondations-narration.md).
-Les contrats définissent les comportements ; les plans J10 et J10-H portent le
+Les contrats définissent les comportements ; les plans J10 et J10-I portent le
 détail du lot actif.
 
-## Lot actif — J10-H : fiabilité du tour narratif
+## Lot actif — J10-I : résolution factuelle et connaissances PNJ
 
 J1 à J9 sont fermés dans leur périmètre narratif. J10 rend leur verticale
 entièrement pilotable dans l'interface sans transformer le jeu en tableau de
@@ -19,6 +19,11 @@ Le plan correctif approuvé après la recette G8 est détaillé dans
 [`Plan-correction-fiabilite-tour-narratif-J10H.md`](test-GAME-2D/narration-module/docs/Plan-correction-fiabilite-tour-narratif-J10H.md).
 Il préserve les autorités des intrigues, missions, compagnons, inventaires,
 voyages, repos, monde et tactique.
+
+J10-H est fermé. Le plan officiel J10-I est dans
+[`Plan-resolution-factuelle-et-connaissances-PNJ-J10I.md`](test-GAME-2D/narration-module/docs/Plan-resolution-factuelle-et-connaissances-PNJ-J10I.md).
+Il sépare existence du fait, connaissance du PNJ et divulgation, puis raccorde
+la recherche lore ciblée et les faits de campagne manquants au dialogue.
 
 - [x] J10-A — contrats du carnet privé, du récapitulatif public et de
   l'interruption narrative figés ; projections, huit sorties IA, migrations et
@@ -116,32 +121,46 @@ voyages, repos, monde et tactique.
 - [x] J10-H7 — recette OpenAI live finale certifiée : approche et salutation,
   reprise pronominale après reload, changement d'interlocuteur et transition
   propriétaire passent sans fallback ni doublon dans le fil joueur.
+- [x] Correctif post-J10-H7 — plusieurs actes `scene.visible-dialogue` engagés
+  et adressés à un acteur unique forment désormais un groupe social ordonné ou
+  atomique ; la cible structurée traverse les composantes, leurs actes restent
+  dans la commande et les groupes multi-cibles demeurent suspendus.
+- [x] Correctif post-J10-H7 — `rawInputEcho` reste informatif : une correction
+  typographique de la saisie par OpenAI ne rejette plus un cadre V8 valide ;
+  l'enveloppe d'appel corrèle la réponse et le texte local demeure autoritaire.
+- [x] Correctif post-J10-H7 — une hypothèse rhétorique incluse dans une parole
+  `committed` reste du contenu social exécutable ; seule une parole réellement
+  `conditional` attend encore l'établissement de sa condition.
+- [x] J10-I0 — figer le corpus factuel, inventorier les références de
+  connaissance réellement consommées et définir les contrats sans modifier le
+  performer ni ouvrir de création ; la gate réelle des Archives, quatorze cas
+  et le build sont verts.
+- [x] J10-I1 — transporter un besoin d'information ouvert dans V8, le plan G5,
+  la commande propriétaire et le reçu de fidélité, sans second interpréteur
+  lexical ni autorité métier ; schéma serveur, validateurs et corpus sont verts.
+- [x] J10-I2 — rechercher les faits par sujet, propriété et relations avec
+  priorité aux projections de campagne ; le titre et le siège de Lysenthe sont
+  retrouvés depuis les Archives et les `knowledgeRefs` sont raccordables.
+- [ ] J10-I3 — projeter les connaissances communes, locales, professionnelles
+  et acquises propres au PNJ, séparément du contexte connu du joueur.
+- [ ] J10-I4 — livrer les faits libres de campagne et la création atomique d'une
+  identité légère, avec conflit, cardinalité, idempotence et reconstruction.
+- [ ] J10-I5 — séparer connaissance et divulgation, qualifier les rumeurs et
+  protéger les secrets avec une cause de refus structurée.
+- [ ] J10-I6 — alimenter performer, fallback, témoignage et diagnostic depuis
+  les seuls faits résolus et autorisés.
+- [ ] J10-I7 — certifier lore, campagne, rôles, rumeurs, secrets, création,
+  remplacement, IndexedDB, Chromium et build ; live seulement sur accord.
 
 ### Prochaine action concrète
 
-J10-H est fermé. La prochaine étape est une recette manuelle libre dans le build
-complet par le propriétaire du projet ; aucun nouvel appel OpenAI automatisé
-n'est requis. Les résultats H7 sont consignés dans
-[`Checkpoint-recette-OpenAI-live-J10H7.md`](test-GAME-2D/narration-module/docs/Checkpoint-recette-OpenAI-live-J10H7.md).
-
-Le checkpoint live partiel reste dans
-[`Checkpoint-recette-OpenAI-live-G8.md`](test-GAME-2D/narration-module/docs/Checkpoint-recette-OpenAI-live-G8.md).
-La preuve G7 reste dans
-[`Checkpoint-gate-locale-G7.md`](test-GAME-2D/narration-module/docs/Checkpoint-gate-locale-G7.md).
-La preuve G6 reste dans
-[`Checkpoint-corpus-evaluation-G6.md`](test-GAME-2D/narration-module/docs/Checkpoint-corpus-evaluation-G6.md).
-La preuve G5 reste dans
-[`Checkpoint-routage-proprietaires-G5.md`](test-GAME-2D/narration-module/docs/Checkpoint-routage-proprietaires-G5.md).
-La preuve G4 reste dans
-[`Checkpoint-contexte-incarne-public-G4.md`](test-GAME-2D/narration-module/docs/Checkpoint-contexte-incarne-public-G4.md).
-La preuve G3 reste dans
-[`Checkpoint-mapping-semantique-fidele-G3.md`](test-GAME-2D/narration-module/docs/Checkpoint-mapping-semantique-fidele-G3.md).
-La preuve G2 reste dans
-[`Checkpoint-cadre-semantique-ouvert-G2.md`](test-GAME-2D/narration-module/docs/Checkpoint-cadre-semantique-ouvert-G2.md).
-La preuve G1 reste dans
-[`Checkpoint-OpenAI-seul-interpreteur-G1.md`](test-GAME-2D/narration-module/docs/Checkpoint-OpenAI-seul-interpreteur-G1.md).
-Les plafonds G8 de six, trois puis un appel ont été consommés et respectés ;
-aucun nouvel appel automatisé ne doit partir sans accord explicite.
+Commencer J10-I3 en relançant `narration-module:test:j10i2-targeted-lore`, puis
+projeter séparément les bases `COMMON_WORLD`, `LOCAL_FAMILIARITY`,
+`ROLE_EXPECTED` et `ACQUIRED`. Prouver qu'un garde local connaît le dirigeant et
+son siège, qu'un voyageur peut l'ignorer et qu'un archiviste connaît la
+procédure publique de consultation. Ne décider encore ni divulgation, ni
+création de fait. Le checkpoint de reprise est dans
+[`Checkpoint-recherche-factuelle-ciblee-J10I2.md`](test-GAME-2D/narration-module/docs/Checkpoint-recherche-factuelle-ciblee-J10I2.md).
 
 ## Dernier point de contrôle
 
@@ -167,6 +186,9 @@ aucun nouvel appel automatisé ne doit partir sans accord explicite.
   certifiés. J10-H4 ajoute `narration-module:test:j10h4-resilience` : limites,
   paquets, trois rôles et fallbacks sont certifiés, et la baseline H0 ne mesure
   plus aucun des écarts produit historiques initiaux.
+- Le correctif post-J10-H7 regroupe maintenant question et déclaration vers un
+  même acteur dans une commande sociale unique ; G5, G7, H3, H4, H5 et le build
+  global le certifient sans appel OpenAI réel.
 - J10-B certifie Archives → Halles depuis la saisie libre, avec interruption
   restaurée, réponse libre, reprise, arrivée et rejeux sans second temps.
 - J10-C installe la verticale J4/J7 dans la composition UI et certifie refus de

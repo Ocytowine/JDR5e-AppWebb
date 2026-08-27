@@ -1,6 +1,7 @@
 import type { ContractAiProviderV1 } from "../../src/ai/FakeContractAiProvider";
 import type {
   AiCallRequestV1,
+  AiInformationNeedV8,
   AiOpenSemanticFrameV8,
   AiRoleOutputEnvelopeV1,
   AiSemanticIntentPayloadV8
@@ -95,6 +96,7 @@ export function dialogueFixtureH0(input: {
   targetRef: string;
   targetSurface: string;
   dialogueAct?: "INITIATE_CONVERSATION" | "ASK_QUESTION" | "MAKE_STATEMENT" | "REQUEST_ACTION" | "OTHER";
+  informationNeed?: AiInformationNeedV8 | null;
 }): ConversationSemanticFixtureH0 {
   return singleComponentFixture({
     fixtureId: input.fixtureId,
@@ -105,7 +107,8 @@ export function dialogueFixtureH0(input: {
     suggestedCapabilityId: "scene.visible-dialogue",
     targetRef: input.targetRef,
     targetSurface: input.targetSurface,
-    dialogueAct: input.dialogueAct ?? "OTHER"
+    dialogueAct: input.dialogueAct ?? "OTHER",
+    informationNeed: input.informationNeed ?? null
   });
 }
 
@@ -157,6 +160,7 @@ function singleComponentFixture(input: {
   targetRef: string;
   targetSurface: string;
   dialogueAct?: "INITIATE_CONVERSATION" | "ASK_QUESTION" | "MAKE_STATEMENT" | "REQUEST_ACTION" | "OTHER";
+  informationNeed?: AiInformationNeedV8 | null;
 }): ConversationSemanticFixtureH0 {
   return {
     rawInput: input.rawInput,
@@ -191,7 +195,8 @@ function singleComponentFixture(input: {
               act: input.dialogueAct ?? "OTHER",
               contentGoal: input.componentMeaning
             }
-          : null
+          : null,
+        informationNeed: input.informationNeed ?? null
       }],
       ambiguities: [],
       clarificationQuestion: null,

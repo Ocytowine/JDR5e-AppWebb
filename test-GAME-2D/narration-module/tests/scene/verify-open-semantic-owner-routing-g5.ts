@@ -241,6 +241,163 @@ async function main(): Promise<void> {
     ["scene.visible-actor-orientation", "scene.visible-dialogue"]
   );
 
+  const guardActor = "npc:wiki-location:archives_de_lysenthe:ambient:3";
+  const dialogueSequenceFrame = frame([
+    component("ask-chief", 1, "social", "scene.visible-dialogue", {
+      mentionedTargets: [
+        { surface: "votre chef", proposedRef: null },
+        { surface: "au garde", proposedRef: guardActor }
+      ],
+      dialogueAct: {
+        act: "ASK_QUESTION",
+        contentGoal: "Savoir si le chef du garde est présent."
+      }
+    }),
+    component("state-information", 2, "social", "scene.visible-dialogue", {
+      dependsOnComponentIds: [],
+      mentionedTargets: [{ surface: "lui", proposedRef: null }],
+      dialogueAct: {
+        act: "MAKE_STATEMENT",
+        contentGoal: "Indiquer qu'une information doit être communiquée au chef."
+      }
+    })
+  ]);
+  const dialogueSequencePlan = buildOpenSemanticExecutionPlanV1({
+    frame: dialogueSequenceFrame,
+    runtimeContext
+  });
+  const dialogueSequenceSelection = selectOpenSemanticLegacyOwnerStepsV1({
+    frame: dialogueSequenceFrame,
+    plan: dialogueSequencePlan
+  });
+  assert.equal(dialogueSequenceSelection?.mode, "HOMOGENEOUS_DIALOGUE_SEQUENCE");
+  assert.equal(dialogueSequenceSelection?.ownerDomain, "social");
+  assert.equal(dialogueSequenceSelection?.executionPolicy, "ORDERED");
+  assert.deepEqual(dialogueSequenceSelection?.targetRefs, [guardActor]);
+  assert.deepEqual(
+    dialogueSequenceSelection?.steps.map(step => step.componentId),
+    ["ask-chief", "state-information"]
+  );
+
+  const simultaneousDialogueFrame = frame([
+    component("ask-chief-now", 1, "social", "scene.visible-dialogue", {
+      mentionedTargets: [{ surface: "au garde", proposedRef: guardActor }],
+      dialogueAct: { act: "ASK_QUESTION", contentGoal: "Savoir si le chef est présent." }
+    }),
+    component("state-reason-now", 2, "social", "scene.visible-dialogue", {
+      relationToPrevious: "SIMULTANEOUS",
+      dependsOnComponentIds: [],
+      simultaneousWithComponentIds: ["ask-chief-now"],
+      mentionedTargets: [{ surface: "lui", proposedRef: guardActor }],
+      dialogueAct: { act: "MAKE_STATEMENT", contentGoal: "Expliquer la raison de la demande." }
+    })
+  ]);
+  const simultaneousDialoguePlan = buildOpenSemanticExecutionPlanV1({
+    frame: simultaneousDialogueFrame,
+    runtimeContext
+  });
+  assert.deepEqual(
+    simultaneousDialoguePlan.steps.map(step => step.disposition),
+    ["AWAITING_ATOMIC_GROUP_OWNER", "AWAITING_ATOMIC_GROUP_OWNER"]
+  );
+  const simultaneousDialogueSelection = selectOpenSemanticLegacyOwnerStepsV1({
+    frame: simultaneousDialogueFrame,
+    plan: simultaneousDialoguePlan
+  });
+  assert.equal(simultaneousDialogueSelection?.mode, "HOMOGENEOUS_DIALOGUE_SEQUENCE");
+  assert.equal(simultaneousDialogueSelection?.executionPolicy, "ATOMIC");
+  assert.deepEqual(simultaneousDialogueSelection?.targetRefs, [guardActor]);
+
+  const causalDialogueFrame = frame([
+    component("ask-chief-causal", 1, "social", "scene.visible-dialogue", {
+      mentionedTargets: [{ surface: "au garde", proposedRef: guardActor }],
+      dialogueAct: { act: "ASK_QUESTION", contentGoal: "Savoir si le chef est présent." }
+    }),
+    component("state-reason-causal", 2, "social", "scene.visible-dialogue", {
+      relationToPrevious: "CONDITION_RESULT",
+      dependsOnComponentIds: [],
+      mentionedTargets: [{ surface: "lui", proposedRef: guardActor }],
+      dialogueAct: { act: "MAKE_STATEMENT", contentGoal: "Donner la raison de la question." }
+    })
+  ]);
+  const causalDialogueSelection = selectOpenSemanticLegacyOwnerStepsV1({
+    frame: causalDialogueFrame,
+    plan: buildOpenSemanticExecutionPlanV1({ frame: causalDialogueFrame, runtimeContext })
+  });
+  assert.equal(causalDialogueSelection?.mode, "HOMOGENEOUS_DIALOGUE_SEQUENCE");
+  assert.equal(causalDialogueSelection?.executionPolicy, "ORDERED");
+  assert.deepEqual(causalDialogueSelection?.targetRefs, [guardActor]);
+
+  const rhetoricalConditionFrame = frame([
+    component("state-origin", 1, "social", "scene.visible-dialogue", {
+      mentionedTargets: [{ surface: "au garde", proposedRef: guardActor }],
+      dialogueAct: { act: "MAKE_STATEMENT", contentGoal: "Dire ne pas être d'ici." }
+    }),
+    component("ask-alternative-source", 2, "social", "scene.visible-dialogue", {
+      conditions: ["Si le garde ne sait pas ou ne souhaite pas répondre."],
+      dependsOnComponentIds: [],
+      mentionedTargets: [{ surface: "vous", proposedRef: guardActor }],
+      dialogueAct: {
+        act: "ASK_QUESTION",
+        contentGoal: "Demander qui pourrait répondre si le garde ne sait pas ou ne souhaite pas parler."
+      }
+    })
+  ]);
+  const rhetoricalConditionPlan = buildOpenSemanticExecutionPlanV1({
+    frame: rhetoricalConditionFrame,
+    runtimeContext
+  });
+  assert.deepEqual(
+    rhetoricalConditionPlan.steps.map(step => step.disposition),
+    ["ROUTABLE", "ROUTABLE"],
+    "une condition incluse dans une parole engagée appartient au contenu adressé"
+  );
+  const rhetoricalConditionSelection = selectOpenSemanticLegacyOwnerStepsV1({
+    frame: rhetoricalConditionFrame,
+    plan: rhetoricalConditionPlan
+  });
+  assert.equal(rhetoricalConditionSelection?.mode, "HOMOGENEOUS_DIALOGUE_SEQUENCE");
+
+  const trulyConditionalDialogueFrame = frame([
+    component("speak-only-later", 1, "social", "scene.visible-dialogue", {
+      commitment: "conditional",
+      conditions: ["Quand le garde aura baissé son arme."],
+      mentionedTargets: [{ surface: "au garde", proposedRef: guardActor }],
+      dialogueAct: { act: "MAKE_STATEMENT", contentGoal: "Révéler le code plus tard." }
+    })
+  ]);
+  const trulyConditionalDialoguePlan = buildOpenSemanticExecutionPlanV1({
+    frame: trulyConditionalDialogueFrame,
+    runtimeContext
+  });
+  assert.equal(trulyConditionalDialoguePlan.steps[0]?.disposition, "AWAITING_CONDITION");
+  assert.equal(
+    selectOpenSemanticLegacyOwnerStepsV1({
+      frame: trulyConditionalDialogueFrame,
+      plan: trulyConditionalDialoguePlan
+    }),
+    null
+  );
+
+  const ambiguousDialogueFrame = frame([
+    component("ask-guard", 1, "social", "scene.visible-dialogue", {
+      mentionedTargets: [{ surface: "au garde", proposedRef: guardActor }],
+      dialogueAct: { act: "ASK_QUESTION", contentGoal: "Interroger le garde." }
+    }),
+    component("ask-clerk", 2, "social", "scene.visible-dialogue", {
+      mentionedTargets: [{ surface: "au clerc", proposedRef: "npc:archive-clerk" }],
+      dialogueAct: { act: "ASK_QUESTION", contentGoal: "Interroger le clerc." }
+    })
+  ]);
+  assert.equal(
+    selectOpenSemanticLegacyOwnerStepsV1({
+      frame: ambiguousDialogueFrame,
+      plan: buildOpenSemanticExecutionPlanV1({ frame: ambiguousDialogueFrame, runtimeContext })
+    }),
+    null,
+    "deux interlocuteurs explicites ne doivent jamais être aplatis dans un même groupe social"
+  );
+
   const unknownStagingFrame = frame([
     component("step-1", 1, "scene_resolution", null, {
       mentionedTargets: [{ surface: "l'archiviste", proposedRef: archiveActor }]

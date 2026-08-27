@@ -44,8 +44,15 @@ async function run(): Promise<void> {
   assertNarrativeLoreBuildCatalogV1(generated);
   assert.deepEqual(generated, catalog, "The tracked generated catalog must match the production lore sources.");
   assert.ok(catalog.entities.length < compiled.value.entities.length, "The runtime catalog must omit unrelated authoring entities.");
-  assert.equal(catalog.scenes.length, 15, "Every authored building, district and city must expose a scene packet.");
+  const expectedSceneCount = compiled.value.entities.filter(entity => ["batiment", "quartier", "ville"].includes(entity.entityType)).length;
+  assert.equal(catalog.scenes.length, expectedSceneCount, "Every authored building, district and city must expose a scene packet.");
   assert.equal(catalog.fragments.every(fragment => fragment.provenance.sourcePath.startsWith("wiki/lore/")), true);
+  const factualIds = new Set(catalog.facts.map(fact => fact.fragmentId));
+  assert.equal(
+    catalog.scenes.every(scene => scene.influencePacket.influences.every(influence => !factualIds.has(influence.fragmentId))),
+    true,
+    "The factual index must not perturb descriptive scene influence ranking."
+  );
 
   const archive = catalog.scenes.find(scene => scene.entityId === "archives_de_lysenthe");
   assert.ok(archive, "The Archives scene packet must be generated.");

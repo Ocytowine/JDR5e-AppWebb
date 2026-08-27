@@ -1209,7 +1209,8 @@ function validateSemanticIntentPayloadV8(payload: unknown): string[] {
         "dependsOnComponentIds", "meaning", "mentionedTargets", "negated", "order",
         "quoted", "relationToPrevious", "simultaneousWithComponentIds",
         "suggestedAction", "suggestedCapabilityId", "suggestedDomain", "supersedesComponentIds",
-        ...(Object.prototype.hasOwnProperty.call(component, "dialogueAct") ? ["dialogueAct"] : [])
+        ...(Object.prototype.hasOwnProperty.call(component, "dialogueAct") ? ["dialogueAct"] : []),
+        ...(Object.prototype.hasOwnProperty.call(component, "informationNeed") ? ["informationNeed"] : [])
       ], path));
       issues.push(...validateNonEmptyString(component.componentId, `${path}.componentId`));
       issues.push(...validateNonEmptyString(component.meaning, `${path}.meaning`));
@@ -1249,6 +1250,25 @@ function validateSemanticIntentPayloadV8(payload: unknown): string[] {
           issues.push(...exactKeys(component.dialogueAct, ["act", "contentGoal"], `${path}.dialogueAct`));
           if (!["INITIATE_CONVERSATION", "ASK_QUESTION", "MAKE_STATEMENT", "REQUEST_ACTION", "OTHER"].includes(String(component.dialogueAct.act))) issues.push(`${path}.dialogueAct.act: invalid dialogue act`);
           issues.push(...validateNonEmptyString(component.dialogueAct.contentGoal, `${path}.dialogueAct.contentGoal`));
+        }
+      }
+      if (component.informationNeed !== undefined && component.informationNeed !== null) {
+        if (!isObject(component.informationNeed)) issues.push(`${path}.informationNeed: expected object or null`);
+        else {
+          const need = component.informationNeed;
+          issues.push(...exactKeys(need, [
+            "contractVersion", "proposedSubjectRef", "requestedAnswerShape",
+            "requestedDimension", "schemaVersion", "sourceComponentId",
+            "subjectMention", "temporalScope"
+          ], `${path}.informationNeed`));
+          if (need.schemaVersion !== 1 || need.contractVersion !== "information-need/1") issues.push(`${path}.informationNeed: invalid contract version`);
+          issues.push(...validateNonEmptyString(need.subjectMention, `${path}.informationNeed.subjectMention`));
+          if (!(need.proposedSubjectRef === null || typeof need.proposedSubjectRef === "string" && need.proposedSubjectRef.trim().length > 0)) issues.push(`${path}.informationNeed.proposedSubjectRef: expected null or non-empty string`);
+          issues.push(...validateNonEmptyString(need.requestedDimension, `${path}.informationNeed.requestedDimension`));
+          if (!["CURRENT", "PAST", "FUTURE", "UNSPECIFIED"].includes(String(need.temporalScope))) issues.push(`${path}.informationNeed.temporalScope: invalid temporal scope`);
+          if (!["IDENTITY", "TITLE", "LOCATION", "PROCEDURE", "DESCRIPTION", "CAUSE", "STATUS", "OPEN"].includes(String(need.requestedAnswerShape))) issues.push(`${path}.informationNeed.requestedAnswerShape: invalid answer shape`);
+          if (need.sourceComponentId !== component.componentId) issues.push(`${path}.informationNeed.sourceComponentId: must match componentId`);
+          if (!isObject(component.dialogueAct) || component.dialogueAct.act !== "ASK_QUESTION") issues.push(`${path}.informationNeed: requires ASK_QUESTION`);
         }
       }
     });

@@ -31,6 +31,8 @@ export interface NarrativeLoreBuildCatalogV1 {
   influenceBudget: number;
   entities: LoreEntityV1[];
   fragments: LoreFragmentV1[];
+  /** Dedicated factual index; excluded from descriptive influence ranking. */
+  facts: LoreFragmentV1[];
   scenes: NarrativeLoreBuildCatalogSceneV1[];
   sourcePaths: string[];
   diagnostics: string[];
@@ -85,6 +87,7 @@ export function buildNarrativeLoreBuildCatalogV1(
 
   const entities = corpus.entities.filter(entity => retainedEntityIds.has(entity.entityId)).sort(compareEntity);
   const fragments = corpus.fragments.filter(fragment => retainedFragmentIds.has(fragment.fragmentId)).sort(compareFragment);
+  const facts = buildStructuralFactIndex(entities);
   const sourcePaths = [...new Set([
     ...entities.map(entity => entity.provenance.sourcePath),
     ...fragments.map(fragment => fragment.provenance.sourcePath)
@@ -99,6 +102,7 @@ export function buildNarrativeLoreBuildCatalogV1(
     influenceBudget: NARRATIVE_LORE_INFLUENCE_BUDGET_V1,
     entities,
     fragments,
+    facts,
     scenes,
     sourcePaths,
     diagnostics: [...new Set(scenes.flatMap(scene => scene.influencePacket.diagnostics))].sort(),
@@ -114,7 +118,7 @@ export function assertNarrativeLoreBuildCatalogV1(value: unknown): asserts value
     catalog.contractVersion !== NARRATIVE_LORE_BUILD_CATALOG_CONTRACT_V1 ||
     catalog.version !== 1
   ) throw new Error("Unsupported narrative lore build catalog contract.");
-  if (!Array.isArray(catalog.entities) || !Array.isArray(catalog.fragments) || !Array.isArray(catalog.scenes)) {
+  if (!Array.isArray(catalog.entities) || !Array.isArray(catalog.fragments) || !Array.isArray(catalog.facts) || !Array.isArray(catalog.scenes)) {
     throw new Error("Narrative lore build catalog collections are missing.");
   }
   if (!Array.isArray(catalog.playerKnowledgeLevels) || catalog.playerKnowledgeLevels.join("|") !== "COMMUN|LOCAL") {
@@ -128,8 +132,12 @@ export function assertNarrativeLoreBuildCatalogV1(value: unknown): asserts value
   }
   const entityIds = new Set(catalog.entities.map(entity => entity.entityId));
   const fragmentIds = new Set(catalog.fragments.map(fragment => fragment.fragmentId));
+  const factIds = new Set(catalog.facts.map(fact => fact.fragmentId));
   if (entityIds.size !== catalog.entities.length || fragmentIds.size !== catalog.fragments.length) {
     throw new Error("Narrative lore build catalog identifiers must be unique.");
+  }
+  if (factIds.size !== catalog.facts.length || catalog.facts.some(fact => !entityIds.has(fact.entityId) || !["COMMUN", "LOCAL"].includes(fact.knowledgeLevel))) {
+    throw new Error("Narrative lore factual index is invalid.");
   }
   for (const scene of catalog.scenes) {
     if (!entityIds.has(scene.entityId) || scene.influencePacket.anchorEntityId !== scene.entityId) {
@@ -144,6 +152,38 @@ export function assertNarrativeLoreBuildCatalogV1(value: unknown): asserts value
       }
     }
   }
+}
+
+function buildStructuralFactIndex(entities: LoreEntityV1[]): LoreFragmentV1[] {
+  const facts: LoreFragmentV1[] = [];
+  const add = (entity: LoreEntityV1, fieldPath: string, knowledgeLevel: LoreKnowledgeLevelV1) => {
+    const value = entity.attributes[fieldPath.slice(1)];
+    if (typeof value !== "string" || !value.trim() || /^external:(?:non_documente|unknown)$/iu.test(value)) return;
+    facts.push({
+      schemaVersion: 1,
+      fragmentId: `fact.${entity.entityId}.${fieldPath.slice(1).replaceAll("/", ".")}`,
+      entityId: entity.entityId,
+      fieldPath,
+      text: value,
+      tags: [...entity.searchTerms],
+      knowledgeLevel,
+      relatedEntityIds: entities.some(candidate => candidate.entityId === value) ? [value] : [],
+      topics: [entity.displayName],
+      provenance: entity.provenance
+    });
+  };
+  for (const entity of entities) {
+    if (entity.entityType === "ville") {
+      add(entity, "/type_gouvernance", "COMMUN");
+      add(entity, "/siege_pouvoir", "LOCAL");
+    } else if (entity.entityType === "batiment") {
+      add(entity, "/ville", "COMMUN");
+      add(entity, "/region", "COMMUN");
+      add(entity, "/quartier", "LOCAL");
+      add(entity, "/proprietaire_principal", "LOCAL");
+    }
+  }
+  return facts.sort(compareFragment);
 }
 
 function compareEntity(left: LoreEntityV1, right: LoreEntityV1): number {

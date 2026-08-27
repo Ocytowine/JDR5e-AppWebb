@@ -11,8 +11,11 @@ Ce cadre devient la source sémantique primaire pour une sortie V8.
 
 Le mapper G3 :
 
-- vérifie uniquement la corrélation de `rawInputEcho`, le contrat et les
-  références proposées dans le contexte public de scène ;
+- utilise l'enveloppe locale d'appel pour corréler la réponse, valide le contrat
+  et les références proposées dans le contexte public de scène ;
+- conserve `rawInputEcho` comme diagnostic informatif seulement : une
+  normalisation typographique par le modèle ne remplace jamais la saisie locale
+  et ne fait plus rejeter un cadre autrement valide ;
 - ne recherche aucun mot, motif, verbe ou domaine dans le texte joueur ;
 - ne trie, ne fusionne et ne supprime aucune composante ;
 - conserve exactement sens global, engagement, conditions, ordre, relations,
@@ -49,7 +52,9 @@ La gate emploie deux textes bruts volontairement incompatibles avec les
 catégories historiques pour une même sortie OpenAI simulée. Elle vérifie que le
 cadre final reste identique, qu'une citation menaçante n'est pas exécutée, que
 la confiance ne remplace pas le statut déclaré et qu'une référence absente du
-contexte public est refusée.
+contexte public est refusée. Elle couvre aussi une correction d'accent dans
+`rawInputEcho` et prouve que la saisie locale reste autoritaire sans invalider
+la sortie sémantique.
 
 Régressions passées :
 

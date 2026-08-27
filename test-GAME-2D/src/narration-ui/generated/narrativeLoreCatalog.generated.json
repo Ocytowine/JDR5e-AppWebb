@@ -5100,6 +5100,935 @@
       }
     }
   ],
+  "facts": [
+    {
+      "schemaVersion": 1,
+      "fragmentId": "fact.archives_de_lysenthe.proprietaire_principal",
+      "entityId": "archives_de_lysenthe",
+      "fieldPath": "/proprietaire_principal",
+      "text": "Collegium des Archivistes",
+      "tags": [
+        "Archives de Lysenthe",
+        "administration",
+        "archives",
+        "savoir"
+      ],
+      "knowledgeLevel": "LOCAL",
+      "relatedEntityIds": [],
+      "topics": [
+        "Archives de Lysenthe"
+      ],
+      "provenance": {
+        "packageId": "jdr5e.production-lore",
+        "packageVersion": 1,
+        "sourcePath": "wiki/lore/territoire/region/Ylsséa/Lysenthe/batiments/archives_de_lysenthe",
+        "sourceFingerprint": "sha256:86c48122db48bdf32f76e1b141534506b0790cdbfb3c8a68cd8db500dbd6b35c"
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "fragmentId": "fact.archives_de_lysenthe.quartier",
+      "entityId": "archives_de_lysenthe",
+      "fieldPath": "/quartier",
+      "text": "quartier_des_archives",
+      "tags": [
+        "Archives de Lysenthe",
+        "administration",
+        "archives",
+        "savoir"
+      ],
+      "knowledgeLevel": "LOCAL",
+      "relatedEntityIds": [
+        "quartier_des_archives"
+      ],
+      "topics": [
+        "Archives de Lysenthe"
+      ],
+      "provenance": {
+        "packageId": "jdr5e.production-lore",
+        "packageVersion": 1,
+        "sourcePath": "wiki/lore/territoire/region/Ylsséa/Lysenthe/batiments/archives_de_lysenthe",
+        "sourceFingerprint": "sha256:86c48122db48bdf32f76e1b141534506b0790cdbfb3c8a68cd8db500dbd6b35c"
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "fragmentId": "fact.archives_de_lysenthe.region",
+      "entityId": "archives_de_lysenthe",
+      "fieldPath": "/region",
+      "text": "ylssea",
+      "tags": [
+        "Archives de Lysenthe",
+        "administration",
+        "archives",
+        "savoir"
+      ],
+      "knowledgeLevel": "COMMUN",
+      "relatedEntityIds": [
+        "ylssea"
+      ],
+      "topics": [
+        "Archives de Lysenthe"
+      ],
+      "provenance": {
+        "packageId": "jdr5e.production-lore",
+        "packageVersion": 1,
+        "sourcePath": "wiki/lore/territoire/region/Ylsséa/Lysenthe/batiments/archives_de_lysenthe",
+        "sourceFingerprint": "sha256:86c48122db48bdf32f76e1b141534506b0790cdbfb3c8a68cd8db500dbd6b35c"
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "fragmentId": "fact.archives_de_lysenthe.ville",
+      "entityId": "archives_de_lysenthe",
+      "fieldPath": "/ville",
+      "text": "lysenthe",
+      "tags": [
+        "Archives de Lysenthe",
+        "administration",
+        "archives",
+        "savoir"
+      ],
+      "knowledgeLevel": "COMMUN",
+      "relatedEntityIds": [
+        "lysenthe"
+      ],
+      "topics": [
+        "Archives de Lysenthe"
+      ],
+      "provenance": {
+        "packageId": "jdr5e.production-lore",
+        "packageVersion": 1,
+        "sourcePath": "wiki/lore/territoire/region/Ylsséa/Lysenthe/batiments/archives_de_lysenthe",
+        "sourceFingerprint": "sha256:86c48122db48bdf32f76e1b141534506b0790cdbfb3c8a68cd8db500dbd6b35c"
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "fragmentId": "fact.bourg_des_forges.type_gouvernance",
+      "entityId": "bourg_des_forges",
+      "fieldPath": "/type_gouvernance",
+      "text": "conseil local non documenté",
+      "tags": [
+        "Bourg des Forges",
+        "forge",
+        "montagne"
+      ],
+      "knowledgeLevel": "COMMUN",
+      "relatedEntityIds": [],
+      "topics": [
+        "Bourg des Forges"
+      ],
+      "provenance": {
+        "packageId": "jdr5e.production-lore",
+        "packageVersion": 1,
+        "sourcePath": "wiki/lore/territoire/region/Ardherne/bourg_des_forges/index",
+        "sourceFingerprint": "sha256:0037088ec3dbc10b02720f18e50fc076abb6c18cbf03907bff48822b808343db"
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "fragmentId": "fact.caserne_centrale.proprietaire_principal",
+      "entityId": "caserne_centrale",
+      "fieldPath": "/proprietaire_principal",
+      "text": "Capitaine de Garnison",
+      "tags": [
+        "Caserne centrale",
+        "defense",
+        "garnison",
+        "remparts"
+      ],
+      "knowledgeLevel": "LOCAL",
+      "relatedEntityIds": [],
+      "topics": [
+        "Caserne centrale"
+      ],
+      "provenance": {
+        "packageId": "jdr5e.production-lore",
+        "packageVersion": 1,
+        "sourcePath": "wiki/lore/territoire/region/Ylsséa/Lysenthe/batiments/caserne_centrale",
+        "sourceFingerprint": "sha256:674a56e1f7fdfc30dde4415751a6d011104d8cadb5ae93dbb9757716e2fd66b3"
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "fragmentId": "fact.caserne_centrale.quartier",
+      "entityId": "caserne_centrale",
+      "fieldPath": "/quartier",
+      "text": "quartier_des_remparts",
+      "tags": [
+        "Caserne centrale",
+        "defense",
+        "garnison",
+        "remparts"
+      ],
+      "knowledgeLevel": "LOCAL",
+      "relatedEntityIds": [
+        "quartier_des_remparts"
+      ],
+      "topics": [
+        "Caserne centrale"
+      ],
+      "provenance": {
+        "packageId": "jdr5e.production-lore",
+        "packageVersion": 1,
+        "sourcePath": "wiki/lore/territoire/region/Ylsséa/Lysenthe/batiments/caserne_centrale",
+        "sourceFingerprint": "sha256:674a56e1f7fdfc30dde4415751a6d011104d8cadb5ae93dbb9757716e2fd66b3"
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "fragmentId": "fact.caserne_centrale.region",
+      "entityId": "caserne_centrale",
+      "fieldPath": "/region",
+      "text": "ylssea",
+      "tags": [
+        "Caserne centrale",
+        "defense",
+        "garnison",
+        "remparts"
+      ],
+      "knowledgeLevel": "COMMUN",
+      "relatedEntityIds": [
+        "ylssea"
+      ],
+      "topics": [
+        "Caserne centrale"
+      ],
+      "provenance": {
+        "packageId": "jdr5e.production-lore",
+        "packageVersion": 1,
+        "sourcePath": "wiki/lore/territoire/region/Ylsséa/Lysenthe/batiments/caserne_centrale",
+        "sourceFingerprint": "sha256:674a56e1f7fdfc30dde4415751a6d011104d8cadb5ae93dbb9757716e2fd66b3"
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "fragmentId": "fact.caserne_centrale.ville",
+      "entityId": "caserne_centrale",
+      "fieldPath": "/ville",
+      "text": "lysenthe",
+      "tags": [
+        "Caserne centrale",
+        "defense",
+        "garnison",
+        "remparts"
+      ],
+      "knowledgeLevel": "COMMUN",
+      "relatedEntityIds": [
+        "lysenthe"
+      ],
+      "topics": [
+        "Caserne centrale"
+      ],
+      "provenance": {
+        "packageId": "jdr5e.production-lore",
+        "packageVersion": 1,
+        "sourcePath": "wiki/lore/territoire/region/Ylsséa/Lysenthe/batiments/caserne_centrale",
+        "sourceFingerprint": "sha256:674a56e1f7fdfc30dde4415751a6d011104d8cadb5ae93dbb9757716e2fd66b3"
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "fragmentId": "fact.chantier_de_la_basse_baie.proprietaire_principal",
+      "entityId": "chantier_de_la_basse_baie",
+      "fieldPath": "/proprietaire_principal",
+      "text": "Maitrise des Chantiers",
+      "tags": [
+        "Chantier de la Basse Baie",
+        "chantier",
+        "maintenance",
+        "navires"
+      ],
+      "knowledgeLevel": "LOCAL",
+      "relatedEntityIds": [],
+      "topics": [
+        "Chantier de la Basse Baie"
+      ],
+      "provenance": {
+        "packageId": "jdr5e.production-lore",
+        "packageVersion": 1,
+        "sourcePath": "wiki/lore/territoire/region/Ylsséa/Lysenthe/batiments/chantier_de_la_basse_baie",
+        "sourceFingerprint": "sha256:1aaf1d7a70f184b08882356677af6a91270e716752a7ebcadf9c700086cef31b"
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "fragmentId": "fact.chantier_de_la_basse_baie.quartier",
+      "entityId": "chantier_de_la_basse_baie",
+      "fieldPath": "/quartier",
+      "text": "basse_baie",
+      "tags": [
+        "Chantier de la Basse Baie",
+        "chantier",
+        "maintenance",
+        "navires"
+      ],
+      "knowledgeLevel": "LOCAL",
+      "relatedEntityIds": [
+        "basse_baie"
+      ],
+      "topics": [
+        "Chantier de la Basse Baie"
+      ],
+      "provenance": {
+        "packageId": "jdr5e.production-lore",
+        "packageVersion": 1,
+        "sourcePath": "wiki/lore/territoire/region/Ylsséa/Lysenthe/batiments/chantier_de_la_basse_baie",
+        "sourceFingerprint": "sha256:1aaf1d7a70f184b08882356677af6a91270e716752a7ebcadf9c700086cef31b"
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "fragmentId": "fact.chantier_de_la_basse_baie.region",
+      "entityId": "chantier_de_la_basse_baie",
+      "fieldPath": "/region",
+      "text": "ylssea",
+      "tags": [
+        "Chantier de la Basse Baie",
+        "chantier",
+        "maintenance",
+        "navires"
+      ],
+      "knowledgeLevel": "COMMUN",
+      "relatedEntityIds": [
+        "ylssea"
+      ],
+      "topics": [
+        "Chantier de la Basse Baie"
+      ],
+      "provenance": {
+        "packageId": "jdr5e.production-lore",
+        "packageVersion": 1,
+        "sourcePath": "wiki/lore/territoire/region/Ylsséa/Lysenthe/batiments/chantier_de_la_basse_baie",
+        "sourceFingerprint": "sha256:1aaf1d7a70f184b08882356677af6a91270e716752a7ebcadf9c700086cef31b"
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "fragmentId": "fact.chantier_de_la_basse_baie.ville",
+      "entityId": "chantier_de_la_basse_baie",
+      "fieldPath": "/ville",
+      "text": "lysenthe",
+      "tags": [
+        "Chantier de la Basse Baie",
+        "chantier",
+        "maintenance",
+        "navires"
+      ],
+      "knowledgeLevel": "COMMUN",
+      "relatedEntityIds": [
+        "lysenthe"
+      ],
+      "topics": [
+        "Chantier de la Basse Baie"
+      ],
+      "provenance": {
+        "packageId": "jdr5e.production-lore",
+        "packageVersion": 1,
+        "sourcePath": "wiki/lore/territoire/region/Ylsséa/Lysenthe/batiments/chantier_de_la_basse_baie",
+        "sourceFingerprint": "sha256:1aaf1d7a70f184b08882356677af6a91270e716752a7ebcadf9c700086cef31b"
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "fragmentId": "fact.chateau_tharqual.proprietaire_principal",
+      "entityId": "chateau_tharqual",
+      "fieldPath": "/proprietaire_principal",
+      "text": "Tharque regent de Lysenthe",
+      "tags": [
+        "Chateau Tharqual",
+        "Château Tharqual",
+        "commandement",
+        "pouvoir",
+        "ville_haute"
+      ],
+      "knowledgeLevel": "LOCAL",
+      "relatedEntityIds": [],
+      "topics": [
+        "Chateau Tharqual"
+      ],
+      "provenance": {
+        "packageId": "jdr5e.production-lore",
+        "packageVersion": 1,
+        "sourcePath": "wiki/lore/territoire/region/Ylsséa/Lysenthe/batiments/chateau_tharqual",
+        "sourceFingerprint": "sha256:ee6d1399bd2eb38695c5bcd141a11b4fae0b82bcec23caa1c43db11dad59df9c"
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "fragmentId": "fact.chateau_tharqual.quartier",
+      "entityId": "chateau_tharqual",
+      "fieldPath": "/quartier",
+      "text": "pierre_des_sables",
+      "tags": [
+        "Chateau Tharqual",
+        "Château Tharqual",
+        "commandement",
+        "pouvoir",
+        "ville_haute"
+      ],
+      "knowledgeLevel": "LOCAL",
+      "relatedEntityIds": [
+        "pierre_des_sables"
+      ],
+      "topics": [
+        "Chateau Tharqual"
+      ],
+      "provenance": {
+        "packageId": "jdr5e.production-lore",
+        "packageVersion": 1,
+        "sourcePath": "wiki/lore/territoire/region/Ylsséa/Lysenthe/batiments/chateau_tharqual",
+        "sourceFingerprint": "sha256:ee6d1399bd2eb38695c5bcd141a11b4fae0b82bcec23caa1c43db11dad59df9c"
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "fragmentId": "fact.chateau_tharqual.region",
+      "entityId": "chateau_tharqual",
+      "fieldPath": "/region",
+      "text": "ylssea",
+      "tags": [
+        "Chateau Tharqual",
+        "Château Tharqual",
+        "commandement",
+        "pouvoir",
+        "ville_haute"
+      ],
+      "knowledgeLevel": "COMMUN",
+      "relatedEntityIds": [
+        "ylssea"
+      ],
+      "topics": [
+        "Chateau Tharqual"
+      ],
+      "provenance": {
+        "packageId": "jdr5e.production-lore",
+        "packageVersion": 1,
+        "sourcePath": "wiki/lore/territoire/region/Ylsséa/Lysenthe/batiments/chateau_tharqual",
+        "sourceFingerprint": "sha256:ee6d1399bd2eb38695c5bcd141a11b4fae0b82bcec23caa1c43db11dad59df9c"
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "fragmentId": "fact.chateau_tharqual.ville",
+      "entityId": "chateau_tharqual",
+      "fieldPath": "/ville",
+      "text": "lysenthe",
+      "tags": [
+        "Chateau Tharqual",
+        "Château Tharqual",
+        "commandement",
+        "pouvoir",
+        "ville_haute"
+      ],
+      "knowledgeLevel": "COMMUN",
+      "relatedEntityIds": [
+        "lysenthe"
+      ],
+      "topics": [
+        "Chateau Tharqual"
+      ],
+      "provenance": {
+        "packageId": "jdr5e.production-lore",
+        "packageVersion": 1,
+        "sourcePath": "wiki/lore/territoire/region/Ylsséa/Lysenthe/batiments/chateau_tharqual",
+        "sourceFingerprint": "sha256:ee6d1399bd2eb38695c5bcd141a11b4fae0b82bcec23caa1c43db11dad59df9c"
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "fragmentId": "fact.halles_des_commerces.proprietaire_principal",
+      "entityId": "halles_des_commerces",
+      "fieldPath": "/proprietaire_principal",
+      "text": "Chambre des Courtiers de Lysenthe",
+      "tags": [
+        "Halles des Commerces",
+        "commerce",
+        "logistique",
+        "quais"
+      ],
+      "knowledgeLevel": "LOCAL",
+      "relatedEntityIds": [],
+      "topics": [
+        "Halles des Commerces"
+      ],
+      "provenance": {
+        "packageId": "jdr5e.production-lore",
+        "packageVersion": 1,
+        "sourcePath": "wiki/lore/territoire/region/Ylsséa/Lysenthe/batiments/halles_des_commerces",
+        "sourceFingerprint": "sha256:8b3fac700d6cc3ad830351facb64db40605355e73405f4ad062fab9f7a08f365"
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "fragmentId": "fact.halles_des_commerces.quartier",
+      "entityId": "halles_des_commerces",
+      "fieldPath": "/quartier",
+      "text": "port_des_xantars",
+      "tags": [
+        "Halles des Commerces",
+        "commerce",
+        "logistique",
+        "quais"
+      ],
+      "knowledgeLevel": "LOCAL",
+      "relatedEntityIds": [
+        "port_des_xantars"
+      ],
+      "topics": [
+        "Halles des Commerces"
+      ],
+      "provenance": {
+        "packageId": "jdr5e.production-lore",
+        "packageVersion": 1,
+        "sourcePath": "wiki/lore/territoire/region/Ylsséa/Lysenthe/batiments/halles_des_commerces",
+        "sourceFingerprint": "sha256:8b3fac700d6cc3ad830351facb64db40605355e73405f4ad062fab9f7a08f365"
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "fragmentId": "fact.halles_des_commerces.region",
+      "entityId": "halles_des_commerces",
+      "fieldPath": "/region",
+      "text": "ylssea",
+      "tags": [
+        "Halles des Commerces",
+        "commerce",
+        "logistique",
+        "quais"
+      ],
+      "knowledgeLevel": "COMMUN",
+      "relatedEntityIds": [
+        "ylssea"
+      ],
+      "topics": [
+        "Halles des Commerces"
+      ],
+      "provenance": {
+        "packageId": "jdr5e.production-lore",
+        "packageVersion": 1,
+        "sourcePath": "wiki/lore/territoire/region/Ylsséa/Lysenthe/batiments/halles_des_commerces",
+        "sourceFingerprint": "sha256:8b3fac700d6cc3ad830351facb64db40605355e73405f4ad062fab9f7a08f365"
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "fragmentId": "fact.halles_des_commerces.ville",
+      "entityId": "halles_des_commerces",
+      "fieldPath": "/ville",
+      "text": "lysenthe",
+      "tags": [
+        "Halles des Commerces",
+        "commerce",
+        "logistique",
+        "quais"
+      ],
+      "knowledgeLevel": "COMMUN",
+      "relatedEntityIds": [
+        "lysenthe"
+      ],
+      "topics": [
+        "Halles des Commerces"
+      ],
+      "provenance": {
+        "packageId": "jdr5e.production-lore",
+        "packageVersion": 1,
+        "sourcePath": "wiki/lore/territoire/region/Ylsséa/Lysenthe/batiments/halles_des_commerces",
+        "sourceFingerprint": "sha256:8b3fac700d6cc3ad830351facb64db40605355e73405f4ad062fab9f7a08f365"
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "fragmentId": "fact.hameau_du_torrent_froid.type_gouvernance",
+      "entityId": "hameau_du_torrent_froid",
+      "fieldPath": "/type_gouvernance",
+      "text": "conseil local non documenté",
+      "tags": [
+        "Hameau du Torrent-Froid",
+        "Torrent-Froid",
+        "forêt",
+        "torrent"
+      ],
+      "knowledgeLevel": "COMMUN",
+      "relatedEntityIds": [],
+      "topics": [
+        "Hameau du Torrent-Froid"
+      ],
+      "provenance": {
+        "packageId": "jdr5e.production-lore",
+        "packageVersion": 1,
+        "sourcePath": "wiki/lore/territoire/region/Ardherne/hameau_du_torrent_froid/index",
+        "sourceFingerprint": "sha256:a7e9c2352a49c2dc55a5678e2499374829d7c35dbd7437c156fc67006181bbd1"
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "fragmentId": "fact.lysenthe.siege_pouvoir",
+      "entityId": "lysenthe",
+      "fieldPath": "/siege_pouvoir",
+      "text": "chateau_tharqual",
+      "tags": [
+        "Lysenthe",
+        "cite fortifiee",
+        "commerce maritime",
+        "port"
+      ],
+      "knowledgeLevel": "LOCAL",
+      "relatedEntityIds": [
+        "chateau_tharqual"
+      ],
+      "topics": [
+        "Lysenthe"
+      ],
+      "provenance": {
+        "packageId": "jdr5e.production-lore",
+        "packageVersion": 1,
+        "sourcePath": "wiki/lore/territoire/region/Ylsséa/Lysenthe/index",
+        "sourceFingerprint": "sha256:6e63baf0537ee00f9436f127f132f6e1954d9f74e0abd98cba33ddd877b4e739"
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "fragmentId": "fact.lysenthe.type_gouvernance",
+      "entityId": "lysenthe",
+      "fieldPath": "/type_gouvernance",
+      "text": "ducat",
+      "tags": [
+        "Lysenthe",
+        "cite fortifiee",
+        "commerce maritime",
+        "port"
+      ],
+      "knowledgeLevel": "COMMUN",
+      "relatedEntityIds": [],
+      "topics": [
+        "Lysenthe"
+      ],
+      "provenance": {
+        "packageId": "jdr5e.production-lore",
+        "packageVersion": 1,
+        "sourcePath": "wiki/lore/territoire/region/Ylsséa/Lysenthe/index",
+        "sourceFingerprint": "sha256:6e63baf0537ee00f9436f127f132f6e1954d9f74e0abd98cba33ddd877b4e739"
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "fragmentId": "fact.maison_des_registres.proprietaire_principal",
+      "entityId": "maison_des_registres",
+      "fieldPath": "/proprietaire_principal",
+      "text": "Intendance de Lysenthe",
+      "tags": [
+        "Maison des Registres",
+        "administration",
+        "archives",
+        "contrats"
+      ],
+      "knowledgeLevel": "LOCAL",
+      "relatedEntityIds": [],
+      "topics": [
+        "Maison des Registres"
+      ],
+      "provenance": {
+        "packageId": "jdr5e.production-lore",
+        "packageVersion": 1,
+        "sourcePath": "wiki/lore/territoire/region/Ylsséa/Lysenthe/batiments/maison_des_registres",
+        "sourceFingerprint": "sha256:00aa88ca9b381c96b5c5afb27ec2ee8f55dd84f6eb22d6405cd4711a9bccd475"
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "fragmentId": "fact.maison_des_registres.quartier",
+      "entityId": "maison_des_registres",
+      "fieldPath": "/quartier",
+      "text": "quartier_des_archives",
+      "tags": [
+        "Maison des Registres",
+        "administration",
+        "archives",
+        "contrats"
+      ],
+      "knowledgeLevel": "LOCAL",
+      "relatedEntityIds": [
+        "quartier_des_archives"
+      ],
+      "topics": [
+        "Maison des Registres"
+      ],
+      "provenance": {
+        "packageId": "jdr5e.production-lore",
+        "packageVersion": 1,
+        "sourcePath": "wiki/lore/territoire/region/Ylsséa/Lysenthe/batiments/maison_des_registres",
+        "sourceFingerprint": "sha256:00aa88ca9b381c96b5c5afb27ec2ee8f55dd84f6eb22d6405cd4711a9bccd475"
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "fragmentId": "fact.maison_des_registres.region",
+      "entityId": "maison_des_registres",
+      "fieldPath": "/region",
+      "text": "ylssea",
+      "tags": [
+        "Maison des Registres",
+        "administration",
+        "archives",
+        "contrats"
+      ],
+      "knowledgeLevel": "COMMUN",
+      "relatedEntityIds": [
+        "ylssea"
+      ],
+      "topics": [
+        "Maison des Registres"
+      ],
+      "provenance": {
+        "packageId": "jdr5e.production-lore",
+        "packageVersion": 1,
+        "sourcePath": "wiki/lore/territoire/region/Ylsséa/Lysenthe/batiments/maison_des_registres",
+        "sourceFingerprint": "sha256:00aa88ca9b381c96b5c5afb27ec2ee8f55dd84f6eb22d6405cd4711a9bccd475"
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "fragmentId": "fact.maison_des_registres.ville",
+      "entityId": "maison_des_registres",
+      "fieldPath": "/ville",
+      "text": "lysenthe",
+      "tags": [
+        "Maison des Registres",
+        "administration",
+        "archives",
+        "contrats"
+      ],
+      "knowledgeLevel": "COMMUN",
+      "relatedEntityIds": [
+        "lysenthe"
+      ],
+      "topics": [
+        "Maison des Registres"
+      ],
+      "provenance": {
+        "packageId": "jdr5e.production-lore",
+        "packageVersion": 1,
+        "sourcePath": "wiki/lore/territoire/region/Ylsséa/Lysenthe/batiments/maison_des_registres",
+        "sourceFingerprint": "sha256:00aa88ca9b381c96b5c5afb27ec2ee8f55dd84f6eb22d6405cd4711a9bccd475"
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "fragmentId": "fact.passage_eboule_du_torrent.proprietaire_principal",
+      "entityId": "passage_eboule_du_torrent",
+      "fieldPath": "/proprietaire_principal",
+      "text": "Communauté du Bourg des Forges",
+      "tags": [
+        "Passage éboulé du Torrent-Froid",
+        "eboulement",
+        "passage du Torrent-Froid",
+        "route",
+        "route du Torrent-Froid",
+        "torrent",
+        "tronc"
+      ],
+      "knowledgeLevel": "LOCAL",
+      "relatedEntityIds": [],
+      "topics": [
+        "Passage éboulé du Torrent-Froid"
+      ],
+      "provenance": {
+        "packageId": "jdr5e.production-lore",
+        "packageVersion": 1,
+        "sourcePath": "wiki/lore/territoire/region/Ardherne/bourg_des_forges/batiments/passage_eboule_du_torrent",
+        "sourceFingerprint": "sha256:3b3c454b6977031926e5da4281c6e437bc4350d7e25d5bdc149c43830c123740"
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "fragmentId": "fact.passage_eboule_du_torrent.quartier",
+      "entityId": "passage_eboule_du_torrent",
+      "fieldPath": "/quartier",
+      "text": "external:abords_du_bourg",
+      "tags": [
+        "Passage éboulé du Torrent-Froid",
+        "eboulement",
+        "passage du Torrent-Froid",
+        "route",
+        "route du Torrent-Froid",
+        "torrent",
+        "tronc"
+      ],
+      "knowledgeLevel": "LOCAL",
+      "relatedEntityIds": [],
+      "topics": [
+        "Passage éboulé du Torrent-Froid"
+      ],
+      "provenance": {
+        "packageId": "jdr5e.production-lore",
+        "packageVersion": 1,
+        "sourcePath": "wiki/lore/territoire/region/Ardherne/bourg_des_forges/batiments/passage_eboule_du_torrent",
+        "sourceFingerprint": "sha256:3b3c454b6977031926e5da4281c6e437bc4350d7e25d5bdc149c43830c123740"
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "fragmentId": "fact.passage_eboule_du_torrent.region",
+      "entityId": "passage_eboule_du_torrent",
+      "fieldPath": "/region",
+      "text": "ardherne",
+      "tags": [
+        "Passage éboulé du Torrent-Froid",
+        "eboulement",
+        "passage du Torrent-Froid",
+        "route",
+        "route du Torrent-Froid",
+        "torrent",
+        "tronc"
+      ],
+      "knowledgeLevel": "COMMUN",
+      "relatedEntityIds": [
+        "ardherne"
+      ],
+      "topics": [
+        "Passage éboulé du Torrent-Froid"
+      ],
+      "provenance": {
+        "packageId": "jdr5e.production-lore",
+        "packageVersion": 1,
+        "sourcePath": "wiki/lore/territoire/region/Ardherne/bourg_des_forges/batiments/passage_eboule_du_torrent",
+        "sourceFingerprint": "sha256:3b3c454b6977031926e5da4281c6e437bc4350d7e25d5bdc149c43830c123740"
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "fragmentId": "fact.passage_eboule_du_torrent.ville",
+      "entityId": "passage_eboule_du_torrent",
+      "fieldPath": "/ville",
+      "text": "bourg_des_forges",
+      "tags": [
+        "Passage éboulé du Torrent-Froid",
+        "eboulement",
+        "passage du Torrent-Froid",
+        "route",
+        "route du Torrent-Froid",
+        "torrent",
+        "tronc"
+      ],
+      "knowledgeLevel": "COMMUN",
+      "relatedEntityIds": [
+        "bourg_des_forges"
+      ],
+      "topics": [
+        "Passage éboulé du Torrent-Froid"
+      ],
+      "provenance": {
+        "packageId": "jdr5e.production-lore",
+        "packageVersion": 1,
+        "sourcePath": "wiki/lore/territoire/region/Ardherne/bourg_des_forges/batiments/passage_eboule_du_torrent",
+        "sourceFingerprint": "sha256:3b3c454b6977031926e5da4281c6e437bc4350d7e25d5bdc149c43830c123740"
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "fragmentId": "fact.tour_du_primarque.proprietaire_principal",
+      "entityId": "tour_du_primarque",
+      "fieldPath": "/proprietaire_principal",
+      "text": "Primarque d'Astryade",
+      "tags": [
+        "Tour du Primarque",
+        "cour",
+        "gouvernance",
+        "primarque"
+      ],
+      "knowledgeLevel": "LOCAL",
+      "relatedEntityIds": [],
+      "topics": [
+        "Tour du Primarque"
+      ],
+      "provenance": {
+        "packageId": "jdr5e.production-lore",
+        "packageVersion": 1,
+        "sourcePath": "wiki/lore/territoire/region/Ylsséa/Lysenthe/batiments/tour_du_primarque",
+        "sourceFingerprint": "sha256:1cbb815c86780f45f12bf1fdce4e8b47db943898137ae088c7da0be7f6dc3dd5"
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "fragmentId": "fact.tour_du_primarque.quartier",
+      "entityId": "tour_du_primarque",
+      "fieldPath": "/quartier",
+      "text": "quartier_de_la_tour",
+      "tags": [
+        "Tour du Primarque",
+        "cour",
+        "gouvernance",
+        "primarque"
+      ],
+      "knowledgeLevel": "LOCAL",
+      "relatedEntityIds": [
+        "quartier_de_la_tour"
+      ],
+      "topics": [
+        "Tour du Primarque"
+      ],
+      "provenance": {
+        "packageId": "jdr5e.production-lore",
+        "packageVersion": 1,
+        "sourcePath": "wiki/lore/territoire/region/Ylsséa/Lysenthe/batiments/tour_du_primarque",
+        "sourceFingerprint": "sha256:1cbb815c86780f45f12bf1fdce4e8b47db943898137ae088c7da0be7f6dc3dd5"
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "fragmentId": "fact.tour_du_primarque.region",
+      "entityId": "tour_du_primarque",
+      "fieldPath": "/region",
+      "text": "ylssea",
+      "tags": [
+        "Tour du Primarque",
+        "cour",
+        "gouvernance",
+        "primarque"
+      ],
+      "knowledgeLevel": "COMMUN",
+      "relatedEntityIds": [
+        "ylssea"
+      ],
+      "topics": [
+        "Tour du Primarque"
+      ],
+      "provenance": {
+        "packageId": "jdr5e.production-lore",
+        "packageVersion": 1,
+        "sourcePath": "wiki/lore/territoire/region/Ylsséa/Lysenthe/batiments/tour_du_primarque",
+        "sourceFingerprint": "sha256:1cbb815c86780f45f12bf1fdce4e8b47db943898137ae088c7da0be7f6dc3dd5"
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "fragmentId": "fact.tour_du_primarque.ville",
+      "entityId": "tour_du_primarque",
+      "fieldPath": "/ville",
+      "text": "lysenthe",
+      "tags": [
+        "Tour du Primarque",
+        "cour",
+        "gouvernance",
+        "primarque"
+      ],
+      "knowledgeLevel": "COMMUN",
+      "relatedEntityIds": [
+        "lysenthe"
+      ],
+      "topics": [
+        "Tour du Primarque"
+      ],
+      "provenance": {
+        "packageId": "jdr5e.production-lore",
+        "packageVersion": 1,
+        "sourcePath": "wiki/lore/territoire/region/Ylsséa/Lysenthe/batiments/tour_du_primarque",
+        "sourceFingerprint": "sha256:1cbb815c86780f45f12bf1fdce4e8b47db943898137ae088c7da0be7f6dc3dd5"
+      }
+    }
+  ],
   "scenes": [
     {
       "schemaVersion": 1,

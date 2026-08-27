@@ -4,7 +4,8 @@ import type { NarrativeDomainCommandV1 } from "./domainCommands";
 import type { NarrativeIntentInterpretationV1, NarrativeIntentTargetV1 } from "./intentClarification";
 import {
   selectOpenSemanticLegacyOwnerStepsV1,
-  type OpenSemanticExecutionStepV1
+  type OpenSemanticExecutionStepV1,
+  type OpenSemanticLegacyOwnerSelectionV1
 } from "./openSemanticExecution";
 
 export const OPEN_SEMANTIC_LEGACY_OWNER_ADAPTER_V1 =
@@ -25,8 +26,9 @@ export interface OpenSemanticLegacyOwnerAdapterProjectionV1 {
  * Pont de migration vers les propriétaires V1 : il ne sélectionne jamais une
  * capacité et ne lit jamais la saisie joueur. Il projette une étape routée par
  * G5, ou la micro-séquence atomique « approche puis communication » vers un
- * même acteur visible, dans les champs structurés attendus par les ports V1.
- * Les compositions multi-cibles ou multi-domaines restent suspendues.
+ * même acteur visible, ou plusieurs actes de dialogue vers un acteur unique,
+ * dans les champs structurés attendus par les ports V1. Les compositions
+ * multi-cibles ou multi-domaines restent suspendues.
  */
 export function buildOpenSemanticLegacyOwnerAdapterProjectionV1(
   interpretation: NarrativeIntentInterpretationV1
@@ -42,16 +44,17 @@ export function buildOpenSemanticLegacyOwnerAdapterProjectionV1(
   if (step.capabilityId === null || step.requiredDomain === null) return null;
   const component = frame.components.find(entry => entry.componentId === step.componentId);
   if (component === undefined) return null;
-  const target = targetFrom(component.mentionedTargets[0] ?? null);
+  const target = targetFromSelection(frame, selection.targetRefs);
   const semanticKind = semanticKindFor(step);
-  const isLocalSceneSequence = selection.mode === "LOCAL_SCENE_SEQUENCE";
-  const semanticGoal = isLocalSceneSequence ? frame.overallMeaning : component.meaning;
-  const commitmentSource = isLocalSceneSequence ? frame.overallCommitment : component.commitment;
+  const isSequence = selection.mode !== "SINGLE_COMPONENT";
+  const semanticGoal = isSequence ? frame.overallMeaning : component.meaning;
+  const commitmentSource = isSequence ? frame.overallCommitment : component.commitment;
   const commitment = commitmentSource === "mixed" ? "unclear" : commitmentSource;
   const noCommit = step.capabilityId === "scene.visible-perception"
     || step.capabilityId === "scene.context-response";
   const companionDirective = companionDirectiveFor(step.capabilityId, component.meaning);
   const restPlan = restPlanFor(step.capabilityId);
+  const dialogueAct = dialogueActForSelection({ frame, selection, targetRef: target?.ref ?? null });
   const semanticIntent: AiStructuredSemanticIntentV1 = {
     schemaVersion: 1,
     kind: semanticKind,
@@ -80,18 +83,18 @@ export function buildOpenSemanticLegacyOwnerAdapterProjectionV1(
         }
       : null,
     dialogueAct: semanticKind === "address_visible_actor"
-      ? {
-          schemaVersion: 1,
-          act: companionDirective === null
-            ? component.dialogueAct?.act ?? "OTHER"
-            : "REQUEST_ACTION",
-          contentGoal: component.dialogueAct?.contentGoal ?? component.meaning,
-          addresseeRef: target?.ref ?? null
-        }
+      ? companionDirective === null
+        ? dialogueAct
+        : {
+            schemaVersion: 1,
+            act: "REQUEST_ACTION",
+            contentGoal: component.dialogueAct?.contentGoal ?? component.meaning,
+            addresseeRef: target?.ref ?? null
+          }
       : null,
     companionDirective,
     restPlan,
-    ...(isLocalSceneSequence ? {
+    ...(isSequence ? {
       composition: {
         schemaVersion: 1 as const,
         orderedComponents: selection.steps.map(selected => ({
@@ -165,14 +168,33 @@ export function buildOpenSemanticLegacyOwnerAdapterProjectionV1(
     commandType: commandTypeFor(step),
     semanticKind,
     semanticGoal,
-    targetRefs: step.targetRefs,
+    targetRefs: [...selection.targetRefs],
     payload: {
       componentId: component.componentId,
       componentIds: selection.steps.map(selected => selected.componentId),
       capabilityId: step.capabilityId,
       capabilityIds: selection.steps.map(selected => selected.capabilityId),
+      executionPolicy: selection.executionPolicy,
+      orderedDialogueActs: selection.steps.flatMap(selected => {
+        const selectedComponent = frame.components.find(entry => entry.componentId === selected.componentId);
+        return selectedComponent?.dialogueAct === null || selectedComponent?.dialogueAct === undefined
+          ? []
+          : [{
+              componentId: selected.componentId,
+              order: selected.order,
+              act: selectedComponent.dialogueAct.act,
+              contentGoal: selectedComponent.dialogueAct.contentGoal,
+              informationNeed: selectedComponent.informationNeed === undefined || selectedComponent.informationNeed === null
+                ? null
+                : structuredClone(selectedComponent.informationNeed),
+              conditions: [...selectedComponent.conditions]
+            }];
+      }),
       commitment,
-      conditions: [...component.conditions],
+      conditions: selection.steps.flatMap(selected => {
+        const selectedComponent = frame.components.find(entry => entry.componentId === selected.componentId);
+        return selectedComponent?.conditions ?? [];
+      }),
       ownerPreflightRequired: true
     },
     commitPolicy: noCommit ? "FORBIDDEN" : "DOMAIN_VALIDATED",
@@ -226,6 +248,40 @@ function targetFrom(mention: { surface: string; proposedRef: string | null } | n
         ? "place"
         : "object";
   return { kind, ref, label: mention.surface };
+}
+
+function targetFromSelection(
+  frame: NarrativeIntentInterpretationV1["openSemanticFrame"],
+  targetRefs: readonly string[]
+): NarrativeIntentTargetV1 | null {
+  if (frame === null || frame === undefined || targetRefs.length === 0) return null;
+  const targetRef = targetRefs[0]!;
+  const mention = frame.components
+    .flatMap(component => component.mentionedTargets)
+    .find(candidate => candidate.proposedRef === targetRef) ?? null;
+  return targetFrom(mention);
+}
+
+function dialogueActForSelection(input: {
+  frame: NonNullable<NarrativeIntentInterpretationV1["openSemanticFrame"]>;
+  selection: OpenSemanticLegacyOwnerSelectionV1;
+  targetRef: string | null;
+}): NonNullable<AiStructuredSemanticIntentV1["dialogueAct"]> {
+  const acts = input.selection.steps.flatMap(step => {
+    const dialogueAct = input.frame.components.find(
+      component => component.componentId === step.componentId
+    )?.dialogueAct;
+    return dialogueAct === null || dialogueAct === undefined ? [] : [dialogueAct];
+  });
+  const distinctActs = [...new Set(acts.map(act => act.act))];
+  return {
+    schemaVersion: 1,
+    act: distinctActs.length === 1 ? distinctActs[0]! : "OTHER",
+    contentGoal: input.selection.mode === "SINGLE_COMPONENT"
+      ? acts[0]?.contentGoal ?? input.frame.overallMeaning
+      : input.frame.overallMeaning,
+    addresseeRef: input.targetRef
+  };
 }
 
 function commandTypeFor(step: OpenSemanticExecutionStepV1): NarrativeDomainCommandV1["commandType"] {

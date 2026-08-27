@@ -48,6 +48,27 @@ capacité exacte, que la communication vise le même acteur résolu et que l'ord
 structuré est compatible. Une composante inconnue n'est jamais absorbée comme
 orientation à partir de sa prose.
 
+Le même pont peut regrouper une suite de deux actes ou davantage
+`scene.visible-dialogue` lorsque toutes les étapes appartiennent à `social`,
+sont engagées, sans alternative d'exécution et qu'une unique référence
+d'acteur est présente dans le groupe. Le groupe peut être `ORDERED` lorsque ses
+relations non bloquantes sont indépendantes, successives ou causales (`NONE`,
+`THEN`, `CONDITION_RESULT`), ou `ATOMIC` lorsque toutes les étapes signalées
+`AWAITING_ATOMIC_GROUP_OWNER` forment une simultanéité interne complète. Une
+composante suivante sans référence peut conserver la cible structurée ; deux
+références d'acteurs distinctes suspendent le groupe. Les actes et leurs
+`contentGoal` restent ordonnés dans la commande propriétaire. La projection V1
+utilise `OTHER` quand leurs natures diffèrent, avec le sens global du cadre,
+sans effacer les actes V8 du reçu de fidélité.
+
+Pour une composante de parole, `commitment=committed` fait autorité sur le fait
+que les mots sont prononcés maintenant. Une entrée de `conditions` qui décrit
+alors une hypothèse contenue dans la question reste transmise au propriétaire et
+ne produit pas `AWAITING_CONDITION`. Une parole réellement différée doit porter
+`commitment=conditional`; elle reste suspendue. Le prompt V8 demande en amont de
+laisser les hypothèses rhétoriques dans `meaning` et `dialogueAct.contentGoal`,
+mais le runtime tolère cette redondance structurée sans lire la saisie brute.
+
 Cette règle ne ferme pas l'interprétation : toute composante demeure dans le
 cadre, qu'elle soit exécutable ou non. Elle ferme uniquement l'autorité
 d'exécution aux capacités effectivement installées.
@@ -123,4 +144,8 @@ npm run narration-module:test:open-semantic-owner-routing-g5
 La gate couvre une séquence de trois domaines, le refus de la deuxième étape,
 l'absence de prévalidation de la troisième, le rejeu sans doublon, les
 conditions, alternatives, simultanéités, handoffs, causes externes, suggestions
-inconnues, contradictions domaine/capacité et l'altération du plan.
+inconnues, contradictions domaine/capacité et l'altération du plan. Elle couvre
+aussi les regroupements indépendant, successif, causal et atomique d'une
+question puis déclaration vers le même acteur, la condition rhétorique opposée
+à une vraie parole conditionnelle, la continuité de cible et le refus d'un
+groupe portant deux interlocuteurs.

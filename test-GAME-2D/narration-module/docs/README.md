@@ -117,8 +117,15 @@ conservées en archives pour expliquer un ancien point de reprise.
 
 ## Guides en français
 
+- [`Plan-resolution-factuelle-et-connaissances-PNJ-J10I.md`](Plan-resolution-factuelle-et-connaissances-PNJ-J10I.md)
+  ouvre J10-I : recherche factuelle ciblée, connaissances communes, locales et
+  professionnelles des PNJ, création contrôlée des faits publics manquants,
+  divulgation séparée et continuité persistante entre sessions.
+- [`Contrat-recherche-factuelle-ciblee-J10I2.md`](Contrat-recherche-factuelle-ciblee-J10I2.md)
+  définit la lecture lore/campagne bornée par le besoin V8, le sujet, les
+  propriétés et les relations, sans interprétation du texte brut ni commit.
 - [`Plan-correction-fiabilite-tour-narratif-J10H.md`](Plan-correction-fiabilite-tour-narratif-J10H.md)
-  détaille le lot actif J10-H : idempotence UI, focus conversationnel
+  détaille le lot fermé J10-H : idempotence UI, focus conversationnel
   persistant, fidélité V8, résilience des rôles IA et certification transverse
   sans élargir l'autorité des intrigues, missions, compagnons, inventaires,
   voyages, repos ou handoffs tactiques.
@@ -141,6 +148,9 @@ conservées en archives pour expliquer un ancien point de reprise.
 - [`Checkpoint-recette-OpenAI-live-J10H7.md`](Checkpoint-recette-OpenAI-live-J10H7.md)
   consigne les quatre parcours OpenAI réels, leurs rôles, métriques, fallbacks
   et les corrections finales d'orientation, de performer et de rendu PNJ.
+- [`Checkpoint-regroupement-dialogue-post-J10H7.md`](Checkpoint-regroupement-dialogue-post-J10H7.md)
+  certifie le regroupement local de plusieurs actes de dialogue vers un acteur
+  unique et le maintien du refus pour les groupes multi-cibles.
 - [`Plan-integration-narrative-immersive-J10.md`](Plan-integration-narrative-immersive-J10.md)
   cadre le prochain lot : voyage sans carte mais toujours autoritaire, groupe et
   missions vécus par dialogue, carnet privé, aides-mémoire et récapitulatif sans
@@ -186,6 +196,15 @@ conservées en archives pour expliquer un ancien point de reprise.
 
 ## Scénarios et preuves
 
+- [`Checkpoint-baseline-resolution-factuelle-J10I0.md`](Checkpoint-baseline-resolution-factuelle-J10I0.md)
+  ferme J10-I0 : dialogue factuel correctement routé, perte des références de
+  connaissance avant le performer, corpus de quatorze cas et contrats passifs.
+- [`Checkpoint-besoin-information-V8-J10I1.md`](Checkpoint-besoin-information-V8-J10I1.md)
+  ferme J10-I1 : besoin factuel nullable transporté fidèlement de V8 au reçu et
+  à la commande propriétaire, sans lecture lore, création ni effet produit.
+- [`Checkpoint-recherche-factuelle-ciblee-J10I2.md`](Checkpoint-recherche-factuelle-ciblee-J10I2.md)
+  ferme J10-I2 : gouvernance et siège retrouvés par relations depuis les
+  Archives, projections de campagne prioritaires et références locales bornées.
 - [`Checkpoint-focus-local-J10H2.md`](Checkpoint-focus-local-J10H2.md)
   ferme H2 : contrat public persistant, reprise de l'interlocuteur et fermetures
   bornées sans autorité métier.

@@ -1180,13 +1180,13 @@ function mapOpenSemanticFrameV8ToNarrativeInterpretation(input: {
   publicReferenceRefs: ReadonlySet<string>;
   runtimeContext: InterpreterRuntimeContextV1;
 }): { ok: true; interpretation: NarrativeIntentInterpretationV1 } | { ok: false; issues: string[] } {
-  if (input.payload.rawInputEcho !== input.rawInput) {
-    return { ok: false, issues: ["V8 rawInputEcho does not match the submitted input."] };
-  }
+  const rawInputEchoMatches = input.payload.rawInputEcho === input.rawInput;
   const frame = input.payload.semanticFrame;
   const invalidRefs = [...new Set(frame.components.flatMap(component =>
-    component.mentionedTargets
-      .map(target => target.proposedRef)
+    [
+      ...component.mentionedTargets.map(target => target.proposedRef),
+      component.informationNeed?.proposedSubjectRef ?? null
+    ]
       .filter((ref): ref is string => ref !== null)
       .filter(ref =>
         findSceneReferentByRefV1(input.referentRegistry, ref) === null
@@ -1267,6 +1267,9 @@ function mapOpenSemanticFrameV8ToNarrativeInterpretation(input: {
       expectedTimeEffect: "NO_GAME_TIME",
       safetyNotes: [
         "Le cadre sémantique V8 est la source de vérité; la projection canonique historique est non autoritaire et non exécutable.",
+        rawInputEchoMatches
+          ? "rawInputEcho correspond exactement à la saisie locale."
+          : "rawInputEcho diffère de la saisie locale et reste ignoré; l'enveloppe d'appel corrèle la réponse et le texte original local demeure autoritaire.",
         needsClarification
           ? "La clarification déclarée par OpenAI est transmise sans domaine, commit ni temps."
           : "Le plan G5 conserve l'ordre et ne route que les capacités publiques exactes; chaque propriétaire garde ses préconditions et son commit."

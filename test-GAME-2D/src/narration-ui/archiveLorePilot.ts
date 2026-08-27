@@ -52,6 +52,7 @@ export async function buildArchiveLorePilotV1() {
     locationRef: "location:archives_de_lysenthe",
     entities: catalog.entities,
     fragments: catalog.fragments,
+    facts: catalog.facts,
     influencePacket,
     lorePacketBySceneId,
     packetByEntityId,

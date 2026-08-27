@@ -331,7 +331,7 @@ function validateOpenSemanticOwnerAdapterAuthorityV1(
     issues.push("owner adapter requires a sufficiently confident understood frame");
   }
   const selection = selectOpenSemanticLegacyOwnerStepsV1({ frame, plan });
-  if (selection === null) issues.push("owner adapter requires one routable step or one compatible local scene sequence");
+  if (selection === null) issues.push("owner adapter requires one routable step or one compatible owner sequence");
   const step = selection?.steps.at(-1);
   const component = step === undefined
     ? undefined
@@ -346,14 +346,14 @@ function validateOpenSemanticOwnerAdapterAuthorityV1(
   if (interpretation.runtimeDecision.status !== "SUPPORTED_BY_CURRENT_RUNTIME") {
     issues.push("owner adapter must expose an installed supported capability");
   }
-  const expectedMeaning = selection?.mode === "LOCAL_SCENE_SEQUENCE"
+  const expectedMeaning = selection?.mode !== "SINGLE_COMPONENT"
     ? frame.overallMeaning
     : component?.meaning;
   if (expectedMeaning !== undefined && interpretation.semanticIntent.playerGoal !== expectedMeaning) {
     issues.push("owner adapter semantic goal mismatch");
   }
   if (component !== undefined) {
-    const commitmentSource = selection?.mode === "LOCAL_SCENE_SEQUENCE"
+    const commitmentSource = selection?.mode !== "SINGLE_COMPONENT"
       ? frame.overallCommitment
       : component.commitment;
     const expectedCommitment = commitmentSource === "mixed" ? "unclear" : commitmentSource;

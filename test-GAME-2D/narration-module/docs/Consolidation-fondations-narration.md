@@ -614,7 +614,7 @@ opportunément `GameBoard`.
 
 ### J10 — Intégration narrative immersive
 
-Statut : `J10-A À J10-G7 FERMÉS — G8 PARTIEL — J10-H OUVERT`
+Statut : `J10-A À J10-H FERMÉS — J10-I OUVERT`
 
 J10 est le prochain lot produit. Il rend la verticale J1 à J9 entièrement
 pilotable depuis la saisie narrative sans carte de voyage, panneau de commande
@@ -730,6 +730,28 @@ pronominal après reload, changement d'interlocuteur et transition propriétaire
 Elle a fermé les derniers écarts de performer, diagnostic, orientation et
 doublon de rendu ; les preuves sont dans
 [`Checkpoint-recette-OpenAI-live-J10H7.md`](Checkpoint-recette-OpenAI-live-J10H7.md).
+
+J10-I est ouvert le 2026-08-27 après une recette factuelle avec le garde des
+Archives. Il sépare désormais le chantier à conduire en trois décisions : fait
+existant ou créable, connaissance normale de l'acteur, puis droit de
+divulgation. Le lot doit d'abord acheminer les faits publics déjà présents dans
+le lore, puis livrer le cycle `CAMPAIGN_FACT` libre et la création atomique
+d'une identité légère lorsqu'un détail public stable manque. Le performer reste
+sans autorité de vérité ou de commit. L'ordre I0 à I7, les contrats cibles, les
+conditions d'arrêt et la procédure de reprise sont fixés dans
+[`Plan-resolution-factuelle-et-connaissances-PNJ-J10I.md`](Plan-resolution-factuelle-et-connaissances-PNJ-J10I.md).
+J10-I0 est fermé : la vraie scène des Archives prouve que les références
+locales du garde restent visibles sur l'acteur mais ne rejoignent ni ses sources
+de parole autorisées ni ses faits connus. Les contrats passifs et le corpus de
+quatorze cas sont figés. J10-I1 est également fermé : le besoin d'information
+nullable traverse le contrat V8, le schéma serveur, les validateurs, G3, G5, la
+commande propriétaire et le reçu de fidélité sans recherche, création ni
+nouvelle autorité. J10-I2 est fermé : le catalogue expose les champs publics de gouvernance avec
+leur niveau, et un port de lecture borné suit sujet, propriété et relations en
+donnant priorité aux projections de campagne. Depuis les Archives il retrouve
+le Tharque régent et le Château Tharqual sans dépendre du paquet descriptif.
+J10-I3 doit désormais décider séparément quelles bases rendent ces faits connus
+de l'acteur interrogé.
 
 Le compagnon tactique, la génération de carte et le placement multi-acteurs
 appartiennent au futur chantier tactique décrit par le guide J8. Leur absence ne

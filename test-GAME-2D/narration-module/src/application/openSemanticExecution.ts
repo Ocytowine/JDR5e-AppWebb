@@ -28,6 +28,7 @@ export interface OpenSemanticExecutionStepV1 extends JsonObject {
   componentId: string;
   order: number;
   meaning: string;
+  informationNeed: NonNullable<AiOpenSemanticComponentV8["informationNeed"]> | null;
   commitment: AiOpenSemanticComponentV8["commitment"];
   conditions: string[];
   relationToPrevious: AiOpenSemanticComponentV8["relationToPrevious"];
@@ -53,15 +54,19 @@ export interface OpenSemanticExecutionPlanV1 extends JsonObject {
 }
 
 export interface OpenSemanticLegacyOwnerSelectionV1 {
-  mode: "SINGLE_COMPONENT" | "LOCAL_SCENE_SEQUENCE";
+  mode: "SINGLE_COMPONENT" | "LOCAL_SCENE_SEQUENCE" | "HOMOGENEOUS_DIALOGUE_SEQUENCE";
   steps: OpenSemanticExecutionStepV1[];
+  ownerDomain: NarrativeRuntimeDomainV1;
+  targetRefs: string[];
+  executionPolicy: "SINGLE" | "ORDERED" | "ATOMIC";
 }
 
 /**
  * Limite explicite du pont V1 : une action unique reste routable comme avant.
- * La seule composition aplatie en un commit local est une approche suivie
- * d'une communication vers le meme acteur visible. Le choix repose uniquement
- * sur le graphe semantique, les capacites publiees et les references resolues.
+ * Une composition peut aussi former un groupe propriétaire lorsqu'elle décrit
+ * soit une approche suivie d'une communication, soit plusieurs actes de
+ * dialogue homogènes vers un acteur unique. Le choix repose uniquement sur le
+ * graphe sémantique, les capacités publiées et les références résolues.
  */
 export function selectOpenSemanticLegacyOwnerStepsV1(input: {
   frame: AiOpenSemanticFrameV8;
@@ -70,14 +75,34 @@ export function selectOpenSemanticLegacyOwnerStepsV1(input: {
   const blocking = input.plan.steps.filter(step => ![
     "ROUTABLE",
     "SKIPPED_NON_EXECUTABLE",
-    "SKIPPED_SUPERSEDED"
+    "SKIPPED_SUPERSEDED",
+    "AWAITING_ATOMIC_GROUP_OWNER"
   ].includes(step.disposition));
   if (blocking.length > 0) return null;
-  const steps = input.plan.steps
-    .filter(step => step.disposition === "ROUTABLE")
+  const candidateSteps = input.plan.steps
+    .filter(step => ["ROUTABLE", "AWAITING_ATOMIC_GROUP_OWNER"].includes(step.disposition))
     .sort((left, right) => left.order - right.order);
-  if (steps.length === 1) return { mode: "SINGLE_COMPONENT", steps };
-  if (steps.length !== 2 || input.frame.globalConditions.length > 0) return null;
+  const homogeneousDialogue = selectHomogeneousDialogueSequence({
+    frame: input.frame,
+    steps: candidateSteps
+  });
+  if (homogeneousDialogue !== null) return homogeneousDialogue;
+  if (candidateSteps.some(step => step.disposition === "AWAITING_ATOMIC_GROUP_OWNER")) return null;
+
+  const steps = candidateSteps;
+  if (steps.length === 1) {
+    const step = steps[0]!;
+    if (step.requiredDomain === null) return null;
+    return {
+      mode: "SINGLE_COMPONENT",
+      steps,
+      ownerDomain: step.requiredDomain,
+      targetRefs: [...step.targetRefs],
+      executionPolicy: "SINGLE"
+    };
+  }
+  if (input.frame.globalConditions.length > 0) return null;
+  if (steps.length !== 2) return null;
 
   const [attention, communication] = steps;
   if (attention === undefined || communication === undefined) return null;
@@ -108,7 +133,69 @@ export function selectOpenSemanticLegacyOwnerStepsV1(input: {
     || !dependencyIsLocalAndOrdered
     || !componentsAreCommitted
   ) return null;
-  return { mode: "LOCAL_SCENE_SEQUENCE", steps };
+  return {
+    mode: "LOCAL_SCENE_SEQUENCE",
+    steps,
+    ownerDomain: communication.requiredDomain!,
+    targetRefs: [communication.targetRefs[0]!],
+    executionPolicy: "ORDERED"
+  };
+}
+
+function selectHomogeneousDialogueSequence(input: {
+  frame: AiOpenSemanticFrameV8;
+  steps: OpenSemanticExecutionStepV1[];
+}): OpenSemanticLegacyOwnerSelectionV1 | null {
+  if (input.steps.length < 2 || input.frame.globalConditions.length > 0) return null;
+  const componentById = new Map(
+    input.frame.components.map(component => [component.componentId, component])
+  );
+  const selectedIds = new Set(input.steps.map(step => step.componentId));
+  const actorRefs = [...new Set(input.steps.flatMap(step => step.targetRefs))];
+  if (
+    actorRefs.length !== 1
+    || !/^(?:npc|actor):/u.test(actorRefs[0] ?? "")
+  ) return null;
+  const targetRef = actorRefs[0]!;
+  const hasAtomicRelation = input.steps.some(step =>
+    step.disposition === "AWAITING_ATOMIC_GROUP_OWNER"
+  );
+  const compatible = input.steps.every((step, index) => {
+    const component = componentById.get(step.componentId);
+    const earlierIds = new Set(input.steps.slice(0, index).map(entry => entry.componentId));
+    return component !== undefined
+      && step.capabilityId === "scene.visible-dialogue"
+      && step.requiredDomain === "social"
+      && step.targetRefs.every(ref => ref === targetRef)
+      && component.dialogueAct !== null
+      && component.dialogueAct !== undefined
+      && component.commitment === "committed"
+      && component.alternativeGroupId === null
+      && component.supersedesComponentIds.length === 0
+      && (index === 0
+        ? component.relationToPrevious === "NONE"
+        : hasAtomicRelation
+          ? component.relationToPrevious === "SIMULTANEOUS"
+          : ["NONE", "THEN", "CONDITION_RESULT"].includes(component.relationToPrevious))
+      && component.simultaneousWithComponentIds.every(componentId =>
+        hasAtomicRelation && selectedIds.has(componentId)
+      )
+      && component.dependsOnComponentIds.every(dependencyId =>
+        selectedIds.has(dependencyId) && earlierIds.has(dependencyId)
+      );
+  });
+  const atomicLinkIsComplete = !hasAtomicRelation || input.steps.every(step =>
+    step.disposition === "AWAITING_ATOMIC_GROUP_OWNER"
+  );
+  return compatible && atomicLinkIsComplete
+    ? {
+        mode: "HOMOGENEOUS_DIALOGUE_SEQUENCE",
+        steps: input.steps,
+        ownerDomain: "social",
+        targetRefs: [targetRef],
+        executionPolicy: hasAtomicRelation ? "ATOMIC" : "ORDERED"
+      }
+    : null;
 }
 
 export interface OpenSemanticOwnerRequestV1 {
@@ -199,6 +286,9 @@ export function buildOpenSemanticExecutionPlanV1(input: {
           componentId: component.componentId,
           order: component.order,
           meaning: component.meaning,
+          informationNeed: component.informationNeed === undefined || component.informationNeed === null
+            ? null
+            : structuredClone(component.informationNeed),
           commitment: component.commitment,
           conditions: [...component.conditions],
           relationToPrevious: component.relationToPrevious,
@@ -342,6 +432,7 @@ export function validateOpenSemanticExecutionPlanV1(input: {
     if (step.componentId !== component.componentId) issues.push(`component ${index} identity mismatch`);
     if (step.order !== component.order) issues.push(`component ${component.componentId} order mismatch`);
     if (step.meaning !== component.meaning) issues.push(`component ${component.componentId} meaning mismatch`);
+    if (JSON.stringify(step.informationNeed) !== JSON.stringify(component.informationNeed ?? null)) issues.push(`component ${component.componentId} information need mismatch`);
     if (step.commitment !== component.commitment) issues.push(`component ${component.componentId} commitment mismatch`);
     if (JSON.stringify(step.conditions) !== JSON.stringify(component.conditions)) issues.push(`component ${component.componentId} conditions mismatch`);
     if (step.relationToPrevious !== component.relationToPrevious) issues.push(`component ${component.componentId} relation mismatch`);
@@ -380,7 +471,16 @@ function decideDisposition(input: {
   if (component.alternativeGroupId !== null || component.relationToPrevious === "ALTERNATIVE") {
     return { disposition: "AWAITING_PLAYER_CHOICE", reason: "Le joueur doit choisir entre les alternatives avant toute exécution." };
   }
-  if (component.commitment === "conditional" || component.commitment === "unclear" || component.conditions.length > 0 || input.frame.globalConditions.length > 0) {
+  const committedDialogueCarriesConditionsAsContent = component.commitment === "committed"
+    && component.dialogueAct !== null
+    && component.dialogueAct !== undefined
+    && input.capability?.capabilityId === "scene.visible-dialogue";
+  if (
+    component.commitment === "conditional"
+    || component.commitment === "unclear"
+    || (component.conditions.length > 0 && !committedDialogueCarriesConditionsAsContent)
+    || input.frame.globalConditions.length > 0
+  ) {
     return { disposition: "AWAITING_CONDITION", reason: "La condition reste sémantique et doit être établie par une décision explicite avant exécution." };
   }
   if (input.simultaneous.has(component.componentId) || component.relationToPrevious === "SIMULTANEOUS") {

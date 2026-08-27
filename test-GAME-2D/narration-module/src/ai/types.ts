@@ -187,6 +187,19 @@ export interface AiOpenSemanticComponentV8 {
     act: "INITIATE_CONVERSATION" | "ASK_QUESTION" | "MAKE_STATEMENT" | "REQUEST_ACTION" | "OTHER";
     contentGoal: string;
   } | null;
+  /** Required as object or null on new provider outputs; optional only for historical V8 replay compatibility. */
+  informationNeed?: AiInformationNeedV8 | null;
+}
+
+export interface AiInformationNeedV8 extends JsonObject {
+  schemaVersion: 1;
+  contractVersion: "information-need/1";
+  subjectMention: string;
+  proposedSubjectRef: string | null;
+  requestedDimension: string;
+  temporalScope: "CURRENT" | "PAST" | "FUTURE" | "UNSPECIFIED";
+  requestedAnswerShape: "IDENTITY" | "TITLE" | "LOCATION" | "PROCEDURE" | "DESCRIPTION" | "CAUSE" | "STATUS" | "OPEN";
+  sourceComponentId: string;
 }
 
 export interface AiSemanticPlayerIntentV2 {

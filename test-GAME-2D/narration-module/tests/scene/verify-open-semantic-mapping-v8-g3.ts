@@ -15,7 +15,10 @@ import { validateCanonicalIntentAuthorityV1 } from "../../src/application/intent
 import type { InterpreterRuntimeContextV1 } from "../../src/application/runtimeCapabilityRouting";
 
 class OpenFrameProvider implements ContractAiProviderV1 {
-  constructor(private readonly frame: AiOpenSemanticFrameV8) {}
+  constructor(
+    private readonly frame: AiOpenSemanticFrameV8,
+    private readonly rawInputEchoOverride: string | null = null
+  ) {}
 
   async generate(request: AiCallRequestV1): Promise<unknown> {
     const rawInput = (request.input.task as { rawInput: string }).rawInput;
@@ -29,16 +32,22 @@ class OpenFrameProvider implements ContractAiProviderV1 {
       snapshotId: request.snapshotId,
       role: request.role,
       status: "OK",
-      payload: { rawInputEcho: rawInput, semanticFrame: this.frame },
+      payload: {
+        rawInputEcho: this.rawInputEchoOverride ?? rawInput,
+        semanticFrame: this.frame
+      },
       diagnostics: [],
       supersedesOutputId: null
     } satisfies AiRoleOutputEnvelopeV1<AiSemanticIntentPayloadV8>;
   }
 }
 
-function config(frame: AiOpenSemanticFrameV8): AiIntentInterpreterConfigV1 {
+function config(
+  frame: AiOpenSemanticFrameV8,
+  rawInputEchoOverride: string | null = null
+): AiIntentInterpreterConfigV1 {
   return {
-    provider: new OpenFrameProvider(frame),
+    provider: new OpenFrameProvider(frame, rawInputEchoOverride),
     contractVersion: AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V8,
     route: {
       schemaVersion: 1,
@@ -122,14 +131,15 @@ async function interpret(
   rawInput: string,
   semanticFrame: AiOpenSemanticFrameV8,
   suffix: string,
-  runtimeContext?: InterpreterRuntimeContextV1
+  runtimeContext?: InterpreterRuntimeContextV1,
+  rawInputEchoOverride: string | null = null
 ) {
   return interpretNarrativeInputWithAiV1({
     campaignId: "campaign:g3-v8",
     operationId: `operation:g3-v8:${suffix}`,
     intentId: `intent:g3-v8:${suffix}`,
     rawInput,
-    config: config(semanticFrame),
+    config: config(semanticFrame, rawInputEchoOverride),
     runtimeContext
   });
 }
@@ -194,6 +204,39 @@ const tamperedRuntime = {
   }
 };
 assert.equal(validateCanonicalIntentAuthorityV1(tamperedRuntime).ok, false, "La projection legacy V8 ne peut jamais s'attribuer un domaine ou un commit.");
+
+const normalizedEcho = await interpret(
+  "trés bien, je lui explique qu'une personne m'attend dehors et projette de m'assassiner",
+  frame({
+    overallMeaning: "Le personnage explique au garde qu'une personne l'attend dehors avec l'intention de l'assassiner.",
+    overallCommitment: "committed",
+    globalConditions: [],
+    confidence: "high",
+    components: [{
+      ...frame().components[0],
+      componentId: "report-threat",
+      meaning: "Informer le garde de la menace extérieure.",
+      commitment: "committed",
+      quoted: false,
+      suggestedDomain: "social",
+      suggestedAction: "expliquer la menace au garde",
+      suggestedCapabilityId: "scene.visible-dialogue",
+      dialogueAct: {
+        act: "MAKE_STATEMENT",
+        contentGoal: "Informer le garde qu'une personne attend dehors pour assassiner le personnage."
+      }
+    }]
+  }),
+  "normalized-echo",
+  undefined,
+  "très bien, je lui explique qu'une personne m'attend dehors et projette de m'assassiner"
+);
+assert.equal(normalizedEcho.usedAiInterpretation, true);
+assert.equal(normalizedEcho.interpretationFailure, null);
+assert.match(
+  normalizedEcho.interpretation.safetyNotes.join("\n"),
+  /rawInputEcho diffère.+reste ignoré/u
+);
 
 const routedFrame = frame({
   overallMeaning: "Le personnage adresse une demande à l'interlocuteur.",

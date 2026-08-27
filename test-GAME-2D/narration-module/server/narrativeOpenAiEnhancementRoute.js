@@ -1312,7 +1312,7 @@ function buildSemanticIntentPayloadSchemaV8(request) {
                 "negated", "quoted", "relationToPrevious", "alternativeGroupId",
                 "dependsOnComponentIds", "simultaneousWithComponentIds",
                 "supersedesComponentIds", "mentionedTargets", "suggestedDomain",
-                "suggestedAction", "suggestedCapabilityId", "dialogueAct"
+                "suggestedAction", "suggestedCapabilityId", "dialogueAct", "informationNeed"
               ],
               properties: {
                 componentId: { type: "string", minLength: 1 },
@@ -1350,6 +1350,27 @@ function buildSemanticIntentPayloadSchemaV8(request) {
                     properties: {
                       act: { enum: ["INITIATE_CONVERSATION", "ASK_QUESTION", "MAKE_STATEMENT", "REQUEST_ACTION", "OTHER"] },
                       contentGoal: { type: "string", minLength: 1 }
+                    }
+                  }, { type: "null" }]
+                },
+                informationNeed: {
+                  anyOf: [{
+                    type: "object",
+                    additionalProperties: false,
+                    required: [
+                      "schemaVersion", "contractVersion", "subjectMention",
+                      "proposedSubjectRef", "requestedDimension", "temporalScope",
+                      "requestedAnswerShape", "sourceComponentId"
+                    ],
+                    properties: {
+                      schemaVersion: { enum: [1] },
+                      contractVersion: { enum: ["information-need/1"] },
+                      subjectMention: { type: "string", minLength: 1 },
+                      proposedSubjectRef: nullableOpenString,
+                      requestedDimension: { type: "string", minLength: 1 },
+                      temporalScope: { enum: ["CURRENT", "PAST", "FUTURE", "UNSPECIFIED"] },
+                      requestedAnswerShape: { enum: ["IDENTITY", "TITLE", "LOCATION", "PROCEDURE", "DESCRIPTION", "CAUSE", "STATUS", "OPEN"] },
+                      sourceComponentId: { type: "string", minLength: 1 }
                     }
                   }, { type: "null" }]
                 }
@@ -1742,12 +1763,14 @@ function buildRoleInstructions(request) {
         "components contient toutes les composantes exprimées dans leur ordre. Il n'existe aucune liste fermée d'actions qui limite meaning : toute intention comprise doit rester présente même si le runtime ne sait pas l'exécuter.",
         "suggestedAction reste une description naturelle et ouverte de l'action comprise; n'y place jamais un identifiant technique de capacité.",
         "Pour chaque composante de parole, renseigne dialogueAct selon le sens et le contexte : INITIATE_CONVERSATION pour ouvrir ou saluer, ASK_QUESTION pour demander une information, MAKE_STATEMENT pour affirmer ou répondre, REQUEST_ACTION pour demander qu'un interlocuteur agisse, OTHER seulement si aucune de ces natures ne convient. Utilise null hors parole. contentGoal conserve le contenu adressé sans inventer de propos.",
+        "Chaque composante fournit informationNeed. Utilise un objet uniquement pour une ASK_QUESTION qui demande un fait sur le monde, un acteur, un lieu, une procédure, un état, une cause ou une identité; sinon utilise null, notamment pour salutation, état personnel immédiat de l'interlocuteur, question rhétorique, déclaration, demande d'action et parole future conditionnelle. requestedDimension reste une description ouverte du fait recherché. proposedSubjectRef recopie seulement une référence publique fournie ou reste null. sourceComponentId recopie exactement componentId. Tu identifies le besoin mais ne réponds pas, ne recherches pas le lore et ne décides ni vérité, connaissance du PNJ, divulgation ou création.",
         "Pour chaque composante, compare son sens complet au playerFacingScope des entrées AVAILABLE ou HANDOFF_ONLY de runtimeCapabilities. Si une entrée couvre entièrement la composante, tu dois recopier son capabilityId exact dans suggestedCapabilityId et son domain dans suggestedDomain. La correspondance porte sur le sens et le périmètre, pas sur des mots identiques ni sur la forme de l'identifiant.",
         "Laisse suggestedCapabilityId à null uniquement lorsqu'aucune capacité publiée ne couvre entièrement la composante; conserve alors librement le sens, l'action et le domaine proposés. Le logiciel la gardera comprise mais non exécutable au lieu de la forcer dans une capacité proche.",
         "Ne fusionne pas deux composantes distinctes et n'en supprime aucune pour correspondre aux capacités actuelles du runtime.",
         "negated signifie que la composante est explicitement niée; quoted qu'elle est citée ou rapportée sans devenir automatiquement une volonté du joueur.",
         "Utilise relationToPrevious, alternativeGroupId, dependsOnComponentIds, simultaneousWithComponentIds et supersedesComponentIds pour préserver les liens réellement exprimés, jamais pour inventer une stratégie.",
         "Attache chaque condition uniquement aux composantes qu'elle gouverne selon le sens et la portée de la phrase. Une condition introduite après une composante indépendante ne doit jamais suspendre rétroactivement cette composante précédente; globalConditions ne contient que les conditions qui portent réellement sur tout le tour.",
+        "conditions contient uniquement ce qui décide si le personnage exécutera la composante. Une hypothèse ou subordonnée qui fait partie des mots prononcés, d'une question ou de son contentGoal ne suspend pas l'acte de parler : conserve-la dans meaning et dialogueAct.contentGoal avec commitment=committed et conditions=[]. Si le personnage ne parlera réellement que lorsqu'un événement futur survient, utilise commitment=conditional et renseigne conditions.",
         "proposedRef peut seulement recopier une référence du contexte public. Laisse null si la mention ne permet pas de choisir sans ambiguïté.",
         "La correspondance suggestedCapabilityId est une proposition sémantique obligatoire lorsqu'un playerFacingScope couvre entièrement la composante; elle n'est pas un routage définitif, car le runtime et le propriétaire local la valident encore. Tu n'as aucune autorité de commit, de temps, de coût, de disponibilité, de succès, de réaction PNJ ni de secret.",
         ...shared
@@ -2446,6 +2469,19 @@ function validateSemanticIntentPayloadV8(payload) {
       if (!Array.isArray(component.mentionedTargets) || component.mentionedTargets.some(target => !target || typeof target !== "object" || typeof target.surface !== "string" || !(target.proposedRef === null || typeof target.proposedRef === "string"))) issues.push("payload.semanticFrame.components mentionedTargets is invalid.");
       for (const key of ["suggestedDomain", "suggestedAction", "suggestedCapabilityId", "alternativeGroupId"]) if (!(component[key] === null || typeof component[key] === "string" && component[key].trim().length > 0)) issues.push(`payload.semanticFrame.components ${key} is invalid.`);
       if (!(component.dialogueAct === null || component.dialogueAct && typeof component.dialogueAct === "object" && ["INITIATE_CONVERSATION", "ASK_QUESTION", "MAKE_STATEMENT", "REQUEST_ACTION", "OTHER"].includes(component.dialogueAct.act) && typeof component.dialogueAct.contentGoal === "string" && component.dialogueAct.contentGoal.trim().length > 0)) issues.push("payload.semanticFrame.components dialogueAct is invalid.");
+      if (component.informationNeed !== undefined && !(component.informationNeed === null || component.informationNeed && typeof component.informationNeed === "object" && !Array.isArray(component.informationNeed))) {
+        issues.push("payload.semanticFrame.components informationNeed is invalid.");
+      } else if (component.informationNeed !== undefined && component.informationNeed !== null) {
+        const need = component.informationNeed;
+        if (need.schemaVersion !== 1 || need.contractVersion !== "information-need/1") issues.push("payload.semanticFrame.components informationNeed contract is invalid.");
+        if (typeof need.subjectMention !== "string" || need.subjectMention.trim().length === 0) issues.push("payload.semanticFrame.components informationNeed subjectMention is invalid.");
+        if (!(need.proposedSubjectRef === null || typeof need.proposedSubjectRef === "string" && need.proposedSubjectRef.trim().length > 0)) issues.push("payload.semanticFrame.components informationNeed proposedSubjectRef is invalid.");
+        if (typeof need.requestedDimension !== "string" || need.requestedDimension.trim().length === 0) issues.push("payload.semanticFrame.components informationNeed requestedDimension is invalid.");
+        if (!["CURRENT", "PAST", "FUTURE", "UNSPECIFIED"].includes(need.temporalScope)) issues.push("payload.semanticFrame.components informationNeed temporalScope is invalid.");
+        if (!["IDENTITY", "TITLE", "LOCATION", "PROCEDURE", "DESCRIPTION", "CAUSE", "STATUS", "OPEN"].includes(need.requestedAnswerShape)) issues.push("payload.semanticFrame.components informationNeed requestedAnswerShape is invalid.");
+        if (need.sourceComponentId !== component.componentId) issues.push("payload.semanticFrame.components informationNeed sourceComponentId must match componentId.");
+        if (!component.dialogueAct || component.dialogueAct.act !== "ASK_QUESTION") issues.push("payload.semanticFrame.components informationNeed requires ASK_QUESTION.");
+      }
     }
     if (frame.understandingStatus === "UNDERSTOOD" && frame.components.length === 0) issues.push("UNDERSTOOD requires at least one component.");
     for (const component of frame.components) {

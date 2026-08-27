@@ -57,6 +57,8 @@ export * from "./narrativeDesignation";
 export * from "./narrativeRenderProjection";
 export * from "./npcPerforming";
 export * from "./npcKnowledgeContext";
+export * from "./npcInformationResolution";
+export * from "./targetedLoreInformationLookup";
 export * from "./npcActorIdentity";
 export * from "./playableScene";
 export * from "./sceneReferentRegistry";

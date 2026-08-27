@@ -266,12 +266,98 @@ async function main(): Promise<void> {
       ]
     }
   };
+  const archiveQuestionAndStatementCase = {
+    ...archiveFollowUpCase,
+    caseId: "archives-guard-question-and-statement",
+    rawInput: "j'aimerais savoir si votre chef est ici, j'ai une information à lui communiquer",
+    frame: {
+      ...archiveFollowUpCase.frame,
+      overallMeaning: "Le personnage demande au clerc si son chef est présent et indique avoir une information à lui communiquer.",
+      components: [
+        {
+          ...archiveFollowUpCase.frame.components[0]!,
+          componentId: "ask-clerk-chief-presence",
+          order: 1,
+          meaning: "Demander au clerc si son chef est présent.",
+          relationToPrevious: "NONE" as const,
+          dependsOnComponentIds: [],
+          mentionedTargets: [
+            { surface: "votre chef", proposedRef: null },
+            { surface: "au clerc", proposedRef: "npc:archive-clerk" }
+          ],
+          dialogueAct: {
+            act: "ASK_QUESTION" as const,
+            contentGoal: "Savoir si le chef du clerc est présent."
+          }
+        },
+        {
+          ...archiveFollowUpCase.frame.components[0]!,
+          componentId: "state-information-for-chief",
+          order: 2,
+          meaning: "Indiquer au clerc qu'une information doit être communiquée à son chef.",
+          relationToPrevious: "CONDITION_RESULT" as const,
+          dependsOnComponentIds: [],
+          simultaneousWithComponentIds: [],
+          mentionedTargets: [{ surface: "lui", proposedRef: "npc:archive-clerk" }],
+          dialogueAct: {
+            act: "MAKE_STATEMENT" as const,
+            contentGoal: "Indiquer qu'une information doit être communiquée au chef du clerc."
+          }
+        }
+      ]
+    },
+    expected: {
+      ...archiveFollowUpCase.expected,
+      componentCommitments: ["committed" as const, "committed" as const],
+      relations: ["NONE" as const, "CONDITION_RESULT" as const],
+      dispositions: ["ROUTABLE" as const, "ROUTABLE" as const],
+      targetRefs: [["npc:archive-clerk"], ["npc:archive-clerk"]]
+    }
+  };
+  const archiveRhetoricalConditionCase = {
+    ...archiveQuestionAndStatementCase,
+    caseId: "archives-guard-rhetorical-condition",
+    rawInput: "je ne suis pas d'ici. si vous ne connaissez ou ne voulez pas parler, qui le fera ?",
+    frame: {
+      ...archiveQuestionAndStatementCase.frame,
+      overallMeaning: "Le personnage dit au garde qu'il n'est pas d'ici puis demande qui pourrait répondre si le garde ne sait pas ou ne souhaite pas parler.",
+      components: [
+        {
+          ...archiveQuestionAndStatementCase.frame.components[0]!,
+          componentId: "state-not-local",
+          meaning: "Dire au garde que le personnage n'est pas d'ici.",
+          dialogueAct: {
+            act: "MAKE_STATEMENT" as const,
+            contentGoal: "Préciser au garde que le personnage n'est pas d'ici."
+          }
+        },
+        {
+          ...archiveQuestionAndStatementCase.frame.components[1]!,
+          componentId: "ask-alternative-informant",
+          meaning: "Demander au garde qui pourrait répondre s'il ne sait pas ou ne souhaite pas parler.",
+          relationToPrevious: "THEN" as const,
+          conditions: ["Si le garde ne connaît pas la réponse ou ne souhaite pas en parler."],
+          dialogueAct: {
+            act: "ASK_QUESTION" as const,
+            contentGoal: "Demander qui pourrait répondre si le garde ne sait pas ou ne souhaite pas parler."
+          }
+        }
+      ]
+    },
+    expected: {
+      ...archiveQuestionAndStatementCase.expected,
+      relations: ["NONE" as const, "THEN" as const],
+      dispositions: ["ROUTABLE" as const, "ROUTABLE" as const]
+    }
+  };
   const archiveInterpreterConfig = createSimulatedOpenAiSemanticConfigG6([
     archiveCase,
     archiveFollowUpCase,
     archiveGreetingCase,
     archivePurposeGreetingCase,
-    archiveOrientationQuestionCase
+    archiveOrientationQuestionCase,
+    archiveQuestionAndStatementCase,
+    archiveRhetoricalConditionCase
   ]);
   const archiveProvider = archiveInterpreterConfig.provider as SimulatedOpenAiSemanticProviderG6;
   const archiveController = await createPrototypeNarrativeTurnControllerV1({
@@ -391,6 +477,66 @@ async function main(): Promise<void> {
     archiveOrientationQuestion.value.output.displayPacket.displayBlocks.filter(block => block.kind === "NPC_SPEECH").length,
     1,
     "orientation puis parole ne doit rendre qu'une seule réplique PNJ"
+  );
+
+  const archiveQuestionAndStatement = await archiveController.submit({
+    schemaVersion: 1,
+    clientRequestId: "g7-archives-question-and-statement",
+    rawInput: archiveQuestionAndStatementCase.rawInput
+  });
+  if (!archiveQuestionAndStatement.ok) throw new Error(archiveQuestionAndStatement.error.messageKey);
+  assert.equal(archiveQuestionAndStatement.value.output.resolution.resultKind, "COMMIT_APPLIED");
+  assert.equal(archiveQuestionAndStatement.value.output.domainCommand?.domain, "social");
+  assert.deepEqual(
+    archiveQuestionAndStatement.value.output.domainCommand?.targetRefs,
+    ["npc:archive-clerk"],
+    "la cible explicite du premier acte doit porter tout le groupe de dialogue"
+  );
+  assert.deepEqual(
+    archiveQuestionAndStatement.value.output.domainCommand?.payload.componentIds,
+    ["ask-clerk-chief-presence", "state-information-for-chief"]
+  );
+  assert.equal(archiveQuestionAndStatement.value.output.domainCommand?.payload.executionPolicy, "ORDERED");
+  assert.deepEqual(
+    (archiveQuestionAndStatement.value.output.domainCommand?.payload.orderedDialogueActs as Array<{ act: string }> | undefined)
+      ?.map(act => act.act),
+    ["ASK_QUESTION", "MAKE_STATEMENT"]
+  );
+  const questionAndStatementFidelity = archiveQuestionAndStatement.value.output.openSemanticFidelity as
+    { dialogueAct?: { act?: string } | null } | null;
+  assert.equal(
+    questionAndStatementFidelity?.dialogueAct?.act,
+    "OTHER",
+    "la projection V1 marque explicitement un acte composite sans perdre les actes V8 ordonnés"
+  );
+  assert.ok(archiveQuestionAndStatement.value.output.npcPerformance);
+  assert.doesNotMatch(
+    archiveQuestionAndStatement.value.output.displayPacket.displayBlocks
+      .find(block => block.kind === "GM_NARRATION")?.text ?? "",
+    /domaine propriétaire/iu
+  );
+
+  const archiveRhetoricalCondition = await archiveController.submit({
+    schemaVersion: 1,
+    clientRequestId: "g7-archives-rhetorical-condition",
+    rawInput: archiveRhetoricalConditionCase.rawInput
+  });
+  if (!archiveRhetoricalCondition.ok) throw new Error(archiveRhetoricalCondition.error.messageKey);
+  assert.equal(archiveRhetoricalCondition.value.output.resolution.resultKind, "COMMIT_APPLIED");
+  assert.equal(archiveRhetoricalCondition.value.output.domainCommand?.domain, "social");
+  assert.deepEqual(
+    archiveRhetoricalCondition.value.output.domainCommand?.targetRefs,
+    ["npc:archive-clerk"]
+  );
+  assert.deepEqual(
+    archiveRhetoricalCondition.value.output.domainCommand?.payload.conditions,
+    ["Si le garde ne connaît pas la réponse ou ne souhaite pas en parler."]
+  );
+  assert.ok(archiveRhetoricalCondition.value.output.npcPerformance);
+  assert.doesNotMatch(
+    archiveRhetoricalCondition.value.output.displayPacket.displayBlocks
+      .find(block => block.kind === "GM_NARRATION")?.text ?? "",
+    /domaine propriétaire/iu
   );
 
   let capturedOwnerInput: string | null = null;

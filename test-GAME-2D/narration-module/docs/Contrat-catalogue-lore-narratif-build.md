@@ -38,10 +38,17 @@ Le catalogue conserve :
 - un paquet `lore-influence-packet/1` par lieu ;
 - un budget maximal de 16 influences par paquet ;
 - les niveaux joueur `COMMUN` et `LOCAL` comme frontière explicite ;
+- les propriétés structurelles publiques nécessaires à une lecture factuelle :
+  type de gouvernance, siège du pouvoir, propriétaire principal et ancrages
+  géographiques des bâtiments ;
 - les dimensions non renseignées dans `unresolvedDimensions`.
 
 Il ne conserve ni texte source brut, ni proposition de connexion, ni topologie,
 ni commande de commit.
+
+L'index `facts` reste distinct des `fragments` descriptifs et n'entre jamais
+dans le classement des seize influences d'une scène. Ajouter un fait
+consultable ne peut donc pas évincer une ambiance ou une description existante.
 
 ## Interprétation de l'absence
 
@@ -71,6 +78,10 @@ résolues et reste bornée par la politique du rôle.
 
 Le wiki guide la création ; il ne devient ni un inventaire exhaustif du monde,
 ni une autorité d'exécution.
+
+Les références structurelles explicitement marquées `external:non_documente`
+restent absentes de l'index factuel : elles représentent un manque ouvert, pas
+une valeur pouvant être citée dans une réponse.
 
 Les changements validés en cours de partie ne réécrivent jamais ce catalogue.
 Le `CampaignFactDomain` les conserve dans
