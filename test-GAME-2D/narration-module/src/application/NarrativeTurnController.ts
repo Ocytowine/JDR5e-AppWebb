@@ -81,6 +81,8 @@ import { createInitialReferenceSceneStateV1, type ReferenceSceneStateV1 } from "
 import { applyPersistedSceneActorsV1 } from "./sceneActorRegistry";
 import { buildNarrativeDomainCommandV1, type NarrativeDomainCommandV1 } from "./domainCommands";
 import { buildOpenSemanticLegacyOwnerAdapterProjectionV1 } from "./openSemanticLegacyOwnerAdapter";
+import { applyOpenSemanticFidelityV1 } from "./openSemanticFidelity";
+import { shouldUseMjPlannerForNarrativeTurnV1 } from "./narrativeAiRoleStrategy";
 import { buildSceneArrivalAfterCommitV1, type SceneArrivalStateV1 } from "./sceneArrival";
 import type { DestinationPlausibilityDecisionV1 } from "./destinationPlausibility";
 import type { InventoryAccessResolutionResultV1 } from "./inventoryAccessAuthority";
@@ -150,6 +152,12 @@ import {
   type InterpreterCharacterContextResolverV1
 } from "./interpreterCharacterContext";
 import { loadPlayerPublicContextV1 } from "./playerPublicContext";
+import {
+  projectLocalInteractionFocusV1,
+  reconcileLocalInteractionFocusV1,
+  validateLocalInteractionFocusV1,
+  type LocalInteractionFocusV1
+} from "./localInteractionFocus";
 import type { RestProcessStateV1, RestSegmentActivityV1 } from "../handoff";
 import {
   SOCIAL_LOCAL_INITIATIVE_CONTRACT_V1,
@@ -434,6 +442,12 @@ export interface NarrativeTurnControllerOutputV1 extends JsonObject {
   aiTelemetry: AiCallTelemetryV1[];
 }
 
+export type NarrativeTurnControllerOutputWithInteractionFocusV1 =
+  NarrativeTurnControllerOutputV1 & {
+    localInteractionFocus: LocalInteractionFocusV1 | null;
+    closedLocalInteractionFocus: LocalInteractionFocusV1 | null;
+  };
+
 export interface NarrativeWorldSceneLocationResolverV1 {
   resolveLocationRefs(scene: PlayableSceneStateV1): string[] | Promise<string[]>;
 }
@@ -657,6 +671,7 @@ export class NarrativeTurnControllerV1 {
   private readonly runtimeBindings: CampaignRuntimeBindingsV1;
   private recentLocalReferents: LocalReferentHintV1[] = [];
   private recentSemanticTurns: RecentSemanticTurnV1[] = [];
+  private localInteractionFocus: LocalInteractionFocusV1 | null = null;
 
   constructor(options: NarrativeTurnControllerOptions) {
     this.repository = options.repository;
@@ -1363,6 +1378,7 @@ export class NarrativeTurnControllerV1 {
       if (!travel.ok) return travel;
       this.rememberLocalReferent(travel.value, activeScene);
       this.rememberSemanticTurn(travel.value);
+      this.rememberInteractionFocus(travel.value, activeScene);
       return {
         ok: true,
         value: {
@@ -1379,16 +1395,22 @@ export class NarrativeTurnControllerV1 {
         activeScene
       });
       if (!recovered.ok) return recovered;
+      const recoveredWithFocus = this.withProjectedInteractionFocus(
+        recovered.value,
+        activeScene,
+        input.rawInput
+      );
       const completed = await this.repository.completePresentation(
         received.value.operationId,
         "COMMITTED_DEGRADED",
         1,
-        recovered.value
+        recoveredWithFocus
       );
       if (!completed.ok) return completed;
-      this.rememberLocalReferent(recovered.value, activeScene);
-      this.rememberSemanticTurn(recovered.value);
-      return { ok: true, value: { operation: completed.value, output: recovered.value } };
+      this.rememberLocalReferent(recoveredWithFocus, activeScene);
+      this.rememberSemanticTurn(recoveredWithFocus);
+      this.rememberInteractionFocus(recoveredWithFocus, activeScene);
+      return { ok: true, value: { operation: completed.value, output: recoveredWithFocus } };
     }
     const hydratedSceneResult = await applyPersistedSceneActorsV1({
       repository: this.repository,
@@ -1409,6 +1431,10 @@ export class NarrativeTurnControllerV1 {
       return companionSceneResult;
     }
     activeScene = companionSceneResult.value;
+    this.localInteractionFocus = reconcileLocalInteractionFocusV1(
+      this.localInteractionFocus,
+      activeScene
+    );
 
     activateAiCallBudgetV1(received.value.operationId);
 
@@ -1423,6 +1449,9 @@ export class NarrativeTurnControllerV1 {
       npcPerformerConfig: this.npcPerformerConfig,
       localReferentHints: this.recentLocalReferents.filter(hint => hint.sceneId === activeScene.sceneId && hint.sceneVersion === activeScene.version),
       recentSemanticTurns: this.recentSemanticTurns,
+      localInteractionFocus: this.localInteractionFocus?.status === "ACTIVE"
+        ? this.localInteractionFocus
+        : null,
       interpreterCharacterContextResolver:
         this.interpreterCharacterContextResolver,
       sceneTransitionRuntime: this.sceneTransitionRuntime,
@@ -1444,13 +1473,18 @@ export class NarrativeTurnControllerV1 {
       return output;
     }
 
+    const outputWithFocus = this.withProjectedInteractionFocus(
+      output.value.output,
+      activeScene,
+      input.rawInput
+    );
     const completed = output.value.commit === null
-      ? await this.repository.completeWithoutCommit(received.value.operationId, 1, output.value.output)
-      : await this.repository.completePresentation(received.value.operationId, "COMMITTED_RENDERED", 1, output.value.output);
+      ? await this.repository.completeWithoutCommit(received.value.operationId, 1, outputWithFocus)
+      : await this.repository.completePresentation(received.value.operationId, "COMMITTED_RENDERED", 1, outputWithFocus);
     if (!completed.ok) return completed;
     const plotOutput = await this.completePostTurnPlot({
       operation: completed.value,
-      output: output.value.output,
+      output: outputWithFocus,
       rawInput: input.rawInput
     });
     if (!plotOutput.ok) return plotOutput;
@@ -1471,6 +1505,7 @@ export class NarrativeTurnControllerV1 {
     if (!travel.ok) return travel;
     this.rememberLocalReferent(travel.value, activeScene);
     this.rememberSemanticTurn(travel.value);
+    this.rememberInteractionFocus(travel.value, activeScene);
 
     return {
       ok: true,
@@ -2467,6 +2502,43 @@ export class NarrativeTurnControllerV1 {
     ].slice(0, 5);
   }
 
+  private withProjectedInteractionFocus(
+    output: NarrativeTurnControllerOutputV1,
+    activeScene: PlayableSceneStateV1,
+    rawInput: string
+  ): NarrativeTurnControllerOutputV1 {
+    const faithfulOutput = applyOpenSemanticFidelityV1({ output, rawInput });
+    const projection = projectLocalInteractionFocusV1({
+      previous: this.localInteractionFocus,
+      output: faithfulOutput,
+      activeScene
+    });
+    return {
+      ...faithfulOutput,
+      localInteractionFocus: projection.current,
+      closedLocalInteractionFocus: projection.closed
+    };
+  }
+
+  private rememberInteractionFocus(
+    output: NarrativeTurnControllerOutputV1,
+    activeScene: PlayableSceneStateV1
+  ): void {
+    if (Object.prototype.hasOwnProperty.call(output, "localInteractionFocus")) {
+      const persisted = (output as Partial<NarrativeTurnControllerOutputWithInteractionFocusV1>)
+        .localInteractionFocus ?? null;
+      this.localInteractionFocus = persisted !== null && validateLocalInteractionFocusV1(persisted).length === 0
+        ? reconcileLocalInteractionFocusV1(persisted, activeScene)
+        : null;
+      return;
+    }
+    this.localInteractionFocus = projectLocalInteractionFocusV1({
+      previous: this.localInteractionFocus,
+      output,
+      activeScene
+    }).current;
+  }
+
   private async restoreRecentInterpreterContext(): Promise<Result<null>> {
     const operations = await this.repository.listOperations(
       this.campaignId,
@@ -2493,9 +2565,11 @@ export class NarrativeTurnControllerV1 {
       );
     this.recentLocalReferents = [];
     this.recentSemanticTurns = [];
+    this.localInteractionFocus = null;
     for (const output of outputs) {
       this.rememberLocalReferent(output, output.activeScene);
       this.rememberSemanticTurn(output);
+      this.rememberInteractionFocus(output, output.activeScene);
     }
     return { ok: true, value: null };
   }
@@ -3010,6 +3084,7 @@ async function buildResolvedOutput(input: {
   npcPerformerConfig: NpcPerformerConfigV1 | null;
   localReferentHints?: LocalReferentHintV1[];
   recentSemanticTurns?: RecentSemanticTurnV1[];
+  localInteractionFocus?: LocalInteractionFocusV1 | null;
   interpreterCharacterContextResolver:
     InterpreterCharacterContextResolverV1 | null;
   sceneTransitionRuntime: NarrativeSceneTransitionRuntimeV1 | null;
@@ -3089,6 +3164,7 @@ async function buildResolvedOutput(input: {
       config: input.intentInterpreterConfig,
       localReferentHints: input.localReferentHints ?? [],
       recentSemanticTurns: input.recentSemanticTurns ?? [],
+      localInteractionFocus: input.localInteractionFocus ?? null,
       runtimeContext: buildInterpreterRuntimeContextV1({
         sceneTransition: input.sceneTransitionRuntime !== null,
         dynamicPlace: input.dynamicPlaceRuntime !== null,
@@ -3259,11 +3335,14 @@ async function buildResolvedOutput(input: {
     )
     || (
       planningCompanionTargetRef !== null
-      && activeCompanionRefs.includes(planningCompanionTargetRef)
+      && activeCompanionRefs.some(actorRef => actorRef === planningCompanionTargetRef)
     )
   );
   const planningStartedAt = Date.now();
-  const planning = input.mjPlannerConfig === null || (interpretation.semanticSource === "OPEN_SEMANTIC_FRAME_V8" && openSemanticOwnerAdapter === null) || dynamicPlaceCanHandle || travelCanHandle || inventoryAccessCanHandle || inventoryTransactionCanHandle || socialAccessCanHandle || rulesAccessCanHandle || tacticalAccessCanHandle || companionOwnerCanHandle
+  // V8 contient déjà son plan d'exécution G5. Le rejouer dans mj_planner
+  // consommerait un rôle sans autorité et empêcherait, sur les dialogues, le
+  // couple performer + critique de rester sous trois appels distants.
+  const planning = input.mjPlannerConfig === null || !shouldUseMjPlannerForNarrativeTurnV1(interpretation) || dynamicPlaceCanHandle || travelCanHandle || inventoryAccessCanHandle || inventoryTransactionCanHandle || socialAccessCanHandle || rulesAccessCanHandle || tacticalAccessCanHandle || companionOwnerCanHandle
     ? null
     : await planNarrativeTurnWithMjV1({
       campaignId: input.campaignId,
@@ -3452,7 +3531,7 @@ async function buildResolvedOutput(input: {
     };
     const displayPacket = applyNpcPerformanceToDisplayPacketV1({
       displayPacket: fallbackDisplayPacket,
-      performance: companionPerformance?.performance ?? null,
+      performance: companionPerformance?.performance ?? companionPerformance?.fallbackPerformance ?? null,
       performanceFailure: companionPerformance?.performanceFailure as (NpcPerformanceFailureV1 & JsonObject) | null ?? null,
       activeScene: input.activeScene
     });
@@ -3485,6 +3564,7 @@ async function buildResolvedOutput(input: {
       },
       aiTelemetry: [
         ...(interpretationResult?.telemetry ?? []),
+        ...(planning?.telemetry ?? []),
         ...(companionPerformance?.telemetry ?? [])
       ]
     } } };
@@ -3499,7 +3579,10 @@ async function buildResolvedOutput(input: {
       domainCommand,
       activeScene: input.activeScene,
       createdAt: input.createdAt,
-      aiTelemetry: interpretationResult?.telemetry ?? []
+      aiTelemetry: [
+        ...(interpretationResult?.telemetry ?? []),
+        ...(planning?.telemetry ?? [])
+      ]
     });
     if (!restResult.ok || openSemanticOwnerAdapter === null) return restResult;
     return {
@@ -3626,7 +3709,7 @@ async function buildResolvedOutput(input: {
             npcPerformanceMs: 0,
             resolvedOutputMs: Date.now() - resolvedOutputStartedAt
           },
-          aiTelemetry: [...(interpretationResult?.telemetry ?? [])]
+          aiTelemetry: [...(interpretationResult?.telemetry ?? []), ...(planning?.telemetry ?? [])]
         }
       }
     };
@@ -3724,7 +3807,7 @@ async function buildResolvedOutput(input: {
       activeScene: input.activeScene,
       displayPacket,
       stageTimings: { interpretationMs, planningMs, resolutionMs: Date.now() - resolutionStartedAt, npcPerformanceMs: 0, resolvedOutputMs: Date.now() - resolvedOutputStartedAt },
-      aiTelemetry: [...(interpretationResult?.telemetry ?? [])]
+      aiTelemetry: [...(interpretationResult?.telemetry ?? []), ...(planning?.telemetry ?? [])]
     } } };
   }
   if (
@@ -3808,7 +3891,7 @@ async function buildResolvedOutput(input: {
         : null,
       resolution: socialResolution, sceneState: createInitialReferenceSceneStateV1(), sceneArrival: null, activeScene: input.activeScene, displayPacket,
       stageTimings: { interpretationMs, planningMs, resolutionMs: Date.now() - resolutionStartedAt, npcPerformanceMs: 0, resolvedOutputMs: Date.now() - resolvedOutputStartedAt },
-      aiTelemetry: [...(interpretationResult?.telemetry ?? [])]
+      aiTelemetry: [...(interpretationResult?.telemetry ?? []), ...(planning?.telemetry ?? [])]
     } } };
   }
   if (
@@ -3907,7 +3990,7 @@ async function buildResolvedOutput(input: {
       activeScene: input.activeScene,
       displayPacket,
       stageTimings: { interpretationMs, planningMs, resolutionMs: Date.now() - resolutionStartedAt, npcPerformanceMs: 0, resolvedOutputMs: Date.now() - resolvedOutputStartedAt },
-      aiTelemetry: [...(interpretationResult?.telemetry ?? [])]
+      aiTelemetry: [...(interpretationResult?.telemetry ?? []), ...(planning?.telemetry ?? [])]
     } } };
   }
 
@@ -3993,7 +4076,7 @@ async function buildResolvedOutput(input: {
       activeScene: input.activeScene,
       displayPacket,
       stageTimings: { interpretationMs, planningMs, resolutionMs: Date.now() - resolutionStartedAt, npcPerformanceMs: 0, resolvedOutputMs: Date.now() - resolvedOutputStartedAt },
-      aiTelemetry: [...(interpretationResult?.telemetry ?? [])]
+      aiTelemetry: [...(interpretationResult?.telemetry ?? []), ...(planning?.telemetry ?? [])]
     } } };
   }
   if (
@@ -4146,7 +4229,7 @@ async function buildResolvedOutput(input: {
             npcPerformanceMs: 0,
             resolvedOutputMs: Date.now() - resolvedOutputStartedAt
           },
-          aiTelemetry: [...(interpretationResult?.telemetry ?? []), ...(transition.value.aiTelemetry ?? [])]
+          aiTelemetry: [...(interpretationResult?.telemetry ?? []), ...(planning?.telemetry ?? []), ...(transition.value.aiTelemetry ?? [])]
         }
       }
     };
@@ -4163,9 +4246,7 @@ async function buildResolvedOutput(input: {
     playerPublicContext: playerPublicContextResult.value
   });
   if (!resolution.ok) return resolution;
-  const canonicalResolutionResult = openSemanticOwnerAdapter === null
-    ? resolution.value.result
-    : { ...resolution.value.result, interpretation };
+  const canonicalResolutionResult = resolution.value.result;
   const canonicalResolutionDisplay = openSemanticOwnerAdapter === null
     ? resolution.value.displayPacket
     : restoreOriginalPlayerInputV1(
@@ -4199,7 +4280,7 @@ async function buildResolvedOutput(input: {
   const npcPerformanceMs = Date.now() - npcPerformanceStartedAt;
   let displayPacket = applyNpcPerformanceToDisplayPacketV1({
     displayPacket: canonicalResolutionDisplay,
-    performance: npcPerformance?.performance ?? null,
+    performance: npcPerformance?.performance ?? npcPerformance?.fallbackPerformance ?? null,
     performanceFailure: npcPerformance?.performanceFailure as (NpcPerformanceFailureV1 & JsonObject) | null ?? null,
     activeScene: resolution.value.playableScene
   });
@@ -4242,6 +4323,7 @@ async function buildResolvedOutput(input: {
         },
         aiTelemetry: [
           ...(interpretationResult?.telemetry ?? []),
+          ...(planning?.telemetry ?? []),
           ...(npcPerformance?.telemetry ?? [])
         ]
       }
@@ -4270,7 +4352,7 @@ function buildDestinationDecisionControllerResult(input: {
   input: Parameters<typeof buildResolvedOutput>[0];
   interpretation: NarrativeIntentInterpretationV1 & JsonObject;
   domainCommand: NarrativeDomainCommandV1 | null;
-  planning: { plan: (MjPlannerPayloadV1 & JsonObject) | null; planningFailure: MjPlanningFailureV1 | null } | null;
+  planning: { plan: (MjPlannerPayloadV1 & JsonObject) | null; planningFailure: MjPlanningFailureV1 | null; telemetry: AiCallTelemetryV1[] } | null;
   interpretationResult: { telemetry: AiCallTelemetryV1[] } | null;
   interpretationMs: number;
   planningMs: number;
@@ -4374,7 +4456,7 @@ function buildDestinationDecisionControllerResult(input: {
           npcPerformanceMs: 0,
           resolvedOutputMs: Date.now() - input.resolvedOutputStartedAt
         },
-        aiTelemetry: [...(input.interpretationResult?.telemetry ?? []), ...input.aiTelemetry]
+        aiTelemetry: [...(input.interpretationResult?.telemetry ?? []), ...(input.planning?.telemetry ?? []), ...input.aiTelemetry]
       }
     }
   };
@@ -4498,7 +4580,7 @@ function buildSceneChangeControllerResult(input: {
   input: Parameters<typeof buildResolvedOutput>[0];
   interpretation: NarrativeIntentInterpretationV1 & JsonObject;
   domainCommand: NarrativeDomainCommandV1 | null;
-  planning: { plan: (MjPlannerPayloadV1 & JsonObject) | null; planningFailure: MjPlanningFailureV1 | null } | null;
+  planning: { plan: (MjPlannerPayloadV1 & JsonObject) | null; planningFailure: MjPlanningFailureV1 | null; telemetry: AiCallTelemetryV1[] } | null;
   interpretationResult: { telemetry: AiCallTelemetryV1[] } | null;
   interpretationMs: number;
   planningMs: number;
@@ -4570,7 +4652,7 @@ function buildSceneChangeControllerResult(input: {
           npcPerformanceMs: 0,
           resolvedOutputMs: Date.now() - input.resolvedOutputStartedAt
         },
-        aiTelemetry: [...(input.interpretationResult?.telemetry ?? []), ...(input.change.aiTelemetry ?? [])]
+        aiTelemetry: [...(input.interpretationResult?.telemetry ?? []), ...(input.planning?.telemetry ?? []), ...(input.change.aiTelemetry ?? [])]
       }
     }
   };

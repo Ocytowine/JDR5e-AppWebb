@@ -27,6 +27,7 @@ Le registre `narrative-runtime-capability-registry/1` déclare un identifiant st
 | Capacité | Intentions | Domaine | Commande | Commit |
 |---|---|---|---|---|
 | `scene.visible-actor-approach` | approche près d'un acteur visible | `scene_resolution` | `SCENE_INTERACTION` | validation du domaine |
+| `scene.visible-actor-orientation` | orientation de l'attention ou du corps vers un acteur visible | `scene_resolution` | `SCENE_INTERACTION` | validation du domaine |
 | `scene.visible-object-interaction` | manipulation d'un objet visible | `scene_resolution` | `SCENE_INTERACTION` | validation du domaine |
 | `scene.visible-nonverbal-signal` | signal non verbal à un acteur visible | `scene_resolution` | `SCENE_INTERACTION` | validation du domaine |
 | `scene.visible-dialogue` | adresse à un acteur visible | `social` | `SPEECH` | validation du domaine |

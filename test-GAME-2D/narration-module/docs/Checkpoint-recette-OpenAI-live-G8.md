@@ -117,6 +117,36 @@ npm run narration-module:test:open-semantic-live-g8:remaining
 Elle produit un appel OpenAI et ne doit pas être relancée sans nouvel accord.
 Le corpus élargi reste postérieur à l'observation UI ciblée.
 
+Le quatrième retour manuel portait sur « je m'approche du clerc, et je le
+salue ». Le diagnostic montre une interprétation OpenAI correcte et sûre : deux
+composantes `ROUTABLE`, le même PNJ résolu, une relation `THEN` et les capacités
+`scene.visible-actor-approach` puis `scene.visible-nonverbal-signal`. Le handoff
+venait exclusivement du pont V1, qui refusait auparavant tout plan comportant
+plus d'une composante. Ce pont accepte désormais cette micro-séquence précise
+comme une interaction locale ordonnée et atomique, sans lecture du texte brut.
+Il continue de refuser les séquences conditionnelles, simultanées,
+multi-cibles ou multi-domaines. Une régression reproduit la phrase et vérifie
+le commit, l'ordre des capacités et l'absence de vocabulaire technique dans la
+narration de repli.
+
+Le même diagnostic a révélé un `OPENAI_OUTPUT_INCOMPLETE` du `scene_writer`
+arrivé au plafond de 1 500 jetons. Le budget produit et sa validation serveur
+passent à 2 500 jetons. Cette marge concerne uniquement le rendu narratif sous
+schéma strict et ne lui donne aucune autorité de résolution supplémentaire.
+
+Le cinquième retour manuel, « je m'approche du clerc afin de le saluer », a de
+nouveau produit un cadre `UNDERSTOOD` à haute confiance, avec les deux bonnes
+composantes, la bonne cible et le bon ordre. OpenAI a cette fois choisi
+`scene.visible-dialogue` pour la salutation, mais a laissé `scene_resolution`
+dans le champ indicatif `suggestedDomain`; le registre publie cette capacité
+avec le propriétaire `social`. Le plan rejetait auparavant cette divergence
+redondante malgré l'identifiant exact. Désormais, l'identifiant de capacité
+reste la sélection sémantique d'OpenAI et le registre local fournit son domaine
+autoritaire. Le domaine suggéré est conservé séparément dans le plan pour audit.
+La micro-séquence accepte donc approche puis dialogue vers le même acteur, tout
+en maintenant les refus sur capacité inconnue, condition, simultanéité, autre
+cible ou composition métier indépendante.
+
 ## Contre-recette finale autorisée
 
 Le budget supplémentaire d'un appel a été consommé le 2026-08-25. La route et

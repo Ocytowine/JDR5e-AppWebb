@@ -90,7 +90,7 @@ export function buildOpenAiNpcPerformerConfigV1(endpoint?: string): NpcPerformer
       modelConfigVersion: "i06zk",
       certified: true,
       allowedContractVersions: [NPC_PERFORMER_CONTRACT_VERSION_V1],
-      inputTokenLimit: 2_000,
+      inputTokenLimit: 8_000,
       outputTokenLimit: 2_000,
       timeoutMs: 30_000,
       fallbackRouteIds: []

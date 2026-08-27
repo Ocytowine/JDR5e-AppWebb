@@ -6,6 +6,7 @@ import type {
 import {
   buildOpenSemanticExecutionPlanV1,
   executeOpenSemanticPlanV1,
+  selectOpenSemanticLegacyOwnerStepsV1,
   type OpenSemanticOwnerPortV1
 } from "../../src/application/openSemanticExecution";
 import type { InterpreterRuntimeContextV1 } from "../../src/application/runtimeCapabilityRouting";
@@ -19,6 +20,12 @@ const runtimeContext: InterpreterRuntimeContextV1 = {
       domain: "scene_resolution",
       availability: "AVAILABLE",
       playerFacingScope: "Interaction locale visible."
+    },
+    {
+      capabilityId: "scene.visible-actor-orientation",
+      domain: "scene_resolution",
+      availability: "AVAILABLE",
+      playerFacingScope: "Orienter son attention vers un acteur visible."
     },
     {
       capabilityId: "scene.visible-dialogue",
@@ -209,7 +216,45 @@ async function main(): Promise<void> {
     component("step-1", 1, "inventory", "scene.visible-dialogue")
   ]);
   const mismatch = buildOpenSemanticExecutionPlanV1({ frame: misleadingFrame, runtimeContext });
-  assert.equal(mismatch.steps[0]?.disposition, "UNDERSTOOD_UNSUPPORTED", "Le domaine et la capacité doivent correspondre exactement; le texte de meaning n'est jamais relu.");
+  assert.equal(mismatch.steps[0]?.disposition, "ROUTABLE", "Une capacité publique exacte doit retrouver son propriétaire dans le registre, sans dépendre d'un domaine IA redondant.");
+  assert.equal(mismatch.steps[0]?.suggestedDomain, "inventory");
+  assert.equal(mismatch.steps[0]?.requiredDomain, "social");
+
+  const archiveActor = "npc:wiki-location:archives_de_lysenthe:ambient:1";
+  const orientationFrame = frame([
+    component("step-1", 1, "scene_resolution", "scene.visible-actor-orientation", {
+      mentionedTargets: [{ surface: "l'archiviste", proposedRef: archiveActor }]
+    }),
+    component("step-2", 2, "social", "scene.visible-dialogue", {
+      mentionedTargets: [{ surface: "lui", proposedRef: archiveActor }],
+      dialogueAct: { act: "ASK_QUESTION", contentGoal: "Comprendre le classement des actes." }
+    })
+  ]);
+  const orientationPlan = buildOpenSemanticExecutionPlanV1({ frame: orientationFrame, runtimeContext });
+  const orientationSelection = selectOpenSemanticLegacyOwnerStepsV1({
+    frame: orientationFrame,
+    plan: orientationPlan
+  });
+  assert.equal(orientationSelection?.mode, "LOCAL_SCENE_SEQUENCE");
+  assert.deepEqual(
+    orientationSelection?.steps.map(step => step.capabilityId),
+    ["scene.visible-actor-orientation", "scene.visible-dialogue"]
+  );
+
+  const unknownStagingFrame = frame([
+    component("step-1", 1, "scene_resolution", null, {
+      mentionedTargets: [{ surface: "l'archiviste", proposedRef: archiveActor }]
+    }),
+    component("step-2", 2, "social", "scene.visible-dialogue", {
+      mentionedTargets: [{ surface: "lui", proposedRef: archiveActor }]
+    })
+  ]);
+  const unknownStagingPlan = buildOpenSemanticExecutionPlanV1({ frame: unknownStagingFrame, runtimeContext });
+  assert.equal(
+    selectOpenSemanticLegacyOwnerStepsV1({ frame: unknownStagingFrame, plan: unknownStagingPlan }),
+    null,
+    "une action sans capacité exacte ne doit jamais être absorbée comme simple orientation"
+  );
 
   const tamperCalls: string[] = [];
   const tampered = structuredClone(plan);

@@ -1,6 +1,6 @@
 # État actuel et feuille de route unique du module narration
 
-Date de référence : 2026-08-24
+Date de référence : 2026-08-26
 
 Statut : `SOURCE_CANONIQUE_ACTIVE`
 
@@ -614,7 +614,7 @@ opportunément `GameBoard`.
 
 ### J10 — Intégration narrative immersive
 
-Statut : `J10-A À J10-G7 FERMÉS — G8 PARTIEL, OBSERVATION UI CIBLÉE`
+Statut : `J10-A À J10-G7 FERMÉS — G8 PARTIEL — J10-H OUVERT`
 
 J10 est le prochain lot produit. Il rend la verticale J1 à J9 entièrement
 pilotable depuis la saisie narrative sans carte de voyage, panneau de commande
@@ -700,6 +700,36 @@ recette a exposé une ellipse sortie de l'échange actif et une condition étend
 ces portées. La contre-recette finale retourne une clarification V8 sûre ; la
 fluidité des tours naturels doit maintenant être évaluée dans la vraie UI sans
 attendre l'exécution du coordinateur multi-domaines encore absent.
+
+J10-H est ouvert le 2026-08-26 après l'analyse approfondie des premiers tours
+manuels G8. Il traite dans cet ordre la baseline de tests, le verrou de
+soumission UI, un focus local persistant et borné, la fidélité du cadre V8
+jusqu'aux reçus propriétaires, la résilience des rôles OpenAI, l'exactitude des
+diagnostics puis la certification transverse. Le focus aide l'interpréteur à
+comprendre un pronom ou une ellipse, mais ne décide jamais d'un transfert
+d'inventaire, d'un engagement social, d'une vérité d'intrigue, d'un temps de
+voyage ou d'un handoff tactique. Les domaines J3 à J8 conservent intégralement
+leurs autorités et doivent tous rester verts avant une nouvelle recette live.
+Le détail approuvé, les dépendances et la matrice d'impact sont dans
+[`Plan-correction-fiabilite-tour-narratif-J10H.md`](Plan-correction-fiabilite-tour-narratif-J10H.md).
+J10-H0 à J10-H7 sont fermés : les recettes V8 sont fiables, la soumission UI
+est idempotente et `local-interaction-focus/1` conserve explicitement une
+attention ou conversation locale après reload. Le focus est public, borné par
+scène et sans autorité métier. Le reçu de fidélité distingue désormais le cadre
+V8 original de la projection propriétaire, conserve expression brute, cible,
+acte, ordre et provenance, sans transmettre le texte brut aux propriétaires.
+L'orchestration V8 évite désormais le planner redondant, reste sous trois rôles,
+mesure le paquet performer et conserve un fallback immersif séparé de toute
+performance acceptée. Le diagnostic développeur distingue interprétation,
+routage, résolution et présentation, attribue les échecs et expose les budgets
+et usages réels sans polluer le fil fictionnel. La certification transverse
+réunit désormais dialogue, intrigue, mission, compagnon, inventaire, voyage,
+repos, monde et tactique ; Chromium, IndexedDB, migrations, rejeux et build sont
+verts. La recette OpenAI live finale certifie approche et salutation, focus
+pronominal après reload, changement d'interlocuteur et transition propriétaire.
+Elle a fermé les derniers écarts de performer, diagnostic, orientation et
+doublon de rendu ; les preuves sont dans
+[`Checkpoint-recette-OpenAI-live-J10H7.md`](Checkpoint-recette-OpenAI-live-J10H7.md).
 
 Le compagnon tactique, la génération de carte et le placement multi-acteurs
 appartiennent au futur chantier tactique décrit par le guide J8. Leur absence ne

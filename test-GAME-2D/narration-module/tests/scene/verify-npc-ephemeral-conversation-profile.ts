@@ -5,6 +5,10 @@ import {
   createDefaultNpcPerformerConfigV1,
   createPrototypeNarrativeTurnControllerV1
 } from "../../src/application";
+import {
+  createConversationSemanticConfigH0,
+  dialogueFixtureH0
+} from "../fixtures/conversation-semantic-fixtures-h0";
 
 interface CapturedProfileContract {
   expectedProfileId: string;
@@ -70,7 +74,38 @@ async function main(): Promise<void> {
     }
   };
   const base = createDefaultNpcPerformerConfigV1();
+  const intentInterpreterConfig = createConversationSemanticConfigH0([
+    dialogueFixtureH0({
+      fixtureId: "profile-waitress-greeting",
+      rawInput: "Je dis bonjour à la serveuse.",
+      meaning: "Le personnage salue la serveuse nerveuse.",
+      targetRef: "npc:npc-serveuse-nerveuse",
+      targetSurface: "la serveuse"
+    }),
+    dialogueFixtureH0({
+      fixtureId: "profile-waitress-rain",
+      rawInput: "Je demande à la serveuse si elle aime la pluie.",
+      meaning: "Le personnage demande à la serveuse nerveuse si elle aime la pluie.",
+      targetRef: "npc:npc-serveuse-nerveuse",
+      targetSurface: "la serveuse"
+    }),
+    dialogueFixtureH0({
+      fixtureId: "profile-waitress-calm",
+      rawInput: "Je demande à la serveuse ce qu'elle pense du calme de la salle.",
+      meaning: "Le personnage demande à la serveuse nerveuse ce qu'elle pense du calme de la salle.",
+      targetRef: "npc:npc-serveuse-nerveuse",
+      targetSurface: "la serveuse"
+    }),
+    dialogueFixtureH0({
+      fixtureId: "profile-guard-silence",
+      rawInput: "Je demande au garde s'il préfère le silence.",
+      meaning: "Le personnage demande au garde blessé s'il préfère le silence.",
+      targetRef: "npc:npc-garde-blesse",
+      targetSurface: "le garde"
+    })
+  ]);
   const controller = await createPrototypeNarrativeTurnControllerV1({
+    intentInterpreterConfig,
     npcPerformerConfig: { ...base, provider }
   });
 
@@ -92,6 +127,10 @@ async function main(): Promise<void> {
   });
   if (!rejected.ok) throw new Error(rejected.error.messageKey);
   assert.equal(rejected.value.output.npcPerformance, null, "un profil durable proposé par le modèle doit invalider toute la performance");
+  const rejectedFallbackSpeech = rejected.value.output.displayPacket.displayBlocks
+    .find(block => block.kind === "NPC_SPEECH")?.text ?? "";
+  assert.match(rejectedFallbackSpeech, /attentive|entendu|question|confirmer|vérifié/iu, "H4 conserve une réaction immersive fondée sur l'acte structuré disponible");
+  assert.doesNotMatch(rejectedFallbackSpeech, /OpenAI|runtime|moteur|fallback|intention canonique/iu, "le fallback joueur ne doit contenir aucune notice technique");
   assert.equal(
     rejected.value.output.npcPerformanceFailure?.issues.some(issue => /conversationProfile\.durable/u.test(issue)),
     true

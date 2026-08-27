@@ -1,6 +1,6 @@
 # Recette manuelle UI après G8
 
-Date : 2026-08-25  
+Date : 2026-08-26
 Statut : `PRÊTE — OBSERVATION PRODUIT CIBLÉE`
 
 ## But
@@ -28,6 +28,20 @@ Pour chaque essai, conserver la phrase exacte, la réponse visible et les quatre
    rapprochement dans la fiction. Aucune demande de reformulation, parole ou
    réaction automatique du clerc ; aucun terme technique comme « moteur »,
    « capacité », « commit » ou « action enregistrée » dans le fil joueur.
+
+0 bis. **Approche et salutation composées** — aux Archives : « je m'approche du
+   clerc, et je le salue ».
+   Attendu : l'approche et la salutation du même clerc sont conservées dans cet
+   ordre, racontées dans la fiction et validées comme une seule interaction
+   locale bornée. Aucun handoff vers un « domaine propriétaire ». Une réaction
+   visible du clerc peut être narrée, mais aucun dialogue prononcé ne doit être
+   inventé si OpenAI a compris la salutation comme non verbale.
+
+0 ter. **Même intention, liaison de but** — « je m'approche du clerc afin de le
+   saluer ».
+   Attendu : même continuité immersive. Si OpenAI choisit la capacité exacte de
+   dialogue mais fournit un domaine indicatif différent, le registre local doit
+   retrouver le propriétaire social de cette capacité ; aucun handoff technique.
 
 1. **Dialogue direct** — « Je demande au garde ce qui s'est passé ici. »  
    Attendu : la demande reste adressée au garde. Aucun succès social ou fait
@@ -61,7 +75,8 @@ Pour chaque essai, conserver la phrase exacte, la réponse visible et les quatre
 
 ## Tests inutiles ou trompeurs à ce stade
 
-- exiger l'exécution complète d'une longue phrase multi-domaines : le
+- exiger l'exécution complète d'une longue phrase multi-domaines ou
+  multi-cibles : le
   coordinateur atomique reste volontairement absent ;
 - tester carte de voyage, placement tactique ou contrôle direct des compagnons ;
 - chercher des mots déclencheurs précis ou comparer la prose exacte ;

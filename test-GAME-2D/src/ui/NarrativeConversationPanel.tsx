@@ -7,18 +7,12 @@ import type {
 import type { PendingNarrativeSkillCheckV1 } from "../../narration-module/src/application";
 import type { RestProcessStateV1 } from "../../narration-module/src/handoff";
 
-export interface NarrativeSubmitPayloadV1 {
-  schemaVersion: 1;
-  clientRequestId: string;
-  rawInput: string;
-}
-
 export interface NarrativeConversationPanelProps {
   packets: DisplayPacketV1[];
   developerMode?: boolean;
   pending?: boolean;
   title?: string;
-  onSubmit?: (payload: NarrativeSubmitPayloadV1) => void;
+  onSubmit?: (rawInput: string) => void | Promise<void>;
   pendingSkillCheck?: PendingNarrativeSkillCheckV1 | null;
   rollingSkillCheck?: boolean;
   onRollSkillCheck?: (pending: PendingNarrativeSkillCheckV1) => void;
@@ -232,11 +226,7 @@ export function NarrativeConversationPanel(props: NarrativeConversationPanelProp
     event.preventDefault();
     const rawInput = draft.trim();
     if (!rawInput || pending || pendingSkillCheck !== null || activeRestProcess !== null || !onSubmit) return;
-    onSubmit({
-      schemaVersion: 1,
-      clientRequestId: createNarrativeClientRequestId(),
-      rawInput
-    });
+    void onSubmit(rawInput);
     setDraft("");
   }
 

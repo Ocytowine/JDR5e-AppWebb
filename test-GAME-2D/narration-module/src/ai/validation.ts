@@ -1208,7 +1208,8 @@ function validateSemanticIntentPayloadV8(payload: unknown): string[] {
         "alternativeGroupId", "commitment", "componentId", "conditions",
         "dependsOnComponentIds", "meaning", "mentionedTargets", "negated", "order",
         "quoted", "relationToPrevious", "simultaneousWithComponentIds",
-        "suggestedAction", "suggestedCapabilityId", "suggestedDomain", "supersedesComponentIds"
+        "suggestedAction", "suggestedCapabilityId", "suggestedDomain", "supersedesComponentIds",
+        ...(Object.prototype.hasOwnProperty.call(component, "dialogueAct") ? ["dialogueAct"] : [])
       ], path));
       issues.push(...validateNonEmptyString(component.componentId, `${path}.componentId`));
       issues.push(...validateNonEmptyString(component.meaning, `${path}.meaning`));
@@ -1241,6 +1242,14 @@ function validateSemanticIntentPayloadV8(payload: unknown): string[] {
       });
       for (const key of ["suggestedDomain", "suggestedAction", "suggestedCapabilityId"] as const) {
         if (!(component[key] === null || typeof component[key] === "string" && component[key]!.trim().length > 0)) issues.push(`${path}.${key}: expected null or non-empty string`);
+      }
+      if (component.dialogueAct !== undefined && component.dialogueAct !== null) {
+        if (!isObject(component.dialogueAct)) issues.push(`${path}.dialogueAct: expected object or null`);
+        else {
+          issues.push(...exactKeys(component.dialogueAct, ["act", "contentGoal"], `${path}.dialogueAct`));
+          if (!["INITIATE_CONVERSATION", "ASK_QUESTION", "MAKE_STATEMENT", "REQUEST_ACTION", "OTHER"].includes(String(component.dialogueAct.act))) issues.push(`${path}.dialogueAct.act: invalid dialogue act`);
+          issues.push(...validateNonEmptyString(component.dialogueAct.contentGoal, `${path}.dialogueAct.contentGoal`));
+        }
       }
     });
     if (frame.understandingStatus === "UNDERSTOOD" && frame.components.length === 0) issues.push("payload.semanticFrame.components: UNDERSTOOD requires at least one component");

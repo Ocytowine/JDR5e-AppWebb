@@ -438,6 +438,8 @@ export function buildDeterministicResolution(
 
   if (domainCommand?.commandType === "SCENE_SPEECH_REQUEST") {
     const expression = buildCharacterExpression(rawInput, interpretation);
+    const speechTarget = interpretation.referentResolution?.resolvedTarget
+      ?? interpretation.semanticIntent.target;
     return {
       ...base,
       resultKind: "COMMIT_PREPARED",
@@ -446,7 +448,7 @@ export function buildDeterministicResolution(
         schemaVersion: 1,
         effectId: `${operation.operationId}:effect:speech:1`,
         effectType: "SPEECH_ACT_RECORDED",
-        targetRef: "scene:prototype-narration-surface",
+        targetRef: speechTarget?.ref ?? "scene:prototype-narration-surface",
         summary: "Acte de parole joueur enregistré dans le journal social borné.",
         commitEligible: true,
         sourceCommandId: domainCommand.commandId

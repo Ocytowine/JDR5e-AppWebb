@@ -27,16 +27,26 @@ exactement :
 Outputs borne uniquement `suggestedCapabilityId` aux capacités publiées et à
 `null`; il ne transforme donc pas la compréhension en liste fermée d'actions.
 
-Le registre route seulement si ces deux valeurs correspondent exactement à la
-même capacité publiée. Il n'analyse ni `meaning`, ni la saisie brute, ni des
-synonymes. Une suggestion ouverte ou inconnue reste
+Le registre route seulement si `suggestedCapabilityId` correspond exactement à
+une capacité publiée. Le domaine propriétaire est alors relu dans le registre,
+qui constitue l'autorité de routage ; `suggestedDomain` reste conservé dans le
+plan pour audit, mais son éventuelle divergence ne neutralise pas un identifiant
+de capacité exact. Le registre n'analyse ni `meaning`, ni la saisie brute, ni
+des synonymes. Une suggestion ouverte ou inconnue reste
 `UNDERSTOOD_UNSUPPORTED`; elle n'est jamais rapprochée d'une capacité voisine.
 
-Les interactions locales publiées distinguent l'approche d'un acteur, la
-manipulation d'un objet et le signal non verbal. Ce découpage ne ferme pas le
+Les interactions locales publiées distinguent l'approche d'un acteur,
+l'orientation de l'attention ou du corps vers lui, la manipulation d'un objet
+et le signal non verbal. Ce découpage ne ferme pas le
 sens compris : il donne seulement au pont propriétaire une information
 d'exécution suffisamment précise pour ne pas dégrader une approche en
 manipulation générique.
+
+Le pont V1 accepte une micro-séquence locale « mise en attention puis
+communication » uniquement lorsque l'approche ou l'orientation possède sa
+capacité exacte, que la communication vise le même acteur résolu et que l'ordre
+structuré est compatible. Une composante inconnue n'est jamais absorbée comme
+orientation à partir de sa prose.
 
 Cette règle ne ferme pas l'interprétation : toute composante demeure dans le
 cadre, qu'elle soit exécutable ou non. Elle ferme uniquement l'autorité
@@ -93,8 +103,9 @@ Au rejeu, un reçu existant saute entièrement l'étape correspondante. La clé
 exécution idempotente.
 
 Avant toute exécution, le plan est comparé au cadre original. Une modification
-du sens, de l'ordre, de l'engagement, des cibles, des dépendances, du domaine ou
-de la capacité bloque toutes les étapes.
+du sens, de l'ordre, de l'engagement, des cibles, des dépendances, du domaine
+suggéré ou de la capacité bloque toutes les étapes. Le domaine propriétaire
+résolu reste celui du manifeste local.
 
 ## Migration
 

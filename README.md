@@ -62,6 +62,8 @@ npm run narration-module:test:scene-ephemeral-creation
 npm run narration-module:test:plot-preparation
 npm run narration-module:test:living-world-gate
 npm run narration-module:test:indexeddb
+npm run narration-module:test:j10h6-certification
+npm run narration-module:test:j10h7-openai-live # recette payante, accord explicite requis
 npm run map-module:test:regression
 npm run verify:world-simulation
 ```
@@ -133,8 +135,12 @@ Les simulations longues sont disponibles avec `npm run verify:world-simulation:l
   compagnons pilotés par la narration, carnet joueur isolé, puis récapitulatif
   public déterministe et inventaire personnel compact en lecture seule. La
   surface masque les diagnostics par défaut et sa gate Chrome réelle ferme le
-  parcours continu. J10-G reste une recette OpenAI optionnelle soumise à un
-  nouvel accord explicite.
+  parcours continu. J10-G et J10-H sont désormais fermés par leurs recettes
+  OpenAI réelles. J10-H0 à H7 fiabilisent la soumission, le
+  focus local, la fidélité V8, l'orchestration et les diagnostics, puis
+  certifient transversalement tous les propriétaires, Chromium, IndexedDB et
+  les migrations, puis certifient approche, continuité pronominale après reload,
+  changement d'interlocuteur et transition propriétaire dans Chromium.
   Les causes et catalogues de bastion réellement jouables, l'économie de
   campagne et la mémoire sociale longue restent à construire.
 - `test-GAME-2D/scripts/` : generation de catalogues et scripts de verification.

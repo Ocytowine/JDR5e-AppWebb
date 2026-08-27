@@ -8,8 +8,9 @@ Statut : `FERMÉ`
 G5 livre `open-semantic-execution-plan/1` et son exécuteur ordonné :
 
 - le sens V8 reste intact et primaire ;
-- une capacité n'est routable que par correspondance exacte entre
-  `suggestedCapabilityId`, `suggestedDomain` et le manifeste public ;
+- une capacité n'est routable que si `suggestedCapabilityId` correspond
+  exactement au manifeste public ; son propriétaire et son domaine sont relus
+  dans ce manifeste, tandis que `suggestedDomain` est conservé pour audit ;
 - aucun texte brut n'entre dans un port propriétaire ;
 - chaque propriétaire effectue son `preflight` juste avant son étape ;
 - un arrêt conserve les reçus précédents et interdit toute prévalidation ou

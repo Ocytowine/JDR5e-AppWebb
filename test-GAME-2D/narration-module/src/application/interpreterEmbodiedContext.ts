@@ -2,6 +2,7 @@ import type { JsonObject } from "../core";
 import type { InterpreterCharacterContextV1 } from "./interpreterCharacterContext";
 import type { PlayerPublicContextV1 } from "./playerPublicContext";
 import type { InterpreterRuntimeContextV1 } from "./runtimeCapabilityRouting";
+import type { LocalInteractionFocusV1 } from "./localInteractionFocus";
 
 export const INTERPRETER_EMBODIED_PUBLIC_CONTEXT_CONTRACT_V1 =
   "interpreter-embodied-public-context/1" as const;
@@ -53,6 +54,7 @@ export interface InterpreterEmbodiedPublicContextV1 extends JsonObject {
     label: string | null;
     sourceOperationId: string;
   }) | null;
+  activeInteraction: LocalInteractionFocusV1 | null;
   recentFocus: Array<JsonObject & {
     targetRef: string;
     targetKind: string;
@@ -133,6 +135,7 @@ export function buildInterpreterEmbodiedPublicContextV1(input: {
     target: { ref: string; label: string | null };
     sourceOperationId: string;
   } | null;
+  activeInteraction?: LocalInteractionFocusV1 | null;
   activeCompanionRefs: readonly string[];
   runtimeContext: InterpreterRuntimeContextV1;
 }): InterpreterEmbodiedPublicContextV1 | null {
@@ -193,6 +196,9 @@ export function buildInterpreterEmbodiedPublicContextV1(input: {
       label: bounded(input.activeInterlocutor.target.label, 120),
       sourceOperationId: input.activeInterlocutor.sourceOperationId
     },
+    activeInteraction: input.activeInteraction?.status === "ACTIVE"
+      ? { ...input.activeInteraction }
+      : null,
     recentFocus: input.recentFocus
       .filter(focus => focus.target.ref !== null)
       .slice(0, LIMITS.recentFocus)

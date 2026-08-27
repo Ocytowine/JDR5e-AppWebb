@@ -46,7 +46,8 @@ const components = Array.from({ length: 6 }, (_, index) => ({
   mentionedTargets: [],
   suggestedDomain: index === 5 ? "un domaine futur non encore raccordé" : null,
   suggestedAction: index === 5 ? "une action nouvelle non cataloguée" : null,
-  suggestedCapabilityId: null
+  suggestedCapabilityId: null,
+  dialogueAct: null
 }));
 
 const output = {
@@ -118,10 +119,16 @@ assert.equal(
   false,
   "Le domaine suggéré doit rester une chaîne ouverte."
 );
+assert.deepEqual(
+  componentSchema.items.properties.dialogueAct.anyOf[0].properties.act.enum,
+  ["INITIATE_CONVERSATION", "ASK_QUESTION", "MAKE_STATEMENT", "REQUEST_ACTION", "OTHER"],
+  "La nature de la parole doit être structurée par OpenAI et non reconstruite lexicalement."
+);
 
 const instructions = buildRoleInstructions(req);
 assert.match(instructions, /aucune liste fermée d'actions/u);
 assert.match(instructions, /activeInterlocutor et recentIntentions/u);
+assert.match(instructions, /renseigne dialogueAct selon le sens et le contexte/u);
 assert.match(instructions, /ne doit jamais suspendre rétroactivement/u);
 assert.doesNotMatch(instructions, /kind=move_near_visible_actor/u);
 

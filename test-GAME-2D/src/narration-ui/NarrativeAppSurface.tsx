@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   buildReferenceSceneLocalNarrationV1,
   buildCampaignProjectedPlayableLoreSceneV1,
@@ -49,15 +49,18 @@ import type {
   Result
 } from "../../narration-module/src/core";
 import type { AiModelRouteV1, AiRetryPolicyV1 } from "../../narration-module/src/ai/types";
-import type { AiCallTelemetryV1 } from "../../narration-module/src/ai/types";
 import type { NarrativeTurnControllerOutputV1 } from "../../narration-module/src/application";
 import type { DisplayPacketV1 } from "../../narration-module/src/scene";
 import { SCENE_SOCIAL_UI_CONTRACT_VERSION_V1 } from "../../narration-module/src/scene";
 import {
   NarrativeConversationPanel,
-  createNarrativeClientRequestId,
-  type NarrativeSubmitPayloadV1
+  createNarrativeClientRequestId
 } from "../ui/NarrativeConversationPanel";
+import {
+  createBrowserNarrativeSubmissionCoordinatorV1,
+  type NarrativeSubmissionCoordinatorV1,
+  type NarrativeSubmissionPayloadV1
+} from "./narrativeSubmissionCoordinator";
 import {
   buildOpenAiIntentInterpreterConfigV1,
   buildOpenAiMjPlannerConfigV1,
@@ -66,6 +69,7 @@ import {
   buildOpenAiDestinationPlausibilityArbiterConfigV1
 } from "./openAiNarrativeRuntimeConfig";
 import { ServerOpenAiEnhancementProviderV1 } from "./serverOpenAiEnhancementClient";
+import { buildNarrativeTechnicalDiagnosticV1 } from "./narrativeTechnicalDiagnostic";
 import type {
   CommittedCampaignFeatureAvailabilityV1
 } from "./campaignFeatureComposition";
@@ -153,6 +157,13 @@ export function NarrativeAppSurface(props: {
     useState<NarrativeAppSurfaceBootstrapV1[
       "readCommittedAvailability"
     ]>(undefined);
+  const submissionCoordinatorRef = useRef<NarrativeSubmissionCoordinatorV1 | null>(null);
+  const submissionExecutionRef = useRef<string | null>(null);
+  if (submissionCoordinatorRef.current === null) {
+    submissionCoordinatorRef.current = createBrowserNarrativeSubmissionCoordinatorV1(
+      () => createNarrativeClientRequestId()
+    );
+  }
   const modeStatus = "OpenAI interprète les saisies du joueur. En cas d'indisponibilité, le tour reste sans conséquence et demande une reformulation.";
   const packets = useMemo(
     () => sanitizePlayerFacingPacketsV1([
@@ -550,15 +561,33 @@ export function NarrativeAppSurface(props: {
     };
   }, [enhancementMode, props.bootstrapController]);
 
-  function handleSubmit(payload: NarrativeSubmitPayloadV1) {
+  useEffect(() => {
+    if (controller === null) return;
+    const restored = submissionCoordinatorRef.current?.restoreForReplay() ?? null;
+    if (restored !== null) void executeSubmission(controller, restored);
+  }, [controller]);
+
+  function handleSubmit(rawInput: string): Promise<void> | void {
     if (!controller) {
       reportUnexpectedError(new Error("controller unavailable"), "Envoi de l'action");
       return;
     }
+    const payload = submissionCoordinatorRef.current?.acquire(rawInput) ?? null;
+    if (payload === null) return;
+    return executeSubmission(controller, payload);
+  }
+
+  function executeSubmission(
+    activeController: NarrativeTurnControllerV1,
+    payload: NarrativeSubmissionPayloadV1
+  ): Promise<void> | void {
+    if (submissionExecutionRef.current !== null) return;
+    submissionExecutionRef.current = payload.clientRequestId;
+    let submissionCompleted = false;
     const submittedAt = performance.now();
     setPending(true);
     setErrorMessage(null);
-    void controller.submit(payload).then(async result => {
+    return activeController.submit(payload).then(async result => {
       if (!result.ok) {
         setErrorMessage(narrativeErrorGuidance(result.error).summary);
         setPacketsFromController(previous => [...previous, createRuntimeFailurePacket({
@@ -606,7 +635,7 @@ export function NarrativeAppSurface(props: {
           : [])
       ];
       const packetBeforeProjection = enhancement.displayPacket as DisplayPacketV1 & JsonObject;
-      const recorded = await controller.recordRenderedProjection({
+      const recorded = await activeController.recordRenderedProjection({
         schemaVersion: 1,
         clientRequestId: result.value.output.clientRequestId,
         sourceOutput: result.value.output,
@@ -624,12 +653,13 @@ export function NarrativeAppSurface(props: {
         return;
       }
       const projectionFinishedAt = performance.now();
-      const diagnosticPacket = appendNarrativeSystemTrace({
-        packet: enhancement.displayPacket,
+      const technicalDiagnostic = buildNarrativeTechnicalDiagnosticV1({
+        generatedAt: new Date().toISOString(),
+        rawInput: payload.rawInput,
         output: result.value.output,
-        priorPackets: packetsFromController,
-        turnDiagnostics,
-        enhancementTelemetry: enhancement.finalEnhancement.telemetry ?? [],
+        enhancementStatus: [enhancement.status, ...turnDiagnostics].join(" ").trim(),
+        finalEnhancement: enhancement.finalEnhancement,
+        attemptedEnhancement: enhancement.attemptedEnhancement,
         timings: {
           controllerMs: controllerFinishedAt - submittedAt,
           enhancementMs: enhancementFinishedAt - controllerFinishedAt,
@@ -637,37 +667,12 @@ export function NarrativeAppSurface(props: {
           totalMs: projectionFinishedAt - submittedAt
         }
       });
-      setLatestTechnicalDiagnostic(JSON.stringify({
-        generatedAt: new Date().toISOString(),
-        operationId: result.value.output.operationId,
-        clientRequestId: result.value.output.clientRequestId,
-        rawInput: payload.rawInput,
-        interpretation: result.value.output.interpretation,
-        domainCommand: result.value.output.domainCommand,
-        resolution: result.value.output.resolution,
-        mjPlan: result.value.output.mjPlan,
-        mjPlannerFailure: result.value.output.mjPlannerFailure,
-        npcPerformance: result.value.output.npcPerformance,
-        npcPerformanceFailure: result.value.output.npcPerformanceFailure,
-        stageTimings: result.value.output.stageTimings,
-        aiTelemetry: result.value.output.aiTelemetry,
-        narrativeEnhancement: {
-          status: enhancement.status,
-          enhanced: enhancement.finalEnhancement.enhanced,
-          fallbackKind: enhancement.finalEnhancement.fallbackKind,
-          incidents: enhancement.finalEnhancement.incidents,
-          safetyNotes: enhancement.finalEnhancement.safetyNotes,
-          telemetry: enhancement.finalEnhancement.telemetry ?? []
-        },
-        technicalBlocks: diagnosticPacket.displayBlocks
-          .filter(block => isTechnicalSystemBlockV1(block))
-          .map(block => ({ kind: block.kind, text: block.text, sourceRefs: block.sourceRefs }))
-      }, null, 2));
+      setLatestTechnicalDiagnostic(JSON.stringify(technicalDiagnostic, null, 2));
       setTechnicalCopyStatus(null);
       const enhanced = enhancement.displayPacket;
       const automaticBoundaries = result.value.output.sceneArrival === null
         ? null
-        : await controller.processAutomaticBoundaries({
+        : await activeController.processAutomaticBoundaries({
             schemaVersion: 1,
             sourceOperationId: result.value.output.operationId,
             sourceKind: "SCENE_TRANSITION",
@@ -686,7 +691,7 @@ export function NarrativeAppSurface(props: {
       if (result.value.output.sceneArrival !== null) {
         setCurrentScene(result.value.output.sceneArrival.scene);
       }
-      const tacticalSession = await controller
+      const tacticalSession = await activeController
         .restoreActiveBastionTacticalSession();
       if (tacticalSession.ok) {
         setActiveTacticalSession(tacticalSession.value);
@@ -715,9 +720,18 @@ export function NarrativeAppSurface(props: {
           ? automaticBoundaries.value.displayPackets
           : [])
       ]));
+      submissionCompleted = true;
     }).catch(error => {
       reportUnexpectedError(error, "Traitement de l'action", payload.clientRequestId);
     }).finally(() => {
+      if (submissionCompleted) {
+        submissionCoordinatorRef.current?.complete(payload.clientRequestId);
+      } else {
+        submissionCoordinatorRef.current?.markRetryable(payload.clientRequestId);
+      }
+      if (submissionExecutionRef.current === payload.clientRequestId) {
+        submissionExecutionRef.current = null;
+      }
       setPending(false);
     });
   }
@@ -973,8 +987,15 @@ export function NarrativeAppSurface(props: {
                   {technicalCopyStatus}
                 </p>
               )}
+              <p
+                data-narrative-diagnostic-sections="interpretation-routing-resolution-presentation"
+                style={{ margin: "7px 0 0", fontSize: 11, color: "rgba(255,255,255,0.62)" }}
+              >
+                Sections : interprétation · routage · résolution · présentation
+              </p>
               <textarea
                 aria-label="Diagnostic technique du dernier échange"
+                data-narrative-technical-diagnostic="separate-developer-panel"
                 readOnly
                 value={latestTechnicalDiagnostic ?? "Aucun échange diagnostiqué dans cette session."}
                 rows={10}
@@ -1299,96 +1320,6 @@ function stripTechnicalTraceV1(text: string): string {
   const diagnosticIndex = text.indexOf(diagnosticMarker);
   const indexes = [traceIndex, diagnosticIndex].filter(index => index >= 0);
   return indexes.length === 0 ? text : text.slice(0, Math.min(...indexes)).trimEnd();
-}
-
-function appendNarrativeSystemTrace(input: {
-  packet: DisplayPacketV1;
-  output: NarrativeTurnControllerOutputV1;
-  priorPackets: DisplayPacketV1[];
-  turnDiagnostics?: string[];
-  enhancementTelemetry?: AiCallTelemetryV1[];
-  timings: { controllerMs: number; enhancementMs: number; projectionMs: number; totalMs: number };
-}): DisplayPacketV1 & JsonObject {
-  const resolvedRef = input.output.npcPerformance?.actorId
-    ?? input.output.interpretation.referentResolution?.resolvedTarget?.ref
-    ?? input.output.interpretation.semanticIntent.target?.ref
-    ?? null;
-  const actorRef = resolvedRef?.startsWith("npc:") ? resolvedRef : null;
-  const actorId = actorRef?.replace(/^npc:/u, "") ?? null;
-  const actorDisplayName = actorId === null
-    ? null
-    : (() => {
-      const actor = input.output.activeScene.presentNpc.find(npc => npc.actorId === actorId)
-        ?? input.output.activeScene.ambientPopulation?.find(presence => presence.actorId === actorId);
-      return actor ? narrativeDesignationOfV1(actor)?.playerFacingLabel ?? actor.displayName : undefined;
-    })()
-      ?? null;
-  const rememberedPlayerIntents = actorId === null
-    ? []
-    : input.output.sceneState.shortTermNpcMemory
-      .filter(memory => memory.actorId === actorId)
-      .slice(-5)
-      .map(memory => memory.playerIntentSummary);
-  const rememberedNpcUtterances = actorDisplayName === null
-    ? []
-    : input.priorPackets
-      .flatMap(packet => packet.displayBlocks)
-      .filter(block => block.kind === "NPC_SPEECH" && block.speaker.displayName === actorDisplayName)
-      .slice(-5)
-      .map(block => block.text);
-  const priorPlayerIntents = rememberedPlayerIntents.slice(0, Math.max(0, rememberedPlayerIntents.length - 1));
-  const pairedHistory = rememberedNpcUtterances.map((utterance, index) =>
-    `${priorPlayerIntents.at(-(rememberedNpcUtterances.length - index)) ?? "intention non retrouvée"} → ${utterance}`
-  );
-  const performerOutcome = input.output.npcPerformance !== null
-    ? "accepté"
-    : input.output.npcPerformanceFailure !== null
-      ? "rejeté, fallback"
-      : "non appelé";
-  const stages = input.output.stageTimings;
-  const measuredStagesMs = stages === null
-    ? 0
-    : stages.interpretationMs + stages.planningMs + stages.resolutionMs + stages.npcPerformanceMs;
-  const controllerOverheadMs = Math.max(0, input.timings.controllerMs - measuredStagesMs);
-  const aiTelemetryLines = input.output.aiTelemetry.map(metric =>
-    `IA ${metric.role}: modèle=${metric.modelId}; raisonnement=${metric.reasoningEffort ?? "standard"}; latence=${formatDuration(metric.latencyMs)}; tokens=${metric.inputTokens ?? "?"}+${metric.outputTokens ?? "?"}/${metric.totalTokens ?? "?"}; fin=${metric.finishReason ?? "?"}; budgets=${metric.inputTokenBudget}/${metric.outputTokenBudget}; contexte=${metric.contextChars} caractères; schéma=${metric.schemaChars ?? "?"} caractères.`
-  );
-  const enhancementTelemetryLines = (input.enhancementTelemetry ?? []).map(metric =>
-    `IA enrichissement ${metric.role}: modèle=${metric.modelId}; raisonnement=${metric.reasoningEffort ?? "standard"}; latence=${formatDuration(metric.latencyMs)}; tokens=${metric.inputTokens ?? "?"}+${metric.outputTokens ?? "?"}/${metric.totalTokens ?? "?"}; fin=${metric.finishReason ?? "?"}.`
-  );
-  const traceLines = [
-    ...(input.turnDiagnostics ?? []).map(message => `Diagnostic du tour: ${message}`),
-    "Trace système et mémoire",
-    `Pipeline PNJ: ${performerOutcome}; acteur=${actorRef ?? "aucun"}; acte=${input.output.interpretation.semanticIntent.dialogueAct?.act ?? "aucun"}.`,
-    input.output.npcPerformance?.conversationProfile
-      ? `Profil conversationnel éphémère: ${input.output.npcPerformance.conversationProfile.continuitySource === "INITIALIZED" ? "initialisé" : "continué"}; révision=${input.output.npcPerformance.conversationProfile.continuityRevision}; durable=non.`
-      : "Profil conversationnel éphémère: aucun profil accepté pour ce tour.",
-    `Intentions joueur mémorisées (${rememberedPlayerIntents.length}): ${rememberedPlayerIntents.join(" | ") || "aucune"}.`,
-    `Répliques PNJ antérieures visibles (${rememberedNpcUtterances.length}): ${rememberedNpcUtterances.join(" | ") || "aucune"}.`,
-    `Couples intention → réponse (${pairedHistory.length}): ${pairedHistory.join(" | ") || "aucun"}.`,
-    `Sources déclarées par le performer: ${input.output.npcPerformance?.knowledgeUsed.join(", ") || "aucune"}.`,
-    ...(aiTelemetryLines.length > 0 ? aiTelemetryLines : ["Métriques IA fournisseur: indisponibles pour cette opération."]),
-    ...(enhancementTelemetryLines.length > 0
-      ? enhancementTelemetryLines
-      : ["Métriques IA d'enrichissement: aucun appel ou métriques indisponibles."]),
-    stages === null
-      ? "Détail contrôleur: indisponible pour cette ancienne opération."
-      : `Détail contrôleur: interprétation=${formatDuration(stages.interpretationMs)}, planification=${formatDuration(stages.planningMs)}, résolution=${formatDuration(stages.resolutionMs)}, performer PNJ=${formatDuration(stages.npcPerformanceMs)}, orchestration/persistance=${formatDuration(controllerOverheadMs)}.`,
-    `Temps: contrôleur=${formatDuration(input.timings.controllerMs)}, enrichissement=${formatDuration(input.timings.enhancementMs)}, persistance=${formatDuration(input.timings.projectionMs)}, total avant affichage=${formatDuration(input.timings.totalMs)}.`
-  ];
-  let appended = false;
-  return {
-    ...input.packet,
-    displayBlocks: input.packet.displayBlocks.map(block => {
-      if (appended || block.kind !== "SYSTEM_NOTICE") return block;
-      appended = true;
-      return { ...block, text: `${block.text}\n\n${traceLines.join("\n")}` };
-    })
-  } as DisplayPacketV1 & JsonObject;
-}
-
-function formatDuration(value: number): string {
-  return value >= 1_000 ? `${(value / 1_000).toFixed(2)} s` : `${Math.max(0, Math.round(value))} ms`;
 }
 
 function createWelcomePacket(scene: PlayableSceneStateV1): DisplayPacketV1 {
@@ -1797,7 +1728,7 @@ const prototypeSceneWriterRoute: AiModelRouteV1 = {
   certified: true,
   allowedContractVersions: ["narrative-ai-resolution/1"],
   inputTokenLimit: 2_000,
-  outputTokenLimit: 1_500,
+  outputTokenLimit: 2_500,
   timeoutMs: 30_000,
   fallbackRouteIds: []
 };

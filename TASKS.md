@@ -1,18 +1,24 @@
 # Tableau d'exécution du projet
 
-Dernière mise à jour : 2026-08-25
+Dernière mise à jour : 2026-08-27
 
 Ce fichier reste volontairement court. L'unique état global et feuille de route
 du module narration est
 [`Consolidation-fondations-narration.md`](test-GAME-2D/narration-module/docs/Consolidation-fondations-narration.md).
-Les contrats définissent les comportements ; le plan J10 porte le détail du lot.
+Les contrats définissent les comportements ; les plans J10 et J10-H portent le
+détail du lot actif.
 
-## Lot actif — J10 : intégration narrative immersive
+## Lot actif — J10-H : fiabilité du tour narratif
 
 J1 à J9 sont fermés dans leur périmètre narratif. J10 rend leur verticale
 entièrement pilotable dans l'interface sans transformer le jeu en tableau de
 gestion. Voir
 [`Plan-integration-narrative-immersive-J10.md`](test-GAME-2D/narration-module/docs/Plan-integration-narrative-immersive-J10.md).
+
+Le plan correctif approuvé après la recette G8 est détaillé dans
+[`Plan-correction-fiabilite-tour-narratif-J10H.md`](test-GAME-2D/narration-module/docs/Plan-correction-fiabilite-tour-narratif-J10H.md).
+Il préserve les autorités des intrigues, missions, compagnons, inventaires,
+voyages, repos, monde et tactique.
 
 - [x] J10-A — contrats du carnet privé, du récapitulatif public et de
   l'interruption narrative figés ; projections, huit sorties IA, migrations et
@@ -57,7 +63,7 @@ gestion. Voir
 - [x] J10-G7 — adaptateur propriétaire V8 installé sans saisie brute,
   configuration produit basculée vers V8 et gates autorité, corpus, contrôleur,
   build complet et surface React/Chromium certifiées localement.
-- [ ] J10-G8 — chemin critique OpenAI live validé avec contexte incarné complet
+- [x] J10-G8 — chemin critique OpenAI live validé avec contexte incarné complet
   et routage technique structuré ; la contre-recette composée retourne une
   clarification V8 sûre plutôt que `UNDERSTOOD`. La première observation UI a
   permis de corriger les références des acteurs ambiants et de préserver
@@ -70,19 +76,55 @@ gestion. Voir
   copiable dans un panneau séparé. Le PNJ validé par une capacité de dialogue
   est transmis directement au performer OpenAI sans dépendre d'une assignation
   facultative du planner ; les anciennes clarifications restent lisibles sans
-  exposer leur diagnostic interne.
-  Les corrections locales sont vertes ; la fluidité doit continuer à être
-  observée dans la vraie UI.
+  exposer leur diagnostic interne. La micro-séquence sémantique compatible
+  « approche puis communication vers le même acteur visible » est maintenant
+  exécutée dans un commit local ordonné, y compris lorsque le dialogue est
+  propriétaire du domaine social. Une capacité exacte retrouve désormais son
+  domaine dans le registre sans être annulée par le `suggestedDomain` redondant
+  de l'IA ; les autres compositions multi-domaines ou multi-cibles restent
+  suspendues. Le budget du `scene_writer` passe de 1 500 à
+  2 500 jetons après observation d'une sortie OpenAI incomplète.
+  J10-H0 à H7 ont ensuite remis à niveau les recettes historiques, isolé puis
+  corrigé les défauts produit et fermé la verticale dans la vraie UI OpenAI.
+- [x] J10-H0 — les trois recettes conversationnelles historiques injectent un
+  fournisseur sémantique V8 exact ; la gate locale fige séparément double
+  envoi, perte d'interlocuteur actif, timeout planner et contradictions de
+  diagnostic sans modifier le comportement produit.
+- [x] J10-H1 — un coordinateur synchrone verrouille avant la création du
+  `clientRequestId`, persiste le payload pendant le vol et reprend la même
+  identité après erreur ou reload ; les cinq scénarios navigateur sont verts.
+- [x] J10-H2 — `local-interaction-focus/1` est persistant, public et borné par
+  scène ; il restaure l'interlocuteur après reload et ferme proprement sur
+  cible, départ, disparition, scène, processus incompatible ou tactique.
+- [x] J10-H3 — `open-semantic-fidelity-receipt/1` distingue cadre V8 original
+  et projection propriétaire effective ; expression brute, cible validée, acte
+  OpenAI, composantes, ordre et provenance traversent désormais le tour sans
+  donner le texte brut ni une autorité supplémentaire aux propriétaires.
+- [x] J10-H4 — limites planner alignées sur la route, plan V8/G5 non dupliqué,
+  séquences distantes bornées à trois, paquet performer mesuré et réduit à cinq
+  tours par acteur, fallbacks immersifs fondés sur l'acte et non persistés comme
+  performances acceptées.
+- [x] J10-H5 — `narrative-technical-diagnostic/1` sépare interprétation,
+  routage, résolution et présentation dans le panneau développeur ; les échecs
+  sont attribués au rôle et à l'acteur, la télémétrie planner distingue budgets,
+  usage réel et plafond, et l'ancienne injection technique dans le fil est
+  supprimée.
+- [x] J10-H6 — matrice composée dialogue vers inventaire, mission, intrigue,
+  voyage et tactique certifiée ; secrets, autonomie, temps, ressources,
+  commits, rejeux, idempotence, migrations IndexedDB, Chromium et build global
+  sont verts sans appel OpenAI live.
+- [x] J10-H7 — recette OpenAI live finale certifiée : approche et salutation,
+  reprise pronominale après reload, changement d'interlocuteur et transition
+  propriétaire passent sans fallback ni doublon dans le fil joueur.
 
 ### Prochaine action concrète
 
-Rejouer « je m'approche du clerc » puis une adresse pronominale telle que
-« je lui demande où trouver des documents importants » aux Archives, avant de
-poursuivre la recette manuelle ciblée
-[`Recette-manuelle-UI-post-G8.md`](test-GAME-2D/narration-module/docs/Recette-manuelle-UI-post-G8.md)
-depuis le build complet, puis classer les observations entre clarification sûre,
-défaut de continuité contextuelle et limite connue du coordinateur multi-domaines.
-Le checkpoint partiel est dans
+J10-H est fermé. La prochaine étape est une recette manuelle libre dans le build
+complet par le propriétaire du projet ; aucun nouvel appel OpenAI automatisé
+n'est requis. Les résultats H7 sont consignés dans
+[`Checkpoint-recette-OpenAI-live-J10H7.md`](test-GAME-2D/narration-module/docs/Checkpoint-recette-OpenAI-live-J10H7.md).
+
+Le checkpoint live partiel reste dans
 [`Checkpoint-recette-OpenAI-live-G8.md`](test-GAME-2D/narration-module/docs/Checkpoint-recette-OpenAI-live-G8.md).
 La preuve G7 reste dans
 [`Checkpoint-gate-locale-G7.md`](test-GAME-2D/narration-module/docs/Checkpoint-gate-locale-G7.md).
@@ -111,6 +153,20 @@ aucun nouvel appel automatisé ne doit partir sans accord explicite.
   ordre canonique, rôles uniques et budget respecté.
 - Les régressions ciblées, le build global et `git diff --check` sont verts au
   dernier point de contrôle.
+- J10-H0 remet au vert les trois recettes historiques avec une fixture V8
+  exacte et ajoute `narration-module:test:j10h0-baseline`.
+- J10-H1 ferme la course de soumission UI avec
+  `narration-module:test:j10h1-submission` : double clic, Entrée répétée,
+  Entrée + clic, reload pendant le vol et reprise après erreur conservent une
+  identité unique. À sa fermeture, trois autres défauts restaient mesurés.
+- J10-H2 ajoute `narration-module:test:j10h2-focus` : attention, dialogue,
+  changement de cible, reload, présence, scène, départ, repos incompatible et
+  tactique sont certifiés. J10-H3 ajoute
+  `narration-module:test:j10h3-fidelity` : le cadre et la projection sont
+  distincts, l'expression brute, la cible, l'acte, l'ordre et la provenance sont
+  certifiés. J10-H4 ajoute `narration-module:test:j10h4-resilience` : limites,
+  paquets, trois rôles et fallbacks sont certifiés, et la baseline H0 ne mesure
+  plus aucun des écarts produit historiques initiaux.
 - J10-B certifie Archives → Halles depuis la saisie libre, avec interruption
   restaurée, réponse libre, reprise, arrivée et rejeux sans second temps.
 - J10-C installe la verticale J4/J7 dans la composition UI et certifie refus de

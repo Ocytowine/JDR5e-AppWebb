@@ -3,6 +3,7 @@ import type { ContractAiProviderV1 } from "../ai/FakeContractAiProvider";
 import { runAiPipelineCallV1 } from "../ai/pipeline";
 import type {
   AiCallRequestV1,
+  AiCallTelemetryV1,
   AiIncidentRecordV1,
   AiModelRouteV1,
   AiRetryPolicyV1,
@@ -42,6 +43,7 @@ export interface MjPlanningResultV1 {
   acceptedOutput: AiRoleOutputEnvelopeV1<MjPlannerPayloadV1> | null;
   planningFailure: MjPlanningFailureV1 | null;
   incidents: AiIncidentRecordV1[];
+  telemetry: AiCallTelemetryV1[];
   safetyNotes: string[];
 }
 
@@ -124,6 +126,7 @@ export async function planNarrativeTurnWithMjV1(input: {
       acceptedOutput: null,
       planningFailure: null,
       incidents: [],
+      telemetry: [],
       safetyNotes: ["mj_planner non appelé: intention sans progression narrative."]
     };
   }
@@ -145,6 +148,7 @@ export async function planNarrativeTurnWithMjV1(input: {
       acceptedOutput,
       planningFailure: null,
       incidents: run.incidents,
+      telemetry: run.telemetry,
       safetyNotes: ["Plan MJ structuré accepté sans autorité de commit."]
     };
   }
@@ -167,6 +171,7 @@ export async function planNarrativeTurnWithMjV1(input: {
     acceptedOutput: null,
     planningFailure: failure,
     incidents: run.incidents,
+    telemetry: run.telemetry,
     safetyNotes: ["Échec mj_planner distant diagnostiqué; plan local déterministe sans autorité utilisé pour préserver l'orchestration."]
   };
 }
@@ -319,9 +324,9 @@ async function buildMjPlannerRequestV1(input: {
       task
     },
     limits: {
-      inputTokenBudget: 2_000,
-      outputTokenBudget: 1_000,
-      timeoutMs: 1_000
+      inputTokenBudget: input.config.route.inputTokenLimit,
+      outputTokenBudget: input.config.route.outputTokenLimit,
+      timeoutMs: input.config.route.timeoutMs
     }
   };
 }

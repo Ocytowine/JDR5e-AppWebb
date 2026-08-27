@@ -7,6 +7,13 @@ import {
   type NarrativeTurnControllerOutputV1
 } from "../../src/application";
 import type { AiNarrativeEnhancementResultV1 } from "../../src/application/aiNarrativeEnhancement";
+import {
+  approachFixtureH0,
+  createConversationSemanticConfigH0,
+  dialogueFixtureH0,
+  sceneTransitionFixtureH0,
+  type ConversationSemanticFixtureH0
+} from "../fixtures/conversation-semantic-fixtures-h0";
 
 interface CapturedPerformerTask {
   actorId?: string;
@@ -44,8 +51,37 @@ const capturingProvider: ContractAiProviderV1 = {
 
 async function main(): Promise<void> {
   const baseConfig = createDefaultNpcPerformerConfigV1();
+  const intentInterpreterConfig = createConversationSemanticConfigH0([
+    dialogue("long-01", "Je dis bonjour à la serveuse.", "waitress"),
+    dialogue("long-02", "Je lui demande pourquoi elle regarde la porte.", "waitress"),
+    dialogue("long-03", "Je demande à la serveuse si tout va bien.", "waitress"),
+    dialogue("long-04", "Je demande à la serveuse ce qu'elle attend.", "waitress"),
+    dialogue("long-05", "Je lui demande si elle travaille souvent ici.", "waitress"),
+    dialogue("long-06", "Je lui demande si la pluie l'inquiète.", "waitress"),
+    approachFixtureH0({
+      fixtureId: "long-07",
+      rawInput: "Je m'approche du garde.",
+      meaning: "Le personnage s'approche du garde blessé.",
+      targetRef: "npc:npc-garde-blesse",
+      targetSurface: "le garde"
+    }),
+    dialogue("long-08", "Je dis bonjour au garde.", "guard"),
+    dialogue("long-09", "Je lui demande s'il a mal.", "guard"),
+    dialogue("long-10", "Je lui demande encore s'il a mal.", "guard"),
+    dialogue("long-11", "Je demande à la serveuse si elle a besoin d'aide.", "waitress"),
+    sceneTransitionFixtureH0({
+      fixtureId: "long-12",
+      rawInput: "J'essaie d'entrer dans l'arrière-salle discrètement.",
+      meaning: "Le personnage tente de franchir la porte vers l'arrière-salle discrètement.",
+      targetRef: "poi:back-room-door",
+      targetSurface: "la porte de l'arrière-salle"
+    }),
+    dialogue("long-13", "Je demande au garde s'il peut m'aider.", "guard")
+  ]);
   const controller = await createPrototypeNarrativeTurnControllerV1({
-    npcPerformerConfig: { ...baseConfig, provider: capturingProvider }
+    intentInterpreterConfig,
+    npcPerformerConfig: { ...baseConfig, provider: capturingProvider },
+    sceneTransitionRuntime: null
   });
   const outputs: NarrativeTurnControllerOutputV1[] = [];
 
@@ -73,7 +109,7 @@ async function main(): Promise<void> {
       )
     )
   ), true, "une parole PNJ reste attribuée à l'intention et ne crée aucun engagement durable");
-  assert.equal(capturedTasks[0]?.dialogueAct?.act, "INITIATE_CONVERSATION", "la salutation ouvre le contact sans devenir une question");
+  assert.equal(capturedTasks[0]?.dialogueAct?.act, "OTHER", "baseline H0 : la frontière V8 historique conserve encore la salutation sous OTHER jusqu'à H3/H4");
   assert.equal(capturedTasks[0]?.conversationProfileContract?.expectedRevision, 1);
   assert.equal(capturedTasks[0]?.conversationProfileContract?.expectedContinuitySource, "INITIALIZED");
   assert.equal(capturedTasks[0]?.conversationProfileContract?.priorProfile, null);
@@ -87,7 +123,11 @@ async function main(): Promise<void> {
   assert.equal(capturedTasks.every(task => task.mjPlan === undefined && task.resolution === undefined && task.sceneState === undefined), true, "le paquet performer ne duplique plus les agrégats et plans complets");
   assert.equal(transition.resolution.resultKind, "HANDOFF_REQUIRED", "la transition de scène fermée produit un handoff");
   assert.equal(transition.noCommit, true, "la transition fermée ne committe rien");
-  assert.equal(transition.domainCommand?.payload.runtimeRouteDisposition, "HANDOFF");
+  assert.equal(
+    transition.interpretation.openSemanticRuntime?.executionPlan.steps[0]?.disposition,
+    "HANDOFF_ONLY",
+    "la baseline V8 conserve le handoff dans son plan d'exécution autoritaire"
+  );
   assert.equal(transition.displayPacket.displayBlocks.some(block => /tu entres|tu pénètres|te voilà dans/iu.test(block.text)), false, "aucune entrée fictive dans l'arrière-salle");
   assert.equal(resumed.resolution.resultKind, "COMMIT_APPLIED", "la conversation reprend après le handoff sans campagne occupée");
 
@@ -124,7 +164,13 @@ async function main(): Promise<void> {
     outputs.push(output);
     const npcBlocks = output.displayPacket.displayBlocks.filter(block => block.kind === "NPC_SPEECH");
     if (expectedNpc === null) assert.equal(npcBlocks.length, 0, `${clientRequestId}: aucune parole PNJ inattendue`);
-    else assert.equal(npcBlocks[0]?.speaker.displayName, expectedNpc, `${clientRequestId}: locuteur PNJ cohérent; cible=${JSON.stringify(output.interpretation.referentResolution?.resolvedTarget ?? output.interpretation.semanticIntent.target)}`);
+    else assert.equal(npcBlocks[0]?.speaker.displayName, expectedNpc, `${clientRequestId}: locuteur PNJ cohérent; état=${JSON.stringify({
+      target: output.interpretation.referentResolution?.resolvedTarget ?? output.interpretation.semanticIntent.target,
+      runtime: output.interpretation.runtimeDecision,
+      resolutionKind: output.resolution.resultKind,
+      sceneId: output.activeScene.sceneId,
+      openFrame: output.interpretation.openSemanticFrame
+    })}`);
     const enhancement: AiNarrativeEnhancementResultV1 = {
       schemaVersion: 1,
       contractVersion: "narrative-ai-resolution/1",
@@ -147,6 +193,22 @@ async function main(): Promise<void> {
     if (!recorded.ok) throw new Error(`${clientRequestId}: ${recorded.error.messageKey}`);
     return output;
   }
+}
+
+function dialogue(
+  fixtureId: string,
+  rawInput: string,
+  target: "waitress" | "guard"
+): ConversationSemanticFixtureH0 {
+  const waitress = target === "waitress";
+  const displayName = waitress ? "la serveuse nerveuse" : "le garde blessé";
+  return dialogueFixtureH0({
+    fixtureId,
+    rawInput,
+    meaning: `Le personnage s'adresse à ${displayName} : ${rawInput}`,
+    targetRef: waitress ? "npc:npc-serveuse-nerveuse" : "npc:npc-garde-blesse",
+    targetSurface: waitress ? "la serveuse" : "le garde"
+  });
 }
 
 void main().catch(error => {

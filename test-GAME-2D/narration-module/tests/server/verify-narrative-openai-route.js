@@ -748,6 +748,14 @@ async function main() {
   assert.equal(normalizedMjPlanner.ok, true);
   const normalizedNpcPerformer = normalizeAiCallRequest(npcPerformerRequest());
   assert.equal(normalizedNpcPerformer.ok, true);
+  assert.equal(normalizeAiCallRequest(npcPerformerRequest({
+    limits: { inputTokenBudget: 8_000, outputTokenBudget: 2_000, timeoutMs: 30_000 }
+  })).ok, true);
+  const rejectedNpcPerformerBudget = normalizeAiCallRequest(npcPerformerRequest({
+    limits: { inputTokenBudget: 8_001, outputTokenBudget: 2_000, timeoutMs: 30_000 }
+  }));
+  assert.equal(rejectedNpcPerformerBudget.ok, false);
+  assert.equal(rejectedNpcPerformerBudget.issues.includes("limits.inputTokenBudget must be between 1 and 8000."), true);
   const npcPerformerInstructions = buildRoleInstructions(npcPerformerRequest());
   assert.equal(npcPerformerInstructions.includes("resolvedClaims"), true);
   assert.equal(npcPerformerInstructions.includes("REFUTED"), true);
@@ -920,6 +928,11 @@ async function main() {
   assert.equal(intentRoute.reasoningEffort, "none");
   assert.equal(buildServerRoute(intentRequest(), { NARRATION_OPENAI_INTENT_REASONING_EFFORT: "invalid" }).reasoningEffort, null);
   assert.equal(buildServerRoute(request(), { NARRATION_OPENAI_INTENT_REASONING_EFFORT: "low" }).reasoningEffort, null, "le réglage reste propre au rôle intention");
+  assert.equal(buildServerRoute(npcPerformerRequest(), {}).reasoningEffort, "none");
+  assert.equal(
+    buildServerRoute(npcPerformerRequest(), { NARRATION_OPENAI_NPC_PERFORMER_REASONING_EFFORT: "low" }).reasoningEffort,
+    "low"
+  );
   const defaultSceneCreatorRoute = buildServerRoute(sceneCreatorRequestV2(), {});
   assert.equal(defaultSceneCreatorRoute.modelId, "gpt-5.6-luna");
   assert.equal(defaultSceneCreatorRoute.reasoningEffort, "none");
@@ -979,10 +992,10 @@ async function main() {
   assert.equal(normalizedSceneWriterBudget.ok, true);
   const rejectedSceneWriterBudget = normalizeAiCallRequest({
     ...sceneReq,
-    limits: { ...sceneReq.limits, outputTokenBudget: 1_501 }
+    limits: { ...sceneReq.limits, outputTokenBudget: 2_501 }
   });
   assert.equal(rejectedSceneWriterBudget.ok, false);
-  assert.equal(rejectedSceneWriterBudget.issues.includes("limits.outputTokenBudget must be between 1 and 1500."), true);
+  assert.equal(rejectedSceneWriterBudget.issues.includes("limits.outputTokenBudget must be between 1 and 2500."), true);
   const normalizedSceneCreatorBudget = normalizeAiCallRequest({
     ...sceneCreatorRequest(),
     limits: { ...sceneCreatorRequest().limits, outputTokenBudget: 2_000, timeoutMs: 55_000 }

@@ -2,7 +2,10 @@ import type { AiStructuredSemanticIntentV1 } from "../ai/types";
 import type { JsonObject } from "../core";
 import type { NarrativeDomainCommandV1 } from "./domainCommands";
 import type { NarrativeIntentInterpretationV1, NarrativeIntentTargetV1 } from "./intentClarification";
-import type { OpenSemanticExecutionStepV1 } from "./openSemanticExecution";
+import {
+  selectOpenSemanticLegacyOwnerStepsV1,
+  type OpenSemanticExecutionStepV1
+} from "./openSemanticExecution";
 
 export const OPEN_SEMANTIC_LEGACY_OWNER_ADAPTER_V1 =
   "open-semantic-legacy-owner-adapter/1" as const;
@@ -20,10 +23,10 @@ export interface OpenSemanticLegacyOwnerAdapterProjectionV1 {
 
 /**
  * Pont de migration vers les propriétaires V1 : il ne sélectionne jamais une
- * capacité et ne lit jamais la saisie joueur. Il projette uniquement l'unique
- * étape déjà routée par G5 dans les anciens champs structurés attendus par les
- * ports installés. Les compositions restent suspendues tant qu'un coordinateur
- * multi-opérations natif n'est pas disponible.
+ * capacité et ne lit jamais la saisie joueur. Il projette une étape routée par
+ * G5, ou la micro-séquence atomique « approche puis communication » vers un
+ * même acteur visible, dans les champs structurés attendus par les ports V1.
+ * Les compositions multi-cibles ou multi-domaines restent suspendues.
  */
 export function buildOpenSemanticLegacyOwnerAdapterProjectionV1(
   interpretation: NarrativeIntentInterpretationV1
@@ -33,20 +36,18 @@ export function buildOpenSemanticLegacyOwnerAdapterProjectionV1(
   const plan = interpretation.openSemanticRuntime?.executionPlan;
   if (frame === null || frame === undefined || plan === undefined) return null;
   if (frame.understandingStatus !== "UNDERSTOOD" || frame.confidence === "low") return null;
-  const routable = plan.steps.filter(step => step.disposition === "ROUTABLE");
-  const blocking = plan.steps.filter(step => ![
-    "ROUTABLE",
-    "SKIPPED_NON_EXECUTABLE",
-    "SKIPPED_SUPERSEDED"
-  ].includes(step.disposition));
-  if (routable.length !== 1 || blocking.length > 0) return null;
-  const step = routable[0]!;
+  const selection = selectOpenSemanticLegacyOwnerStepsV1({ frame, plan });
+  if (selection === null) return null;
+  const step = selection.steps.at(-1)!;
   if (step.capabilityId === null || step.requiredDomain === null) return null;
   const component = frame.components.find(entry => entry.componentId === step.componentId);
   if (component === undefined) return null;
   const target = targetFrom(component.mentionedTargets[0] ?? null);
   const semanticKind = semanticKindFor(step);
-  const commitment = component.commitment === "mixed" ? "unclear" : component.commitment;
+  const isLocalSceneSequence = selection.mode === "LOCAL_SCENE_SEQUENCE";
+  const semanticGoal = isLocalSceneSequence ? frame.overallMeaning : component.meaning;
+  const commitmentSource = isLocalSceneSequence ? frame.overallCommitment : component.commitment;
+  const commitment = commitmentSource === "mixed" ? "unclear" : commitmentSource;
   const noCommit = step.capabilityId === "scene.visible-perception"
     || step.capabilityId === "scene.context-response";
   const companionDirective = companionDirectiveFor(step.capabilityId, component.meaning);
@@ -54,10 +55,13 @@ export function buildOpenSemanticLegacyOwnerAdapterProjectionV1(
   const semanticIntent: AiStructuredSemanticIntentV1 = {
     schemaVersion: 1,
     kind: semanticKind,
-    playerGoal: component.meaning,
+    playerGoal: semanticGoal,
     target,
     commitment,
-    preconditions: [...frame.globalConditions, ...component.conditions],
+    preconditions: [
+      ...frame.globalConditions,
+      ...selection.steps.flatMap(selected => selected.conditions)
+    ],
     evidenceFromInput: [],
     uncertainties: frame.ambiguities.map(entry => entry.summary),
     forbiddenInterpretations: [
@@ -78,13 +82,31 @@ export function buildOpenSemanticLegacyOwnerAdapterProjectionV1(
     dialogueAct: semanticKind === "address_visible_actor"
       ? {
           schemaVersion: 1,
-          act: companionDirective === null ? "OTHER" : "REQUEST_ACTION",
-          contentGoal: component.meaning,
+          act: companionDirective === null
+            ? component.dialogueAct?.act ?? "OTHER"
+            : "REQUEST_ACTION",
+          contentGoal: component.dialogueAct?.contentGoal ?? component.meaning,
           addresseeRef: target?.ref ?? null
         }
       : null,
     companionDirective,
-    restPlan
+    restPlan,
+    ...(isLocalSceneSequence ? {
+      composition: {
+        schemaVersion: 1 as const,
+        orderedComponents: selection.steps.map(selected => ({
+          order: selected.order,
+          kind: selected.capabilityId === "scene.visible-actor-approach"
+            ? "APPROACH_TARGET" as const
+            : selected.capabilityId === "scene.visible-actor-orientation"
+              ? "NONVERBAL_SIGNAL" as const
+            : selected.capabilityId === "scene.visible-dialogue"
+              ? "SPEECH" as const
+              : "NONVERBAL_SIGNAL" as const,
+          playerGoal: selected.meaning
+        }))
+      }
+    } : {})
   };
   const runtimeHandling = {
     schemaVersion: 1 as const,
@@ -127,7 +149,7 @@ export function buildOpenSemanticLegacyOwnerAdapterProjectionV1(
       ambiguity: "none",
       confidence: frame.confidence
     },
-    coreMeaning: component.meaning,
+    coreMeaning: semanticGoal,
     expectedTimeEffect: noCommit ? "NO_GAME_TIME" : "DOMAIN_TO_DECIDE",
     safetyNotes: [
       ...interpretation.safetyNotes,
@@ -142,11 +164,13 @@ export function buildOpenSemanticLegacyOwnerAdapterProjectionV1(
     domain: step.requiredDomain,
     commandType: commandTypeFor(step),
     semanticKind,
-    semanticGoal: component.meaning,
+    semanticGoal,
     targetRefs: step.targetRefs,
     payload: {
       componentId: component.componentId,
+      componentIds: selection.steps.map(selected => selected.componentId),
       capabilityId: step.capabilityId,
+      capabilityIds: selection.steps.map(selected => selected.capabilityId),
       commitment,
       conditions: [...component.conditions],
       ownerPreflightRequired: true
@@ -161,7 +185,7 @@ export function buildOpenSemanticLegacyOwnerAdapterProjectionV1(
     contractVersion: OPEN_SEMANTIC_LEGACY_OWNER_ADAPTER_V1,
     componentId: component.componentId,
     capabilityId: step.capabilityId,
-    semanticInputText: component.meaning,
+    semanticInputText: semanticGoal,
     interpretation: projected,
     domainCommand,
     rawInputAccess: "FORBIDDEN"
@@ -171,6 +195,7 @@ export function buildOpenSemanticLegacyOwnerAdapterProjectionV1(
 function semanticKindFor(step: OpenSemanticExecutionStepV1): AiStructuredSemanticIntentV1["kind"] {
   switch (step.capabilityId) {
     case "scene.visible-actor-approach": return "move_near_visible_actor";
+    case "scene.visible-actor-orientation": return "nonverbal_signal";
     case "scene.visible-object-interaction": return "manipulate_visible_object";
     case "scene.visible-nonverbal-signal": return "nonverbal_signal";
     case "scene.visible-dialogue":

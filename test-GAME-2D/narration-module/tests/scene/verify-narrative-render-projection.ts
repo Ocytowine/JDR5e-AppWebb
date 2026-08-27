@@ -15,6 +15,10 @@ import {
   reconstructRenderedNpcUtterancesV1,
   type AiNarrativeEnhancementResultV1
 } from "../../src/application";
+import {
+  createConversationSemanticConfigH0,
+  dialogueFixtureH0
+} from "../fixtures/conversation-semantic-fixtures-h0";
 
 class FixedClock implements RepositoryClock {
   constructor(private readonly instant = new Date("2026-07-07T12:00:00.000Z")) {}
@@ -55,11 +59,29 @@ async function main(): Promise<void> {
   });
   if (!created.ok) throw new Error(created.error.messageKey);
 
+  const intentInterpreterConfig = createConversationSemanticConfigH0([
+    dialogueFixtureH0({
+      fixtureId: "render-guard-greeting",
+      rawInput: "je dis bonjour au garde",
+      meaning: "Le personnage salue le garde blessé.",
+      targetRef: "npc:npc-garde-blesse",
+      targetSurface: "le garde"
+    }),
+    dialogueFixtureH0({
+      fixtureId: "render-guard-follow-up",
+      rawInput: "je demande au garde ce qu'il a vu",
+      meaning: "Le personnage demande au garde blessé ce qu'il a vu.",
+      targetRef: "npc:npc-garde-blesse",
+      targetSurface: "le garde"
+    })
+  ]);
+
   const controller = new NarrativeTurnControllerV1({
     repository,
     campaignId,
     clock,
-    idPrefix: "test"
+    idPrefix: "test",
+    intentInterpreterConfig
   });
   const turn = await controller.submit({
     schemaVersion: 1,
@@ -142,6 +164,7 @@ async function main(): Promise<void> {
     campaignId,
     clock,
     idPrefix: "memory-aware",
+    intentInterpreterConfig,
     npcPerformerConfig: {
       ...performerConfig,
       provider: {

@@ -117,6 +117,30 @@ conservées en archives pour expliquer un ancien point de reprise.
 
 ## Guides en français
 
+- [`Plan-correction-fiabilite-tour-narratif-J10H.md`](Plan-correction-fiabilite-tour-narratif-J10H.md)
+  détaille le lot actif J10-H : idempotence UI, focus conversationnel
+  persistant, fidélité V8, résilience des rôles IA et certification transverse
+  sans élargir l'autorité des intrigues, missions, compagnons, inventaires,
+  voyages, repos ou handoffs tactiques.
+- [`Checkpoint-fidelite-V8-J10H3.md`](Checkpoint-fidelite-V8-J10H3.md)
+  certifie la séparation entre cadre OpenAI original et projection propriétaire,
+  ainsi que la conservation de l'expression, de la cible, de l'acte, de l'ordre
+  et de la provenance jusqu'au reçu persistant.
+- [`Checkpoint-orchestration-resilience-J10H4.md`](Checkpoint-orchestration-resilience-J10H4.md)
+  fixe les séquences de rôles sous trois appels, aligne les limites de route,
+  mesure les paquets du performer et conserve des fallbacks immersifs sans les
+  promouvoir comme performances acceptées.
+- [`Checkpoint-diagnostics-J10H5.md`](Checkpoint-diagnostics-J10H5.md)
+  certifie le diagnostic en quatre étapes, l'attribution des échecs, la
+  télémétrie planner et son isolation complète du fil joueur.
+- [`Matrice-certification-transverse-J10H6.md`](Matrice-certification-transverse-J10H6.md)
+  relie les cinq transitions composées aux autorités et gates qui les prouvent.
+- [`Checkpoint-certification-transverse-J10H6.md`](Checkpoint-certification-transverse-J10H6.md)
+  ferme les régressions propriétaires, Chromium, IndexedDB, migrations et build
+  avant toute recette OpenAI live finale.
+- [`Checkpoint-recette-OpenAI-live-J10H7.md`](Checkpoint-recette-OpenAI-live-J10H7.md)
+  consigne les quatre parcours OpenAI réels, leurs rôles, métriques, fallbacks
+  et les corrections finales d'orientation, de performer et de rendu PNJ.
 - [`Plan-integration-narrative-immersive-J10.md`](Plan-integration-narrative-immersive-J10.md)
   cadre le prochain lot : voyage sans carte mais toujours autoritaire, groupe et
   missions vécus par dialogue, carnet privé, aides-mémoire et récapitulatif sans
@@ -162,6 +186,15 @@ conservées en archives pour expliquer un ancien point de reprise.
 
 ## Scénarios et preuves
 
+- [`Checkpoint-focus-local-J10H2.md`](Checkpoint-focus-local-J10H2.md)
+  ferme H2 : contrat public persistant, reprise de l'interlocuteur et fermetures
+  bornées sans autorité métier.
+- [`Checkpoint-idempotence-soumission-J10H1.md`](Checkpoint-idempotence-soumission-J10H1.md)
+  ferme H1 : verrou synchrone avant identifiant, reprise après erreur/reload et
+  cinq scénarios navigateur sans double opération.
+- [`Checkpoint-baseline-fiabilite-J10H0.md`](Checkpoint-baseline-fiabilite-J10H0.md)
+  ferme H0 : les recettes conversationnelles utilisent une fixture V8 exacte
+  et les écarts produit initiaux sont reproduits séparément sans appel OpenAI.
 - [`Recette-manuelle-UI-post-G8.md`](Recette-manuelle-UI-post-G8.md)
   détaille les tests produit utiles après la clarification live G8 et les
   fonctions volontairement trop incomplètes pour être évaluées maintenant.

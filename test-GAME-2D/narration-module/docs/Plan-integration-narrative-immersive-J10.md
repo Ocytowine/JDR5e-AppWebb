@@ -1,8 +1,10 @@
 # Plan d'intégration narrative immersive J10
 
-Statut : `J10-A À J10-F FERMÉS — J10-G OPTIONNEL EN ATTENTE D'ACCORD`
+Statut : `J10-A À J10-F FERMÉS — J10-G PARTIEL — J10-H OUVERT`
 
-Date : 2026-08-24
+Date initiale : 2026-08-24
+
+Mise à jour : 2026-08-26
 
 ## Objet
 
@@ -278,6 +280,21 @@ Après passage de toutes les preuves locales, une recette courte vérifie que
 l'interpréteur et les performers préservent cette expérience. Elle nécessite
 un nouvel accord explicite avant dépense et ne devient jamais un prérequis du
 fonctionnement local.
+
+### J10-H — Fiabilité du tour narratif et continuité conversationnelle
+
+Les observations live de G8 ouvrent un lot correctif distinct avant toute
+nouvelle dépense distante. Il verrouille les doubles soumissions, remplace le
+focus récent implicite par une projection conversationnelle persistante,
+préserve le cadre V8 jusqu'aux propriétaires et corrige l'orchestration des
+rôles IA et des fallbacks. Son état, ses dépendances H0 à H7 et ses impacts sur
+intrigue, mission, compagnon, inventaire, voyage, repos, monde et tactique sont
+définis dans
+[`Plan-correction-fiabilite-tour-narratif-J10H.md`](Plan-correction-fiabilite-tour-narratif-J10H.md).
+
+J10-H ne donne aucune autorité métier au focus conversationnel et ne rouvre pas
+le chantier tactique. Une recette OpenAI finale reste subordonnée à la fermeture
+des gates locales et à un nouvel accord explicite.
 
 ## Refus et risques à tester
 

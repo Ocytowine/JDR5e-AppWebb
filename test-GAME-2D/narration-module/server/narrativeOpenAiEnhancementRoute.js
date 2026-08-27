@@ -1312,7 +1312,7 @@ function buildSemanticIntentPayloadSchemaV8(request) {
                 "negated", "quoted", "relationToPrevious", "alternativeGroupId",
                 "dependsOnComponentIds", "simultaneousWithComponentIds",
                 "supersedesComponentIds", "mentionedTargets", "suggestedDomain",
-                "suggestedAction", "suggestedCapabilityId"
+                "suggestedAction", "suggestedCapabilityId", "dialogueAct"
               ],
               properties: {
                 componentId: { type: "string", minLength: 1 },
@@ -1341,7 +1341,18 @@ function buildSemanticIntentPayloadSchemaV8(request) {
                 },
                 suggestedDomain: nullableOpenString,
                 suggestedAction: nullableOpenString,
-                suggestedCapabilityId: nullableRuntimeCapabilityId
+                suggestedCapabilityId: nullableRuntimeCapabilityId,
+                dialogueAct: {
+                  anyOf: [{
+                    type: "object",
+                    additionalProperties: false,
+                    required: ["act", "contentGoal"],
+                    properties: {
+                      act: { enum: ["INITIATE_CONVERSATION", "ASK_QUESTION", "MAKE_STATEMENT", "REQUEST_ACTION", "OTHER"] },
+                      contentGoal: { type: "string", minLength: 1 }
+                    }
+                  }, { type: "null" }]
+                }
               }
             }
           },
@@ -1517,7 +1528,7 @@ function normalizeAiCallRequest(value) {
   if (!request.limits || typeof request.limits !== "object") {
     issues.push("limits must be an object.");
   } else {
-    const maxInputTokenBudget = request.role === "destination_arbiter"
+    const maxInputTokenBudget = request.role === "destination_arbiter" || request.role === "npc_performer"
       ? 8_000
       : request.contractVersion === PLOT_CANDIDATE_CONTRACT_VERSION_V1
         ? 4_000
@@ -1534,7 +1545,7 @@ function normalizeAiCallRequest(value) {
       : request.role === "scene_creator"
         ? request.contractVersion === PLOT_CANDIDATE_CONTRACT_VERSION_V1 ? 4_000 : 2_000
       : request.role === "scene_writer"
-        ? 1_500
+        ? 2_500
         : 1_000;
     if (!Number.isInteger(request.limits.outputTokenBudget) || request.limits.outputTokenBudget <= 0 || request.limits.outputTokenBudget > maxOutputTokenBudget) {
       issues.push(`limits.outputTokenBudget must be between 1 and ${maxOutputTokenBudget}.`);
@@ -1550,6 +1561,8 @@ function normalizeAiCallRequest(value) {
 function buildServerRoute(request, env) {
   const reasoningEffort = request.role === "player_intent_interpreter"
     ? normalizeReasoningEffort(env.NARRATION_OPENAI_INTENT_REASONING_EFFORT)
+    : request.role === "npc_performer"
+      ? normalizeReasoningEffort(env.NARRATION_OPENAI_NPC_PERFORMER_REASONING_EFFORT) || "none"
     : request.role === "scene_creator"
       ? normalizeReasoningEffort(env.NARRATION_OPENAI_SCENE_CREATOR_REASONING_EFFORT) || "none"
       : request.role === "destination_arbiter"
@@ -1728,6 +1741,7 @@ function buildRoleInstructions(request) {
         "overallMeaning conserve l'ensemble de la demande, y compris négation, citation, alternative, simultanéité, condition, séquence et changement d'avis.",
         "components contient toutes les composantes exprimées dans leur ordre. Il n'existe aucune liste fermée d'actions qui limite meaning : toute intention comprise doit rester présente même si le runtime ne sait pas l'exécuter.",
         "suggestedAction reste une description naturelle et ouverte de l'action comprise; n'y place jamais un identifiant technique de capacité.",
+        "Pour chaque composante de parole, renseigne dialogueAct selon le sens et le contexte : INITIATE_CONVERSATION pour ouvrir ou saluer, ASK_QUESTION pour demander une information, MAKE_STATEMENT pour affirmer ou répondre, REQUEST_ACTION pour demander qu'un interlocuteur agisse, OTHER seulement si aucune de ces natures ne convient. Utilise null hors parole. contentGoal conserve le contenu adressé sans inventer de propos.",
         "Pour chaque composante, compare son sens complet au playerFacingScope des entrées AVAILABLE ou HANDOFF_ONLY de runtimeCapabilities. Si une entrée couvre entièrement la composante, tu dois recopier son capabilityId exact dans suggestedCapabilityId et son domain dans suggestedDomain. La correspondance porte sur le sens et le périmètre, pas sur des mots identiques ni sur la forme de l'identifiant.",
         "Laisse suggestedCapabilityId à null uniquement lorsqu'aucune capacité publiée ne couvre entièrement la composante; conserve alors librement le sens, l'action et le domaine proposés. Le logiciel la gardera comprise mais non exécutable au lieu de la forcer dans une capacité proche.",
         "Ne fusionne pas deux composantes distinctes et n'en supprime aucune pour correspondre aux capacités actuelles du runtime.",
@@ -2431,6 +2445,7 @@ function validateSemanticIntentPayloadV8(payload) {
       for (const key of ["dependsOnComponentIds", "simultaneousWithComponentIds", "supersedesComponentIds"]) if (!Array.isArray(component[key]) || component[key].some(value => typeof value !== "string")) issues.push(`payload.semanticFrame.components ${key} is invalid.`);
       if (!Array.isArray(component.mentionedTargets) || component.mentionedTargets.some(target => !target || typeof target !== "object" || typeof target.surface !== "string" || !(target.proposedRef === null || typeof target.proposedRef === "string"))) issues.push("payload.semanticFrame.components mentionedTargets is invalid.");
       for (const key of ["suggestedDomain", "suggestedAction", "suggestedCapabilityId", "alternativeGroupId"]) if (!(component[key] === null || typeof component[key] === "string" && component[key].trim().length > 0)) issues.push(`payload.semanticFrame.components ${key} is invalid.`);
+      if (!(component.dialogueAct === null || component.dialogueAct && typeof component.dialogueAct === "object" && ["INITIATE_CONVERSATION", "ASK_QUESTION", "MAKE_STATEMENT", "REQUEST_ACTION", "OTHER"].includes(component.dialogueAct.act) && typeof component.dialogueAct.contentGoal === "string" && component.dialogueAct.contentGoal.trim().length > 0)) issues.push("payload.semanticFrame.components dialogueAct is invalid.");
     }
     if (frame.understandingStatus === "UNDERSTOOD" && frame.components.length === 0) issues.push("UNDERSTOOD requires at least one component.");
     for (const component of frame.components) {

@@ -47,6 +47,7 @@ import {
 import type { PlayerPublicContextV1 } from "./playerPublicContext";
 import { buildInterpreterEmbodiedPublicContextV1 } from "./interpreterEmbodiedContext";
 import { buildOpenSemanticExecutionPlanV1 } from "./openSemanticExecution";
+import type { LocalInteractionFocusV1 } from "./localInteractionFocus";
 
 export const AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V1 = "ai-intent-interpretation/1" as const;
 export const AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V2 = "ai-intent-semantic/2" as const;
@@ -124,7 +125,7 @@ export interface RecentSemanticTurnV1 {
   focusDisposition?: "RETAIN" | "RELEASE";
 }
 
-interface ActiveDialogueTargetV1 extends JsonObject {
+export interface ActiveDialogueTargetV1 extends JsonObject {
   schemaVersion: 1;
   target: JsonObject & {
     kind: "npc";
@@ -204,6 +205,7 @@ export async function interpretNarrativeInputWithAiV1(input: {
   config: AiIntentInterpreterConfigV1;
   localReferentHints?: LocalReferentHintV1[];
   recentSemanticTurns?: RecentSemanticTurnV1[];
+  localInteractionFocus?: LocalInteractionFocusV1 | null;
   runtimeContext?: InterpreterRuntimeContextV1;
   characterContext?: InterpreterCharacterContextV1 | null;
   playerPublicContext?: PlayerPublicContextV1 | null;
@@ -760,6 +762,7 @@ async function buildIntentInterpreterRequestV1(input: {
   config: AiIntentInterpreterConfigV1;
   localReferentHints?: LocalReferentHintV1[];
   recentSemanticTurns?: RecentSemanticTurnV1[];
+  localInteractionFocus?: LocalInteractionFocusV1 | null;
   runtimeContext?: InterpreterRuntimeContextV1;
   characterContext?: InterpreterCharacterContextV1 | null;
   playerPublicContext?: PlayerPublicContextV1 | null;
@@ -804,7 +807,7 @@ async function buildIntentInterpreterRequestV1(input: {
     : input.localReferentHints ?? [];
   const recentSemanticTurns = (input.recentSemanticTurns ?? []).slice(0, usesOpenSemanticContract ? 4 : usesSemanticContract ? 3 : 5);
   const activeDialogueTarget = usesSemanticContract
-    ? findActiveDialogueTargetV1(recentSemanticTurns)
+    ? resolveActiveDialogueTargetV1(input.localInteractionFocus, recentSemanticTurns)
     : null;
   const runtimeContext = input.runtimeContext ?? {
     schemaVersion: 1,
@@ -819,6 +822,7 @@ async function buildIntentInterpreterRequestV1(input: {
         recentSemanticTurns,
         recentFocus: input.localReferentHints ?? [],
         activeInterlocutor: activeDialogueTarget,
+        activeInteraction: input.localInteractionFocus ?? null,
         activeCompanionRefs: input.activeCompanionRefs ?? [],
         runtimeContext
       })
@@ -970,6 +974,25 @@ function requireCharacterReferenceClarificationV1(
       "La garde locale interdit de choisir arbitrairement entre plusieurs références du personnage."
     ]
   };
+}
+
+export function resolveActiveDialogueTargetV1(
+  focus: LocalInteractionFocusV1 | null | undefined,
+  recentSemanticTurns: RecentSemanticTurnV1[]
+): ActiveDialogueTargetV1 | null {
+  if (focus?.status === "ACTIVE" && focus.mode === "DIALOGUE") {
+    return {
+      schemaVersion: 1,
+      target: {
+        kind: "npc",
+        ref: focus.targetRef,
+        label: focus.targetDisplayName
+      },
+      sourceOperationId: focus.lastConfirmedOperationId,
+      sourcePlayerGoal: focus.publicSummary
+    };
+  }
+  return focus === undefined ? findActiveDialogueTargetV1(recentSemanticTurns) : null;
 }
 
 function findActiveDialogueTargetV1(

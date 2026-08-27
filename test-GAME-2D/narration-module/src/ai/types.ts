@@ -183,6 +183,10 @@ export interface AiOpenSemanticComponentV8 {
   suggestedDomain: string | null;
   suggestedAction: string | null;
   suggestedCapabilityId: string | null;
+  dialogueAct?: {
+    act: "INITIATE_CONVERSATION" | "ASK_QUESTION" | "MAKE_STATEMENT" | "REQUEST_ACTION" | "OTHER";
+    contentGoal: string;
+  } | null;
 }
 
 export interface AiSemanticPlayerIntentV2 {

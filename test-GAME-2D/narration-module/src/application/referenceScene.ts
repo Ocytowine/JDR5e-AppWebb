@@ -486,8 +486,13 @@ export function buildReferenceSceneBlocksV1(input: {
     const components = input.interpretation.semanticIntent.composition?.orderedComponents ?? [];
     if (components.length === 0) return [npcReaction];
     const targetMention = target.narrativeMention;
+    let npcReactionRendered = false;
     const rendered = components.flatMap(component => {
-      if (component.kind === "SPEECH" || component.kind === "NONVERBAL_SIGNAL") return [npcReaction];
+      if (component.kind === "SPEECH" || component.kind === "NONVERBAL_SIGNAL") {
+        if (npcReactionRendered) return [];
+        npcReactionRendered = true;
+        return [npcReaction];
+      }
       if (component.kind === "APPROACH_TARGET") {
         return [referenceBlock({
           operationId: input.operationId,
@@ -691,6 +696,16 @@ function actionNarration(
   playableScene: PlayableSceneStateV1 = REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1
 ): string {
   const target = interpretation.referentResolution?.resolvedTarget ?? interpretation.semanticIntent.target ?? null;
+  const orderedComponents = interpretation.semanticIntent.composition?.orderedComponents ?? [];
+  if (
+    resolution.preparedEffects.some(effect => effect.effectType === "LOCAL_SCENE_ACTION_RECORDED")
+    && target?.kind === "npc"
+    && orderedComponents.some(component => component.kind === "APPROACH_TARGET")
+    && orderedComponents.some(component => component.kind === "NONVERBAL_SIGNAL")
+  ) {
+    const mention = speechTarget("", interpretation, playableScene).narrativeMention;
+    return `Tu te rapproches ${dePhrase(mention)}. Puis, sans parler, tu lui adresses le geste voulu ; son attention se tourne vers toi.`;
+  }
   if (interpretation.semanticIntent.kind === "observe_environment" && resolution.perception !== null) {
     if (resolution.perception?.status === "AUTOMATIC_RESULT" && resolution.perception.revealedTexts.length > 0) {
       return resolution.perception.revealedTexts.join(" ");

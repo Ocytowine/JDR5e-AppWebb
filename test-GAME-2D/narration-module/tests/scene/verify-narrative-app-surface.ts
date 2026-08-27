@@ -196,24 +196,19 @@ assert.equal(narrativeSurfaceSource.includes("RENDER_AUTHORITY_REJECTION"), true
 assert.equal(narrativeSurfaceSource.includes("Texte IA candidat rejeté par la frontière d'autorité"), true, "surface explique le maintien du rendu autorisé sans faux diagnostic serveur");
 assert.equal(narrativeSurfaceSource.includes("Réaction PNJ IA indisponible ou rejetée : réaction locale bornée conservée"), true, "surface rend visible le repli du performer PNJ");
 assert.equal(narrativeSurfaceSource.includes("setEnhancementStatus"), false, "le ruban de mode ne conserve plus le diagnostic du dernier tour");
-assert.equal(narrativeSurfaceSource.includes("Diagnostic du tour:"), true, "les incidents d'enrichissement pertinents rejoignent la notification système du tour");
-assert.equal(narrativeSurfaceSource.includes("IA enrichissement ${metric.role}"), true, "la latence de chaque rôle d'enrichissement rejoint la trace système");
 assert.equal(narrativeSurfaceSource.includes("Diagnostic sûr :"), true, "les erreurs runtime rejoignent une bulle système expurgée");
-assert.equal(narrativeSurfaceSource.includes("Trace système et mémoire"), true, "trace mémoire intégrée à la notification système existante");
+assert.equal(narrativeSurfaceSource.includes("function appendNarrativeSystemTrace"), false, "aucune trace technique ne peut plus être injectée dans le fil joueur");
+assert.equal(narrativeSurfaceSource.includes("buildNarrativeTechnicalDiagnosticV1"), true, "le diagnostic structuré alimente le panneau développeur séparé");
+assert.equal(narrativeSurfaceSource.includes("interpretation-routing-resolution-presentation"), true, "les quatre étapes du diagnostic sont annoncées séparément");
+assert.equal(narrativeSurfaceSource.includes("separate-developer-panel"), true, "la surface marque explicitement l'isolation du diagnostic technique");
 assert.equal(narrativeSurfaceSource.includes("const packetBeforeProjection = enhancement.displayPacket"), true, "la projection persistée reste sans trace développeur ajoutée");
 assert.equal(narrativeSurfaceSource.includes("sanitizePlayerFacingPacketsV1"), true, "les anciennes traces persistées sont filtrées côté joueur");
-assert.equal(narrativeSurfaceSource.includes("total avant affichage"), true, "latence de bout en bout visible dans la notification système");
-assert.equal(narrativeSurfaceSource.includes("Détail contrôleur"), true, "latence interne détaillée dans la notification système existante");
-assert.equal(narrativeSurfaceSource.includes("output.aiTelemetry"), true, "métriques fournisseur intégrées à la notification système existante");
 assert.equal(turnControllerSource.includes("input.change.aiTelemetry"), true, "les métriques du scene_creator suivent le changement de scène jusqu'à la sortie contrôleur");
 assert.equal(
   narrativeSurfaceSource.includes("output.sceneArrival !== null && output.activeScene.sceneId !== output.sceneArrival.scene.sceneId"),
   true,
   "le writer post-commit est refusé seulement si la scène active ne correspond pas à la destination"
 );
-assert.equal(narrativeSurfaceSource.includes("contexte=${metric.contextChars}"), true, "taille du contexte IA visible sans panneau UI séparé");
-assert.equal(narrativeSurfaceSource.includes("Répliques PNJ antérieures visibles"), true, "répliques mémorisées visibles sans panneau UI séparé");
-assert.equal(narrativeSurfaceSource.includes("Couples intention → réponse"), true, "continuité conversationnelle visible sous forme de couples dans le bloc système");
 assert.equal(presentationVariationSource.includes("presentation-variant:"), true, "projection tracée avec variante de présentation dans le service applicatif");
 assert.equal(mainSource.includes("GameBoard"), false, "main.tsx ne doit plus monter GameBoard directement");
 assert.equal(appSource.includes("from \"./GameBoard\""), true, "App.tsx monte GameBoard seulement comme surface tactique");

@@ -36,6 +36,37 @@ import {
 } from "./plotAuthority";
 
 export const NPC_PERFORMER_CONTRACT_VERSION_V1 = "npc-performer/1" as const;
+export const NPC_PERFORMER_PACKET_RECEIPT_V1 = "npc-performer-packet-receipt/1" as const;
+
+export interface NpcPerformerPacketReceiptV1 extends JsonObject {
+  schemaVersion: 1;
+  contractVersion: typeof NPC_PERFORMER_PACKET_RECEIPT_V1;
+  serializedCharacters: number;
+  estimatedInputTokens: number;
+  declaredInputTokenBudget: number;
+  withinDeclaredBudget: boolean;
+  retainedDialogueTurns: number;
+  historyLimit: 5;
+}
+
+export function measureNpcPerformerPacketV1(
+  value: JsonObject,
+  declaredInputTokenBudget: number,
+  retainedDialogueTurns: number
+): NpcPerformerPacketReceiptV1 {
+  const serializedCharacters = JSON.stringify(value).length;
+  const estimatedInputTokens = Math.ceil(serializedCharacters / 4);
+  return {
+    schemaVersion: 1,
+    contractVersion: NPC_PERFORMER_PACKET_RECEIPT_V1,
+    serializedCharacters,
+    estimatedInputTokens,
+    declaredInputTokenBudget,
+    withinDeclaredBudget: estimatedInputTokens <= declaredInputTokenBudget,
+    retainedDialogueTurns,
+    historyLimit: 5
+  };
+}
 
 export interface NpcPerformerConfigV1 {
   provider: ContractAiProviderV1;
@@ -60,6 +91,7 @@ export interface NpcPerformanceResultV1 {
   contractVersion: typeof NPC_PERFORMER_CONTRACT_VERSION_V1;
   calledPerformer: boolean;
   performance: (NpcPerformerPayloadV1 & JsonObject) | null;
+  fallbackPerformance: (NpcPerformerPayloadV1 & JsonObject) | null;
   acceptedOutput: AiRoleOutputEnvelopeV1<NpcPerformerPayloadV1> | null;
   performanceFailure: NpcPerformanceFailureV1 | null;
   incidents: AiIncidentRecordV1[];
@@ -259,6 +291,7 @@ export async function performNpcTurnV1(input: {
       contractVersion: NPC_PERFORMER_CONTRACT_VERSION_V1,
       calledPerformer: false,
       performance: null,
+      fallbackPerformance: null,
       acceptedOutput: null,
       performanceFailure: null,
       incidents: [],
@@ -286,11 +319,11 @@ export async function performNpcTurnV1(input: {
         performance: acceptedOutput.payload
       });
     if (reactionIssues.length > 0) {
-      return rejectedNpcPerformance(actorId, reactionIssues, run.incidents, "cadre de réaction incompatible avec l'intention structurée", run.telemetry);
+      return rejectedNpcPerformance(actorId, reactionIssues, run.incidents, "cadre de réaction incompatible avec l'intention structurée", run.telemetry, buildNpcFallbackFromRequestV1(request, input.interpretation, actorId));
     }
     const localContextIssues = validateNpcPerformanceAgainstVisibleSceneV1(acceptedOutput.payload, input.sceneState);
     if (localContextIssues.length > 0) {
-      return rejectedNpcPerformance(actorId, localContextIssues, run.incidents, "prose incompatible avec le contexte spatial visible", run.telemetry);
+      return rejectedNpcPerformance(actorId, localContextIssues, run.incidents, "prose incompatible avec le contexte spatial visible", run.telemetry, buildNpcFallbackFromRequestV1(request, input.interpretation, actorId));
     }
     const critic = input.config.coherenceCriticRoute === undefined || !shouldCritiqueNpcPerformanceV1(request, acceptedOutput.payload)
       ? null
@@ -301,13 +334,14 @@ export async function performNpcTurnV1(input: {
         route: input.config.coherenceCriticRoute
       });
     if (critic !== null && !critic.accepted) {
-      return rejectedNpcPerformance(actorId, critic.issues, [...run.incidents, ...critic.incidents], "prose incohérente avec l'acte de dialogue", [...run.telemetry, ...critic.telemetry]);
+      return rejectedNpcPerformance(actorId, critic.issues, [...run.incidents, ...critic.incidents], "prose incohérente avec l'acte de dialogue", [...run.telemetry, ...critic.telemetry], buildNpcFallbackFromRequestV1(request, input.interpretation, actorId));
     }
     return {
       schemaVersion: 1,
       contractVersion: NPC_PERFORMER_CONTRACT_VERSION_V1,
       calledPerformer: true,
       performance: acceptedOutput.payload as NpcPerformerPayloadV1 & JsonObject,
+      fallbackPerformance: null,
       acceptedOutput,
       performanceFailure: null,
       incidents: [...run.incidents, ...(critic?.incidents ?? [])],
@@ -321,6 +355,7 @@ export async function performNpcTurnV1(input: {
     contractVersion: NPC_PERFORMER_CONTRACT_VERSION_V1,
     calledPerformer: true,
     performance: null,
+    fallbackPerformance: buildNpcFallbackFromRequestV1(request, input.interpretation, actorId),
     acceptedOutput: null,
     performanceFailure: {
       schemaVersion: 1,
@@ -334,7 +369,7 @@ export async function performNpcTurnV1(input: {
     },
     incidents: run.incidents,
     telemetry: run.telemetry,
-    safetyNotes: ["Échec npc_performer diagnostiqué sans réaction PNJ de remplacement."]
+    safetyNotes: ["Échec npc_performer diagnostiqué; réaction locale immersive fondée sur l'acte structuré conservée."]
   };
 }
 
@@ -358,13 +393,15 @@ function rejectedNpcPerformance(
   issues: string[],
   incidents: AiIncidentRecordV1[],
   reason: string,
-  telemetry: AiCallTelemetryV1[] = []
+  telemetry: AiCallTelemetryV1[] = [],
+  fallbackPerformance: (NpcPerformerPayloadV1 & JsonObject) | null = null
 ): NpcPerformanceResultV1 {
   return {
     schemaVersion: 1,
     contractVersion: NPC_PERFORMER_CONTRACT_VERSION_V1,
     calledPerformer: true,
     performance: null,
+    fallbackPerformance,
     acceptedOutput: null,
     performanceFailure: {
       schemaVersion: 1,
@@ -561,6 +598,37 @@ export function resolveNpcSpeakerV1(actorId: string, activeScene: PlayableSceneS
     displayName: designation?.playerFacingLabel ?? actor?.displayName ?? ambientActor?.displayName ?? "Interlocuteur",
     knownNameStatus: designation?.knowledgeStatus ?? "UNKNOWN"
   };
+}
+
+function buildNpcFallbackFromRequestV1(
+  request: AiCallRequestV1,
+  interpretation: NarrativeIntentInterpretationV1,
+  actorId: string | null
+): NpcPerformerPayloadV1 & JsonObject {
+  const task = request.input.task as {
+    conversationProfileContract?: NpcConversationProfileContractV1;
+    ownerMissionDecision?: { disposition?: unknown; conditions?: unknown } | null;
+    ownerCompanionDecision?: { companionName?: unknown; fallbackText?: unknown } | null;
+  };
+  const context = request.input.roleContextPack as {
+    visibleActor?: { displayName?: unknown } | null;
+  };
+  const displayName = typeof context.visibleActor?.displayName === "string"
+    ? context.visibleActor.displayName
+    : null;
+  const dialogueAct = interpretation.semanticIntent.dialogueAct;
+  return buildLocalNpcPerformancePayload(
+    actorId ?? "npc:unknown",
+    interpretation,
+    null,
+    displayName,
+    dialogueAct?.act ?? "OTHER",
+    dialogueAct?.contentGoal ?? interpretation.semanticIntent.playerGoal,
+    interpretation.intentId,
+    task.conversationProfileContract,
+    task.ownerMissionDecision ?? null,
+    task.ownerCompanionDecision ?? null
+  ) as NpcPerformerPayloadV1 & JsonObject;
 }
 
 function buildLocalNpcPerformancePayload(
@@ -790,9 +858,20 @@ async function buildNpcPerformerRequestV1(input: {
     repository: input.repository,
     campaignId: input.campaignId,
     actorId: input.actorId,
-    limit: 20
+    // La reconstruction filtre ensuite par acteur et ne renvoie que cinq
+    // répliques. Une fenêtre de lecture plus large évite qu'un autre PNJ
+    // évince artificiellement les tours récents de l'interlocuteur courant.
+    limit: 100
   });
-  const renderedNpcUtterances = priorNpcUtterances.ok ? priorNpcUtterances.value : [];
+  const renderedNpcUtterances = (priorNpcUtterances.ok ? priorNpcUtterances.value : [])
+    .slice(-5)
+    .map(utterance => ({
+      ...utterance,
+      text: boundedNpcPromptTextV1(utterance.text, 600),
+      playerExpressionText: utterance.playerExpressionText === null
+        ? null
+        : boundedNpcPromptTextV1(utterance.playerExpressionText, 400)
+    }));
   const rememberedPlayerSpeech = new Map(input.sceneState.shortTermNpcMemory
     .filter(memory => `npc:${memory.actorId}` === input.actorId)
     .map(memory => [memory.operationId, memory.playerIntentSummary] as const));
@@ -910,6 +989,13 @@ async function buildNpcPerformerRequestV1(input: {
     },
     requiredOutput: "bounded_visible_npc_reaction_without_commit"
   };
+  const declaredInputTokenBudget = input.config.route.inputTokenLimit;
+  const packetReceipt = measureNpcPerformerPacketV1(
+    { roleContextPack, task } as unknown as JsonObject,
+    declaredInputTokenBudget,
+    dialogueHistory.length
+  );
+  const measuredTask = { ...task, packetReceipt };
   return {
     schemaVersion: 1,
     callId: `${input.operationId}:ai:npc-performer:call`,
@@ -921,19 +1007,26 @@ async function buildNpcPerformerRequestV1(input: {
     role: input.config.route.role,
     contractVersion: NPC_PERFORMER_CONTRACT_VERSION_V1,
     modelRouteId: input.config.route.routeId,
-    contextFingerprint: await computeJsonFingerprint({ roleContextPack, task }) as `sha256:${string}`,
+    contextFingerprint: await computeJsonFingerprint({ roleContextPack, task: measuredTask }) as `sha256:${string}`,
     idempotencyKey: `${input.operationId}:npc-performer`,
     input: {
       instructionsRef: "npc-performer/minimal/v1",
       roleContextPack,
-      task
+      task: measuredTask
     },
     limits: {
-      inputTokenBudget: 2_000,
+      inputTokenBudget: declaredInputTokenBudget,
       outputTokenBudget: Math.min(2_000, input.config.route.outputTokenLimit),
       timeoutMs: input.config.route.timeoutMs
     }
   };
+}
+
+function boundedNpcPromptTextV1(value: string, maxCharacters: number): string {
+  const normalized = value.replaceAll(/[\r\n\t]+/gu, " ").trim();
+  return normalized.length <= maxCharacters
+    ? normalized
+    : `${normalized.slice(0, Math.max(0, maxCharacters - 1)).trimEnd()}…`;
 }
 
 export function missionDecisionFallbackV1(

@@ -8,7 +8,10 @@ import type {
   OpenSemanticExecutionPlanV1,
   OpenSemanticStepDispositionV1
 } from "./openSemanticExecution";
-import { validateOpenSemanticExecutionPlanV1 } from "./openSemanticExecution";
+import {
+  selectOpenSemanticLegacyOwnerStepsV1,
+  validateOpenSemanticExecutionPlanV1
+} from "./openSemanticExecution";
 
 export const INTENT_CLARIFICATION_CONTRACT_VERSION_V1 = "intent-clarification/1" as const;
 
@@ -327,14 +330,9 @@ function validateOpenSemanticOwnerAdapterAuthorityV1(
   if (frame.understandingStatus !== "UNDERSTOOD" || frame.confidence === "low") {
     issues.push("owner adapter requires a sufficiently confident understood frame");
   }
-  const routable = plan.steps.filter(step => step.disposition === "ROUTABLE");
-  const blocking = plan.steps.filter(step => ![
-    "ROUTABLE",
-    "SKIPPED_NON_EXECUTABLE",
-    "SKIPPED_SUPERSEDED"
-  ].includes(step.disposition));
-  if (routable.length !== 1 || blocking.length > 0) issues.push("owner adapter requires exactly one unblocked routable step");
-  const step = routable[0];
+  const selection = selectOpenSemanticLegacyOwnerStepsV1({ frame, plan });
+  if (selection === null) issues.push("owner adapter requires one routable step or one compatible local scene sequence");
+  const step = selection?.steps.at(-1);
   const component = step === undefined
     ? undefined
     : frame.components.find(entry => entry.componentId === step.componentId);
@@ -348,15 +346,21 @@ function validateOpenSemanticOwnerAdapterAuthorityV1(
   if (interpretation.runtimeDecision.status !== "SUPPORTED_BY_CURRENT_RUNTIME") {
     issues.push("owner adapter must expose an installed supported capability");
   }
-  if (component !== undefined && interpretation.semanticIntent.playerGoal !== component.meaning) {
+  const expectedMeaning = selection?.mode === "LOCAL_SCENE_SEQUENCE"
+    ? frame.overallMeaning
+    : component?.meaning;
+  if (expectedMeaning !== undefined && interpretation.semanticIntent.playerGoal !== expectedMeaning) {
     issues.push("owner adapter semantic goal mismatch");
   }
   if (component !== undefined) {
-    const expectedCommitment = component.commitment === "mixed" ? "unclear" : component.commitment;
+    const commitmentSource = selection?.mode === "LOCAL_SCENE_SEQUENCE"
+      ? frame.overallCommitment
+      : component.commitment;
+    const expectedCommitment = commitmentSource === "mixed" ? "unclear" : commitmentSource;
     if (interpretation.semanticIntent.commitment !== expectedCommitment || interpretation.commitment !== expectedCommitment) {
       issues.push("owner adapter commitment mismatch");
     }
-    if (interpretation.coreMeaning !== component.meaning) issues.push("owner adapter core meaning mismatch");
+    if (interpretation.coreMeaning !== expectedMeaning) issues.push("owner adapter core meaning mismatch");
   }
   if (step !== undefined) {
     const expectedNoCommit = step.capabilityId === "scene.visible-perception"

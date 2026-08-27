@@ -60,6 +60,7 @@ export interface NarrativeRuntimeRouteV2 extends Omit<NarrativeRuntimeRouteV1, "
 
 export const NARRATIVE_RUNTIME_CAPABILITIES_V1: readonly NarrativeRuntimeCapabilityV1[] = [
   { capabilityId: "scene.visible-actor-approach", domain: "scene_resolution", semanticKinds: ["move_near_visible_actor"], disposition: "HANDLE", commandFamily: "SCENE_INTERACTION", commitPolicy: "DOMAIN_VALIDATED", noGameTime: true },
+  { capabilityId: "scene.visible-actor-orientation", domain: "scene_resolution", semanticKinds: ["nonverbal_signal"], disposition: "HANDLE", commandFamily: "SCENE_INTERACTION", commitPolicy: "DOMAIN_VALIDATED", noGameTime: true },
   { capabilityId: "scene.visible-object-interaction", domain: "scene_resolution", semanticKinds: ["manipulate_visible_object"], disposition: "HANDLE", commandFamily: "SCENE_INTERACTION", commitPolicy: "DOMAIN_VALIDATED", noGameTime: true },
   { capabilityId: "scene.visible-nonverbal-signal", domain: "scene_resolution", semanticKinds: ["nonverbal_signal"], disposition: "HANDLE", commandFamily: "SCENE_INTERACTION", commitPolicy: "DOMAIN_VALIDATED", noGameTime: true },
   { capabilityId: "scene.visible-dialogue", domain: "social", semanticKinds: ["address_visible_actor"], disposition: "HANDLE", commandFamily: "SPEECH", commitPolicy: "DOMAIN_VALIDATED", noGameTime: true },
@@ -278,6 +279,8 @@ function playerFacingScope(capabilityId: string): string {
   switch (capabilityId) {
     case "scene.visible-actor-approach":
       return "Se déplacer localement pour se placer près d'un acteur visible, sans lui parler ni lui imposer de réaction.";
+    case "scene.visible-actor-orientation":
+      return "Orienter son attention ou son corps vers un acteur visible, sans déplacement, parole ni réaction imposée.";
     case "scene.visible-object-interaction":
       return "Manipuler ou agir localement sur un objet ou un élément visible de la scène.";
     case "scene.visible-nonverbal-signal":

@@ -34,6 +34,7 @@ export interface OpenSemanticExecutionStepV1 extends JsonObject {
   dependsOnComponentIds: string[];
   targetRefs: string[];
   capabilityId: string | null;
+  suggestedDomain: AiOpenSemanticComponentV8["suggestedDomain"];
   requiredDomain: NarrativeRuntimeDomainV1 | null;
   disposition: OpenSemanticStepDispositionV1;
   noCommitBeforeOwnerValidation: true;
@@ -49,6 +50,65 @@ export interface OpenSemanticExecutionPlanV1 extends JsonObject {
   steps: OpenSemanticExecutionStepV1[];
   authority: "OWNER_PREFLIGHT_THEN_EXECUTE";
   rawInputAccess: "FORBIDDEN";
+}
+
+export interface OpenSemanticLegacyOwnerSelectionV1 {
+  mode: "SINGLE_COMPONENT" | "LOCAL_SCENE_SEQUENCE";
+  steps: OpenSemanticExecutionStepV1[];
+}
+
+/**
+ * Limite explicite du pont V1 : une action unique reste routable comme avant.
+ * La seule composition aplatie en un commit local est une approche suivie
+ * d'une communication vers le meme acteur visible. Le choix repose uniquement
+ * sur le graphe semantique, les capacites publiees et les references resolues.
+ */
+export function selectOpenSemanticLegacyOwnerStepsV1(input: {
+  frame: AiOpenSemanticFrameV8;
+  plan: OpenSemanticExecutionPlanV1;
+}): OpenSemanticLegacyOwnerSelectionV1 | null {
+  const blocking = input.plan.steps.filter(step => ![
+    "ROUTABLE",
+    "SKIPPED_NON_EXECUTABLE",
+    "SKIPPED_SUPERSEDED"
+  ].includes(step.disposition));
+  if (blocking.length > 0) return null;
+  const steps = input.plan.steps
+    .filter(step => step.disposition === "ROUTABLE")
+    .sort((left, right) => left.order - right.order);
+  if (steps.length === 1) return { mode: "SINGLE_COMPONENT", steps };
+  if (steps.length !== 2 || input.frame.globalConditions.length > 0) return null;
+
+  const [attention, communication] = steps;
+  if (attention === undefined || communication === undefined) return null;
+  const sameResolvedActor = attention.targetRefs.length === 1
+    && communication.targetRefs.length === 1
+    && attention.targetRefs[0] === communication.targetRefs[0]
+    && /^(?:npc|actor):/u.test(attention.targetRefs[0] ?? "");
+  const dependencyIsLocalAndOrdered = communication.relationToPrevious === "THEN"
+    && communication.dependsOnComponentIds.every(componentId => componentId === attention.componentId);
+  const components = steps.map(step =>
+    input.frame.components.find(component => component.componentId === step.componentId)
+  );
+  const componentsAreCommitted = components.every(component =>
+    component !== undefined
+    && component.commitment === "committed"
+    && component.conditions.length === 0
+    && component.alternativeGroupId === null
+    && component.simultaneousWithComponentIds.length === 0
+    && component.supersedesComponentIds.length === 0
+  );
+  if (
+    attention.requiredDomain !== "scene_resolution"
+    || !["scene.visible-actor-approach", "scene.visible-actor-orientation"].includes(attention.capabilityId ?? "")
+    || !["scene.visible-dialogue", "scene.visible-nonverbal-signal"].includes(communication.capabilityId ?? "")
+    || (communication.capabilityId === "scene.visible-dialogue" && communication.requiredDomain !== "social")
+    || (communication.capabilityId === "scene.visible-nonverbal-signal" && communication.requiredDomain !== "scene_resolution")
+    || !sameResolvedActor
+    || !dependencyIsLocalAndOrdered
+    || !componentsAreCommitted
+  ) return null;
+  return { mode: "LOCAL_SCENE_SEQUENCE", steps };
 }
 
 export interface OpenSemanticOwnerRequestV1 {
@@ -134,8 +194,6 @@ export function buildOpenSemanticExecutionPlanV1(input: {
         const capability = component.suggestedCapabilityId === null
           ? null
           : capabilities.get(component.suggestedCapabilityId) ?? null;
-        const domainMatches = capability !== null
-          && component.suggestedDomain === capability.domain;
         const base = {
           schemaVersion: 1 as const,
           componentId: component.componentId,
@@ -148,8 +206,9 @@ export function buildOpenSemanticExecutionPlanV1(input: {
           targetRefs: component.mentionedTargets
             .map(target => target.proposedRef)
             .filter((ref): ref is string => ref !== null),
-          capabilityId: domainMatches ? capability.capabilityId : null,
-          requiredDomain: domainMatches ? capability.domain : null,
+          capabilityId: capability?.capabilityId ?? null,
+          suggestedDomain: component.suggestedDomain,
+          requiredDomain: capability?.domain ?? null,
           noCommitBeforeOwnerValidation: true as const,
           noGameTimeBeforeOwnerValidation: true as const
         };
@@ -158,7 +217,7 @@ export function buildOpenSemanticExecutionPlanV1(input: {
           component,
           superseded,
           simultaneous,
-          capability: domainMatches ? capability : null
+          capability
         });
         return { ...base, ...decision };
       }),
@@ -291,9 +350,10 @@ export function validateOpenSemanticExecutionPlanV1(input: {
       .map(target => target.proposedRef)
       .filter((ref): ref is string => ref !== null);
     if (JSON.stringify(step.targetRefs) !== JSON.stringify(expectedTargetRefs)) issues.push(`component ${component.componentId} targets mismatch`);
+    if (step.suggestedDomain !== component.suggestedDomain) issues.push(`component ${component.componentId} suggested domain mismatch`);
     if (step.disposition === "ROUTABLE") {
       if (step.capabilityId === null || step.capabilityId !== component.suggestedCapabilityId) issues.push(`component ${component.componentId} capability mismatch`);
-      if (step.requiredDomain === null || step.requiredDomain !== component.suggestedDomain) issues.push(`component ${component.componentId} domain mismatch`);
+      if (step.requiredDomain === null) issues.push(`component ${component.componentId} owner domain missing`);
     }
     if (!step.noCommitBeforeOwnerValidation || !step.noGameTimeBeforeOwnerValidation) issues.push(`component ${component.componentId} exceeds preflight authority`);
   });

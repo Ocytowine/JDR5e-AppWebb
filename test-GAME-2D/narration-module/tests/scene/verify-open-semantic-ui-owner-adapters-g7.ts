@@ -190,9 +190,88 @@ async function main(): Promise<void> {
       targetRefs: [["npc:archive-clerk"]]
     }
   };
+  const archiveGreetingCase = {
+    ...archiveCase,
+    caseId: "archives-clerk-approach-and-greet",
+    rawInput: "je m'approche du clerc, et je le salue",
+    frame: {
+      ...archiveCase.frame,
+      overallMeaning: "Le personnage s'approche du clerc visible, puis le salue.",
+      components: [
+        archiveCase.frame.components[0]!,
+        {
+          ...archiveCase.frame.components[0]!,
+          componentId: "greet-visible-clerk",
+          order: 2,
+          meaning: "Le personnage salue ensuite le clerc visible sans engager de dialogue explicite.",
+          relationToPrevious: "THEN" as const,
+          dependsOnComponentIds: [archiveCase.frame.components[0]!.componentId],
+          suggestedAction: "saluer le clerc visible",
+          suggestedCapabilityId: "scene.visible-nonverbal-signal"
+        }
+      ]
+    },
+    expected: {
+      ...archiveCase.expected,
+      componentCommitments: ["committed" as const, "committed" as const],
+      relations: ["NONE" as const, "THEN" as const],
+      dispositions: ["ROUTABLE" as const, "ROUTABLE" as const],
+      targetRefs: [["npc:archive-clerk"], ["npc:archive-clerk"]]
+    }
+  };
+  const archivePurposeGreetingCase = {
+    ...archiveGreetingCase,
+    caseId: "archives-clerk-approach-in-order-to-greet",
+    rawInput: "je m'approche du clerc afin de le saluer",
+    frame: {
+      ...archiveGreetingCase.frame,
+      overallMeaning: "Le personnage s'approche du clerc visible afin de le saluer.",
+      components: [
+        archiveGreetingCase.frame.components[0]!,
+        {
+          ...archiveGreetingCase.frame.components[1]!,
+          meaning: "Le personnage salue le clerc.",
+          suggestedDomain: "scene_resolution",
+          suggestedAction: "saluer le clerc",
+          suggestedCapabilityId: "scene.visible-dialogue"
+        }
+      ]
+    }
+  };
+  const archiveOrientationQuestionCase = {
+    ...archivePurposeGreetingCase,
+    caseId: "archives-archivist-orientation-and-question",
+    rawInput: "je me tourne vers l'archiviste et je lui demande comment sont classés les actes",
+    frame: {
+      ...archivePurposeGreetingCase.frame,
+      overallMeaning: "Le personnage se tourne vers l'archiviste puis lui demande comment sont classés les actes.",
+      components: [
+        {
+          ...archivePurposeGreetingCase.frame.components[0]!,
+          componentId: "orient-visible-archivist",
+          meaning: "Le personnage oriente son attention vers l'archiviste visible.",
+          suggestedAction: "Orienter son attention vers l'archiviste visible.",
+          suggestedCapabilityId: "scene.visible-actor-orientation"
+        },
+        {
+          ...archivePurposeGreetingCase.frame.components[1]!,
+          componentId: "question-visible-archivist",
+          meaning: "Le personnage demande à l'archiviste comment sont classés les actes.",
+          dependsOnComponentIds: ["orient-visible-archivist"],
+          dialogueAct: {
+            act: "ASK_QUESTION" as const,
+            contentGoal: "Comprendre le classement des actes."
+          }
+        }
+      ]
+    }
+  };
   const archiveInterpreterConfig = createSimulatedOpenAiSemanticConfigG6([
     archiveCase,
-    archiveFollowUpCase
+    archiveFollowUpCase,
+    archiveGreetingCase,
+    archivePurposeGreetingCase,
+    archiveOrientationQuestionCase
   ]);
   const archiveProvider = archiveInterpreterConfig.provider as SimulatedOpenAiSemanticProviderG6;
   const archiveController = await createPrototypeNarrativeTurnControllerV1({
@@ -253,6 +332,65 @@ async function main(): Promise<void> {
     archiveFollowUp.value.output.domainCommand?.targetRefs,
     ["npc:archive-clerk"],
     "une reprise pronominale conserve le focus sémantique du tour précédent"
+  );
+
+  const archiveGreeting = await archiveController.submit({
+    schemaVersion: 1,
+    clientRequestId: "g7-archives-clerk-approach-and-greet",
+    rawInput: archiveGreetingCase.rawInput
+  });
+  if (!archiveGreeting.ok) throw new Error(archiveGreeting.error.messageKey);
+  assert.equal(archiveGreeting.value.output.resolution.resultKind, "COMMIT_APPLIED");
+  assert.equal(archiveGreeting.value.output.domainCommand?.semanticKind, "nonverbal_signal");
+  assert.deepEqual(
+    archiveGreeting.value.output.domainCommand?.payload.capabilityIds,
+    ["scene.visible-actor-approach", "scene.visible-nonverbal-signal"]
+  );
+  const greetingNarration = archiveGreeting.value.output.displayPacket.displayBlocks
+    .find(block => block.kind === "GM_NARRATION")?.text ?? "";
+  assert.match(greetingNarration, /sans parler|geste/iu);
+  assert.doesNotMatch(
+    greetingNarration,
+    /domaine propriétaire/iu,
+    "une micro-séquence locale compatible doit rester dans la fiction"
+  );
+
+  const archivePurposeGreeting = await archiveController.submit({
+    schemaVersion: 1,
+    clientRequestId: "g7-archives-clerk-approach-in-order-to-greet",
+    rawInput: archivePurposeGreetingCase.rawInput
+  });
+  if (!archivePurposeGreeting.ok) throw new Error(archivePurposeGreeting.error.messageKey);
+  assert.equal(archivePurposeGreeting.value.output.resolution.resultKind, "COMMIT_APPLIED");
+  assert.equal(archivePurposeGreeting.value.output.domainCommand?.domain, "social");
+  assert.equal(archivePurposeGreeting.value.output.domainCommand?.semanticKind, "address_visible_actor");
+  assert.deepEqual(
+    archivePurposeGreeting.value.output.domainCommand?.payload.capabilityIds,
+    ["scene.visible-actor-approach", "scene.visible-dialogue"]
+  );
+  assert.ok(archivePurposeGreeting.value.output.npcPerformance);
+  assert.doesNotMatch(
+    archivePurposeGreeting.value.output.displayPacket.displayBlocks
+      .find(block => block.kind === "GM_NARRATION")?.text ?? "",
+    /domaine propriétaire/iu
+  );
+
+  const archiveOrientationQuestion = await archiveController.submit({
+    schemaVersion: 1,
+    clientRequestId: "g7-archives-archivist-orientation-question",
+    rawInput: archiveOrientationQuestionCase.rawInput
+  });
+  if (!archiveOrientationQuestion.ok) throw new Error(archiveOrientationQuestion.error.messageKey);
+  assert.equal(archiveOrientationQuestion.value.output.resolution.resultKind, "COMMIT_APPLIED");
+  assert.deepEqual(
+    archiveOrientationQuestion.value.output.domainCommand?.payload.capabilityIds,
+    ["scene.visible-actor-orientation", "scene.visible-dialogue"]
+  );
+  assert.ok(archiveOrientationQuestion.value.output.npcPerformance);
+  assert.equal(
+    archiveOrientationQuestion.value.output.displayPacket.displayBlocks.filter(block => block.kind === "NPC_SPEECH").length,
+    1,
+    "orientation puis parole ne doit rendre qu'une seule réplique PNJ"
   );
 
   let capturedOwnerInput: string | null = null;
@@ -336,7 +474,7 @@ async function main(): Promise<void> {
     rawInput: dialogueCase.rawInput
   });
   if (!dialogue.ok) throw new Error(dialogue.error.messageKey);
-  assert.notEqual(dialogue.value.output.mjPlan, null, "Le planificateur doit recevoir le sens V8, pas être supprimé pour un dialogue routable.");
+  assert.equal(dialogue.value.output.mjPlan, null, "H4 utilise directement le plan G5 pour réserver les rôles distants au performer et à son critique.");
   assert.notEqual(dialogue.value.output.npcPerformance, null, "Le PNJ visible doit pouvoir répondre à un dialogue V8 routable.");
   assert.equal(dialogue.value.output.interpretation.semanticSource, "OPEN_SEMANTIC_FRAME_V8");
   assert.equal(
@@ -348,7 +486,7 @@ async function main(): Promise<void> {
   assert.equal(productConfig.contractVersion, AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V8);
   assert.ok(productConfig.route.allowedContractVersions.includes(AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V8));
 
-  console.log("Open semantic owner adapters/UI G7: V8 product config, semantic-only owner input and composed-turn suspension passed.");
+  console.log("Open semantic owner adapters/UI G7: V8 product config, semantic-only owner input, compatible local sequences and cross-owner suspension passed.");
 }
 
 function requiredCase(caseId: string) {
