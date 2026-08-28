@@ -10,6 +10,7 @@ import {
   ensureExternalInventoryOwnershipV1,
   NarrativeTurnControllerV1,
   createCampaignWorldSimulationRuntimeV1,
+  createCampaignNpcInformationRuntimeV1,
   createInterpreterCharacterContextResolverV1,
   resolveSceneV1,
   activateCampaignInitialSceneV1,
@@ -574,6 +575,27 @@ export async function createPlayableCampaignControllerV1(
           }))];
         }
       },
+      npcInformationRuntime: createCampaignNpcInformationRuntimeV1({
+        catalog: archivePilot.catalog,
+        repository,
+        campaignId,
+        anchorEntityIdForScene: scene => {
+          const authored = archivePilot.authoredSceneSourceBySceneId.get(scene.sceneId);
+          if (authored !== undefined) return authored.entity.entityId;
+          return archivePilot.locationRefBySceneId.get(scene.sceneId)?.replace(/^location:/u, "") ?? null;
+        },
+        localityRefsForScene: scene => {
+          const authored = archivePilot.authoredSceneSourceBySceneId.get(scene.sceneId);
+          if (authored === undefined) {
+            const entityId = archivePilot.locationRefBySceneId.get(scene.sceneId)?.replace(/^location:/u, "");
+            return entityId === undefined ? [] : [`lore-entity:${entityId}`];
+          }
+          return [...new Set([
+            authored.entity.entityId,
+            ...authored.packet.geographicChain
+          ].map(entityId => `lore-entity:${entityId}`))];
+        }
+      }),
       bastionTacticalRuntimeFactory,
       activeSceneResolver
     });

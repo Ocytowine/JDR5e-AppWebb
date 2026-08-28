@@ -124,6 +124,18 @@ conservées en archives pour expliquer un ancien point de reprise.
 - [`Contrat-recherche-factuelle-ciblee-J10I2.md`](Contrat-recherche-factuelle-ciblee-J10I2.md)
   définit la lecture lore/campagne bornée par le besoin V8, le sujet, les
   propriétés et les relations, sans interprétation du texte brut ni commit.
+- [`Contrat-projection-connaissance-contextuelle-PNJ-J10I3.md`](Contrat-projection-connaissance-contextuelle-PNJ-J10I3.md)
+  sépare les bases communes, locales, professionnelles et acquises pour chaque
+  candidat factuel, sans omniscience, divulgation ni commit.
+- [`Contrat-faits-libres-et-identites-legeres-J10I4.md`](Contrat-faits-libres-et-identites-legeres-J10I4.md)
+  définit les slots factuels simples, le cycle assertion/remplacement/invalidation
+  et l'atomicité avec une identité `LIGHT_REFERENCE`.
+- [`Contrat-integration-autorite-persistante-et-catalogues.md`](Contrat-integration-autorite-persistante-et-catalogues.md)
+  impose à tout nouveau propriétaire persistant la chaîne catalogue, ancres,
+  commit, lecteur révisionné, priorité, reload IndexedDB et consommateur final.
+- [`Contrat-divulgation-information-PNJ-J10I5.md`](Contrat-divulgation-information-PNJ-J10I5.md)
+  sépare réponse publique, croyance qualifiée, incertitude, secret scellé,
+  ignorance réelle et orientation crédible, sans commit ni formulation.
 - [`Plan-correction-fiabilite-tour-narratif-J10H.md`](Plan-correction-fiabilite-tour-narratif-J10H.md)
   détaille le lot fermé J10-H : idempotence UI, focus conversationnel
   persistant, fidélité V8, résilience des rôles IA et certification transverse
@@ -205,6 +217,15 @@ conservées en archives pour expliquer un ancien point de reprise.
 - [`Checkpoint-recherche-factuelle-ciblee-J10I2.md`](Checkpoint-recherche-factuelle-ciblee-J10I2.md)
   ferme J10-I2 : gouvernance et siège retrouvés par relations depuis les
   Archives, projections de campagne prioritaires et références locales bornées.
+- [`Checkpoint-connaissance-contextuelle-PNJ-J10I3.md`](Checkpoint-connaissance-contextuelle-PNJ-J10I3.md)
+  ferme J10-I3 : garde local, voyageur, archiviste, fait acquis et frontière
+  restreinte certifiés candidat par candidat avant toute divulgation.
+- [`Checkpoint-faits-libres-identites-J10I4.md`](Checkpoint-faits-libres-identites-J10I4.md)
+  ferme J10-I4 : nom du Tharque unique, réutilisé, reconstructible et protégé
+  contre contradictions et créations concurrentes.
+- [`Checkpoint-divulgation-information-PNJ-J10I5.md`](Checkpoint-divulgation-information-PNJ-J10I5.md)
+  ferme J10-I5 : fait public répondu, rumeur et incertitude qualifiées, secret
+  retenu sans fuite, ignorance et orientation crédible certifiées.
 - [`Checkpoint-focus-local-J10H2.md`](Checkpoint-focus-local-J10H2.md)
   ferme H2 : contrat public persistant, reprise de l'interlocuteur et fermetures
   bornées sans autorité métier.

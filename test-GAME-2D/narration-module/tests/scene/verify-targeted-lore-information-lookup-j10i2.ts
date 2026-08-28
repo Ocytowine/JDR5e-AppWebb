@@ -4,6 +4,7 @@ import type { AiInformationNeedV8 } from "../../src/ai";
 import {
   createTargetedLoreInformationReaderV1,
   validateTargetedLoreInformationLookupResultV1,
+  type CampaignFactInformationReaderV1,
   type CampaignLoreProjectionReaderV1,
   type TargetedLoreInformationLookupRequestV1
 } from "../../src/application";
@@ -90,6 +91,45 @@ async function main(): Promise<void> {
   assert.doesNotMatch(projected.candidates.find(candidate => candidate.property === "/proprietaire_principal")?.value ?? "", /regent/iu);
   assert.ok(projected.sourceRefs.includes("campaign-event:ruler-replaced"));
   assert.deepEqual(validateTargetedLoreInformationLookupResultV1(projected), { ok: true });
+
+  const campaignFactReader: CampaignFactInformationReaderV1 = {
+    async listEffectiveFacts() {
+      return [{
+        schemaVersion: 1,
+        factId: "campaign-fact:lysenthe-government-current",
+        slotKey: "lore-entity:lysenthe::/type_gouvernance",
+        subjectRef: "lore-entity:lysenthe",
+        predicate: "/type_gouvernance",
+        objectKind: "TEXT",
+        objectRef: null,
+        objectText: "principauté provisoire",
+        cardinality: "SINGLE",
+        validFromGameSecond: 0,
+        validUntilGameSecond: null,
+        assertedCampaignRevision: 1,
+        closedAtCampaignRevision: null,
+        visibility: "PUBLIC",
+        knowledgeLevel: "COMMUN",
+        status: "ACTIVE",
+        supersedesFactId: null,
+        sourceRefs: ["campaign-event:government-reformed"],
+        ownerDomain: "CAMPAIGN_FACT",
+        validatorDomains: ["WORLD"],
+        persistenceDepth: "CAMPAIGN_FACT",
+        assertedByOperationId: "operation:government-reformed",
+        version: 1
+      }];
+    }
+  };
+  const freeFactProjected = await createTargetedLoreInformationReaderV1({ catalog, campaignFactReader }).lookup(request({
+    lookupId: "j10i2-free-campaign-fact-priority",
+    subjectMention: "Lysenthe",
+    proposedSubjectRef: "location:lysenthe",
+    requestedDimension: "type de gouvernement actuel",
+    requestedAnswerShape: "OPEN"
+  }));
+  assertCandidate(freeFactProjected.candidates, "/type_gouvernance", /principauté provisoire/iu, "CAMPAIGN_FACT");
+  assert.equal(freeFactProjected.candidates.filter(candidate => candidate.property === "/type_gouvernance").length, 1, "free campaign fact must replace the initial lore value for the same slot");
 
   const archiveFragment = catalog.fragments.find(fragment => fragment.entityId === "archives_de_lysenthe" && fragment.fieldPath === "/fonction_principale");
   assert.ok(archiveFragment);

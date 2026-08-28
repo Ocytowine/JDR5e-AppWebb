@@ -1,6 +1,6 @@
 # Plan de résolution factuelle et de connaissances PNJ J10-I
 
-Statut : `EN EXÉCUTION — J10-I0 À J10-I2 FERMÉS`
+Statut : `EN EXÉCUTION — J10-I0 À J10-I5 FERMÉS`
 
 Date d'ouverture : 2026-08-27
 
@@ -16,8 +16,11 @@ uniquement le sous-lot actif et la prochaine action concrète.
 | J10-I0 | `FERMÉ` | [`Checkpoint-baseline-resolution-factuelle-J10I0.md`](Checkpoint-baseline-resolution-factuelle-J10I0.md) |
 | J10-I1 | `FERMÉ` | [`Checkpoint-besoin-information-V8-J10I1.md`](Checkpoint-besoin-information-V8-J10I1.md) |
 | J10-I2 | `FERMÉ` | [`Checkpoint-recherche-factuelle-ciblee-J10I2.md`](Checkpoint-recherche-factuelle-ciblee-J10I2.md) |
-| J10-I3 | `PROCHAIN` | projeter ce qu'un acteur local, professionnel ou acquis est censé savoir |
-| J10-I4 à I7 | `EN ATTENTE` | suivre l'ordre et les gates du présent document |
+| J10-I3 | `FERMÉ` | [`Checkpoint-connaissance-contextuelle-PNJ-J10I3.md`](Checkpoint-connaissance-contextuelle-PNJ-J10I3.md) |
+| J10-I4 | `FERMÉ` | [`Checkpoint-faits-libres-identites-J10I4.md`](Checkpoint-faits-libres-identites-J10I4.md) |
+| J10-I5 | `FERMÉ` | [`Checkpoint-divulgation-information-PNJ-J10I5.md`](Checkpoint-divulgation-information-PNJ-J10I5.md) |
+| J10-I6 | `PROCHAIN` | alimenter performer, fallback, témoignage et diagnostic depuis la projection autorisée |
+| J10-I7 | `EN ATTENTE` | suivre l'ordre et les gates du présent document |
 
 ## Motif d'ouverture
 

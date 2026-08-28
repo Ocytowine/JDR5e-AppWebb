@@ -47,6 +47,7 @@ export async function buildArchiveLorePilotV1() {
     };
   });
   return {
+    catalog,
     scene: playable.scene,
     scenes: playableScenes.map(entry => entry.scene),
     locationRef: "location:archives_de_lysenthe",

@@ -10,7 +10,7 @@ test("campaign-core, bootstrap and temporal contracts pass against real Chromium
   expect(result.contracts.passed).toBe(20);
   expect(result.bootstrap.passed).toBe(7);
   expect(result.temporal.passed).toBe(6);
-  expect(result.specific.passed).toBe(17);
+  expect(result.specific.passed).toBe(18);
 });
 
 test("the Archives lore pilot bundles and compiles its real wiki sources", async ({ page }) => {

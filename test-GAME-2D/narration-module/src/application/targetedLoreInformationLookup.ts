@@ -2,6 +2,7 @@ import type { LoreEntityV1, LoreFragmentV1, LoreKnowledgeLevelV1 } from "../boot
 import type { NarrativeLoreBuildCatalogV1 } from "../context";
 import type { JsonObject } from "../core";
 import type { InformationNeedV1, ResolvedInformationCandidateV1 } from "./npcInformationResolution";
+import type { CampaignFactInformationReaderV1, CampaignFactRecordV1 } from "./campaignFactAuthority";
 import type {
   CampaignLoreProjectionReaderV1,
   CampaignLoreProjectionV1
@@ -60,7 +61,9 @@ export function validateTargetedLoreInformationLookupResultV1(
   if (value.authority !== "READ_ONLY_FACT_LOOKUP" || value.noCommit !== true) issues.push("lookup authority boundary is invalid");
   if (value.candidates.length > TARGETED_LORE_INFORMATION_MAX_CANDIDATES_V1) issues.push("candidate budget exceeded");
   if (new Set(value.candidates.map(candidate => candidate.candidateId)).size !== value.candidates.length) issues.push("candidate ids are not unique");
-  if (value.candidates.some(candidate => !["LORE_INITIAL", "CAMPAIGN_LORE_PROJECTION"].includes(candidate.authority))) issues.push("candidate authority escaped read-only lore lookup");
+  if (value.candidates.some(candidate => !["LORE_INITIAL", "CAMPAIGN_LORE_PROJECTION", "CAMPAIGN_FACT"].includes(candidate.authority))) issues.push("candidate authority escaped read-only fact lookup");
+  if (value.candidates.some(candidate => !["COMMUN", "LOCAL"].includes(candidate.sourceKnowledgeLevel ?? ""))) issues.push("candidate crossed public/local knowledge boundary");
+  if (value.candidates.some(candidate => candidate.scopeRefs.length === 0)) issues.push("candidate scope is missing");
   if (value.candidates.some(candidate => candidate.sourceRefs.length === 0)) issues.push("candidate provenance is missing");
   if (value.sourceRefs.some(ref => /^(?:secret|private|hidden):/iu.test(ref))) issues.push("private source leaked from lookup");
   return issues.length === 0 ? { ok: true } : { ok: false, issues };
@@ -69,6 +72,7 @@ export function validateTargetedLoreInformationLookupResultV1(
 export function createTargetedLoreInformationReaderV1(input: {
   catalog: NarrativeLoreBuildCatalogV1;
   projectionReader?: CampaignLoreProjectionReaderV1 | null;
+  campaignFactReader?: CampaignFactInformationReaderV1 | null;
 }): TargetedLoreInformationReaderV1 {
   const entityById = new Map(input.catalog.entities.map(entity => [entity.entityId, entity] as const));
   const searchableLore = [...input.catalog.facts, ...input.catalog.fragments];
@@ -83,6 +87,31 @@ export function createTargetedLoreInformationReaderV1(input: {
       if (!anchor) throw new Error(`Unknown lore anchor ${request.anchorEntityId}.`);
 
       const subjects = resolveSubjects(request.need, anchor, input.catalog.entities, entityById);
+      const subjectRefs = subjects.map(subject => `lore-entity:${subject.entityId}`);
+      const campaignFacts = input.campaignFactReader
+        ? await input.campaignFactReader.listEffectiveFacts({
+            schemaVersion: 1,
+            campaignId: request.campaignId,
+            campaignRevision: request.campaignRevision,
+            subjectRefs,
+            temporalScope: request.need.temporalScope
+          })
+        : [];
+      const campaignCandidates = campaignFacts
+        .filter(fact => allowedLevels.has(fact.knowledgeLevel) && campaignFactMatchesNeed(fact, request.need))
+        .map((fact, index) => ({
+          schemaVersion: 1 as const,
+          candidateId: `information-candidate:${request.lookupId}:campaign:${index + 1}`,
+          subjectRef: fact.subjectRef,
+          property: fact.predicate,
+          value: fact.objectText,
+          authority: "CAMPAIGN_FACT" as const,
+          visibility: "PLAYER_VISIBLE" as const,
+          sourceKnowledgeLevel: fact.knowledgeLevel,
+          scopeRefs: [fact.subjectRef],
+          sourceRefs: unique([`campaign-fact:${fact.factId}`, ...fact.sourceRefs])
+        } satisfies ResolvedInformationCandidateV1));
+      const campaignTargets = new Set(campaignCandidates.map(candidate => targetKey(candidate.subjectRef!.replace(/^lore-entity:/u, ""), candidate.property)));
       const selected = selectTargets({
         need: request.need,
         subjects,
@@ -103,7 +132,8 @@ export function createTargetedLoreInformationReaderV1(input: {
           })).projections
         : [];
       const projectionByTarget = new Map(projections.map(projection => [targetKey(projection.entityId, projection.fieldPath), projection] as const));
-      const candidates = targets.flatMap((target, index) => {
+      const loreCandidates = targets.flatMap((target, index) => {
+        if (campaignTargets.has(targetKey(target.fragment.entityId, target.fragment.fieldPath))) return [];
         const projection = projectionByTarget.get(targetKey(target.fragment.entityId, target.fragment.fieldPath));
         if (projection?.disposition === "WITHHOLD") return [];
         const value = effectiveValue(target.fragment, projection, entityById);
@@ -119,15 +149,19 @@ export function createTargetedLoreInformationReaderV1(input: {
           value,
           authority: projection ? "CAMPAIGN_LORE_PROJECTION" as const : "LORE_INITIAL" as const,
           visibility: "PLAYER_VISIBLE" as const,
+          sourceKnowledgeLevel: target.fragment.knowledgeLevel,
+          scopeRefs: entityScopeRefs(entityById.get(target.fragment.entityId), entityById),
           sourceRefs
         } satisfies ResolvedInformationCandidateV1];
       });
+      const candidates = [...campaignCandidates, ...loreCandidates].slice(0, TARGETED_LORE_INFORMATION_MAX_CANDIDATES_V1);
       const diagnostics = [
         `anchor:${anchor.entityId}`,
         ...subjects.map(subject => `subject:${subject.entityId}`),
-        ...(projections.length > 0 ? [`campaign-projections:${projections.length}`] : [])
+        ...(projections.length > 0 ? [`campaign-projections:${projections.length}`] : []),
+        ...(campaignCandidates.length > 0 ? [`campaign-facts:${campaignCandidates.length}`] : [])
       ];
-      if (targets.length === 0) diagnostics.push("no-relevant-lore-target");
+      if (targets.length === 0 && campaignCandidates.length === 0) diagnostics.push("no-relevant-fact-target");
       if (targets.length > 0 && candidates.length === 0) diagnostics.push("all-relevant-targets-withheld-or-empty");
       return {
         schemaVersion: 1,
@@ -254,11 +288,30 @@ function relatedEntity(entity: LoreEntityV1, relation: string, entityById: Map<s
   return target ? entityById.get(target) ?? null : null;
 }
 
+function entityScopeRefs(entity: LoreEntityV1 | undefined, entityById: Map<string, LoreEntityV1>): string[] {
+  if (!entity) return [];
+  const ids = new Set([entity.entityId]);
+  for (const relation of entity.relations) {
+    if (["ville", "quartier", "region", "territoire"].includes(relation.relation) && entityById.has(relation.targetId)) ids.add(relation.targetId);
+  }
+  return [...ids].map(id => `lore-entity:${id}`).sort((left, right) => left.localeCompare(right, "fr"));
+}
+
 function isGovernanceNeed(need: InformationNeedV1): boolean {
   if (!["CURRENT", "UNSPECIFIED"].includes(need.temporalScope)) return false;
   if (!["IDENTITY", "TITLE", "LOCATION", "OPEN"].includes(need.requestedAnswerShape)) return false;
   const terms = tokens(need.requestedDimension);
   return [...terms].some(term => /^(?:dirig|gouvern|autor|pouvoir|regent|souver|command|responsab|titulaire|tete|siege)/u.test(term));
+}
+
+function campaignFactMatchesNeed(fact: CampaignFactRecordV1, need: InformationNeedV1): boolean {
+  if (!["CURRENT", "UNSPECIFIED"].includes(need.temporalScope)) return false;
+  const predicate = tokens(fact.predicate);
+  const requested = tokens(need.requestedDimension);
+  if (need.requestedAnswerShape === "IDENTITY" && [...predicate].some(token => /^(?:identity|identite|name|nom|holder|titulaire|ruler|dirigeant|person)/u.test(token))) return true;
+  if (need.requestedAnswerShape === "TITLE" && [...predicate].some(token => /^(?:title|titre|role|office|fonction)/u.test(token))) return true;
+  if (need.requestedAnswerShape === "OPEN" && requested.size === 0) return true;
+  return tokenScore(requested, predicate) > 0;
 }
 
 function isGenericCityMention(value: string): boolean {

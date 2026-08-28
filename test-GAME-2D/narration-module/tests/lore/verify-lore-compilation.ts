@@ -117,14 +117,14 @@ async function verifyProductionCorpus(): Promise<void> {
     result.ok ? undefined : result.diagnostics.map(value => `${value.sourcePath}: ${value.details.issue ?? value.code}`).join("\n")
   );
   if (!result.ok) return;
-  assert.equal(result.value.entities.length, 28);
+  assert.equal(result.value.entities.length, 31);
   assert.deepEqual(
     Object.fromEntries(
       [...new Set(result.value.entities.map(entity => entity.entityType))]
         .sort()
         .map(type => [type, result.value.entities.filter(entity => entity.entityType === type).length])
     ),
-    { batiment: 7, culture: 1, espece: 2, faction: 3, meta: 3, quartier: 7, region: 3, royaume: 1, ville: 1 }
+    { batiment: 8, culture: 1, espece: 2, faction: 3, meta: 3, quartier: 7, region: 3, royaume: 1, ville: 3 }
   );
   const coastalCulture = result.value.entities.find(entity => entity.entityId === "culture_cotiere_ylssea");
   assert.ok(coastalCulture, "The production package must include Ylsséa coastal usages.");
@@ -160,7 +160,7 @@ async function verifyProductionCorpus(): Promise<void> {
   console.log("PASS [lore-compiler] Archives de Lysenthe retain file and field provenance.");
   console.log("PASS [lore-compiler] Lysenthe narrative pilot exposes classified regional, urban, district and faction fragments.");
   console.log("PASS [lore-compiler] production catalog indexes resolve species and language references.");
-  console.log("PASS [lore-compiler] production corpus: 28 sources compiled, 1 explicit exclusion.");
+  console.log("PASS [lore-compiler] production corpus: 31 entities compiled, 1 explicit exclusion.");
 }
 
 async function verifyAuthorTemplates(): Promise<void> {

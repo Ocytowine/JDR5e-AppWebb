@@ -9,6 +9,7 @@ import {
   type WorkerId,
   type WriterId
 } from "../../src/core/index";
+import generatedNarrativeLoreCatalog from "../../../src/narration-ui/generated/narrativeLoreCatalog.generated.json";
 import { assert } from "../contracts/assertions";
 import {
   MutableClock,
@@ -22,7 +23,16 @@ import {
   readyOperation
 } from "../contracts/verify-campaign-core";
 import { campaignBootstrapFixture } from "../contracts/verify-campaign-bootstrap";
-import { resolveSceneV1 } from "../../src/application";
+import {
+  CAMPAIGN_FACT_MUTATION_CONTRACT_VERSION_V1,
+  createCampaignFactLoreAnchorValidatorV1,
+  createCampaignBackedTargetedInformationReaderV1,
+  loadCampaignFactRegistryV1,
+  loadNarrativeActorRegistryV1,
+  mutateCampaignFactV1,
+  resolveSceneV1
+} from "../../src/application";
+import type { NarrativeLoreBuildCatalogV1 } from "../../src/context";
 
 interface SpecificTest {
   name: string;
@@ -96,6 +106,58 @@ test("01 close and reopen preserves the active campaign", async () => {
   assert.deepEqual(expectOk(await second.getCampaign(campaign.campaignId)), campaign);
   second.close();
   await deleteTestDatabase(databaseName);
+});
+
+test("00b free campaign fact and light identity survive reopen and remain discoverable from lore lookup", async () => {
+  const databaseName = name("campaign-fact-reopen");
+  const clock = new MutableClock();
+  let repository = await open(databaseName, clock);
+  try {
+    const campaign = await bootstrap(repository, clock, "campaign_fact_reopen");
+    const catalog = generatedNarrativeLoreCatalog as unknown as NarrativeLoreBuildCatalogV1;
+    const anchorValidator = createCampaignFactLoreAnchorValidatorV1(catalog);
+    const command = {
+      schemaVersion: 1 as const,
+      contractVersion: CAMPAIGN_FACT_MUTATION_CONTRACT_VERSION_V1,
+      clientRequestId: "idb-campaign-fact-tharque",
+      mutationKind: "ASSERT" as const,
+      subjectRef: "lore-entity:lysenthe",
+      predicate: "/current_ruler_personal_identity",
+      objectText: null,
+      proposedIdentity: { identityRef: "narrative-actor:tharque-idb", displayName: "Aveline de Sorne", publicRole: "Tharque de Lysenthe" },
+      expectedCurrentFactId: null,
+      knowledgeLevel: "LOCAL" as const,
+      sourceRefs: ["lore-fact:fact.lysenthe.type_gouvernance", "lore-fact:fact.lysenthe.siege_pouvoir"],
+      validatorDomains: ["WORLD", "FACTION"]
+    };
+    const asserted = expectOk(await mutateCampaignFactV1({ repository, campaignId: campaign.campaignId, command, anchorValidator }));
+    assert.equal(asserted.outcome, "ASSERTED");
+    repository.close();
+    repository = await open(databaseName, clock);
+    assert.equal(expectOk(await loadCampaignFactRegistryV1(repository, campaign.campaignId)).state.facts.length, 1);
+    assert.equal(expectOk(await loadNarrativeActorRegistryV1(repository, campaign.campaignId)).state.actors.length, 1);
+    const lookup = await createCampaignBackedTargetedInformationReaderV1({
+      catalog,
+      repository,
+      campaignId: campaign.campaignId
+    }).lookup({
+      schemaVersion: 1,
+      lookupId: "idb-campaign-fact-lookup",
+      campaignId: campaign.campaignId,
+      campaignRevision: 1,
+      anchorEntityId: "archives_de_lysenthe",
+      need: { schemaVersion: 1, contractVersion: "information-need/1", subjectMention: "la ville", proposedSubjectRef: "location:lysenthe", requestedDimension: "nom personnel du dirigeant actuel", temporalScope: "CURRENT", requestedAnswerShape: "IDENTITY", sourceComponentId: "component:idb-campaign-fact" },
+      knowledgeRefs: [],
+      allowedKnowledgeLevels: ["COMMUN", "LOCAL"]
+    });
+    assert.equal(lookup.candidates.find(candidate => candidate.authority === "CAMPAIGN_FACT")?.value, "Aveline de Sorne");
+    const replay = expectOk(await mutateCampaignFactV1({ repository, campaignId: campaign.campaignId, command, anchorValidator }));
+    assert.equal(replay.replayed, true);
+    assert.equal(expectOk(await repository.listEvents(campaign.campaignId, null, 10)).filter(event => event.eventType === "campaign.fact.asserted").length, 1);
+  } finally {
+    repository.close();
+    await deleteTestDatabase(databaseName);
+  }
 });
 
 test("00 dynamic place catalog reconstructs an IndexedDB-confirmed scene", async () => {

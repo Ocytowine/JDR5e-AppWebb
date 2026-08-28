@@ -1,6 +1,6 @@
 # Tableau d'exécution du projet
 
-Dernière mise à jour : 2026-08-27
+Dernière mise à jour : 2026-08-28
 
 Ce fichier reste volontairement court. L'unique état global et feuille de route
 du module narration est
@@ -141,12 +141,17 @@ la recherche lore ciblée et les faits de campagne manquants au dialogue.
 - [x] J10-I2 — rechercher les faits par sujet, propriété et relations avec
   priorité aux projections de campagne ; le titre et le siège de Lysenthe sont
   retrouvés depuis les Archives et les `knowledgeRefs` sont raccordables.
-- [ ] J10-I3 — projeter les connaissances communes, locales, professionnelles
-  et acquises propres au PNJ, séparément du contexte connu du joueur.
-- [ ] J10-I4 — livrer les faits libres de campagne et la création atomique d'une
-  identité légère, avec conflit, cardinalité, idempotence et reconstruction.
-- [ ] J10-I5 — séparer connaissance et divulgation, qualifier les rumeurs et
-  protéger les secrets avec une cause de refus structurée.
+- [x] J10-I3 — projeter candidat par candidat les connaissances communes,
+  locales, professionnelles et acquises du PNJ, séparément du joueur et de la
+  divulgation ; garde, voyageur, archiviste et frontière restreinte sont verts.
+- [x] J10-I4 — faits libres de campagne et identité légère écrits atomiquement ;
+  cycle assertion/remplacement/invalidation, conflit, cardinalité, idempotence,
+  reconstruction, ancres wiki, priorité de lookup, snapshots de révision,
+  reload IndexedDB et concurrence sans doublon sont certifiés. Le contrat
+  transverse catalogue → propriétaire → lecteur → consommateur est documenté.
+- [x] J10-I5 — connaissance et divulgation séparées ; fait public, croyance,
+  incertitude, secret protégé, ignorance et orientation crédible possèdent une
+  cause structurée sans fuite privée ni refus générique lié au rôle.
 - [ ] J10-I6 — alimenter performer, fallback, témoignage et diagnostic depuis
   les seuls faits résolus et autorisés.
 - [ ] J10-I7 — certifier lore, campagne, rôles, rumeurs, secrets, création,
@@ -154,13 +159,12 @@ la recherche lore ciblée et les faits de campagne manquants au dialogue.
 
 ### Prochaine action concrète
 
-Commencer J10-I3 en relançant `narration-module:test:j10i2-targeted-lore`, puis
-projeter séparément les bases `COMMON_WORLD`, `LOCAL_FAMILIARITY`,
-`ROLE_EXPECTED` et `ACQUIRED`. Prouver qu'un garde local connaît le dirigeant et
-son siège, qu'un voyageur peut l'ignorer et qu'un archiviste connaît la
-procédure publique de consultation. Ne décider encore ni divulgation, ni
-création de fait. Le checkpoint de reprise est dans
-[`Checkpoint-recherche-factuelle-ciblee-J10I2.md`](test-GAME-2D/narration-module/docs/Checkpoint-recherche-factuelle-ciblee-J10I2.md).
+Commencer J10-I6 en relançant `narration-module:test:j10i5-disclosure`, puis
+alimenter le performer et un fallback local depuis les seuls `authorizedFacts`.
+Enregistrer ensuite la parole comme témoignage attribué sans la promouvoir en
+vérité objective, et compléter le diagnostic développeur jusqu'à la décision
+de divulgation. Le checkpoint de reprise est dans
+[`Checkpoint-divulgation-information-PNJ-J10I5.md`](test-GAME-2D/narration-module/docs/Checkpoint-divulgation-information-PNJ-J10I5.md).
 
 ## Dernier point de contrôle
 

@@ -37,6 +37,9 @@ export function buildNarrativeTechnicalDiagnosticV1(input: {
   timings: { controllerMs: number; enhancementMs: number; projectionMs: number; totalMs: number };
 }): NarrativeTechnicalDiagnosticV1 {
   const faithful = input.output as Partial<NarrativeTurnControllerOutputWithSemanticFidelityV1>;
+  const informationAware = input.output as NarrativeTurnControllerOutputV1 & {
+    npcInformationDiagnostic?: JsonObject | null;
+  };
   const originalInterpretation = input.output.interpretation;
   const ownerInterpretation = input.output.resolution.interpretation;
   const controllerTelemetry = input.output.aiTelemetry ?? [];
@@ -114,6 +117,7 @@ export function buildNarrativeTechnicalDiagnosticV1(input: {
       ownerInterpretation: input.output.resolution.interpretation,
       result: input.output.resolution,
       mjPlan: input.output.mjPlan,
+      information: informationAware.npcInformationDiagnostic ?? null,
       npcPerformance: input.output.npcPerformance,
       fallbackUsed: input.output.npcPerformance === null && input.output.npcPerformanceFailure !== null
     },

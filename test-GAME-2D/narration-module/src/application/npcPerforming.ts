@@ -34,6 +34,11 @@ import {
   type PlotActorPerspectiveV1,
   type PlotRegistryV1
 } from "./plotAuthority";
+import {
+  buildNpcInformationFallbackPayloadV1,
+  validateNpcPerformanceAgainstInformationProjectionV1,
+  type NpcInformationPerformerProjectionV1
+} from "./npcInformationPerformance";
 
 export const NPC_PERFORMER_CONTRACT_VERSION_V1 = "npc-performer/1" as const;
 export const NPC_PERFORMER_PACKET_RECEIPT_V1 = "npc-performer-packet-receipt/1" as const;
@@ -183,6 +188,7 @@ export class LocalNpcPerformerProviderV1 implements ContractAiProviderV1 {
         companionName?: unknown;
         fallbackText?: unknown;
       } | null;
+      informationDisclosure?: NpcInformationPerformerProjectionV1 | null;
     };
     const actorId = typeof task.actorId === "string" ? task.actorId : "npc:npc-garde-blesse";
     const interpretation = isNarrativeIntentInterpretation(task.interpretation)
@@ -210,7 +216,8 @@ export class LocalNpcPerformerProviderV1 implements ContractAiProviderV1 {
         typeof task.intentId === "string" ? task.intentId : null,
         task.conversationProfileContract,
         task.ownerMissionDecision ?? null,
-        task.ownerCompanionDecision ?? null
+        task.ownerCompanionDecision ?? null,
+        task.informationDisclosure ?? null
       ),
       diagnostics: [],
       supersedesOutputId: null
@@ -284,6 +291,7 @@ export async function performNpcTurnV1(input: {
     companionName: string;
     directive: CompanionDirectiveV1;
   } | null;
+  informationDisclosure?: NpcInformationPerformerProjectionV1 | null;
 }): Promise<NpcPerformanceResultV1> {
   if (input.assignedActorId === undefined && !shouldCallNpcPerformerV1(input)) {
     return {
@@ -324,6 +332,15 @@ export async function performNpcTurnV1(input: {
     const localContextIssues = validateNpcPerformanceAgainstVisibleSceneV1(acceptedOutput.payload, input.sceneState);
     if (localContextIssues.length > 0) {
       return rejectedNpcPerformance(actorId, localContextIssues, run.incidents, "prose incompatible avec le contexte spatial visible", run.telemetry, buildNpcFallbackFromRequestV1(request, input.interpretation, actorId));
+    }
+    const informationIssues = input.informationDisclosure === null || input.informationDisclosure === undefined
+      ? []
+      : validateNpcPerformanceAgainstInformationProjectionV1({
+          projection: input.informationDisclosure,
+          performance: acceptedOutput.payload
+        });
+    if (informationIssues.length > 0) {
+      return rejectedNpcPerformance(actorId, informationIssues, run.incidents, "réponse factuelle hors de la divulgation autorisée", run.telemetry, buildNpcFallbackFromRequestV1(request, input.interpretation, actorId));
     }
     const critic = input.config.coherenceCriticRoute === undefined || !shouldCritiqueNpcPerformanceV1(request, acceptedOutput.payload)
       ? null
@@ -436,6 +453,7 @@ async function validateNpcPerformanceSemanticsV1(input: {
     conversationProfileContract?: NpcConversationProfileContractV1;
     ownerMissionDecision?: unknown;
     ownerCompanionDecision?: unknown;
+    informationDisclosure?: NpcInformationPerformerProjectionV1 | null;
   };
   const priorNpcUtterances = performerTask.knowledgeEnvelope?.priorNpcUtterances
     ?.map(utterance => utterance.text)
@@ -455,6 +473,7 @@ async function validateNpcPerformanceSemanticsV1(input: {
     candidateConversationProfile: input.performance.conversationProfile,
     ownerMissionDecision: performerTask.ownerMissionDecision ?? null,
     ownerCompanionDecision: performerTask.ownerCompanionDecision ?? null,
+    informationDisclosure: performerTask.informationDisclosure ?? null,
     plotActorView
   };
   const criticRun = await runAiPipelineCallV1({
@@ -488,6 +507,7 @@ async function validateNpcPerformanceSemanticsV1(input: {
           candidateConversationProfile: input.performance.conversationProfile,
           ownerMissionDecision: performerTask.ownerMissionDecision ?? null,
           ownerCompanionDecision: performerTask.ownerCompanionDecision ?? null,
+          informationDisclosure: performerTask.informationDisclosure ?? null,
           plotActorView
         }
       },
@@ -517,9 +537,11 @@ function shouldCritiqueNpcPerformanceV1(request: AiCallRequestV1, performance: N
     knowledgeEnvelope?: { dialogueHistory?: unknown[]; plotActorView?: NpcPlotActorViewV1 };
     ownerMissionDecision?: unknown;
     ownerCompanionDecision?: unknown;
+    informationDisclosure?: unknown;
   };
   if (task.ownerMissionDecision !== null && task.ownerMissionDecision !== undefined) return true;
   if (task.ownerCompanionDecision !== null && task.ownerCompanionDecision !== undefined) return true;
+  if (task.informationDisclosure !== null && task.informationDisclosure !== undefined) return true;
   if (task.dialogueAct?.act === "OTHER") return true;
   if ((task.knowledgeEnvelope?.dialogueHistory?.length ?? 0) > 0) return true;
   if ((task.knowledgeEnvelope?.plotActorView?.perspectives.length ?? 0) > 0) return true;
@@ -609,6 +631,7 @@ function buildNpcFallbackFromRequestV1(
     conversationProfileContract?: NpcConversationProfileContractV1;
     ownerMissionDecision?: { disposition?: unknown; conditions?: unknown } | null;
     ownerCompanionDecision?: { companionName?: unknown; fallbackText?: unknown } | null;
+    informationDisclosure?: NpcInformationPerformerProjectionV1 | null;
   };
   const context = request.input.roleContextPack as {
     visibleActor?: { displayName?: unknown } | null;
@@ -627,7 +650,8 @@ function buildNpcFallbackFromRequestV1(
     interpretation.intentId,
     task.conversationProfileContract,
     task.ownerMissionDecision ?? null,
-    task.ownerCompanionDecision ?? null
+    task.ownerCompanionDecision ?? null,
+    task.informationDisclosure ?? null
   ) as NpcPerformerPayloadV1 & JsonObject;
 }
 
@@ -641,7 +665,8 @@ function buildLocalNpcPerformancePayload(
   intentIdOverride: string | null = null,
   profileContract?: NpcConversationProfileContractV1,
   ownerMissionDecision?: { disposition?: unknown; conditions?: unknown } | null,
-  ownerCompanionDecision?: { companionName?: unknown; fallbackText?: unknown } | null
+  ownerCompanionDecision?: { companionName?: unknown; fallbackText?: unknown } | null,
+  informationDisclosure?: NpcInformationPerformerProjectionV1 | null
 ): NpcPerformerPayloadV1 {
   const knownActorId = actorId;
   const dialogueAct = dialogueActOverride ?? interpretation?.semanticIntent.dialogueAct?.act ?? "OTHER";
@@ -662,7 +687,7 @@ function buildLocalNpcPerformancePayload(
     dialogueContentGoal,
     contract: profileContract
   });
-  return {
+  const base: NpcPerformerPayloadV1 = {
     schemaVersion: 1,
     performanceId: `${intentId}:npc-performance:1`,
     actorId: knownActorId,
@@ -709,6 +734,9 @@ function buildLocalNpcPerformancePayload(
       noStateMutation: true
     }
   };
+  return informationDisclosure === null || informationDisclosure === undefined
+    ? base
+    : buildNpcInformationFallbackPayloadV1({ projection: informationDisclosure, basePerformance: base });
 }
 
 function buildLocalConversationProfileV1(input: {
@@ -837,6 +865,7 @@ async function buildNpcPerformerRequestV1(input: {
     companionName: string;
     directive: CompanionDirectiveV1;
   } | null;
+  informationDisclosure?: NpcInformationPerformerProjectionV1 | null;
 }): Promise<AiCallRequestV1> {
   const snapshotId = `${input.operationId}:snapshot:npc-performance`;
   const packId = `${input.operationId}:pack:npc-performance`;
@@ -925,6 +954,7 @@ async function buildNpcPerformerRequestV1(input: {
     outputProfileRef,
     ...plotActorView.perspectives.flatMap(perspective => [perspective.plotRef, perspective.perspectiveRef]),
     ...npcAuthorizedKnowledgeSourceRefsV1(authorizedActorKnowledge),
+    ...(input.informationDisclosure?.allowedSourceRefs ?? []),
     ...(input.ownerCompanionDecision?.directive.sourceRefs ?? []),
     ...renderedNpcUtterances.flatMap(utterance => [
       `operation:${utterance.sourceOperationId}`,
@@ -964,6 +994,7 @@ async function buildNpcPerformerRequestV1(input: {
           fallbackText: companionDirectiveNarrationV1(input.ownerCompanionDecision),
           instruction: "Exprimer cette décision dans une réplique naturelle sans citer les états techniques, sans changer la décision et sans prétendre que l'action demandée a réussi."
         },
+    informationDisclosure: input.informationDisclosure ?? null,
     conversationProfileContract,
     knowledgeEnvelope: {
       allowedSourceRefs: [...new Set(allowedSourceRefs)],

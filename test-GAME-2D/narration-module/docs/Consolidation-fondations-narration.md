@@ -750,8 +750,25 @@ nouvelle autorité. J10-I2 est fermé : le catalogue expose les champs publics d
 leur niveau, et un port de lecture borné suit sujet, propriété et relations en
 donnant priorité aux projections de campagne. Depuis les Archives il retrouve
 le Tharque régent et le Château Tharqual sans dépendre du paquet descriptif.
-J10-I3 doit désormais décider séparément quelles bases rendent ces faits connus
-de l'acteur interrogé.
+J10-I3 est fermé : chaque candidat reçoit maintenant un statut acteur fondé sur
+`COMMON_WORLD`, `LOCAL_FAMILIARITY`, `ROLE_EXPECTED` ou `ACQUIRED`. La localité
+n'est jamais déduite de la simple présence momentanée, les faits acquis restent
+issus du registre social propriétaire, et un rôle public n'ouvre pas un fait
+restreint. Le reçu I2-I3 conserve la divulgation non résolue. J10-I4 est fermé :
+les registres `campaign-fact-registry/1` et `narrative-actor-registry/1`
+committent atomiquement une dimension publique manquante et son identité
+`LIGHT_REFERENCE`. Cardinalité simple, contradiction, rejeu, remplacement,
+invalidation, reconstruction et concurrence sans doublon sont certifiés.
+Le correctif d'intégration I4 raccorde aussi le registre au lookup ciblé,
+valide ses ancres contre le catalogue wiki, respecte les snapshots de révision
+et prouve fermeture/réouverture IndexedDB dans Chromium. Le contrat transverse
+`Contrat-integration-autorite-persistante-et-catalogues.md` rend cette chaîne
+obligatoire pour les prochains propriétaires. J10-I5 est fermé : la projection
+`npc-information-disclosure/1` distingue fait public, croyance, incertitude,
+secret propriétaire, ignorance et orientation exacte. Elle ne transporte
+aucune valeur ni preuve privée pour un secret retenu, et une limite de rôle ne
+peut plus produire un refus générique. J10-I6 doit maintenant alimenter le
+performer, le fallback, le témoignage et le diagnostic depuis cette projection.
 
 Le compagnon tactique, la génération de carte et le placement multi-acteurs
 appartiennent au futur chantier tactique décrit par le guide J8. Leur absence ne

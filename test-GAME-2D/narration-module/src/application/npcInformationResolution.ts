@@ -53,7 +53,18 @@ export interface ResolvedInformationCandidateV1 extends JsonObject {
   value: string | null;
   authority: ResolvedInformationAuthorityV1;
   visibility: "PLAYER_VISIBLE" | "ACTOR_SCOPED" | "SYSTEM_PRIVATE";
+  sourceKnowledgeLevel: "COMMUN" | "LOCAL" | "SPECIALISE" | "RESTREINT" | "MJ_SECRET" | null;
+  scopeRefs: string[];
   sourceRefs: string[];
+}
+
+export interface CandidateActorKnowledgeV1 extends JsonObject {
+  schemaVersion: 1;
+  candidateId: string;
+  status: "KNOWN" | "UNKNOWN_TO_ACTOR";
+  bases: ActorInformationBasisV1[];
+  evidenceRefs: string[];
+  reason: string;
 }
 
 /**
@@ -73,6 +84,7 @@ export interface NpcInformationResolutionV1 extends JsonObject {
     status: "KNOWS" | "DOES_NOT_KNOW" | "UNRESOLVED";
     bases: ActorInformationBasisV1[];
     sourceRefs: string[];
+    candidateKnowledge: CandidateActorKnowledgeV1[];
   };
   disclosure: {
     decision: NpcDisclosureDecisionV1;
@@ -136,6 +148,10 @@ export function validateNpcInformationResolutionV1(
     if (!["PLAYER_VISIBLE", "ACTOR_SCOPED", "SYSTEM_PRIVATE"].includes(candidate.visibility)) {
       issues.push(`${path}.visibility is invalid`);
     }
+    if (candidate.sourceKnowledgeLevel !== null && !["COMMUN", "LOCAL", "SPECIALISE", "RESTREINT", "MJ_SECRET"].includes(candidate.sourceKnowledgeLevel)) {
+      issues.push(`${path}.sourceKnowledgeLevel is invalid`);
+    }
+    requireUniqueRefs(candidate.scopeRefs, `${path}.scopeRefs`, issues, candidate.authority !== "UNRESOLVED");
     requireUniqueRefs(candidate.sourceRefs, `${path}.sourceRefs`, issues, candidate.authority !== "UNRESOLVED");
     if (candidate.authority === "UNRESOLVED" && candidate.value !== null) {
       issues.push(`${path}.value must be null when authority is UNRESOLVED`);
@@ -156,6 +172,22 @@ export function validateNpcInformationResolutionV1(
     issues.push("actorKnowledge.bases must not contain duplicates");
   }
   requireUniqueRefs(value.actorKnowledge.sourceRefs, "actorKnowledge.sourceRefs", issues, false);
+  const candidateKnowledgeIds = new Set<string>();
+  for (const [index, entry] of value.actorKnowledge.candidateKnowledge.entries()) {
+    const path = `actorKnowledge.candidateKnowledge[${index}]`;
+    if (!candidateIds.has(entry.candidateId)) issues.push(`${path}.candidateId is unknown`);
+    if (candidateKnowledgeIds.has(entry.candidateId)) issues.push(`${path}.candidateId is duplicated`);
+    candidateKnowledgeIds.add(entry.candidateId);
+    if (!["KNOWN", "UNKNOWN_TO_ACTOR"].includes(entry.status)) issues.push(`${path}.status is invalid`);
+    if (entry.bases.some(basis => !KNOWLEDGE_BASES.has(basis))) issues.push(`${path}.bases contains an invalid basis`);
+    if ((entry.status === "KNOWN") !== (entry.bases.length > 0)) issues.push(`${path}.status and bases disagree`);
+    requireUniqueRefs(entry.evidenceRefs, `${path}.evidenceRefs`, issues, false);
+    requireText(entry.reason, `${path}.reason`, issues);
+  }
+  if (candidateKnowledgeIds.size !== candidateIds.size) issues.push("actorKnowledge.candidateKnowledge must cover every candidate");
+  const knownCount = value.actorKnowledge.candidateKnowledge.filter(entry => entry.status === "KNOWN").length;
+  if (value.actorKnowledge.status === "KNOWS" && knownCount === 0) issues.push("actorKnowledge.KNOWS requires a known candidate");
+  if (value.actorKnowledge.status === "DOES_NOT_KNOW" && (knownCount > 0 || candidateIds.size === 0)) issues.push("actorKnowledge.DOES_NOT_KNOW contradicts candidate knowledge");
   if (!DISCLOSURE_DECISIONS.has(value.disclosure.decision)) issues.push("disclosure.decision is invalid");
   requireText(value.disclosure.reason, "disclosure.reason", issues);
   requireUniqueRefs(value.disclosure.sourceRefs, "disclosure.sourceRefs", issues, false);

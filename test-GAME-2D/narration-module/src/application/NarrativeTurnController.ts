@@ -56,6 +56,8 @@ import type { AiCallTelemetryV1, MjPlannerPayloadV1, NpcPerformerPayloadV1 } fro
 import { activateAiCallBudgetV1, closeAiCallBudgetV1 } from "../ai/callBudget";
 import { loadActiveCampaignCharacterProfileV1 } from "../bootstrap";
 import { captureNpcTestimonyV1 } from "./npcTestimonyCapture";
+import type { NpcInformationPerformanceDiagnosticV1 } from "./npcInformationPerformance";
+import type { NarrativeNpcInformationRuntimeV1 } from "./npcInformationRuntime";
 import {
   resolveNarrativeTurnV1,
   type NarrativeResolutionResultV1
@@ -595,6 +597,7 @@ export interface NarrativeTurnControllerOptions {
   intentInterpreterConfig?: AiIntentInterpreterConfigV1 | null;
   mjPlannerConfig?: MjPlannerConfigV1 | null;
   npcPerformerConfig?: NpcPerformerConfigV1 | null;
+  npcInformationRuntime?: NarrativeNpcInformationRuntimeV1 | null;
   sceneTransitionRuntime?: NarrativeSceneTransitionRuntimeV1 | null;
   travelRuntime?: NarrativeTravelRuntimeV1 | null;
   dynamicPlaceRuntime?: NarrativeDynamicPlaceRuntimeV1 | null;
@@ -645,6 +648,7 @@ export class NarrativeTurnControllerV1 {
   private readonly intentInterpreterConfig: AiIntentInterpreterConfigV1 | null;
   private readonly mjPlannerConfig: MjPlannerConfigV1 | null;
   private readonly npcPerformerConfig: NpcPerformerConfigV1 | null;
+  private readonly npcInformationRuntime: NarrativeNpcInformationRuntimeV1 | null;
   private readonly sceneTransitionRuntime: NarrativeSceneTransitionRuntimeV1 | null;
   private readonly travelRuntime: NarrativeTravelRuntimeV1 | null;
   private readonly dynamicPlaceRuntime: NarrativeDynamicPlaceRuntimeV1 | null;
@@ -685,6 +689,7 @@ export class NarrativeTurnControllerV1 {
     this.npcPerformerConfig = options.npcPerformerConfig === undefined
       ? createDefaultNpcPerformerConfigV1()
       : options.npcPerformerConfig;
+    this.npcInformationRuntime = options.npcInformationRuntime ?? null;
     this.sceneTransitionRuntime = options.sceneTransitionRuntime ?? null;
     this.travelRuntime = options.travelRuntime ?? null;
     this.dynamicPlaceRuntime = options.dynamicPlaceRuntime ?? null;
@@ -1447,6 +1452,7 @@ export class NarrativeTurnControllerV1 {
       intentInterpreterConfig: this.intentInterpreterConfig,
       mjPlannerConfig: this.mjPlannerConfig,
       npcPerformerConfig: this.npcPerformerConfig,
+      npcInformationRuntime: this.npcInformationRuntime,
       localReferentHints: this.recentLocalReferents.filter(hint => hint.sceneId === activeScene.sceneId && hint.sceneVersion === activeScene.version),
       recentSemanticTurns: this.recentSemanticTurns,
       localInteractionFocus: this.localInteractionFocus?.status === "ACTIVE"
@@ -3082,6 +3088,7 @@ async function buildResolvedOutput(input: {
   intentInterpreterConfig: AiIntentInterpreterConfigV1 | null;
   mjPlannerConfig: MjPlannerConfigV1 | null;
   npcPerformerConfig: NpcPerformerConfigV1 | null;
+  npcInformationRuntime: NarrativeNpcInformationRuntimeV1 | null;
   localReferentHints?: LocalReferentHintV1[];
   recentSemanticTurns?: RecentSemanticTurnV1[];
   localInteractionFocus?: LocalInteractionFocusV1 | null;
@@ -4257,7 +4264,46 @@ async function buildResolvedOutput(input: {
   // Une relation J4 ouvre ses propres opérations autoritaires. Elle est donc
   // finalisée par submit() après la fermeture du tour narratif principal.
   const npcPerformanceStartedAt = Date.now();
-  const npcPerformance = input.npcPerformerConfig === null
+  const assignedNpcActorId = openSemanticOwnerAdapter?.capabilityId === "scene.visible-dialogue"
+    && ownerInterpretation.semanticIntent.target?.kind === "npc"
+    && ownerInterpretation.semanticIntent.target.ref !== null
+      ? ownerInterpretation.semanticIntent.target.ref
+      : null;
+  const informationNeed = interpretation.openSemanticFrame?.components
+    .map(component => component.informationNeed ?? null)
+    .find(need => need !== null) ?? null;
+  let npcInformationTurn = null as Awaited<ReturnType<NarrativeNpcInformationRuntimeV1["resolve"]>> | null;
+  let npcInformationDiagnostic: NpcInformationPerformanceDiagnosticV1 | null = null;
+  if (input.npcInformationRuntime !== null && assignedNpcActorId !== null && informationNeed !== null) {
+    try {
+      npcInformationTurn = await input.npcInformationRuntime.resolve({
+        operationId: input.operation.operationId,
+        actorId: assignedNpcActorId,
+        need: informationNeed,
+        activeScene: resolution.value.playableScene
+      });
+      npcInformationDiagnostic = npcInformationTurn.diagnostic;
+    } catch {
+      npcInformationDiagnostic = {
+        schemaVersion: 1,
+        contractVersion: "npc-information-performance-diagnostic/1",
+        status: "FAILED",
+        failureStage: "LOOKUP_KNOWLEDGE_DISCLOSURE",
+        failureReason: "npc-information.owner-resolution-unavailable",
+        lookup: { candidateCount: 0, missingDimensions: [informationNeed.requestedDimension], authorities: [] },
+        knowledge: { knownCandidateCount: 0, unknownCandidateCount: 0, bases: [] },
+        disclosure: {
+          decision: "ACTOR_DOES_NOT_KNOW",
+          causeCode: "NO_RESOLVED_INFORMATION",
+          authorizedFactCount: 0,
+          withheldCandidateCount: 0,
+          alternativeActorRefs: []
+        },
+        privateValuesIncluded: false
+      };
+    }
+  }
+  const npcPerformance = input.npcPerformerConfig === null || npcInformationDiagnostic?.status === "FAILED"
     ? null
     : await performNpcTurnV1({
       repository: input.repository,
@@ -4270,12 +4316,11 @@ async function buildResolvedOutput(input: {
       sceneState: resolution.value.sceneState,
       activeScene: resolution.value.playableScene,
       config: input.npcPerformerConfig,
-      ...(openSemanticOwnerAdapter?.capabilityId === "scene.visible-dialogue"
-        && ownerInterpretation.semanticIntent.target?.kind === "npc"
-        && ownerInterpretation.semanticIntent.target.ref !== null
-        ? { assignedActorId: ownerInterpretation.semanticIntent.target.ref }
+      ...(assignedNpcActorId !== null
+        ? { assignedActorId: assignedNpcActorId }
         : {}),
-      missionRelationEngagement: null
+      missionRelationEngagement: null,
+      informationDisclosure: npcInformationTurn?.performerProjection ?? null
     });
   const npcPerformanceMs = Date.now() - npcPerformanceStartedAt;
   let displayPacket = applyNpcPerformanceToDisplayPacketV1({
@@ -4300,8 +4345,9 @@ async function buildResolvedOutput(input: {
         domainCommand,
         mjPlan: planning?.plan ?? null,
         mjPlannerFailure: planning?.planningFailure as (MjPlanningFailureV1 & JsonObject) | null ?? null,
-        npcPerformance: npcPerformance?.performance ?? null,
+        npcPerformance: npcPerformance?.performance ?? npcPerformance?.fallbackPerformance ?? null,
         npcPerformanceFailure: npcPerformance?.performanceFailure as (NpcPerformanceFailureV1 & JsonObject) | null ?? null,
+        npcInformationDiagnostic,
         suspendedIntent,
         pendingSkillCheck: buildPendingNarrativeSkillCheckV1({
           operationId: input.operation.operationId,

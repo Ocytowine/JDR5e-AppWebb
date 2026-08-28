@@ -186,6 +186,8 @@ function verifyPassiveContracts(): void {
       value: "Tharque régent de Lysenthe",
       authority: "LORE_INITIAL",
       visibility: "PLAYER_VISIBLE",
+      sourceKnowledgeLevel: "LOCAL",
+      scopeRefs: ["lore-entity:lysenthe"],
       sourceRefs: ["lore-fragment:lysenthe-government"]
     }],
     selectedCandidateIds: ["information-candidate:lysenthe-ruler-title"],
@@ -193,7 +195,15 @@ function verifyPassiveContracts(): void {
     actorKnowledge: {
       status: "KNOWS",
       bases: ["LOCAL_FAMILIARITY", "ROLE_EXPECTED"],
-      sourceRefs: ["lore-fragment:lysenthe-government"]
+      sourceRefs: ["lore-fragment:lysenthe-government"],
+      candidateKnowledge: [{
+        schemaVersion: 1,
+        candidateId: "information-candidate:lysenthe-ruler-title",
+        status: "KNOWN",
+        bases: ["LOCAL_FAMILIARITY", "ROLE_EXPECTED"],
+        evidenceRefs: ["lore-fragment:lysenthe-government"],
+        reason: "Le titre est local et attendu pour ce rôle."
+      }]
     },
     disclosure: {
       decision: "ANSWER_DIRECTLY",
