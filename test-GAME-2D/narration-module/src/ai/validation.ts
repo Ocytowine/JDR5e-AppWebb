@@ -747,6 +747,14 @@ function validateBoundedStringArray(value: unknown, path: string, maximum: numbe
   return [];
 }
 
+function validateCanonicalReferenceArray(value: unknown, path: string, maximum: number): string[] {
+  const issues = validateBoundedStringArray(value, path, maximum);
+  if (issues.length > 0 || !Array.isArray(value)) return issues;
+  if (new Set(value).size !== value.length) issues.push(`${path}: duplicate references are forbidden`);
+  if (value.some(entry => !/^[a-z][a-z0-9_-]*:.+/u.test(entry))) issues.push(`${path}: expected canonical references`);
+  return issues;
+}
+
 function validateSemanticIntentPayloadV2(payload: unknown, composed = false): string[] {
   if (!isObject(payload)) return ["payload: expected object"];
   const issues = exactKeys(payload, ["intent", "rawInputEcho"], "payload");
@@ -1060,6 +1068,7 @@ function validateDestinationArbiterPayload(payload: unknown, request: AiCallRequ
 }
 
 function validateSceneCreatorPayload(payload: unknown, request: AiCallRequestV1): string[] {
+  if (request.contractVersion === "missing-information-fact-proposal/1") return validateMissingInformationFactProposalV1(payload, request);
   if (request.contractVersion === "plot-candidate/1") return validatePlotCandidatePayloadV1(payload);
   if (!isObject(payload)) return ["payload: expected object"];
   const v2 = request.contractVersion === "lore-guided-place-candidate/2";
@@ -1099,6 +1108,20 @@ function validateSceneCreatorPayload(payload: unknown, request: AiCallRequestV1)
       if (!isStringArray(connection.sourceRefs) || connection.sourceRefs.length === 0 || connection.sourceRefs.some(ref => ref.trim().length === 0)) issues.push(`${path}.sourceRefs: expected non-empty string array`);
     });
   }
+  return issues;
+}
+
+function validateMissingInformationFactProposalV1(payload: unknown, request: AiCallRequestV1): string[] {
+  if (!isObject(payload)) return ["payload: expected object"];
+  const issues = exactKeys(payload, ["authority", "generatedValue", "propertyRef", "proposalId", "valueKind"], "payload");
+  for (const key of ["proposalId", "propertyRef", "generatedValue"] as const) issues.push(...validateNonEmptyString(payload[key], `payload.${key}`));
+  if (!['TEXT', 'IDENTITY'].includes(String(payload.valueKind))) issues.push("payload.valueKind: invalid value kind");
+  if (payload.authority !== "PROPOSE_ONLY_NO_COMMIT") issues.push("payload.authority: invalid proposal authority");
+  const target = isObject(request.input.roleContextPack) && isObject(request.input.roleContextPack.target)
+    ? request.input.roleContextPack.target
+    : null;
+  if (target === null || payload.propertyRef !== target.propertyRef) issues.push("payload.propertyRef: escaped authorized target");
+  if (target === null || payload.valueKind !== target.valueKind) issues.push("payload.valueKind: escaped authorized target");
   return issues;
 }
 
@@ -1256,14 +1279,36 @@ function validateSemanticIntentPayloadV8(payload: unknown): string[] {
         if (!isObject(component.informationNeed)) issues.push(`${path}.informationNeed: expected object or null`);
         else {
           const need = component.informationNeed;
-          issues.push(...exactKeys(need, [
+          const isV2 = need.contractVersion === "information-need/2";
+          issues.push(...exactKeys(need, isV2 ? [
+            "completionPropertyRefs", "contractVersion", "proposedPropertyRefs",
+            "proposedRelationRefs", "proposedScopeRefs", "proposedSubjectRef",
+            "requestedAnswerShape", "requestedDimension", "schemaVersion",
+            "sourceComponentId", "subjectMention", "temporalScope"
+          ] : [
             "contractVersion", "proposedSubjectRef", "requestedAnswerShape",
             "requestedDimension", "schemaVersion", "sourceComponentId",
             "subjectMention", "temporalScope"
           ], `${path}.informationNeed`));
-          if (need.schemaVersion !== 1 || need.contractVersion !== "information-need/1") issues.push(`${path}.informationNeed: invalid contract version`);
+          if (need.schemaVersion !== 1 || !["information-need/1", "information-need/2"].includes(String(need.contractVersion))) issues.push(`${path}.informationNeed: invalid contract version`);
           issues.push(...validateNonEmptyString(need.subjectMention, `${path}.informationNeed.subjectMention`));
           if (!(need.proposedSubjectRef === null || typeof need.proposedSubjectRef === "string" && need.proposedSubjectRef.trim().length > 0)) issues.push(`${path}.informationNeed.proposedSubjectRef: expected null or non-empty string`);
+          if (isV2) {
+            for (const key of ["proposedScopeRefs", "proposedPropertyRefs", "proposedRelationRefs", "completionPropertyRefs"] as const) {
+              issues.push(...validateCanonicalReferenceArray(need[key], `${path}.informationNeed.${key}`, 12));
+            }
+            if (frame.understandingStatus === "UNDERSTOOD") {
+              if (need.proposedSubjectRef === null && Array.isArray(need.proposedScopeRefs) && need.proposedScopeRefs.length === 0) {
+                issues.push(`${path}.informationNeed: UNDERSTOOD requires a subject or scope selector`);
+              }
+              if (Array.isArray(need.proposedPropertyRefs) && need.proposedPropertyRefs.length === 0) {
+                issues.push(`${path}.informationNeed: UNDERSTOOD requires at least one property selector`);
+              }
+              if (Array.isArray(need.completionPropertyRefs) && need.completionPropertyRefs.length === 0) {
+                issues.push(`${path}.informationNeed: UNDERSTOOD requires at least one completion property selector`);
+              }
+            }
+          }
           issues.push(...validateNonEmptyString(need.requestedDimension, `${path}.informationNeed.requestedDimension`));
           if (!["CURRENT", "PAST", "FUTURE", "UNSPECIFIED"].includes(String(need.temporalScope))) issues.push(`${path}.informationNeed.temporalScope: invalid temporal scope`);
           if (!["IDENTITY", "TITLE", "LOCATION", "PROCEDURE", "DESCRIPTION", "CAUSE", "STATUS", "OPEN"].includes(String(need.requestedAnswerShape))) issues.push(`${path}.informationNeed.requestedAnswerShape: invalid answer shape`);

@@ -30,6 +30,22 @@ export interface LoreInformationBlockV1 {
   entites_liees: string[];
 }
 
+export interface LoreDeclaredRelationV1 {
+  relation: string;
+  cible: string;
+  type_cible: string | null;
+  force: "REQUIRED" | "OPTIONAL";
+}
+
+export interface LoreDeclaredPropertyV1 {
+  propriete: string;
+  libelle: string;
+  valeur: string | null;
+  niveau: LoreKnowledgeLevelV1;
+  creation?: "INTERDITE" | "TEXTE" | "IDENTITE";
+  propriete_role_identite?: string | null;
+}
+
 export interface LoreAuthorEntityBaseV1<Type extends LoreEntityTypeV1> {
   schema_version: 1;
   type: Type;
@@ -39,6 +55,8 @@ export interface LoreAuthorEntityBaseV1<Type extends LoreEntityTypeV1> {
   resume: string;
   mots_cles: string[];
   informations: LoreInformationBlockV1[];
+  relations_declarees?: LoreDeclaredRelationV1[];
+  proprietes_factuelles?: LoreDeclaredPropertyV1[];
 }
 
 export interface MechanicalCatalogReferenceV1 {

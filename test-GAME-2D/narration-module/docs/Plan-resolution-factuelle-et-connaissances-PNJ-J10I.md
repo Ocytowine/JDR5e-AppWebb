@@ -1,6 +1,6 @@
 # Plan de résolution factuelle et de connaissances PNJ J10-I
 
-Statut : `EN EXÉCUTION — J10-I0 À J10-I5 FERMÉS`
+Statut : `FERMÉ — J10-I0 À J10-I7 CERTIFIÉS`
 
 Date d'ouverture : 2026-08-27
 
@@ -19,8 +19,8 @@ uniquement le sous-lot actif et la prochaine action concrète.
 | J10-I3 | `FERMÉ` | [`Checkpoint-connaissance-contextuelle-PNJ-J10I3.md`](Checkpoint-connaissance-contextuelle-PNJ-J10I3.md) |
 | J10-I4 | `FERMÉ` | [`Checkpoint-faits-libres-identites-J10I4.md`](Checkpoint-faits-libres-identites-J10I4.md) |
 | J10-I5 | `FERMÉ` | [`Checkpoint-divulgation-information-PNJ-J10I5.md`](Checkpoint-divulgation-information-PNJ-J10I5.md) |
-| J10-I6 | `PROCHAIN` | alimenter performer, fallback, témoignage et diagnostic depuis la projection autorisée |
-| J10-I7 | `EN ATTENTE` | suivre l'ordre et les gates du présent document |
+| J10-I6 | `FERMÉ` | [`Checkpoint-performance-information-PNJ-J10I6.md`](Checkpoint-performance-information-PNJ-J10I6.md) |
+| J10-I7 | `FERMÉ` | [`Checkpoint-certification-resolution-factuelle-J10I7.md`](Checkpoint-certification-resolution-factuelle-J10I7.md) |
 
 ## Motif d'ouverture
 
@@ -379,6 +379,11 @@ Livrables :
 
 Gate : tous les invariants J10-I sont verts, les propriétaires J3 à J10-H ne
 régressent pas et le scénario des Archives passe dans la vraie interface.
+
+Résultat : fermé le 2026-08-31 par la commande
+`narration-module:test:j10i7-certification`. La matrice I0-I6, le contrôleur
+réel, IndexedDB et ses migrations, la surface Chromium des Archives, les
+propriétaires J3 à J10-H et le build global sont verts sans appel OpenAI live.
 
 ## Matrice minimale d'acceptation
 

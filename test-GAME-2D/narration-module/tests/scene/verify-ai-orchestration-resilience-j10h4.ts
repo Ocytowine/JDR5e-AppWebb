@@ -14,10 +14,12 @@ assert.equal(dialogueStrategy.family, "V8_DIALOGUE");
 assert.equal(dialogueStrategy.mjPlannerAllowed, false);
 assert.deepEqual(dialogueStrategy.maximumRemoteSequence, [
   "player_intent_interpreter",
+  "scene_creator",
   "npc_performer",
   "coherence_critic"
 ]);
-assert.equal(dialogueStrategy.maximumRemoteSequence.length, 3);
+assert.equal(dialogueStrategy.maximumRemoteSequence.length, 4);
+assert.equal(dialogueStrategy.maxBillableCalls, 4);
 
 const actionStrategy = buildNarrativeAiRoleStrategyV1(
   interpretation({ capabilityId: "scene.visible-object-interaction" })
@@ -63,7 +65,7 @@ const performerSource = readFileSync(resolve("narration-module/src/application/n
 assert.match(performerSource, /\.slice\(-5\)/u);
 assert.match(performerSource, /buildNpcFallbackFromRequestV1\(request, input\.interpretation, actorId\)/u);
 
-console.log("ai-orchestration-resilience/J10-H4: OK (routes, paquets, trois rôles et fallbacks)");
+console.log("ai-orchestration-resilience/J10-H4: OK (routes, paquets, création factuelle optionnelle et fallbacks)");
 
 function interpretation(input: { capabilityId: string }): NarrativeIntentInterpretationV1 {
   return {

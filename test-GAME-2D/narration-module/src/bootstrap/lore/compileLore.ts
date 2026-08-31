@@ -301,6 +301,12 @@ function buildRelations(author: LoreAuthorEntityV1): LoreRelationV1[] {
   author.informations.forEach(information => {
     information.entites_liees.forEach(target => values.push(relation("information_liee", target, null)));
   });
+  author.relations_declarees?.forEach(declared => values.push({
+    relation: declared.relation,
+    targetId: declared.cible,
+    targetType: declared.type_cible,
+    strength: declared.force
+  }));
   const deduplicated = new Map<string, LoreRelationV1>();
   values.forEach(value => deduplicated.set(
     `${value.relation}\u0000${value.targetType ?? ""}\u0000${value.targetId}`,
@@ -357,6 +363,9 @@ function structuredFragmentDrafts(author: LoreAuthorEntityV1): FragmentDraft[] {
     const normalized = normalizeText(text);
     if (normalized) drafts.push({ fieldPath, text: normalized, knowledgeLevel, relatedEntityIds: [], topics: [], tags: [] });
   };
+  author.proprietes_factuelles?.forEach(property => {
+    if (property.valeur !== null) add(`/${property.propriete}`, property.valeur, property.niveau);
+  });
   if (author.type === "espece") {
     add("/apparence_observable", renderList(author.apparence_observable), "COMMUN");
     add("/biologie/particularites", renderList(author.biologie.particularites), "COMMUN");

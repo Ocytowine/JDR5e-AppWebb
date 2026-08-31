@@ -7,6 +7,10 @@ import type {
   CampaignLoreProjectionReaderV1,
   CampaignLoreProjectionV1
 } from "./loreGuidedSceneCreation";
+import {
+  buildLoreInformationSemanticCatalogV1,
+  type LoreInformationSemanticCatalogV1
+} from "./loreInformationSemanticCatalog";
 
 export const TARGETED_LORE_INFORMATION_LOOKUP_CONTRACT_V1 = "targeted-lore-information-lookup/1" as const;
 export const TARGETED_LORE_INFORMATION_MAX_CANDIDATES_V1 = 8;
@@ -29,6 +33,16 @@ export interface TargetedLoreInspectedTargetV1 extends JsonObject {
   selectedBy: "SUBJECT" | "RELATION" | "KNOWLEDGE_REF";
 }
 
+export interface TargetedLoreMissingPropertyV1 extends JsonObject {
+  propertyRef: string;
+  publicLabel: string;
+  subjectRef: string;
+  fieldPath: string;
+  knowledgeLevel: "COMMUN" | "LOCAL";
+  creationMode: "FORBIDDEN" | "TEXT" | "IDENTITY";
+  identityRolePropertyRef: string | null;
+}
+
 export interface TargetedLoreInformationLookupResultV1 extends JsonObject {
   schemaVersion: 1;
   contractVersion: typeof TARGETED_LORE_INFORMATION_LOOKUP_CONTRACT_V1;
@@ -37,6 +51,7 @@ export interface TargetedLoreInformationLookupResultV1 extends JsonObject {
   resolvedSubjectRefs: string[];
   candidates: ResolvedInformationCandidateV1[];
   missingDimensions: string[];
+  missingProperties: TargetedLoreMissingPropertyV1[];
   inspectedTargets: TargetedLoreInspectedTargetV1[];
   sourceRefs: string[];
   diagnostics: string[];
@@ -66,6 +81,10 @@ export function validateTargetedLoreInformationLookupResultV1(
   if (value.candidates.some(candidate => candidate.scopeRefs.length === 0)) issues.push("candidate scope is missing");
   if (value.candidates.some(candidate => candidate.sourceRefs.length === 0)) issues.push("candidate provenance is missing");
   if (value.sourceRefs.some(ref => /^(?:secret|private|hidden):/iu.test(ref))) issues.push("private source leaked from lookup");
+  if (value.missingProperties.some(property => !value.missingDimensions.includes(property.propertyRef))) issues.push("missing property is not part of missing dimensions");
+  if (value.missingProperties.some(property => !property.publicLabel.trim() || !/^[a-z][a-z0-9_-]*:.+/u.test(property.propertyRef))) issues.push("missing property presentation is invalid");
+  if (value.missingProperties.some(property => !/^lore-entity:.+/u.test(property.subjectRef) || !/^\/.+/u.test(property.fieldPath) || !["COMMUN", "LOCAL"].includes(property.knowledgeLevel))) issues.push("missing property owner metadata is invalid");
+  if (new Set(value.missingProperties.map(property => property.propertyRef)).size !== value.missingProperties.length) issues.push("missing property presentations are not unique");
   return issues.length === 0 ? { ok: true } : { ok: false, issues };
 }
 
@@ -85,6 +104,17 @@ export function createTargetedLoreInformationReaderV1(input: {
       const allowedLevels = new Set(request.allowedKnowledgeLevels);
       const anchor = entityById.get(request.anchorEntityId);
       if (!anchor) throw new Error(`Unknown lore anchor ${request.anchorEntityId}.`);
+      if (request.need.contractVersion === "information-need/2") {
+        return lookupByOpenSelectors({
+          request,
+          catalog: input.catalog,
+          anchor,
+          entityById,
+          fragmentById,
+          projectionReader: input.projectionReader ?? null,
+          campaignFactReader: input.campaignFactReader ?? null
+        });
+      }
 
       const subjects = resolveSubjects(request.need, anchor, input.catalog.entities, entityById);
       const subjectRefs = subjects.map(subject => `lore-entity:${subject.entityId}`);
@@ -98,7 +128,7 @@ export function createTargetedLoreInformationReaderV1(input: {
           })
         : [];
       const campaignCandidates = campaignFacts
-        .filter(fact => allowedLevels.has(fact.knowledgeLevel) && campaignFactMatchesNeed(fact, request.need))
+        .filter(fact => allowedLevels.has(fact.knowledgeLevel))
         .map((fact, index) => ({
           schemaVersion: 1 as const,
           candidateId: `information-candidate:${request.lookupId}:campaign:${index + 1}`,
@@ -170,7 +200,8 @@ export function createTargetedLoreInformationReaderV1(input: {
         need: structuredClone(request.need),
         resolvedSubjectRefs: subjects.map(subject => `lore-entity:${subject.entityId}`),
         candidates,
-        missingDimensions: candidates.length === 0 ? [request.need.requestedDimension] : [],
+        missingDimensions: legacyMissingDimensions(request.need, candidates.length),
+        missingProperties: [],
         inspectedTargets: targets.map(target => ({
           entityId: target.fragment.entityId,
           fieldPath: target.fragment.fieldPath,
@@ -187,6 +218,201 @@ export function createTargetedLoreInformationReaderV1(input: {
   };
 }
 
+async function lookupByOpenSelectors(input: {
+  request: TargetedLoreInformationLookupRequestV1;
+  catalog: NarrativeLoreBuildCatalogV1;
+  anchor: LoreEntityV1;
+  entityById: Map<string, LoreEntityV1>;
+  fragmentById: Map<string, LoreFragmentV1>;
+  projectionReader: CampaignLoreProjectionReaderV1 | null;
+  campaignFactReader: CampaignFactInformationReaderV1 | null;
+}): Promise<TargetedLoreInformationLookupResultV1> {
+  const need = input.request.need;
+  if (need.contractVersion !== "information-need/2") throw new Error("Open selector lookup requires information-need/2.");
+  const semanticCatalog = buildLoreInformationSemanticCatalogV1({
+    catalog: input.catalog,
+    anchorEntityId: input.anchor.entityId
+  });
+  if (semanticCatalog === null) throw new Error("Lore information semantic catalogue is unavailable.");
+  const subjectByRef = new Map(semanticCatalog.subjects.map(subject => [subject.ref, subject] as const));
+  const propertyByRef = new Map(semanticCatalog.properties.map(property => [property.ref, property] as const));
+  const relationByRef = new Map(semanticCatalog.relations.map(relation => [relation.ref, relation] as const));
+  const diagnostics = validateOpenSelectors(need, subjectByRef, propertyByRef, relationByRef);
+  const reachedSubjectRefs = new Set<string>();
+  if (need.proposedSubjectRef !== null && subjectByRef.has(need.proposedSubjectRef)) reachedSubjectRefs.add(need.proposedSubjectRef);
+  need.proposedScopeRefs.filter(ref => subjectByRef.has(ref)).forEach(ref => reachedSubjectRefs.add(ref));
+  if (reachedSubjectRefs.size === 0) reachedSubjectRefs.add(semanticCatalog.anchorSubjectRef);
+  const inspectedRelations: LoreInformationSemanticCatalogV1["relations"] = [];
+  for (const relationRef of need.proposedRelationRefs) {
+    const relation = relationByRef.get(relationRef);
+    if (relation === undefined) continue;
+    if (!reachedSubjectRefs.has(relation.sourceSubjectRef)) {
+      diagnostics.push(`disconnected-relation:${relation.ref}`);
+      continue;
+    }
+    reachedSubjectRefs.add(relation.targetSubjectRef);
+    inspectedRelations.push(relation);
+  }
+  const selectedProperties = unique([...need.proposedPropertyRefs, ...need.completionPropertyRefs])
+    .flatMap(ref => {
+      const property = propertyByRef.get(ref);
+      return property !== undefined && reachedSubjectRefs.has(property.subjectRef) ? [property] : [];
+    });
+  const subjectRefs = [...reachedSubjectRefs].sort();
+  const selectedKeys = new Set(selectedProperties.map(property => targetKey(
+    entityIdFromSubjectRef(property.subjectRef),
+    property.fieldPath
+  )));
+  const campaignFacts = input.campaignFactReader === null
+    ? []
+    : await input.campaignFactReader.listEffectiveFacts({
+        schemaVersion: 1,
+        campaignId: input.request.campaignId,
+        campaignRevision: input.request.campaignRevision,
+        subjectRefs,
+        temporalScope: need.temporalScope
+      });
+  const allowedLevels = new Set(input.request.allowedKnowledgeLevels);
+  const campaignCandidates = campaignFacts
+    .filter(fact => allowedLevels.has(fact.knowledgeLevel))
+    .filter(fact => selectedKeys.has(targetKey(entityIdFromSubjectRef(fact.subjectRef), fact.predicate)))
+    .map((fact, index): ResolvedInformationCandidateV1 => ({
+      schemaVersion: 1,
+      candidateId: `information-candidate:${input.request.lookupId}:campaign:${index + 1}`,
+      subjectRef: fact.subjectRef,
+      property: fact.predicate,
+      value: fact.objectText,
+      authority: "CAMPAIGN_FACT",
+      visibility: "PLAYER_VISIBLE",
+      sourceKnowledgeLevel: fact.knowledgeLevel,
+      scopeRefs: subjectRefs,
+      sourceRefs: unique([`campaign-fact:${fact.factId}`, ...fact.sourceRefs])
+    }));
+  const campaignKeys = new Set(campaignCandidates.map(candidate => targetKey(
+    entityIdFromSubjectRef(candidate.subjectRef!),
+    candidate.property
+  )));
+  const targets = (need.temporalScope === "CURRENT" || need.temporalScope === "UNSPECIFIED") ? selectedProperties.flatMap(property => {
+    const entityId = entityIdFromSubjectRef(property.subjectRef);
+    const fragment = [...input.catalog.facts, ...input.catalog.fragments].find(candidate =>
+      candidate.entityId === entityId
+      && candidate.fieldPath === property.fieldPath
+      && allowedLevels.has(candidate.knowledgeLevel)
+    );
+    return fragment === undefined ? [] : [{ fragment, property }];
+  }).slice(0, TARGETED_LORE_INFORMATION_MAX_CANDIDATES_V1) : [];
+  const projections = input.projectionReader === null
+    ? []
+    : (await input.projectionReader.listEffectiveProjections({
+        schemaVersion: 1,
+        campaignId: input.request.campaignId,
+        campaignRevision: input.request.campaignRevision,
+        targets: targets.map(target => ({ entityId: target.fragment.entityId, fieldPath: target.fragment.fieldPath }))
+      })).projections;
+  const projectionByTarget = new Map(projections.map(projection => [targetKey(projection.entityId, projection.fieldPath), projection] as const));
+  const loreCandidates = targets.flatMap((target, index): ResolvedInformationCandidateV1[] => {
+    const key = targetKey(target.fragment.entityId, target.fragment.fieldPath);
+    if (campaignKeys.has(key)) return [];
+    const projection = projectionByTarget.get(key);
+    if (projection?.disposition === "WITHHOLD") return [];
+    const value = effectiveValue(target.fragment, projection, input.entityById);
+    if (value === null) return [];
+    return [{
+      schemaVersion: 1,
+      candidateId: `information-candidate:${input.request.lookupId}:selector:${index + 1}`,
+      subjectRef: target.property.subjectRef,
+      property: target.property.fieldPath,
+      value,
+      authority: projection === undefined ? "LORE_INITIAL" : "CAMPAIGN_LORE_PROJECTION",
+      visibility: "PLAYER_VISIBLE",
+      sourceKnowledgeLevel: target.fragment.knowledgeLevel,
+      scopeRefs: subjectRefs,
+      sourceRefs: projection === undefined
+        ? [sourceRef(target.fragment)]
+        : unique([`campaign-lore-projection:${projection.projectionId}`, ...projection.sourceRefs, sourceRef(target.fragment)])
+    }];
+  });
+  const candidates = [...campaignCandidates, ...loreCandidates].slice(0, TARGETED_LORE_INFORMATION_MAX_CANDIDATES_V1);
+  const resolvedKeys = new Set(candidates.map(candidate => targetKey(
+    entityIdFromSubjectRef(candidate.subjectRef!),
+    candidate.property
+  )));
+  const completionRefs = need.completionPropertyRefs.length > 0
+    ? need.completionPropertyRefs
+    : need.proposedPropertyRefs;
+  const missingDimensions = completionRefs.filter(ref => {
+    const property = propertyByRef.get(ref);
+    return property === undefined || !resolvedKeys.has(targetKey(entityIdFromSubjectRef(property.subjectRef), property.fieldPath));
+  });
+  const missingProperties = missingDimensions.flatMap(propertyRef => {
+    const property = propertyByRef.get(propertyRef);
+    if (property === undefined) return [];
+    return [{
+      propertyRef,
+      publicLabel: property.label,
+      subjectRef: property.subjectRef,
+      fieldPath: property.fieldPath,
+      knowledgeLevel: property.knowledgeLevel,
+      creationMode: property.creationMode,
+      identityRolePropertyRef: property.identityRolePropertyRef
+    }];
+  });
+  if (candidates.length === 0) diagnostics.push("no-candidate-for-validated-selectors");
+  return {
+    schemaVersion: 1,
+    contractVersion: TARGETED_LORE_INFORMATION_LOOKUP_CONTRACT_V1,
+    lookupId: input.request.lookupId,
+    need: structuredClone(need),
+    resolvedSubjectRefs: subjectRefs,
+    candidates,
+    missingDimensions,
+    missingProperties,
+    inspectedTargets: [
+      ...targets.map((target, index) => ({
+        entityId: target.fragment.entityId,
+        fieldPath: target.fragment.fieldPath,
+        relevance: 100 - index,
+        selectedBy: "SUBJECT" as const
+      })),
+      ...inspectedRelations.map((relation, index) => ({
+        entityId: entityIdFromSubjectRef(relation.targetSubjectRef),
+        fieldPath: relation.ref,
+        relevance: 80 - index,
+        selectedBy: "RELATION" as const
+      }))
+    ].slice(0, TARGETED_LORE_INFORMATION_MAX_CANDIDATES_V1),
+    sourceRefs: unique(candidates.flatMap(candidate => candidate.sourceRefs)),
+    diagnostics,
+    authority: "READ_ONLY_FACT_LOOKUP",
+    noCommit: true,
+    version: 1
+  };
+}
+
+function validateOpenSelectors(
+  need: Extract<InformationNeedV1, { contractVersion: "information-need/2" }>,
+  subjectByRef: ReadonlyMap<string, unknown>,
+  propertyByRef: ReadonlyMap<string, unknown>,
+  relationByRef: ReadonlyMap<string, unknown>
+): string[] {
+  const diagnostics: string[] = [];
+  if (need.proposedSubjectRef !== null && !subjectByRef.has(need.proposedSubjectRef)) diagnostics.push(`unknown-subject-selector:${need.proposedSubjectRef}`);
+  need.proposedScopeRefs.filter(ref => !subjectByRef.has(ref)).forEach(ref => diagnostics.push(`unknown-scope-selector:${ref}`));
+  [...need.proposedPropertyRefs, ...need.completionPropertyRefs]
+    .filter(ref => !propertyByRef.has(ref))
+    .forEach(ref => diagnostics.push(`unknown-property-selector:${ref}`));
+  need.proposedRelationRefs.filter(ref => !relationByRef.has(ref)).forEach(ref => diagnostics.push(`unknown-relation-selector:${ref}`));
+  return unique(diagnostics);
+}
+
+function entityIdFromSubjectRef(ref: string): string {
+  return ref.replace(/^lore-entity:/u, "");
+}
+
+function legacyMissingDimensions(need: InformationNeedV1, candidateCount: number): string[] {
+  return candidateCount === 0 ? [need.requestedDimension] : [];
+}
+
 type SelectedTarget = {
   fragment: LoreFragmentV1;
   relevance: number;
@@ -196,33 +422,14 @@ type SelectedTarget = {
 function resolveSubjects(
   need: InformationNeedV1,
   anchor: LoreEntityV1,
-  entities: LoreEntityV1[],
+  _entities: LoreEntityV1[],
   entityById: Map<string, LoreEntityV1>
 ): LoreEntityV1[] {
   if (need.proposedSubjectRef) {
     const explicit = entityById.get(need.proposedSubjectRef.replace(/^[^:]+:/u, ""));
-    if (explicit) return contextualizeGenericPlaceSubject(explicit, need, entityById);
+    if (explicit) return [explicit];
   }
-  const mention = normalize(need.subjectMention);
-  const exact = entities.filter(entity => [entity.entityId, entity.displayName, ...entity.searchTerms].some(term => normalize(term) === mention));
-  if (exact.length > 0) return exact;
-  if (isGenericCityMention(mention)) {
-    const city = relatedEntity(anchor, "ville", entityById) ?? (anchor.entityType === "ville" ? anchor : null);
-    if (city) return [city];
-  }
-  return contextualizeGenericPlaceSubject(anchor, need, entityById);
-}
-
-function contextualizeGenericPlaceSubject(
-  entity: LoreEntityV1,
-  need: InformationNeedV1,
-  entityById: Map<string, LoreEntityV1>
-): LoreEntityV1[] {
-  if (isGovernanceNeed(need) && entity.entityType !== "ville") {
-    const city = relatedEntity(entity, "ville", entityById);
-    if (city) return [city];
-  }
-  return [entity];
+  return [anchor];
 }
 
 function selectTargets(input: {
@@ -243,26 +450,24 @@ function selectTargets(input: {
     add(input.fragmentsByEntity.get(entityId)?.find(fragment => fragment.fieldPath === fieldPath), relevance, selectedBy);
 
   for (const subject of input.subjects) {
-    if (isGovernanceNeed(input.need) && subject.entityType === "ville") {
-      addPath(subject.entityId, "/type_gouvernance", 100, "SUBJECT");
-      addPath(subject.entityId, "/siege_pouvoir", 99, "RELATION");
-      const seat = relatedEntity(subject, "siege_pouvoir", input.entityById);
-      if (seat) {
-        addPath(seat.entityId, "/proprietaire_principal", 98, "RELATION");
-        addPath(seat.entityId, "/resume", 80, "RELATION");
-        addPath(seat.entityId, "/fonction_principale", 79, "RELATION");
-      }
-    }
-    if (input.need.requestedAnswerShape === "LOCATION") {
-      addPath(subject.entityId, "/quartier", 100, "SUBJECT");
-      addPath(subject.entityId, "/ville", 99, "SUBJECT");
-      addPath(subject.entityId, "/region", 98, "SUBJECT");
-      addPath(subject.entityId, "/resume", 80, "SUBJECT");
-    }
-    const queryTokens = tokens(input.need.requestedDimension);
     for (const fragment of input.fragmentsByEntity.get(subject.entityId) ?? []) {
-      const score = tokenScore(queryTokens, tokens(`${fragment.fieldPath} ${fragment.text} ${fragment.topics.join(" ")}`));
-      if (score > 0) add(fragment, 40 + score, "SUBJECT");
+      add(fragment, fragment.fragmentId.startsWith("fact.") ? 100 : 40, "SUBJECT");
+    }
+    const firstHop = subject.relations.flatMap(relation => {
+      const target = input.entityById.get(relation.targetId);
+      return target === undefined ? [] : [target];
+    });
+    for (const related of firstHop) {
+      for (const fragment of input.fragmentsByEntity.get(related.entityId) ?? []) {
+        if (fragment.fragmentId.startsWith("fact.")) add(fragment, 80, "RELATION");
+      }
+      for (const relation of related.relations) {
+        const secondHop = input.entityById.get(relation.targetId);
+        if (secondHop === undefined) continue;
+        for (const fragment of input.fragmentsByEntity.get(secondHop.entityId) ?? []) {
+          if (fragment.fragmentId.startsWith("fact.")) add(fragment, 60, "RELATION");
+        }
+      }
     }
   }
   for (const ref of input.knowledgeRefs) {
@@ -279,43 +484,13 @@ function effectiveValue(
 ): string | null {
   const raw = projection?.replacementText ?? fragment.text;
   if (!raw.trim()) return null;
-  if (["/siege_pouvoir", "/quartier", "/ville", "/region"].includes(fragment.fieldPath)) return entityById.get(raw)?.displayName ?? raw;
-  return raw;
-}
-
-function relatedEntity(entity: LoreEntityV1, relation: string, entityById: Map<string, LoreEntityV1>): LoreEntityV1 | null {
-  const target = entity.relations.find(entry => entry.relation === relation)?.targetId;
-  return target ? entityById.get(target) ?? null : null;
+  return entityById.get(raw)?.displayName ?? raw;
 }
 
 function entityScopeRefs(entity: LoreEntityV1 | undefined, entityById: Map<string, LoreEntityV1>): string[] {
   if (!entity) return [];
-  const ids = new Set([entity.entityId]);
-  for (const relation of entity.relations) {
-    if (["ville", "quartier", "region", "territoire"].includes(relation.relation) && entityById.has(relation.targetId)) ids.add(relation.targetId);
-  }
-  return [...ids].map(id => `lore-entity:${id}`).sort((left, right) => left.localeCompare(right, "fr"));
-}
-
-function isGovernanceNeed(need: InformationNeedV1): boolean {
-  if (!["CURRENT", "UNSPECIFIED"].includes(need.temporalScope)) return false;
-  if (!["IDENTITY", "TITLE", "LOCATION", "OPEN"].includes(need.requestedAnswerShape)) return false;
-  const terms = tokens(need.requestedDimension);
-  return [...terms].some(term => /^(?:dirig|gouvern|autor|pouvoir|regent|souver|command|responsab|titulaire|tete|siege)/u.test(term));
-}
-
-function campaignFactMatchesNeed(fact: CampaignFactRecordV1, need: InformationNeedV1): boolean {
-  if (!["CURRENT", "UNSPECIFIED"].includes(need.temporalScope)) return false;
-  const predicate = tokens(fact.predicate);
-  const requested = tokens(need.requestedDimension);
-  if (need.requestedAnswerShape === "IDENTITY" && [...predicate].some(token => /^(?:identity|identite|name|nom|holder|titulaire|ruler|dirigeant|person)/u.test(token))) return true;
-  if (need.requestedAnswerShape === "TITLE" && [...predicate].some(token => /^(?:title|titre|role|office|fonction)/u.test(token))) return true;
-  if (need.requestedAnswerShape === "OPEN" && requested.size === 0) return true;
-  return tokenScore(requested, predicate) > 0;
-}
-
-function isGenericCityMention(value: string): boolean {
-  return ["ville", "la ville", "cette ville", "cite", "la cite", "cette cite"].includes(value);
+  void entityById;
+  return [`lore-entity:${entity.entityId}`];
 }
 
 function groupFragments(fragments: LoreFragmentV1[]): Map<string, LoreFragmentV1[]> {
@@ -332,21 +507,6 @@ function uniqueTargets(targets: SelectedTarget[]): SelectedTarget[] {
 
 function targetKey(entityId: string, fieldPath: string): string {
   return `${entityId}\u0000${fieldPath}`;
-}
-
-function normalize(value: string): string {
-  return value.normalize("NFKD").replace(/[\u0300-\u036f]/gu, "").toLocaleLowerCase("fr").replace(/[_-]+/gu, " ").replace(/[^a-z0-9 ]+/gu, " ").replace(/\s+/gu, " ").trim();
-}
-
-function tokens(value: string): Set<string> {
-  const stopWords = new Set(["actuel", "actuelle", "ancien", "ancienne", "local", "locale", "personnel", "personnelle"]);
-  return new Set(normalize(value).split(" ").filter(token => token.length > 2 && !stopWords.has(token)));
-}
-
-function tokenScore(left: Set<string>, right: Set<string>): number {
-  let score = 0;
-  for (const token of left) if (right.has(token)) score += 1;
-  return score;
 }
 
 function unique(values: string[]): string[] {

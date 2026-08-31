@@ -1,6 +1,7 @@
 import type { AiModelRouteV1 } from "./types";
 
 export const MAX_BILLABLE_AI_CALLS_PER_NARRATIVE_TURN_V1 = 3 as const;
+export const MAX_BILLABLE_AI_CALLS_WITH_FACT_CREATION_V1 = 4 as const;
 
 export interface AiCallBudgetSnapshotV1 {
   schemaVersion: 1;
@@ -36,6 +37,23 @@ export function activateAiCallBudgetV1(
     status: "ACTIVE"
   };
   activeBudgets.set(operationId, budget);
+  return snapshot(budget);
+}
+
+/**
+ * Opens one additional slot only when an owner-authorized optional stage is
+ * actually reached. It never creates a budget and never lowers an existing
+ * limit, so ordinary narrative turns retain their three-call ceiling.
+ */
+export function raiseActiveAiCallBudgetLimitV1(
+  operationId: string,
+  maxBillableCalls: number
+): AiCallBudgetSnapshotV1 | null {
+  const budget = activeBudgets.get(operationId);
+  if (budget === undefined || budget.status !== "ACTIVE") return budget === undefined ? null : snapshot(budget);
+  if (Number.isSafeInteger(maxBillableCalls) && maxBillableCalls > budget.maxBillableCalls) {
+    budget.maxBillableCalls = maxBillableCalls;
+  }
   return snapshot(budget);
 }
 

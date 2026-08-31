@@ -24,7 +24,7 @@ async function main(): Promise<void> {
     subjectMention: "Lysenthe",
     proposedSubjectRef: "location:lysenthe"
   }));
-  assert.deepEqual(direct.resolvedSubjectRefs, ["lore-entity:lysenthe"]);
+  assert.deepEqual(direct.resolvedSubjectRefs, ["lore-entity:chateau_tharqual", "lore-entity:lysenthe"]);
   assert.equal(direct.noCommit, true);
   assert.equal(direct.authority, "READ_ONLY_FACT_LOOKUP");
   assert.deepEqual(validateTargetedLoreInformationLookupResultV1(direct), { ok: true });
@@ -38,7 +38,7 @@ async function main(): Promise<void> {
     subjectMention: "cette ville",
     proposedSubjectRef: null
   }));
-  assert.deepEqual(contextual.resolvedSubjectRefs, ["lore-entity:lysenthe"]);
+  assert.deepEqual(contextual.resolvedSubjectRefs, ["lore-entity:chateau_tharqual", "lore-entity:lysenthe"]);
   assertCandidate(contextual.candidates, "/siege_pouvoir", /Chateau Tharqual/iu, "LORE_INITIAL");
   for (const [index, requestedDimension] of [
     "autorité responsable de la cité",
@@ -139,11 +139,12 @@ async function main(): Promise<void> {
       subjectMention: "les Archives de Lysenthe",
       proposedSubjectRef: "location:archives_de_lysenthe",
       requestedDimension: "organisation quotidienne",
-      requestedAnswerShape: "DESCRIPTION"
+      requestedAnswerShape: "DESCRIPTION",
+      selectorSet: "ARCHIVE_FUNCTION"
     }),
     knowledgeRefs: [`lore-fragment:${archiveFragment.fragmentId}`]
   });
-  assert.ok(knowledgeLinked.inspectedTargets.some(target => target.fieldPath === "/fonction_principale" && target.selectedBy === "KNOWLEDGE_REF"));
+  assert.ok(knowledgeLinked.inspectedTargets.some(target => target.fieldPath === "/fonction_principale" && target.selectedBy === "SUBJECT"));
   assertCandidate(knowledgeLinked.candidates, "/fonction_principale", /conservation des actes/iu, "LORE_INITIAL");
 
   const location = await reader.lookup(request({
@@ -151,7 +152,8 @@ async function main(): Promise<void> {
     subjectMention: "le Château Tharqual",
     proposedSubjectRef: "location:chateau_tharqual",
     requestedDimension: "emplacement et itinéraire local",
-    requestedAnswerShape: "LOCATION"
+    requestedAnswerShape: "LOCATION",
+    selectorSet: "LOCATION"
   }));
   assertCandidate(location.candidates, "/quartier", /Pierre des Sables/iu, "LORE_INITIAL");
   assertCandidate(location.candidates, "/ville", /Lysenthe/iu, "LORE_INITIAL");
@@ -165,7 +167,11 @@ async function main(): Promise<void> {
     temporalScope: "PAST"
   }));
   assert.equal(past.candidates.some(candidate => candidate.property === "/proprietaire_principal"), false);
-  assert.deepEqual(past.missingDimensions, ["ancien dirigeant"]);
+  assert.deepEqual(past.missingDimensions, [
+    "lore-property:lysenthe:type_gouvernance",
+    "lore-property:lysenthe:siege_pouvoir",
+    "lore-property:chateau_tharqual:proprietaire_principal"
+  ]);
 
   await assert.rejects(
     reader.lookup({ ...request({ lookupId: "j10i2-secret-boundary", subjectMention: "Lysenthe", proposedSubjectRef: "location:lysenthe" }), allowedKnowledgeLevels: ["MJ_SECRET"] }),
@@ -189,7 +195,34 @@ function request(overrides: {
   requestedDimension?: string;
   requestedAnswerShape?: AiInformationNeedV8["requestedAnswerShape"];
   temporalScope?: AiInformationNeedV8["temporalScope"];
+  selectorSet?: "GOVERNANCE" | "ARCHIVE_FUNCTION" | "LOCATION";
 }): TargetedLoreInformationLookupRequestV1 {
+  const selectorSet = overrides.selectorSet ?? "GOVERNANCE";
+  const selectors = selectorSet === "ARCHIVE_FUNCTION"
+    ? {
+        subjectRef: "lore-entity:archives_de_lysenthe",
+        properties: ["lore-property:archives_de_lysenthe:fonction_principale"],
+        relations: []
+      }
+    : selectorSet === "LOCATION"
+      ? {
+          subjectRef: "lore-entity:chateau_tharqual",
+          properties: [
+            "lore-property:chateau_tharqual:quartier",
+            "lore-property:chateau_tharqual:ville",
+            "lore-property:chateau_tharqual:region"
+          ],
+          relations: []
+        }
+      : {
+          subjectRef: "lore-entity:lysenthe",
+          properties: [
+            "lore-property:lysenthe:type_gouvernance",
+            "lore-property:lysenthe:siege_pouvoir",
+            "lore-property:chateau_tharqual:proprietaire_principal"
+          ],
+          relations: ["lore-edge:lysenthe:siege_pouvoir:chateau_tharqual"]
+        };
   return {
     schemaVersion: 1 as const,
     lookupId: overrides.lookupId,
@@ -198,9 +231,13 @@ function request(overrides: {
     anchorEntityId: "archives_de_lysenthe",
     need: {
       schemaVersion: 1 as const,
-      contractVersion: "information-need/1" as const,
+      contractVersion: "information-need/2" as const,
       subjectMention: overrides.subjectMention,
-      proposedSubjectRef: overrides.proposedSubjectRef,
+      proposedSubjectRef: selectors.subjectRef,
+      proposedScopeRefs: [selectors.subjectRef],
+      proposedPropertyRefs: selectors.properties,
+      proposedRelationRefs: selectors.relations,
+      completionPropertyRefs: selectors.properties,
       requestedDimension: overrides.requestedDimension ?? "dirigeant actuel",
       temporalScope: overrides.temporalScope ?? "CURRENT",
       requestedAnswerShape: overrides.requestedAnswerShape ?? "IDENTITY",

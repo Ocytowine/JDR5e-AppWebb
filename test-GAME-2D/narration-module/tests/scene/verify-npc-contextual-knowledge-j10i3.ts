@@ -176,9 +176,21 @@ function informationNeed(input: {
 }): AiInformationNeedV8 {
   return {
     schemaVersion: 1,
-    contractVersion: "information-need/1",
+    contractVersion: "information-need/2",
     subjectMention: input.subjectMention,
     proposedSubjectRef: null,
+    proposedScopeRefs: ["lore-entity:lysenthe"],
+    proposedPropertyRefs: [
+      "lore-property:lysenthe:type_gouvernance",
+      "lore-property:lysenthe:siege_pouvoir",
+      "lore-property:chateau_tharqual:proprietaire_principal"
+    ],
+    proposedRelationRefs: ["lore-edge:lysenthe:siege_pouvoir:chateau_tharqual"],
+    completionPropertyRefs: [
+      "lore-property:lysenthe:type_gouvernance",
+      "lore-property:lysenthe:siege_pouvoir",
+      "lore-property:chateau_tharqual:proprietaire_principal"
+    ],
     requestedDimension: input.requestedDimension,
     temporalScope: "CURRENT",
     requestedAnswerShape: input.requestedAnswerShape,

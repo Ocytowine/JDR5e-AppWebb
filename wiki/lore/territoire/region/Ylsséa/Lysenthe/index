@@ -6,6 +6,11 @@ nom: Lysenthe
 aliases: []
 resume: Cité portuaire fortifiée d'Ylsséa, carrefour commercial majeur organisé autour de ses quais et institutions.
 informations: []
+relations_declarees:
+  - relation: siege_pouvoir
+    cible: chateau_tharqual
+    type_cible: batiment
+    force: REQUIRED
 
 territoire: astryade
 region: ylssea

@@ -16,6 +16,7 @@ import {
 import type { PlotCandidateGeneratorConfigV1 } from "../../narration-module/src/application";
 import type { LoreGuidedPlaceCandidateGeneratorConfigV2 } from "../../narration-module/src/application";
 import type { DestinationPlausibilityArbiterConfigV1 } from "../../narration-module/src/application";
+import type { MissingInformationFactGeneratorConfigV1 } from "../../narration-module/src/application";
 import { ServerOpenAiEnhancementProviderV1 } from "./serverOpenAiEnhancementClient";
 
 export function buildOpenAiIntentInterpreterConfigV1(endpoint?: string): AiIntentInterpreterConfigV1 {
@@ -130,6 +131,28 @@ export function buildOpenAiSceneCreatorConfigV2(endpoint?: string): LoreGuidedPl
       modelConfigVersion: "lore-guided-place-v2-luna-none", certified: true,
       allowedContractVersions: ["lore-guided-place-candidate/2"], inputTokenLimit: 2_000, outputTokenLimit: 1_500,
       timeoutMs: 55_000, fallbackRouteIds: []
+    },
+    retryPolicy: { schemaVersion: 1, role: "scene_creator", maxTechnicalRetries: 0, maxTargetedCorrections: 0, maxFullRegenerations: 0, allowFallback: false }
+  };
+}
+
+export function buildOpenAiMissingInformationFactGeneratorConfigV1(endpoint?: string): MissingInformationFactGeneratorConfigV1 {
+  return {
+    provider: new ServerOpenAiEnhancementProviderV1(endpoint),
+    route: {
+      schemaVersion: 1,
+      routeId: "campaign-ui-openai-missing-information-fact",
+      role: "scene_creator",
+      providerKind: "FAKE_CONTRACT",
+      providerId: "server-openai-route",
+      modelId: "server-selected-openai-scene-creator-model",
+      modelConfigVersion: "missing-information-fact-v1",
+      certified: true,
+      allowedContractVersions: ["missing-information-fact-proposal/1"],
+      inputTokenLimit: 2_000,
+      outputTokenLimit: 600,
+      timeoutMs: 55_000,
+      fallbackRouteIds: []
     },
     retryPolicy: { schemaVersion: 1, role: "scene_creator", maxTechnicalRetries: 0, maxTargetedCorrections: 0, maxFullRegenerations: 0, allowFallback: false }
   };

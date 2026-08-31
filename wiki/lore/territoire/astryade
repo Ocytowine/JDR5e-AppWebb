@@ -9,6 +9,22 @@ mots_cles:
   - primaute
   - royaume
 informations: []
+relations_declarees:
+  - relation: siege_pouvoir
+    cible: tour_du_primarque
+    type_cible: batiment
+    force: REQUIRED
+proprietes_factuelles:
+  - propriete: titre_dirigeant
+    libelle: titre public de la personne qui dirige cette entité
+    valeur: Primarque d'Astryade
+    niveau: COMMUN
+  - propriete: identite_dirigeant
+    libelle: identité personnelle de la personne qui dirige actuellement cette entité
+    valeur: null
+    niveau: COMMUN
+    creation: IDENTITE
+    propriete_role_identite: titre_dirigeant
 ---
 Résumé : La Primauté d'Astryade est un royaume situé sur le continent d'Elysion.
 

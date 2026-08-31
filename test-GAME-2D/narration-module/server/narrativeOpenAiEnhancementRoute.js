@@ -15,6 +15,7 @@ const NPC_PERFORMER_CONTRACT_VERSION = "npc-performer/1";
 const SCENE_CREATOR_CONTRACT_VERSION_V1 = "lore-guided-place-candidate/1";
 const SCENE_CREATOR_CONTRACT_VERSION_V2 = "lore-guided-place-candidate/2";
 const PLOT_CANDIDATE_CONTRACT_VERSION_V1 = "plot-candidate/1";
+const MISSING_INFORMATION_FACT_PROPOSAL_CONTRACT_V1 = "missing-information-fact-proposal/1";
 const DESTINATION_ARBITER_CONTRACT_VERSION = "destination-plausibility-arbitration/1";
 const DEFAULT_MODEL = "gpt-4.1-mini";
 const DEFAULT_SCENE_CREATOR_MODEL = "gpt-5.6-luna";
@@ -162,6 +163,21 @@ function buildRolePayloadSchema(requestOrRole) {
     };
   }
   if (role === "scene_creator") {
+    if (requestOrRole?.contractVersion === MISSING_INFORMATION_FACT_PROPOSAL_CONTRACT_V1) {
+      const target = requestOrRole?.input?.roleContextPack?.target ?? {};
+      return {
+        type: "object",
+        additionalProperties: false,
+        required: ["proposalId", "propertyRef", "valueKind", "generatedValue", "authority"],
+        properties: {
+          proposalId: { type: "string" },
+          propertyRef: { const: target.propertyRef },
+          valueKind: { const: target.valueKind },
+          generatedValue: { type: "string", minLength: 1, maxLength: 160 },
+          authority: { const: "PROPOSE_ONLY_NO_COMMIT" }
+        }
+      };
+    }
     if (requestOrRole?.contractVersion === PLOT_CANDIDATE_CONTRACT_VERSION_V1) {
       return buildPlotCandidatePayloadSchemaV1(requestOrRole);
     }
@@ -1359,14 +1375,20 @@ function buildSemanticIntentPayloadSchemaV8(request) {
                     additionalProperties: false,
                     required: [
                       "schemaVersion", "contractVersion", "subjectMention",
-                      "proposedSubjectRef", "requestedDimension", "temporalScope",
+                      "proposedSubjectRef", "proposedScopeRefs",
+                      "proposedPropertyRefs", "proposedRelationRefs",
+                      "completionPropertyRefs", "requestedDimension", "temporalScope",
                       "requestedAnswerShape", "sourceComponentId"
                     ],
                     properties: {
                       schemaVersion: { enum: [1] },
-                      contractVersion: { enum: ["information-need/1"] },
+                      contractVersion: { enum: ["information-need/2"] },
                       subjectMention: { type: "string", minLength: 1 },
                       proposedSubjectRef: nullableOpenString,
+                      proposedScopeRefs: { type: "array", maxItems: 12, items: { type: "string", pattern: "^[a-z][a-z0-9_-]*:.+" } },
+                      proposedPropertyRefs: { type: "array", maxItems: 12, items: { type: "string", pattern: "^[a-z][a-z0-9_-]*:.+" } },
+                      proposedRelationRefs: { type: "array", maxItems: 12, items: { type: "string", pattern: "^[a-z][a-z0-9_-]*:.+" } },
+                      completionPropertyRefs: { type: "array", maxItems: 12, items: { type: "string", pattern: "^[a-z][a-z0-9_-]*:.+" } },
                       requestedDimension: { type: "string", minLength: 1 },
                       temporalScope: { enum: ["CURRENT", "PAST", "FUTURE", "UNSPECIFIED"] },
                       requestedAnswerShape: { enum: ["IDENTITY", "TITLE", "LOCATION", "PROCEDURE", "DESCRIPTION", "CAUSE", "STATUS", "OPEN"] },
@@ -1535,7 +1557,7 @@ function normalizeAiCallRequest(value) {
   const acceptedContractVersions = request.role === "player_intent_interpreter"
     ? [INTENT_CONTRACT_VERSION, SEMANTIC_INTENT_CONTRACT_VERSION_V2, SEMANTIC_INTENT_CONTRACT_VERSION_V3, SEMANTIC_INTENT_CONTRACT_VERSION_V4, SEMANTIC_INTENT_CONTRACT_VERSION_V5, SEMANTIC_INTENT_CONTRACT_VERSION_V6, SEMANTIC_INTENT_CONTRACT_VERSION_V7, SEMANTIC_INTENT_CONTRACT_VERSION_V8]
     : request.role === "scene_creator"
-      ? [SCENE_CREATOR_CONTRACT_VERSION_V1, SCENE_CREATOR_CONTRACT_VERSION_V2, PLOT_CANDIDATE_CONTRACT_VERSION_V1]
+      ? [SCENE_CREATOR_CONTRACT_VERSION_V1, SCENE_CREATOR_CONTRACT_VERSION_V2, PLOT_CANDIDATE_CONTRACT_VERSION_V1, MISSING_INFORMATION_FACT_PROPOSAL_CONTRACT_V1]
       : [expectedContractVersion];
   if (!acceptedContractVersions.includes(request.contractVersion)) issues.push(`contractVersion must be one of: ${acceptedContractVersions.join(", ")}.`);
   if (typeof request.contextFingerprint === "string" && !/^sha256:[a-f0-9]{64}$/u.test(request.contextFingerprint)) {
@@ -1690,6 +1712,16 @@ function buildRoleInstructions(request) {
   ];
 
   if (request.role === "scene_creator") {
+    if (request.contractVersion === MISSING_INFORMATION_FACT_PROPOSAL_CONTRACT_V1) {
+      return [
+        "Tu proposes une unique valeur publique manquante depuis les faits publics fournis.",
+        "Tu n'as aucune autorité de commit, de persistance, de divulgation ou de création supplémentaire.",
+        "Recopie exactement propertyRef et valueKind depuis roleContextPack.target.",
+        "generatedValue doit être concis, naturel et compatible avec publicContextFacts. Pour IDENTITY, propose uniquement un nom personnel; le rôle et l'identifiant sont construits par le propriétaire local.",
+        "N'ajoute aucun secret, règle mécanique, engagement, titre ou entité au-delà de la valeur demandée.",
+        ...shared
+      ].join("\n");
+    }
     if (request.contractVersion === PLOT_CANDIDATE_CONTRACT_VERSION_V1) {
       return [
         "Tu proposes un noyau d'intrigue dynamique pour un jeu de rôle fondé sur la volonté du joueur.",
@@ -1763,7 +1795,7 @@ function buildRoleInstructions(request) {
         "components contient toutes les composantes exprimées dans leur ordre. Il n'existe aucune liste fermée d'actions qui limite meaning : toute intention comprise doit rester présente même si le runtime ne sait pas l'exécuter.",
         "suggestedAction reste une description naturelle et ouverte de l'action comprise; n'y place jamais un identifiant technique de capacité.",
         "Pour chaque composante de parole, renseigne dialogueAct selon le sens et le contexte : INITIATE_CONVERSATION pour ouvrir ou saluer, ASK_QUESTION pour demander une information, MAKE_STATEMENT pour affirmer ou répondre, REQUEST_ACTION pour demander qu'un interlocuteur agisse, OTHER seulement si aucune de ces natures ne convient. Utilise null hors parole. contentGoal conserve le contenu adressé sans inventer de propos.",
-        "Chaque composante fournit informationNeed. Utilise un objet uniquement pour une ASK_QUESTION qui demande un fait sur le monde, un acteur, un lieu, une procédure, un état, une cause ou une identité; sinon utilise null, notamment pour salutation, état personnel immédiat de l'interlocuteur, question rhétorique, déclaration, demande d'action et parole future conditionnelle. requestedDimension reste une description ouverte du fait recherché. proposedSubjectRef recopie seulement une référence publique fournie ou reste null. sourceComponentId recopie exactement componentId. Tu identifies le besoin mais ne réponds pas, ne recherches pas le lore et ne décides ni vérité, connaissance du PNJ, divulgation ou création.",
+        "Chaque composante fournit informationNeed. Utilise un objet uniquement pour une ASK_QUESTION qui demande un fait sur le monde, un acteur, un lieu, une procédure, un état, une cause ou une identité; sinon utilise null, notamment pour salutation, état personnel immédiat de l'interlocuteur, question rhétorique, déclaration, demande d'action et parole future conditionnelle. requestedDimension reste une description ouverte du fait recherché. Sélectionne proposedSubjectRef ou proposedScopeRefs, proposedPropertyRefs et completionPropertyRefs par leur sens public dans le catalogue fourni, même lorsque les mots du joueur sont approximatifs, synonymiques ou expriment un titre plutôt qu'un nom propre. Recopie uniquement les références publiques exactes fournies et n'invente jamais une référence ni une taxonomie depuis les mots du joueur. Pour une question factuelle UNDERSTOOD, le sujet ou la portée, au moins une propriété et au moins une propriété de complétude sont obligatoires. Si aucune combinaison publiée ne correspond suffisamment au sens demandé, utilise NEEDS_CLARIFICATION avec une question minimale au lieu de produire un besoin compris avec des sélecteurs vides. proposedRelationRefs peut rester vide lorsqu'aucune relation n'est nécessaire. sourceComponentId recopie exactement componentId. Tu identifies le besoin mais ne réponds pas, ne recherches pas le lore et ne décides ni vérité, connaissance du PNJ, divulgation ou création.",
         "Pour chaque composante, compare son sens complet au playerFacingScope des entrées AVAILABLE ou HANDOFF_ONLY de runtimeCapabilities. Si une entrée couvre entièrement la composante, tu dois recopier son capabilityId exact dans suggestedCapabilityId et son domain dans suggestedDomain. La correspondance porte sur le sens et le périmètre, pas sur des mots identiques ni sur la forme de l'identifiant.",
         "Laisse suggestedCapabilityId à null uniquement lorsqu'aucune capacité publiée ne couvre entièrement la composante; conserve alors librement le sens, l'action et le domaine proposés. Le logiciel la gardera comprise mais non exécutable au lieu de la forcer dans une capacité proche.",
         "Ne fusionne pas deux composantes distinctes et n'en supprime aucune pour correspondre aux capacités actuelles du runtime.",
@@ -1929,6 +1961,7 @@ function buildRoleInstructions(request) {
         "dialogueHistory associe chaque ancienne intention joueur aux répliques PNJ qu'elle a produites. Si l'intention courante est sémantiquement équivalente à une intention antérieure, une réponse cohérente et similaire est légitime même sans mot explicite comme répéter; rejette seulement les contradictions ou les répétitions mécaniques sans rapport avec la demande courante.",
         "Compare priorConversationProfile et candidateConversationProfile lorsqu'ils sont fournis. Une évolution subjective motivée par l'échange est permise; rejette une rupture arbitraire d'identité, une promotion durable, une biographie factuelle, une connaissance sans source ou la récitation visible du profil.",
         "Une opinion issue du profil est autorisée comme parole attribuée avec epistemicBasis=believed; elle ne doit pas être présentée comme vérité objective, règle, secret ou fait biographique.",
+        "Lorsque informationDisclosure est fourni, rejette toute assertion ou admonestation sur le ton, la posture, l'agressivité, la politesse ou la précision du joueur qui ne possède pas de source publique explicite. Le profil conversationnel ne constitue jamais cette preuve.",
         "Rejette les rappels spatiaux ou nominaux mécaniques déjà évidents, par exemple répéter 'près du garde' à chaque phrase alors que l'interlocuteur et l'action sont établis.",
         "REJECT avec un finding BLOCKING de catégorie PLOT_COHERENCE si la réplique répond à un autre acte, invente une question, ou contredit le contentGoal.",
         "PASS exige findings=[] et correctionConstraints=[].",
@@ -1982,12 +2015,14 @@ function buildRoleInstructions(request) {
       "Si priorProfile=null, amorce une perspective subjective, des préoccupations immédiates, des opinions, des sujets d'ouverture, des limites et un style compatibles avec le rôle visible et la scène. Si priorProfile existe, conserve sa continuité et ne fais évoluer que ce que l'échange courant justifie.",
       "Le profil est une intériorité de conversation non autoritaire: il peut contenir préférences, humeur, curiosité ou avis subjectifs, mais jamais biographie factuelle, secret, événement passé, compétence, relation mécanique ou connaissance absente des sources fournies.",
       "Tu peux exprimer un avis personnel avec epistemicBasis=believed et la référence task.conversationProfileContract.outputProfileRef. Cet avis reste une parole attribuée, jamais une vérité du monde.",
+      "Le profil conversationnel règle le style et la subjectivité; il ne prouve jamais le ton, la posture, l'agressivité, la politesse ou la précision du joueur dans l'échange courant. N'affirme et ne reproche aucun de ces comportements sans source publique explicite dans le contexte autorisé.",
       "Réponds naturellement aux sujets ordinaires ou personnels compatibles avec le profil. Tu peux rebondir sur un détail, ouvrir un sujet adjacent ou poser occasionnellement une question en retour; ne transforme pas chaque réponse en interrogatoire.",
       "La réplique peut compter une à quatre phrases lorsque l'échange le mérite. N'énumère jamais les champs du profil et évite les formules administratives génériques lorsqu'une réaction subjective bornée est possible.",
       "Lis task.dialogueAct comme contrat du tour: INITIATE_CONVERSATION ouvre seulement le contact et ne doit inventer aucune question; ASK_QUESTION répond à contentGoal; MAKE_STATEMENT accuse réception sans la transformer en question; REQUEST_ACTION accepte, refuse ou hésite sans décider un succès. Pour OTHER, comprends sémantiquement contentGoal et réponds naturellement à la parole qui y est décrite; reste prudent sur les faits non autorisés, mais ne remplace jamais une demande claire par un simple accusé de réception générique.",
       "Si task.ownerCompanionDecision est fourni, sa disposition, son adaptation et ses conditions sont déjà décidées par l'autorité du compagnon. Incarne exactement cette décision en langage naturel; ne l'inverse pas, ne cite aucun statut technique et ne prétends jamais que l'action demandée a réussi ou a déjà été exécutée.",
       "Avant d'écrire la prose, remplis reactionFrame: sourceDialogueAct recopie exactement task.dialogueAct.act, addressedContentGoal recopie exactement task.dialogueAct.contentGoal, et responseMode vaut respectivement ACKNOWLEDGE_CONTACT, ANSWER_QUESTION, ACKNOWLEDGE_STATEMENT, RESPOND_TO_REQUEST ou CAUTIOUS_RESPONSE.",
       "La réaction doit répondre au but sémantique du tour courant, ou exprimer clairement un refus, une ignorance ou une esquive portant sur ce but.",
+      "Si task.informationDisclosure est fourni, applique exactement formulationInstruction, authorizedFacts, answerCoverage et allowedSourceRefs. Le profil conversationnel peut colorer la forme, mais ne peut sourcer aucune assertion ajoutée à cette réponse factuelle.",
       "Respecte task.knowledgeEnvelope.visibleSituation et roleContextPack.spatialContext comme contraintes spatiales strictes. N'utilise jamais une autre scène, un autre lieu ou une autre entrée que ceux fournis.",
       "Si visibleActor fournit demeanor, immediateGoal, currentPressure, speechStyle, conversationalHooks ou boundaries, incarne-les sans les réciter ni les présenter comme une fiche. Ils guident le ton, le rythme, les priorités et les limites du PNJ.",
       "Évite de répéter mot pour mot une formulation de priorNpcUtterances. Ne répète pas mécaniquement le nom ou la position d'un acteur déjà établi, par exemple 'près du garde', sauf si cette précision change réellement le sens.",
@@ -2473,9 +2508,17 @@ function validateSemanticIntentPayloadV8(payload) {
         issues.push("payload.semanticFrame.components informationNeed is invalid.");
       } else if (component.informationNeed !== undefined && component.informationNeed !== null) {
         const need = component.informationNeed;
-        if (need.schemaVersion !== 1 || need.contractVersion !== "information-need/1") issues.push("payload.semanticFrame.components informationNeed contract is invalid.");
+        if (need.schemaVersion !== 1 || need.contractVersion !== "information-need/2") issues.push("payload.semanticFrame.components informationNeed contract is invalid.");
         if (typeof need.subjectMention !== "string" || need.subjectMention.trim().length === 0) issues.push("payload.semanticFrame.components informationNeed subjectMention is invalid.");
         if (!(need.proposedSubjectRef === null || typeof need.proposedSubjectRef === "string" && need.proposedSubjectRef.trim().length > 0)) issues.push("payload.semanticFrame.components informationNeed proposedSubjectRef is invalid.");
+        for (const key of ["proposedScopeRefs", "proposedPropertyRefs", "proposedRelationRefs", "completionPropertyRefs"]) {
+          if (!Array.isArray(need[key]) || need[key].length > 12 || need[key].some(value => typeof value !== "string" || !/^[a-z][a-z0-9_-]*:.+/u.test(value)) || new Set(need[key]).size !== need[key].length) issues.push(`payload.semanticFrame.components informationNeed ${key} is invalid.`);
+        }
+        if (frame.understandingStatus === "UNDERSTOOD") {
+          if (need.proposedSubjectRef === null && Array.isArray(need.proposedScopeRefs) && need.proposedScopeRefs.length === 0) issues.push("payload.semanticFrame.components informationNeed UNDERSTOOD requires a subject or scope selector.");
+          if (Array.isArray(need.proposedPropertyRefs) && need.proposedPropertyRefs.length === 0) issues.push("payload.semanticFrame.components informationNeed UNDERSTOOD requires a property selector.");
+          if (Array.isArray(need.completionPropertyRefs) && need.completionPropertyRefs.length === 0) issues.push("payload.semanticFrame.components informationNeed UNDERSTOOD requires a completion property selector.");
+        }
         if (typeof need.requestedDimension !== "string" || need.requestedDimension.trim().length === 0) issues.push("payload.semanticFrame.components informationNeed requestedDimension is invalid.");
         if (!["CURRENT", "PAST", "FUTURE", "UNSPECIFIED"].includes(need.temporalScope)) issues.push("payload.semanticFrame.components informationNeed temporalScope is invalid.");
         if (!["IDENTITY", "TITLE", "LOCATION", "PROCEDURE", "DESCRIPTION", "CAUSE", "STATUS", "OPEN"].includes(need.requestedAnswerShape)) issues.push("payload.semanticFrame.components informationNeed requestedAnswerShape is invalid.");
@@ -2498,6 +2541,18 @@ function validateSemanticIntentPayloadV8(payload) {
 }
 
 function validateSceneCreatorPayload(payload, request) {
+  if (request?.contractVersion === MISSING_INFORMATION_FACT_PROPOSAL_CONTRACT_V1) {
+    const issues = [];
+    const expected = ["authority", "generatedValue", "propertyRef", "proposalId", "valueKind"];
+    if (!payload || typeof payload !== "object" || Array.isArray(payload)) return ["payload must be an object."];
+    if (Object.keys(payload).sort().join("|") !== expected.sort().join("|")) issues.push("payload keys do not match missing information proposal contract.");
+    for (const key of ["proposalId", "propertyRef", "generatedValue"]) if (typeof payload[key] !== "string" || payload[key].trim().length === 0) issues.push(`payload.${key} must be non-empty.`);
+    const target = request?.input?.roleContextPack?.target;
+    if (payload.propertyRef !== target?.propertyRef) issues.push("payload.propertyRef escaped the authorized target.");
+    if (payload.valueKind !== target?.valueKind || !["TEXT", "IDENTITY"].includes(payload.valueKind)) issues.push("payload.valueKind escaped the authorized target.");
+    if (payload.authority !== "PROPOSE_ONLY_NO_COMMIT") issues.push("payload.authority is invalid.");
+    return issues;
+  }
   if (request?.contractVersion === PLOT_CANDIDATE_CONTRACT_VERSION_V1) {
     const required = ["actorMotivations", "actorPerspectives", "candidateId", "causalTimeline", "clues", "commitments", "falseLeads", "futureEvents", "hiddenTruth", "plotId", "requiredRevelations", "sourceRefs", "summary"];
     const issues = [];

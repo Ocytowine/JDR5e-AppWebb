@@ -2,6 +2,7 @@ import type { AiInformationNeedV8 } from "../ai/types";
 import type { JsonObject } from "../core";
 
 export const INFORMATION_NEED_CONTRACT_VERSION_V1 = "information-need/1" as const;
+export const INFORMATION_NEED_CONTRACT_VERSION_V2 = "information-need/2" as const;
 export const NPC_INFORMATION_RESOLUTION_CONTRACT_VERSION_V1 = "npc-information-resolution/1" as const;
 
 export type InformationTemporalScopeV1 = "CURRENT" | "PAST" | "FUTURE" | "UNSPECIFIED";
@@ -92,7 +93,7 @@ export interface NpcInformationResolutionV1 extends JsonObject {
     sourceRefs: string[];
   };
   creation: {
-    status: "NOT_NEEDED" | "REQUIRED_NOT_EXECUTED" | "NOT_ALLOWED";
+    status: "NOT_NEEDED" | "REQUIRED_NOT_EXECUTED" | "EXECUTED" | "NOT_ALLOWED";
     proposalRefs: string[];
   };
   authority: "FACT_LOOKUP_AND_DISCLOSURE_RECEIPT_ONLY";
@@ -112,7 +113,10 @@ const DISCLOSURE_DECISIONS = new Set<NpcDisclosureDecisionV1>(["ANSWER_DIRECTLY"
 
 export function validateInformationNeedV1(value: InformationNeedV1): InformationResolutionValidationV1 {
   const issues: string[] = [];
-  if (value.schemaVersion !== 1 || value.contractVersion !== INFORMATION_NEED_CONTRACT_VERSION_V1) {
+  if (value.schemaVersion !== 1 || ![
+    INFORMATION_NEED_CONTRACT_VERSION_V1,
+    INFORMATION_NEED_CONTRACT_VERSION_V2
+  ].includes(value.contractVersion)) {
     issues.push("information need contract version is invalid");
   }
   requireText(value.subjectMention, "subjectMention", issues);
@@ -121,6 +125,12 @@ export function validateInformationNeedV1(value: InformationNeedV1): Information
   if (!TEMPORAL_SCOPES.has(value.temporalScope)) issues.push("temporalScope is invalid");
   if (!ANSWER_SHAPES.has(value.requestedAnswerShape)) issues.push("requestedAnswerShape is invalid");
   requireText(value.sourceComponentId, "sourceComponentId", issues);
+  if (value.contractVersion === INFORMATION_NEED_CONTRACT_VERSION_V2) {
+    requireUniqueRefs(value.proposedScopeRefs, "proposedScopeRefs", issues, false);
+    requireUniqueRefs(value.proposedPropertyRefs, "proposedPropertyRefs", issues, false);
+    requireUniqueRefs(value.proposedRelationRefs, "proposedRelationRefs", issues, false);
+    requireUniqueRefs(value.completionPropertyRefs, "completionPropertyRefs", issues, false);
+  }
   return validation(issues);
 }
 
@@ -191,12 +201,15 @@ export function validateNpcInformationResolutionV1(
   if (!DISCLOSURE_DECISIONS.has(value.disclosure.decision)) issues.push("disclosure.decision is invalid");
   requireText(value.disclosure.reason, "disclosure.reason", issues);
   requireUniqueRefs(value.disclosure.sourceRefs, "disclosure.sourceRefs", issues, false);
-  if (!["NOT_NEEDED", "REQUIRED_NOT_EXECUTED", "NOT_ALLOWED"].includes(value.creation.status)) {
+  if (!["NOT_NEEDED", "REQUIRED_NOT_EXECUTED", "EXECUTED", "NOT_ALLOWED"].includes(value.creation.status)) {
     issues.push("creation.status is invalid");
   }
   requireUniqueRefs(value.creation.proposalRefs, "creation.proposalRefs", issues, false);
   if (value.creation.status === "REQUIRED_NOT_EXECUTED" && value.creation.proposalRefs.length > 0) {
     issues.push("creation.proposalRefs must stay empty before creation is executed");
+  }
+  if (value.creation.status === "EXECUTED" && value.creation.proposalRefs.length === 0) {
+    issues.push("creation.proposalRefs must identify an executed creation");
   }
   if (value.authority !== "FACT_LOOKUP_AND_DISCLOSURE_RECEIPT_ONLY") issues.push("authority is invalid");
   if (value.performerMayCreateFacts !== false) issues.push("performerMayCreateFacts must be false");

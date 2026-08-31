@@ -1,14 +1,14 @@
 # Tableau d'exécution du projet
 
-Dernière mise à jour : 2026-08-28
+Dernière mise à jour : 2026-08-31
 
 Ce fichier reste volontairement court. L'unique état global et feuille de route
 du module narration est
 [`Consolidation-fondations-narration.md`](test-GAME-2D/narration-module/docs/Consolidation-fondations-narration.md).
-Les contrats définissent les comportements ; les plans J10 et J10-I portent le
-détail du lot actif.
+Les contrats définissent les comportements ; les plans J10 et J10-I conservent
+le détail des lots fermés.
 
-## Lot actif — J10-I : résolution factuelle et connaissances PNJ
+## Lot actif — J10-J : résolution institutionnelle et réponses partielles
 
 J1 à J9 sont fermés dans leur périmètre narratif. J10 rend leur verticale
 entièrement pilotable dans l'interface sans transformer le jeu en tableau de
@@ -24,6 +24,12 @@ J10-H est fermé. Le plan officiel J10-I est dans
 [`Plan-resolution-factuelle-et-connaissances-PNJ-J10I.md`](test-GAME-2D/narration-module/docs/Plan-resolution-factuelle-et-connaissances-PNJ-J10I.md).
 Il sépare existence du fait, connaissance du PNJ et divulgation, puis raccorde
 la recherche lore ciblée et les faits de campagne manquants au dialogue.
+
+J10-I est fermé. Le premier test naturel post-certification ouvre J10-J. La
+correction doit distinguer portée institutionnelle, fait partiel et identité
+manquante sans aucune liste de mots ou de synonymes dans le runtime local.
+Le plan officiel est dans
+[`Plan-correction-resolution-institutionnelle-J10J.md`](test-GAME-2D/narration-module/docs/Plan-correction-resolution-institutionnelle-J10J.md).
 
 - [x] J10-A — contrats du carnet privé, du récapitulatif public et de
   l'interruption narrative figés ; projections, huit sorties IA, migrations et
@@ -152,19 +158,33 @@ la recherche lore ciblée et les faits de campagne manquants au dialogue.
 - [x] J10-I5 — connaissance et divulgation séparées ; fait public, croyance,
   incertitude, secret protégé, ignorance et orientation crédible possèdent une
   cause structurée sans fuite privée ni refus générique lié au rôle.
-- [ ] J10-I6 — alimenter performer, fallback, témoignage et diagnostic depuis
-  les seuls faits résolus et autorisés.
-- [ ] J10-I7 — certifier lore, campagne, rôles, rumeurs, secrets, création,
-  remplacement, IndexedDB, Chromium et build ; live seulement sur accord.
+- [x] J10-I6 — performer et fallback alimentés par les seuls faits autorisés ;
+  témoignage attribué, diagnostic sûr et runtime campagne/wiki branchés dans le
+  bootstrap jouable. Une panne performer conserve une réponse locale factuelle.
+- [x] J10-I7 — matrice lore/campagne/rôles/rumeurs/secrets/création/remplacement,
+  contrôleur réel, rejeu, IndexedDB, migrations, vraie UI Chromium, propriétaires
+  J3 à J10-H et build global certifiés sans appel OpenAI live.
+- [x] J10-J0 — transporter sujet, portée, propriétés et relations proposées par
+  V8 sous forme de références ouvertes validées, sans routeur lexical local.
+- [x] J10-J1 — supprimer les heuristiques historiques sur `subjectMention` et
+  `requestedDimension`, puis parcourir génériquement le graphe lore depuis les
+  références cataloguées, sans vocabulaire codé en dur.
+- [x] J10-J2 — transmettre faits connus et dimensions manquantes au performer et
+  au fallback pour corriger une prémisse sans fausse ignorance.
+- [x] J10-J3 — exécuter la création contrôlée d'une valeur publique manquante
+  avec identité légère, commit unique intégré au tour, sélecteurs factuels
+  exploitables, budget conditionnel, contrôleur réel, concurrence et reload.
+- [ ] J10-J4 — conserver l'acte directeur structuré d'un dialogue composé.
+- [ ] J10-J5 — certifier corpus ouvert, vraie UI, IndexedDB, rejeu,
+  propriétaires, budgets et build ; live uniquement sur accord explicite.
 
 ### Prochaine action concrète
 
-Commencer J10-I6 en relançant `narration-module:test:j10i5-disclosure`, puis
-alimenter le performer et un fallback local depuis les seuls `authorizedFacts`.
-Enregistrer ensuite la parole comme témoignage attribué sans la promouvoir en
-vérité objective, et compléter le diagnostic développeur jusqu'à la décision
-de divulgation. Le checkpoint de reprise est dans
-[`Checkpoint-divulgation-information-PNJ-J10I5.md`](test-GAME-2D/narration-module/docs/Checkpoint-divulgation-information-PNJ-J10I5.md).
+Commencer J10-J4 par l'audit de la composition des actes sociaux afin qu'une
+question accompagnée d'une justification conserve `ASK_QUESTION` comme acte
+directeur structuré. La correction doit consommer l'ordre V8 sans relire la
+prose. Ne lancer aucune recette OpenAI live sans accord explicite. Le plan de reprise est dans
+[`Plan-correction-resolution-institutionnelle-J10J.md`](test-GAME-2D/narration-module/docs/Plan-correction-resolution-institutionnelle-J10J.md).
 
 ## Dernier point de contrôle
 
@@ -188,7 +208,8 @@ de divulgation. Le checkpoint de reprise est dans
   `narration-module:test:j10h3-fidelity` : le cadre et la projection sont
   distincts, l'expression brute, la cible, l'acte, l'ordre et la provenance sont
   certifiés. J10-H4 ajoute `narration-module:test:j10h4-resilience` : limites,
-  paquets, trois rôles et fallbacks sont certifiés, et la baseline H0 ne mesure
+  paquets, trois rôles ordinaires ou quatre avec création factuelle propriétaire
+  et fallbacks sont certifiés, et la baseline H0 ne mesure
   plus aucun des écarts produit historiques initiaux.
 - Le correctif post-J10-H7 regroupe maintenant question et déclaration vers un
   même acteur dans une commande sociale unique ; G5, G7, H3, H4, H5 et le build

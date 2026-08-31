@@ -1,7 +1,9 @@
 import {
   activateAiCallBudgetV1,
   clearAiCallBudgetForTestV1,
+  consumeAiCallBudgetV1,
   inspectAiCallBudgetV1,
+  raiseActiveAiCallBudgetLimitV1,
   runAiPipelineCallV1,
   type AiCallRequestV1,
   type AiModelRouteV1,
@@ -128,6 +130,30 @@ async function main(): Promise<void> {
   assert.equal(crossRoleProvider.calls, 3, "The cap must be shared by interpreter, planner, performer and writer.");
   assert.equal(inspectAiCallBudgetV1(crossRoleOperationId)?.deniedAttemptIds.length, 1);
 
+  const creationOperationId = "operation:budget-fact-creation";
+  clearAiCallBudgetForTestV1(creationOperationId);
+  activateAiCallBudgetV1(creationOperationId, 3);
+  for (const [index, role] of (["player_intent_interpreter", "npc_performer"] as AiRoleV1[]).entries()) {
+    assert.equal(consumeAiCallBudgetV1({
+      operationId: creationOperationId,
+      attemptId: `${creationOperationId}:attempt:${index}`,
+      route: { ...route(), role }
+    }).allowed, true);
+  }
+  assert.equal(raiseActiveAiCallBudgetLimitV1(creationOperationId, 4)?.maxBillableCalls, 4);
+  for (const [index, role] of (["scene_creator", "coherence_critic"] as AiRoleV1[]).entries()) {
+    assert.equal(consumeAiCallBudgetV1({
+      operationId: creationOperationId,
+      attemptId: `${creationOperationId}:attempt:${index + 2}`,
+      route: { ...route(), role }
+    }).allowed, true);
+  }
+  assert.equal(consumeAiCallBudgetV1({
+    operationId: creationOperationId,
+    attemptId: `${creationOperationId}:attempt:4`,
+    route: { ...route(), role: "scene_writer" }
+  }).allowed, false, "the optional owner-authorized creation adds exactly one billable slot");
+
   const localOperationId = "operation:budget-local";
   clearAiCallBudgetForTestV1(localOperationId);
   activateAiCallBudgetV1(localOperationId, 3);
@@ -141,7 +167,7 @@ async function main(): Promise<void> {
   assert.equal(localProvider.calls, 4, "Local deterministic/fake calls do not consume the billed OpenAI budget.");
   assert.equal(inspectAiCallBudgetV1(localOperationId)?.consumedAttemptIds.length, 0);
 
-  console.log("ai call budget: three billable attempts maximum across retries; local calls excluded.");
+  console.log("ai call budget: three billable attempts by default, one owner-authorized fact-creation slot when reached; local calls excluded.");
 }
 
 void main();

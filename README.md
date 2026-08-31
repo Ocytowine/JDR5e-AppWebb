@@ -63,6 +63,7 @@ npm run narration-module:test:plot-preparation
 npm run narration-module:test:living-world-gate
 npm run narration-module:test:indexeddb
 npm run narration-module:test:j10h6-certification
+npm run narration-module:test:j10i7-certification
 npm run narration-module:test:j10h7-openai-live # recette payante, accord explicite requis
 npm run map-module:test:regression
 npm run verify:world-simulation
@@ -141,6 +142,23 @@ Les simulations longues sont disponibles avec `npm run verify:world-simulation:l
   certifient transversalement tous les propriétaires, Chromium, IndexedDB et
   les migrations, puis certifient approche, continuité pronominale après reload,
   changement d'interlocuteur et transition propriétaire dans Chromium.
+  J10-I est également fermé : la résolution factuelle sépare désormais fait,
+  connaissance et divulgation, crée et remplace les détails publics persistants
+  sous autorité locale, protège rumeurs et secrets, puis répond dans la vraie UI
+  des Archives avec rejeu et restauration IndexedDB certifiés.
+  J10-J est ouvert après un test naturel sur « notre roi ». Il doit résoudre les
+  portées institutionnelles depuis des références sémantiques et le graphe du
+  lore, sans liste locale de mots ou de synonymes. J10-J0 ferme déjà le contrat
+  `information-need/2` et son transport de sélecteurs opaques. J10-J1 les
+  raccorde maintenant à un catalogue sans valeurs et au graphe de lore, avec
+  zéro lecture lexicale dans le lookup. J10-J2 ferme maintenant la réponse
+  partielle : faits autorisés et propriétés manquantes atteignent le performer
+  et son fallback sans fausse ignorance. J10-J3 ferme aussi la création
+  contrôlée : politique déclarée dans le lore, proposition sans autorité,
+  identité et fait intégrés au commit atomique du tour, sélecteurs factuels non
+  vides, budget du rôle créatif conditionnel, puis relecture avant réponse. La
+  formulation réelle « Qui est le roi ? » est couverte sans routeur lexical.
+  J10-J4 est ouvert.
   Les causes et catalogues de bastion réellement jouables, l'économie de
   campagne et la mémoire sociale longue restent à construire.
 - `test-GAME-2D/scripts/` : generation de catalogues et scripts de verification.

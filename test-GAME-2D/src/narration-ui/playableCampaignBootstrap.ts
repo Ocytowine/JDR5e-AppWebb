@@ -11,6 +11,8 @@ import {
   NarrativeTurnControllerV1,
   createCampaignWorldSimulationRuntimeV1,
   createCampaignNpcInformationRuntimeV1,
+  createCampaignMissingInformationFactCreationRuntimeV1,
+  buildLoreInformationSemanticCatalogV1,
   createInterpreterCharacterContextResolverV1,
   resolveSceneV1,
   activateCampaignInitialSceneV1,
@@ -19,7 +21,8 @@ import {
   type AiIntentInterpreterConfigV1,
   type NarrativeCompanionRecruitmentRuntimeV1,
   type NarrativeMissionRelationRuntimeV1,
-  type PlotCandidateGeneratorConfigV1
+  type PlotCandidateGeneratorConfigV1,
+  type PlayableSceneStateV1
 } from "../../narration-module/src/application";
 import {
   CampaignBootstrapServiceV1,
@@ -45,7 +48,8 @@ import {
   buildOpenAiNpcPerformerConfigV1,
   buildOpenAiSceneCreatorConfigV2,
   buildOpenAiPlotCandidateConfigV1,
-  buildOpenAiDestinationPlausibilityArbiterConfigV1
+  buildOpenAiDestinationPlausibilityArbiterConfigV1,
+  buildOpenAiMissingInformationFactGeneratorConfigV1
 } from "./openAiNarrativeRuntimeConfig";
 import {
   readActiveCharacterSheetV1,
@@ -474,16 +478,29 @@ export async function createPlayableCampaignControllerV1(
     const travelRuntime = createInstalledPlayableTravelRuntimeV1(runtimeBindings, {
       narrativeInterruption: options.narrativeTravelInterruption
     });
+    const baseIntentInterpreterConfig = options.intentInterpreterConfig !== undefined
+      ? options.intentInterpreterConfig
+      : buildOpenAiIntentInterpreterConfigV1();
+    const intentInterpreterConfig = baseIntentInterpreterConfig === null
+      ? null
+      : {
+          ...baseIntentInterpreterConfig,
+          informationCatalogForScene: (scene: PlayableSceneStateV1) => {
+            const anchorEntityId = archivePilot.authoredSceneSourceBySceneId.get(scene.sceneId)?.entity.entityId
+              ?? archivePilot.locationRefBySceneId.get(scene.sceneId)?.replace(/^location:/u, "")
+              ?? null;
+            return anchorEntityId === null
+              ? null
+              : buildLoreInformationSemanticCatalogV1({ catalog: archivePilot.catalog, anchorEntityId });
+          }
+        };
     const controller = new NarrativeTurnControllerV1({
       repository,
       campaignId,
       clock,
       idPrefix: `nar:${campaignId}`,
       runtimeBindings,
-      intentInterpreterConfig:
-        options.intentInterpreterConfig !== undefined
-          ? options.intentInterpreterConfig
-          : buildOpenAiIntentInterpreterConfigV1(),
+      intentInterpreterConfig,
       mjPlannerConfig:
         mode === "openai" ? buildOpenAiMjPlannerConfigV1() : undefined,
       npcPerformerConfig:
@@ -579,6 +596,12 @@ export async function createPlayableCampaignControllerV1(
         catalog: archivePilot.catalog,
         repository,
         campaignId,
+        missingInformationFactCreationRuntime: createCampaignMissingInformationFactCreationRuntimeV1({
+          catalog: archivePilot.catalog,
+          repository,
+          campaignId,
+          generatorConfig: buildOpenAiMissingInformationFactGeneratorConfigV1()
+        }),
         anchorEntityIdForScene: scene => {
           const authored = archivePilot.authoredSceneSourceBySceneId.get(scene.sceneId);
           if (authored !== undefined) return authored.entity.entityId;

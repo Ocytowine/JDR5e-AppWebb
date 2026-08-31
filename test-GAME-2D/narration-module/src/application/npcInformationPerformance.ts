@@ -14,6 +14,11 @@ export interface NpcInformationAlternativePresentationV1 extends JsonObject {
   displayName: string;
 }
 
+export interface NpcInformationMissingPropertyPresentationV1 extends JsonObject {
+  propertyRef: string;
+  publicLabel: string;
+}
+
 /**
  * Player-facing performer boundary. It deliberately carries neither lookup
  * candidates rejected by disclosure nor private owner evidence.
@@ -26,6 +31,10 @@ export interface NpcInformationPerformerProjectionV1 extends JsonObject {
   decision: NpcInformationDisclosureProjectionV1["decision"];
   causeCode: NpcInformationDisclosureProjectionV1["cause"]["code"];
   authorizedFacts: NpcAuthorizedDisclosureFactV1[];
+  answerCoverage: {
+    status: "COMPLETE" | "PARTIAL" | "NONE";
+    missingProperties: NpcInformationMissingPropertyPresentationV1[];
+  };
   alternatives: NpcInformationAlternativePresentationV1[];
   allowedSourceRefs: string[];
   formulationInstruction: string;
@@ -56,6 +65,7 @@ export interface NpcInformationPerformanceDiagnosticV1 extends JsonObject {
 export function buildNpcInformationPerformerProjectionV1(input: {
   disclosure: NpcInformationDisclosureProjectionV1;
   alternativePresentations?: NpcInformationAlternativePresentationV1[];
+  missingProperties?: NpcInformationMissingPropertyPresentationV1[];
 }): NpcInformationPerformerProjectionV1 {
   const alternativesByRef = new Map((input.alternativePresentations ?? []).map(entry => [entry.actorRef, entry] as const));
   const alternatives = input.disclosure.cause.alternativeActorRefs.flatMap(actorRef => {
@@ -64,8 +74,15 @@ export function buildNpcInformationPerformerProjectionV1(input: {
   });
   const allowedSourceRefs = unique([
     ...input.disclosure.cause.publicPolicyRefs,
-    ...input.disclosure.authorizedFacts.flatMap(fact => fact.sourceRefs)
+    ...input.disclosure.authorizedFacts.flatMap(fact => fact.sourceRefs),
+    ...(input.missingProperties ?? []).map(property => property.propertyRef)
   ]);
+  const missingProperties = uniqueMissingProperties(input.missingProperties ?? []);
+  const answerCoverage = input.disclosure.authorizedFacts.length === 0
+    ? "NONE" as const
+    : missingProperties.length > 0
+      ? "PARTIAL" as const
+      : "COMPLETE" as const;
   return {
     schemaVersion: 1,
     contractVersion: NPC_INFORMATION_PERFORMER_PROJECTION_V1,
@@ -74,6 +91,7 @@ export function buildNpcInformationPerformerProjectionV1(input: {
     decision: input.disclosure.decision,
     causeCode: input.disclosure.cause.code,
     authorizedFacts: structuredClone(input.disclosure.authorizedFacts),
+    answerCoverage: { status: answerCoverage, missingProperties },
     alternatives,
     allowedSourceRefs,
     formulationInstruction: formulationInstruction(input.disclosure.decision),
@@ -136,7 +154,8 @@ export function validateNpcPerformanceAgainstInformationProjectionV1(input: {
   performance: NpcPerformerPayloadV1;
 }): string[] {
   const issues: string[] = [];
-  const allowed = new Set(input.projection.allowedSourceRefs);
+  const authorizedFactRefs = new Set(input.projection.authorizedFacts.flatMap(fact => fact.sourceRefs));
+  const allowedAssertionRefs = new Set(input.projection.allowedSourceRefs);
   const assertions = input.performance.utterances.flatMap(utterance => utterance.speechActs.filter(act => act.type === "assertion"));
   const used = unique([
     ...input.performance.knowledgeUsed,
@@ -146,14 +165,28 @@ export function validateNpcPerformanceAgainstInformationProjectionV1(input: {
   if (input.projection.actorRef.replace(/^actor:/u, "") !== input.performance.actorId.replace(/^npc:/u, "")) {
     issues.push("information projection actor does not match performer actor");
   }
-  if (used.some(ref => !allowed.has(ref) && !ref.startsWith("intent:") && !ref.startsWith("npc-conversation-profile:"))) {
-    issues.push("performance uses a source outside the authorized disclosure projection");
+  if (used.some(ref => /^(?:secret|private|hidden):/iu.test(ref))) {
+    issues.push("performance exposes a private source reference");
+  }
+  if (input.performance.revealedRefs.some(ref => !authorizedFactRefs.has(ref))) {
+    issues.push("performance reveals a reference outside authorized facts");
+  }
+  if (assertions.some(assertion => assertion.sourceRefs.some(ref =>
+    !allowedAssertionRefs.has(ref)
+    && !ref.startsWith("intent:")
+  ))) {
+    issues.push("performance assertion uses a source outside the authorized disclosure projection");
   }
   if (["ANSWER_DIRECTLY", "ANSWER_QUALIFIED"].includes(input.projection.decision)) {
-    const factSources = new Set(input.projection.authorizedFacts.flatMap(fact => fact.sourceRefs));
-    if (input.projection.authorizedFacts.length === 0 || !assertions.some(assertion => assertion.sourceRefs.some(ref => factSources.has(ref)))) {
+    if (input.projection.authorizedFacts.length === 0 || !assertions.some(assertion => assertion.sourceRefs.some(ref => authorizedFactRefs.has(ref)))) {
       issues.push("factual answer is not grounded in an authorized fact");
     }
+  }
+  if (input.projection.answerCoverage.status === "PARTIAL" && input.projection.authorizedFacts.length === 0) {
+    issues.push("partial answer coverage requires an authorized fact");
+  }
+  if (input.projection.answerCoverage.status === "NONE" && input.projection.authorizedFacts.length > 0) {
+    issues.push("empty answer coverage contradicts authorized facts");
   }
   if (["WITHHOLD_PROTECTED", "ACTOR_DOES_NOT_KNOW", "REDIRECT_CREDIBLY"].includes(input.projection.decision)
     && input.performance.revealedRefs.length > 0) {
@@ -171,16 +204,20 @@ function renderDisclosureFallback(projection: NpcInformationPerformerProjectionV
   const factRefs = unique(projection.authorizedFacts.flatMap(fact => fact.sourceRefs));
   const policyRefs = projection.allowedSourceRefs.filter(ref => ref.startsWith("policy:"));
   if (projection.decision === "ANSWER_DIRECTLY") {
-    return { text: `« ${joinFacts(values)} »`, epistemicBasis: "known", sourceRefs: factRefs };
+    return {
+      text: `« ${appendMissingQualification(joinFacts(values), projection)} »`,
+      epistemicBasis: "known",
+      sourceRefs: unique([...factRefs, ...projection.answerCoverage.missingProperties.map(property => property.propertyRef)])
+    };
   }
   if (projection.decision === "ANSWER_QUALIFIED") {
     const uncertain = projection.authorizedFacts.some(fact => fact.delivery === "QUALIFIED_UNCERTAINTY");
     return {
       text: uncertain
-        ? `« Je n'en suis pas certain, mais ${joinFacts(values, false)} »`
-        : `« À ma connaissance, ${joinFacts(values, false)} »`,
+        ? `« ${appendMissingQualification(`Je n'en suis pas certain, mais ${joinFacts(values, false)}`, projection)} »`
+        : `« ${appendMissingQualification(`À ma connaissance, ${joinFacts(values, false)}`, projection)} »`,
       epistemicBasis: uncertain ? "uncertain" : "believed",
-      sourceRefs: factRefs
+      sourceRefs: unique([...factRefs, ...projection.answerCoverage.missingProperties.map(property => property.propertyRef)])
     };
   }
   if (projection.decision === "WITHHOLD_PROTECTED") {
@@ -213,12 +250,32 @@ function joinFacts(values: string[], capitalize = true): string {
 }
 
 function formulationInstruction(decision: NpcInformationPerformerProjectionV1["decision"]): string {
-  const common = "Formuler une réplique naturelle uniquement depuis authorizedFacts et allowedSourceRefs; ne créer, compléter ni déduire aucun fait.";
+  const common = "Formuler une réplique naturelle uniquement depuis authorizedFacts, answerCoverage et allowedSourceRefs; ne créer, compléter ni déduire aucun fait. Le profil conversationnel règle le style mais ne prouve aucun comportement actuel du joueur : ne lui reprocher ni ton, posture, agressivité ou imprécision sans source publique explicite. Si answerCoverage est PARTIAL, donner d'abord les faits autorisés, puis limiter explicitement l'incertitude aux missingProperties; ne jamais convertir une réponse partielle en ignorance globale.";
   if (decision === "ANSWER_DIRECTLY") return `${common} Affirmer les faits objectifs sans refus générique lié au rôle du PNJ.`;
   if (decision === "ANSWER_QUALIFIED") return `${common} Conserver exactement la qualification de croyance ou d'incertitude de chaque fait.`;
   if (decision === "WITHHOLD_PROTECTED") return `${common} Refuser sans nommer, paraphraser ou laisser deviner l'information retenue.`;
   if (decision === "REDIRECT_CREDIBLY") return `${common} Orienter uniquement vers les alternatives fournies, sans inventer leur réponse.`;
-  return `${common} Reconnaître simplement l'ignorance réelle du PNJ.`;
+  return `${common} Reconnaître simplement l'ignorance réelle du PNJ, sans demander une reformulation ni admonester le joueur.`;
+}
+
+function appendMissingQualification(
+  establishedText: string,
+  projection: NpcInformationPerformerProjectionV1
+): string {
+  if (projection.answerCoverage.status !== "PARTIAL") return establishedText;
+  const labels = projection.answerCoverage.missingProperties.map(property => property.publicLabel.trim()).filter(Boolean);
+  if (labels.length === 0) return establishedText;
+  return `${establishedText} Je ne peux toutefois pas préciser ${labels.join(" ni ")} avec certitude.`;
+}
+
+function uniqueMissingProperties(values: NpcInformationMissingPropertyPresentationV1[]): NpcInformationMissingPropertyPresentationV1[] {
+  const byRef = new Map<string, NpcInformationMissingPropertyPresentationV1>();
+  for (const property of values) {
+    if (!/^[a-z][a-z0-9_-]*:.+/u.test(property.propertyRef) || /^(?:secret|private|hidden):/iu.test(property.propertyRef)) continue;
+    if (!property.publicLabel.trim()) continue;
+    byRef.set(property.propertyRef, { propertyRef: property.propertyRef, publicLabel: property.publicLabel.trim() });
+  }
+  return [...byRef.values()].sort((left, right) => left.propertyRef.localeCompare(right.propertyRef, "fr"));
 }
 
 function unique(values: string[]): string[] {

@@ -3,7 +3,7 @@
   "contractVersion": "narrative-lore-build-catalog/1",
   "packageId": "jdr5e.production-lore",
   "packageVersion": 1,
-  "sourceRootFingerprint": "sha256:f0e67b0dacf6bb56b2ea1b22554b1c16204f8774ea1c57c1f9aa980b35258f8e",
+  "sourceRootFingerprint": "sha256:cc5211e1bb77581d3dca453cfdadec398b35985e84f36818a5c59bb44fed01de",
   "playerKnowledgeLevels": [
     "COMMUN",
     "LOCAL"
@@ -389,9 +389,40 @@
           "primaute",
           "royaume"
         ],
+        "proprietes_factuelles": [
+          {
+            "libelle": "titre public de la personne qui dirige cette entité",
+            "niveau": "COMMUN",
+            "propriete": "titre_dirigeant",
+            "valeur": "Primarque d'Astryade"
+          },
+          {
+            "creation": "IDENTITE",
+            "libelle": "identité personnelle de la personne qui dirige actuellement cette entité",
+            "niveau": "COMMUN",
+            "propriete": "identite_dirigeant",
+            "propriete_role_identite": "titre_dirigeant",
+            "valeur": null
+          }
+        ],
+        "relations_declarees": [
+          {
+            "cible": "tour_du_primarque",
+            "force": "REQUIRED",
+            "relation": "siege_pouvoir",
+            "type_cible": "batiment"
+          }
+        ],
         "resume": "Royaume d'Elysion organisé autour de la Primauté et de ses autorités régionales."
       },
-      "relations": [],
+      "relations": [
+        {
+          "relation": "siege_pouvoir",
+          "targetId": "tour_du_primarque",
+          "targetType": "batiment",
+          "strength": "REQUIRED"
+        }
+      ],
       "searchTerms": [
         "Primauté d'Astryade",
         "primaute",
@@ -402,7 +433,7 @@
         "packageId": "jdr5e.production-lore",
         "packageVersion": 1,
         "sourcePath": "wiki/lore/territoire/astryade",
-        "sourceFingerprint": "sha256:d381eb4b82510f224c58ff036402778fc6ba54e3df323710ef63f98b8c78ac27"
+        "sourceFingerprint": "sha256:6dcbd8d75bbdcbcce9a12990ffd4be9609e4e95b43bfe5d8ae5aec1fb20fad8a"
       }
     },
     {
@@ -2089,6 +2120,14 @@
           "quartier_de_la_tour"
         ],
         "region": "ylssea",
+        "relations_declarees": [
+          {
+            "cible": "chateau_tharqual",
+            "force": "REQUIRED",
+            "relation": "siege_pouvoir",
+            "type_cible": "batiment"
+          }
+        ],
         "religions_principales": [
           "external:culte_des_douze"
         ],
@@ -2257,7 +2296,7 @@
         "packageId": "jdr5e.production-lore",
         "packageVersion": 1,
         "sourcePath": "wiki/lore/territoire/region/Ylsséa/Lysenthe/index",
-        "sourceFingerprint": "sha256:6e63baf0537ee00f9436f127f132f6e1954d9f74e0abd98cba33ddd877b4e739"
+        "sourceFingerprint": "sha256:bc422cc4937987370a51868f6b210ba3f2cb08e8a6e0310cfb3bd20c4b53432b"
       }
     },
     {
@@ -3792,7 +3831,7 @@
         "packageId": "jdr5e.production-lore",
         "packageVersion": 1,
         "sourcePath": "wiki/lore/territoire/region/Ylsséa/Lysenthe/index",
-        "sourceFingerprint": "sha256:6e63baf0537ee00f9436f127f132f6e1954d9f74e0abd98cba33ddd877b4e739"
+        "sourceFingerprint": "sha256:bc422cc4937987370a51868f6b210ba3f2cb08e8a6e0310cfb3bd20c4b53432b"
       }
     },
     {
@@ -3967,7 +4006,9 @@
         "royaume"
       ],
       "knowledgeLevel": "COMMUN",
-      "relatedEntityIds": [],
+      "relatedEntityIds": [
+        "tour_du_primarque"
+      ],
       "topics": [
         "Primauté d'Astryade"
       ],
@@ -3975,7 +4016,7 @@
         "packageId": "jdr5e.production-lore",
         "packageVersion": 1,
         "sourcePath": "wiki/lore/territoire/astryade",
-        "sourceFingerprint": "sha256:d381eb4b82510f224c58ff036402778fc6ba54e3df323710ef63f98b8c78ac27"
+        "sourceFingerprint": "sha256:6dcbd8d75bbdcbcce9a12990ffd4be9609e4e95b43bfe5d8ae5aec1fb20fad8a"
       }
     },
     {
@@ -3998,7 +4039,7 @@
         "packageId": "jdr5e.production-lore",
         "packageVersion": 1,
         "sourcePath": "wiki/lore/territoire/region/Ylsséa/Lysenthe/index",
-        "sourceFingerprint": "sha256:6e63baf0537ee00f9436f127f132f6e1954d9f74e0abd98cba33ddd877b4e739"
+        "sourceFingerprint": "sha256:bc422cc4937987370a51868f6b210ba3f2cb08e8a6e0310cfb3bd20c4b53432b"
       }
     },
     {
@@ -4043,7 +4084,7 @@
         "packageId": "jdr5e.production-lore",
         "packageVersion": 1,
         "sourcePath": "wiki/lore/territoire/region/Ylsséa/Lysenthe/index",
-        "sourceFingerprint": "sha256:6e63baf0537ee00f9436f127f132f6e1954d9f74e0abd98cba33ddd877b4e739"
+        "sourceFingerprint": "sha256:bc422cc4937987370a51868f6b210ba3f2cb08e8a6e0310cfb3bd20c4b53432b"
       }
     },
     {
@@ -4203,7 +4244,7 @@
         "packageId": "jdr5e.production-lore",
         "packageVersion": 1,
         "sourcePath": "wiki/lore/territoire/region/Ylsséa/Lysenthe/index",
-        "sourceFingerprint": "sha256:6e63baf0537ee00f9436f127f132f6e1954d9f74e0abd98cba33ddd877b4e739"
+        "sourceFingerprint": "sha256:bc422cc4937987370a51868f6b210ba3f2cb08e8a6e0310cfb3bd20c4b53432b"
       }
     },
     {
@@ -4406,7 +4447,7 @@
         "packageId": "jdr5e.production-lore",
         "packageVersion": 1,
         "sourcePath": "wiki/lore/territoire/region/Ylsséa/Lysenthe/index",
-        "sourceFingerprint": "sha256:6e63baf0537ee00f9436f127f132f6e1954d9f74e0abd98cba33ddd877b4e739"
+        "sourceFingerprint": "sha256:bc422cc4937987370a51868f6b210ba3f2cb08e8a6e0310cfb3bd20c4b53432b"
       }
     },
     {
@@ -4455,6 +4496,26 @@
         "packageVersion": 1,
         "sourcePath": "wiki/lore/territoire/region/Ylsséa/Lysenthe/quartiers/rue_des_maisons_hautes",
         "sourceFingerprint": "sha256:8afb4e1e73a954532d4f94427e808d101dc8a956e5c12e9f59e29421441c1bcd"
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "fragmentId": "fragment.8b66da0a4ed68f069d27317293f28615",
+      "entityId": "astryade",
+      "fieldPath": "/titre_dirigeant",
+      "text": "Primarque d'Astryade",
+      "tags": [
+        "primaute",
+        "royaume"
+      ],
+      "knowledgeLevel": "COMMUN",
+      "relatedEntityIds": [],
+      "topics": [],
+      "provenance": {
+        "packageId": "jdr5e.production-lore",
+        "packageVersion": 1,
+        "sourcePath": "wiki/lore/territoire/astryade",
+        "sourceFingerprint": "sha256:6dcbd8d75bbdcbcce9a12990ffd4be9609e4e95b43bfe5d8ae5aec1fb20fad8a"
       }
     },
     {
@@ -4549,7 +4610,7 @@
         "packageId": "jdr5e.production-lore",
         "packageVersion": 1,
         "sourcePath": "wiki/lore/territoire/region/Ylsséa/Lysenthe/index",
-        "sourceFingerprint": "sha256:6e63baf0537ee00f9436f127f132f6e1954d9f74e0abd98cba33ddd877b4e739"
+        "sourceFingerprint": "sha256:bc422cc4937987370a51868f6b210ba3f2cb08e8a6e0310cfb3bd20c4b53432b"
       }
     },
     {
@@ -4692,7 +4753,7 @@
         "packageId": "jdr5e.production-lore",
         "packageVersion": 1,
         "sourcePath": "wiki/lore/territoire/region/Ylsséa/Lysenthe/index",
-        "sourceFingerprint": "sha256:6e63baf0537ee00f9436f127f132f6e1954d9f74e0abd98cba33ddd877b4e739"
+        "sourceFingerprint": "sha256:bc422cc4937987370a51868f6b210ba3f2cb08e8a6e0310cfb3bd20c4b53432b"
       }
     },
     {
@@ -4901,7 +4962,7 @@
         "packageId": "jdr5e.production-lore",
         "packageVersion": 1,
         "sourcePath": "wiki/lore/territoire/region/Ylsséa/Lysenthe/index",
-        "sourceFingerprint": "sha256:6e63baf0537ee00f9436f127f132f6e1954d9f74e0abd98cba33ddd877b4e739"
+        "sourceFingerprint": "sha256:bc422cc4937987370a51868f6b210ba3f2cb08e8a6e0310cfb3bd20c4b53432b"
       }
     },
     {
@@ -5685,7 +5746,7 @@
         "packageId": "jdr5e.production-lore",
         "packageVersion": 1,
         "sourcePath": "wiki/lore/territoire/region/Ylsséa/Lysenthe/index",
-        "sourceFingerprint": "sha256:6e63baf0537ee00f9436f127f132f6e1954d9f74e0abd98cba33ddd877b4e739"
+        "sourceFingerprint": "sha256:bc422cc4937987370a51868f6b210ba3f2cb08e8a6e0310cfb3bd20c4b53432b"
       }
     },
     {
@@ -5709,7 +5770,7 @@
         "packageId": "jdr5e.production-lore",
         "packageVersion": 1,
         "sourcePath": "wiki/lore/territoire/region/Ylsséa/Lysenthe/index",
-        "sourceFingerprint": "sha256:6e63baf0537ee00f9436f127f132f6e1954d9f74e0abd98cba33ddd877b4e739"
+        "sourceFingerprint": "sha256:bc422cc4937987370a51868f6b210ba3f2cb08e8a6e0310cfb3bd20c4b53432b"
       }
     },
     {
@@ -6779,6 +6840,20 @@
           },
           {
             "schemaVersion": 1,
+            "sourceRef": "lore-fragment:fragment.8b66da0a4ed68f069d27317293f28615",
+            "entityId": "astryade",
+            "entityType": "royaume",
+            "fragmentId": "fragment.8b66da0a4ed68f069d27317293f28615",
+            "fieldPath": "/titre_dirigeant",
+            "knowledgeLevel": "COMMUN",
+            "degree": "LOCAL_GUIDANCE",
+            "dimension": "DESCRIPTION",
+            "reason": "héritage géographique de niveau 2",
+            "text": "Primarque d'Astryade",
+            "version": 1
+          },
+          {
+            "schemaVersion": 1,
             "sourceRef": "lore-fragment:fragment.3549e55a86028aa1a6432bef4e7d522e",
             "entityId": "elfes",
             "entityType": "espece",
@@ -6818,20 +6893,6 @@
             "reason": "espèce pondérée par bourg_des_forges",
             "text": "Les humains constituent la population majoritaire documentée d'Ylsséa et de Lysenthe. Cette présence démographique ne leur attribue pas automatiquement une coutume ou un comportement individuel.",
             "version": 1
-          },
-          {
-            "schemaVersion": 1,
-            "sourceRef": "lore-fragment:fragment.f2d0696763d1b561cbed0a5ec0239059",
-            "entityId": "humains",
-            "entityType": "espece",
-            "fragmentId": "fragment.f2d0696763d1b561cbed0a5ec0239059",
-            "fieldPath": "/resume",
-            "knowledgeLevel": "COMMUN",
-            "degree": "LOCAL_GUIDANCE",
-            "dimension": "IDENTITY",
-            "reason": "espèce pondérée par bourg_des_forges",
-            "text": "Peuple majoritaire à Ylsséa et à Lysenthe, présent dans les communautés portuaires et les activités de la région.",
-            "version": 1
           }
         ],
         "unresolvedDimensions": [
@@ -6853,10 +6914,10 @@
           "lore-fragment:fragment.0e597669e391edf79e2114a7f9ce59c4",
           "lore-fragment:fragment.160ff41f3213ddb53f9442f27b97b29e",
           "lore-fragment:fragment.3dda2dab4ff0d11801b3a11c9b73befe",
+          "lore-fragment:fragment.8b66da0a4ed68f069d27317293f28615",
           "lore-fragment:fragment.3549e55a86028aa1a6432bef4e7d522e",
           "lore-fragment:fragment.8e9d68b542329634e36668ad29aceabf",
-          "lore-fragment:fragment.a7ff2f76e7efbb27e096dff38e4a2867",
-          "lore-fragment:fragment.f2d0696763d1b561cbed0a5ec0239059"
+          "lore-fragment:fragment.a7ff2f76e7efbb27e096dff38e4a2867"
         ],
         "diagnostics": [
           "influence budget reached",
@@ -8178,6 +8239,20 @@
           },
           {
             "schemaVersion": 1,
+            "sourceRef": "lore-fragment:fragment.8b66da0a4ed68f069d27317293f28615",
+            "entityId": "astryade",
+            "entityType": "royaume",
+            "fragmentId": "fragment.8b66da0a4ed68f069d27317293f28615",
+            "fieldPath": "/titre_dirigeant",
+            "knowledgeLevel": "COMMUN",
+            "degree": "LOCAL_GUIDANCE",
+            "dimension": "DESCRIPTION",
+            "reason": "héritage géographique de niveau 2",
+            "text": "Primarque d'Astryade",
+            "version": 1
+          },
+          {
+            "schemaVersion": 1,
             "sourceRef": "lore-fragment:fragment.3549e55a86028aa1a6432bef4e7d522e",
             "entityId": "elfes",
             "entityType": "espece",
@@ -8217,20 +8292,6 @@
             "reason": "espèce pondérée par hameau_du_torrent_froid",
             "text": "Les humains constituent la population majoritaire documentée d'Ylsséa et de Lysenthe. Cette présence démographique ne leur attribue pas automatiquement une coutume ou un comportement individuel.",
             "version": 1
-          },
-          {
-            "schemaVersion": 1,
-            "sourceRef": "lore-fragment:fragment.f2d0696763d1b561cbed0a5ec0239059",
-            "entityId": "humains",
-            "entityType": "espece",
-            "fragmentId": "fragment.f2d0696763d1b561cbed0a5ec0239059",
-            "fieldPath": "/resume",
-            "knowledgeLevel": "COMMUN",
-            "degree": "LOCAL_GUIDANCE",
-            "dimension": "IDENTITY",
-            "reason": "espèce pondérée par hameau_du_torrent_froid",
-            "text": "Peuple majoritaire à Ylsséa et à Lysenthe, présent dans les communautés portuaires et les activités de la région.",
-            "version": 1
           }
         ],
         "unresolvedDimensions": [
@@ -8252,10 +8313,10 @@
           "lore-fragment:fragment.0e597669e391edf79e2114a7f9ce59c4",
           "lore-fragment:fragment.160ff41f3213ddb53f9442f27b97b29e",
           "lore-fragment:fragment.3dda2dab4ff0d11801b3a11c9b73befe",
+          "lore-fragment:fragment.8b66da0a4ed68f069d27317293f28615",
           "lore-fragment:fragment.3549e55a86028aa1a6432bef4e7d522e",
           "lore-fragment:fragment.8e9d68b542329634e36668ad29aceabf",
-          "lore-fragment:fragment.a7ff2f76e7efbb27e096dff38e4a2867",
-          "lore-fragment:fragment.f2d0696763d1b561cbed0a5ec0239059"
+          "lore-fragment:fragment.a7ff2f76e7efbb27e096dff38e4a2867"
         ],
         "diagnostics": [
           "influence budget reached",

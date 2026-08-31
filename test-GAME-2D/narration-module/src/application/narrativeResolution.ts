@@ -49,6 +49,8 @@ import {
   SCENE_ACTOR_REGISTRY_AGGREGATE_TYPE_V1,
   type LoadedSceneActorRegistryV1
 } from "./sceneActorRegistry";
+import { prepareCampaignFactMutationCommitV1 } from "./campaignFactAuthority";
+import type { CampaignFactCommitPreparationV1 } from "./missingInformationFactCreation";
 
 export const NARRATIVE_RESOLUTION_CONTRACT_VERSION_V1 = "narrative-resolution/1" as const;
 
@@ -121,6 +123,7 @@ export interface NarrativeResolutionInputV1 {
   suspendedIntent: SuspendedIntentRecordV1 | null;
   playableScene?: PlayableSceneStateV1;
   playerPublicContext?: PlayerPublicContextV1 | null;
+  campaignFactCommitPreparation?: CampaignFactCommitPreparationV1 | null;
 }
 
 export interface NarrativeResolutionOutputV1 {
@@ -235,7 +238,7 @@ export async function resolveNarrativeTurnV1(input: NarrativeResolutionInputV1):
   const currentCampaign = await input.repository.getCampaign(input.campaignId);
   if (!currentCampaign.ok) return currentCampaign;
 
-  const commitRequest = buildNarrativeCommitRequest({
+  const narrativeCommitRequest = buildNarrativeCommitRequest({
     campaignId: input.campaignId,
     operation: ready.value,
     expectedCampaignRevision: currentCampaign.value.campaignRevision,
@@ -245,6 +248,35 @@ export async function resolveNarrativeTurnV1(input: NarrativeResolutionInputV1):
     loadedSceneActors: loadedSceneActors.value,
     playableScene: hydratedPlayableScene
   });
+  const factCommitRequest = input.campaignFactCommitPreparation === null || input.campaignFactCommitPreparation === undefined
+    ? null
+    : prepareCampaignFactMutationCommitV1({
+        campaignId: input.campaignId,
+        operationId: input.operation.operationId,
+        idempotencyKey: input.operation.idempotencyKey,
+        requestFingerprint: input.operation.requestFingerprint,
+        expectedCampaignRevision: currentCampaign.value.campaignRevision,
+        factAggregate: input.campaignFactCommitPreparation.factAggregate,
+        actorAggregate: input.campaignFactCommitPreparation.actorAggregate,
+        prepared: input.campaignFactCommitPreparation.prepared,
+        command: input.campaignFactCommitPreparation.command,
+        writerLease: writerLease.value,
+        commitId: narrativeCommitRequest.commitId,
+        occurredAtGameSecond: input.campaignFactCommitPreparation.occurredAtGameSecond
+      });
+  if (factCommitRequest !== null && !factCommitRequest.ok) {
+    await input.repository.releaseWriterLease(writerLease.value);
+    return { ok: false, error: coreError("VALIDATION_FAILED", "campaign-fact.parent-commit-rejected", { issues: factCommitRequest.issues }) };
+  }
+  const commitRequest = factCommitRequest === null
+    ? narrativeCommitRequest
+    : {
+        ...narrativeCommitRequest,
+        acceptedCommands: [...narrativeCommitRequest.acceptedCommands, ...factCommitRequest.value.acceptedCommands],
+        aggregateWrites: [...narrativeCommitRequest.aggregateWrites, ...factCommitRequest.value.aggregateWrites],
+        events: [...narrativeCommitRequest.events, ...factCommitRequest.value.events],
+        outboxTasks: [...(narrativeCommitRequest.outboxTasks ?? []), ...(factCommitRequest.value.outboxTasks ?? [])]
+      };
   const commit = await input.repository.commit(commitRequest);
   const released = await input.repository.releaseWriterLease(writerLease.value);
   if (!released.ok && commit.ok) return released;

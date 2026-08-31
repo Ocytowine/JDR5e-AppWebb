@@ -1877,7 +1877,10 @@ export class NarrativeTurnControllerV1 {
     });
     if (recorded.ok) {
       closeAiCallBudgetV1(request.sourceOutput.operationId);
-      const performance = request.sourceOutput.npcPerformance;
+      const performanceAwareOutput = request.sourceOutput as NarrativeTurnControllerOutputV1 & {
+        npcEffectivePerformance?: (NpcPerformerPayloadV1 & JsonObject) | null;
+      };
+      const performance = performanceAwareOutput.npcEffectivePerformance ?? request.sourceOutput.npcPerformance;
       if (performance !== null) {
         const profile = await loadActiveCampaignCharacterProfileV1({
           repository: this.repository,
@@ -2656,6 +2659,7 @@ export async function createPrototypeNarrativeTurnControllerV1(options: {
   intentInterpreterConfig?: AiIntentInterpreterConfigV1 | null;
   mjPlannerConfig?: MjPlannerConfigV1 | null;
   npcPerformerConfig?: NpcPerformerConfigV1 | null;
+  npcInformationRuntimeFactory?: (input: { repository: CampaignRepository; campaignId: CampaignId }) => NarrativeNpcInformationRuntimeV1;
   sceneTransitionRuntime?: NarrativeSceneTransitionRuntimeV1 | null;
   travelRuntime?: NarrativeTravelRuntimeV1 | null;
   dynamicPlaceRuntime?: NarrativeDynamicPlaceRuntimeV1 | null;
@@ -2689,6 +2693,7 @@ export async function createPrototypeNarrativeTurnControllerV1(options: {
     intentInterpreterConfig: options.intentInterpreterConfig,
     mjPlannerConfig: options.mjPlannerConfig,
     npcPerformerConfig: options.npcPerformerConfig,
+    npcInformationRuntime: options.npcInformationRuntimeFactory?.({ repository, campaignId: DEFAULT_CAMPAIGN_ID }) ?? null,
     sceneTransitionRuntime: options.sceneTransitionRuntime === undefined
       ? createPrototypeInnSceneTransitionRuntimeV1()
       : options.sceneTransitionRuntime,
@@ -2720,6 +2725,7 @@ export async function createBrowserPersistentNarrativeTurnControllerV1(options: 
   intentInterpreterConfig?: AiIntentInterpreterConfigV1 | null;
   mjPlannerConfig?: MjPlannerConfigV1 | null;
   npcPerformerConfig?: NpcPerformerConfigV1 | null;
+  npcInformationRuntimeFactory?: (input: { repository: CampaignRepository; campaignId: CampaignId }) => NarrativeNpcInformationRuntimeV1;
   sceneTransitionRuntime?: NarrativeSceneTransitionRuntimeV1 | null;
   travelRuntime?: NarrativeTravelRuntimeV1 | null;
   dynamicPlaceRuntime?: NarrativeDynamicPlaceRuntimeV1 | null;
@@ -2747,6 +2753,7 @@ export async function createBrowserPersistentNarrativeTurnControllerV1(options: 
     intentInterpreterConfig: options.intentInterpreterConfig,
     mjPlannerConfig: options.mjPlannerConfig,
     npcPerformerConfig: options.npcPerformerConfig,
+    npcInformationRuntimeFactory: options.npcInformationRuntimeFactory,
     sceneTransitionRuntime: options.sceneTransitionRuntime,
     travelRuntime: options.travelRuntime,
     dynamicPlaceRuntime: options.dynamicPlaceRuntime,
@@ -2782,6 +2789,7 @@ export async function createBrowserPersistentNarrativeTurnControllerV1(options: 
     intentInterpreterConfig: options.intentInterpreterConfig,
     mjPlannerConfig: options.mjPlannerConfig,
     npcPerformerConfig: options.npcPerformerConfig,
+    npcInformationRuntime: options.npcInformationRuntimeFactory?.({ repository, campaignId: DEFAULT_CAMPAIGN_ID }) ?? null,
     sceneTransitionRuntime: options.sceneTransitionRuntime === undefined
       ? createPrototypeInnSceneTransitionRuntimeV1()
       : options.sceneTransitionRuntime,
@@ -4241,29 +4249,6 @@ async function buildResolvedOutput(input: {
       }
     };
   }
-  const resolution = await resolveNarrativeTurnV1({
-    repository: input.repository,
-    campaignId: input.campaignId,
-    operation: input.operation,
-    rawInput: ownerInputText,
-    interpretation: ownerInterpretation,
-    domainCommand,
-    suspendedIntent,
-    playableScene: input.activeScene,
-    playerPublicContext: playerPublicContextResult.value
-  });
-  if (!resolution.ok) return resolution;
-  const canonicalResolutionResult = resolution.value.result;
-  const canonicalResolutionDisplay = openSemanticOwnerAdapter === null
-    ? resolution.value.displayPacket
-    : restoreOriginalPlayerInputV1(
-        resolution.value.displayPacket,
-        input.input.rawInput
-      );
-  const resolutionMs = Date.now() - resolutionStartedAt;
-  // Une relation J4 ouvre ses propres opérations autoritaires. Elle est donc
-  // finalisée par submit() après la fermeture du tour narratif principal.
-  const npcPerformanceStartedAt = Date.now();
   const assignedNpcActorId = openSemanticOwnerAdapter?.capabilityId === "scene.visible-dialogue"
     && ownerInterpretation.semanticIntent.target?.kind === "npc"
     && ownerInterpretation.semanticIntent.target.ref !== null
@@ -4280,7 +4265,7 @@ async function buildResolvedOutput(input: {
         operationId: input.operation.operationId,
         actorId: assignedNpcActorId,
         need: informationNeed,
-        activeScene: resolution.value.playableScene
+        activeScene: input.activeScene
       });
       npcInformationDiagnostic = npcInformationTurn.diagnostic;
     } catch {
@@ -4303,6 +4288,30 @@ async function buildResolvedOutput(input: {
       };
     }
   }
+  const resolution = await resolveNarrativeTurnV1({
+    repository: input.repository,
+    campaignId: input.campaignId,
+    operation: input.operation,
+    rawInput: ownerInputText,
+    interpretation: ownerInterpretation,
+    domainCommand,
+    suspendedIntent,
+    playableScene: input.activeScene,
+    playerPublicContext: playerPublicContextResult.value,
+    campaignFactCommitPreparation: npcInformationTurn?.creation?.commitPreparation ?? null
+  });
+  if (!resolution.ok) return resolution;
+  const canonicalResolutionResult = resolution.value.result;
+  const canonicalResolutionDisplay = openSemanticOwnerAdapter === null
+    ? resolution.value.displayPacket
+    : restoreOriginalPlayerInputV1(
+        resolution.value.displayPacket,
+        input.input.rawInput
+      );
+  const resolutionMs = Date.now() - resolutionStartedAt;
+  // Une relation J4 ouvre ses propres opérations autoritaires. Elle est donc
+  // finalisée par submit() après la fermeture du tour narratif principal.
+  const npcPerformanceStartedAt = Date.now();
   const npcPerformance = input.npcPerformerConfig === null || npcInformationDiagnostic?.status === "FAILED"
     ? null
     : await performNpcTurnV1({
@@ -4345,7 +4354,8 @@ async function buildResolvedOutput(input: {
         domainCommand,
         mjPlan: planning?.plan ?? null,
         mjPlannerFailure: planning?.planningFailure as (MjPlanningFailureV1 & JsonObject) | null ?? null,
-        npcPerformance: npcPerformance?.performance ?? npcPerformance?.fallbackPerformance ?? null,
+        npcPerformance: npcPerformance?.performance ?? null,
+        npcEffectivePerformance: npcPerformance?.performance ?? npcPerformance?.fallbackPerformance ?? null,
         npcPerformanceFailure: npcPerformance?.performanceFailure as (NpcPerformanceFailureV1 & JsonObject) | null ?? null,
         npcInformationDiagnostic,
         suspendedIntent,

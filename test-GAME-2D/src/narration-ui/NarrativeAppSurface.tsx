@@ -16,6 +16,9 @@ import {
   DYNAMIC_PLACE_TOPOLOGY_AGGREGATE_ID_V1,
   ensureDynamicPlaceCreationStateV1,
   createCampaignLoreGuidedDynamicPlaceRuntimeV1,
+  createCampaignNpcInformationRuntimeV1,
+  createCampaignMissingInformationFactCreationRuntimeV1,
+  buildLoreInformationSemanticCatalogV1,
   createCatalogSceneTransitionRuntimeV1,
   resolveSceneV1,
   narrativeDesignationOfV1,
@@ -66,7 +69,8 @@ import {
   buildOpenAiMjPlannerConfigV1,
   buildOpenAiNpcPerformerConfigV1,
   buildOpenAiSceneCreatorConfigV2,
-  buildOpenAiDestinationPlausibilityArbiterConfigV1
+  buildOpenAiDestinationPlausibilityArbiterConfigV1,
+  buildOpenAiMissingInformationFactGeneratorConfigV1
 } from "./openAiNarrativeRuntimeConfig";
 import { ServerOpenAiEnhancementProviderV1 } from "./serverOpenAiEnhancementClient";
 import { buildNarrativeTechnicalDiagnosticV1 } from "./narrativeTechnicalDiagnostic";
@@ -116,6 +120,12 @@ export interface NarrativeTacticalCheckpointBridgeV1 {
     processId: string;
     clientRequestId: string;
   }): Promise<Result<TacticalOutcomeIntegrationResultV1>>;
+}
+
+function loreEntityIdFromLocationRef(locationRef: string | undefined): string | null {
+  if (locationRef === undefined) return null;
+  const prefix = "location:";
+  return locationRef.startsWith(prefix) ? locationRef.slice(prefix.length) : locationRef;
 }
 
 export function NarrativeAppSurface(props: {
@@ -432,6 +442,18 @@ export function NarrativeAppSurface(props: {
       : undefined;
     const npcPerformerConfig = buildNpcPerformerConfig(enhancementMode);
     void import("./archiveLorePilot").then(module => module.buildArchiveLorePilotV1()).then(async archivePilot => {
+      const configuredIntentInterpreter = intentInterpreterConfig === undefined
+        ? undefined
+        : {
+            ...intentInterpreterConfig,
+            informationCatalogForScene: (scene: PlayableSceneStateV1) => {
+              const anchorEntityId = archivePilot.authoredSceneSourceBySceneId.get(scene.sceneId)?.entity.entityId
+                ?? loreEntityIdFromLocationRef(archivePilot.locationRefBySceneId.get(scene.sceneId));
+              return anchorEntityId === null
+                ? null
+                : buildLoreInformationSemanticCatalogV1({ catalog: archivePilot.catalog, anchorEntityId });
+            }
+          };
       const resolveSceneById = async (repository: CampaignRepository, campaignId: CampaignId, sceneId: string) => {
         const authoredSource = archivePilot.authoredSceneSourceBySceneId.get(sceneId);
         let authoredScene = archivePilot.scenes.find(scene => scene.sceneId === sceneId) ?? null;
@@ -496,11 +518,39 @@ export function NarrativeAppSurface(props: {
         createInterpreterCharacterContextResolverV1(
           buildInstalledInterpreterCharacterReferenceCatalogV1()
         );
+      const npcInformationRuntimeFactory = (input: { repository: CampaignRepository; campaignId: CampaignId }) =>
+        createCampaignNpcInformationRuntimeV1({
+          catalog: archivePilot.catalog,
+          repository: input.repository,
+          campaignId: input.campaignId,
+          missingInformationFactCreationRuntime: enhancementMode === "openai"
+            ? createCampaignMissingInformationFactCreationRuntimeV1({
+                catalog: archivePilot.catalog,
+                repository: input.repository,
+                campaignId: input.campaignId,
+                generatorConfig: buildOpenAiMissingInformationFactGeneratorConfigV1()
+              })
+            : null,
+          anchorEntityIdForScene: scene =>
+            archivePilot.authoredSceneSourceBySceneId.get(scene.sceneId)?.entity.entityId
+            ?? loreEntityIdFromLocationRef(archivePilot.locationRefBySceneId.get(scene.sceneId))
+            ?? null,
+          localityRefsForScene: scene => {
+            const authored = archivePilot.authoredSceneSourceBySceneId.get(scene.sceneId);
+            if (authored !== undefined) {
+              return [...new Set([authored.entity.entityId, ...authored.packet.geographicChain]
+                .map(entityId => `lore-entity:${entityId}`))];
+            }
+            const entityId = loreEntityIdFromLocationRef(archivePilot.locationRefBySceneId.get(scene.sceneId));
+            return entityId === null ? [] : [`lore-entity:${entityId}`];
+          }
+        });
       return createBrowserPersistentNarrativeTurnControllerV1({
         databaseName: "jdr5e-narration-archives-pilot-v4",
-        intentInterpreterConfig,
+        intentInterpreterConfig: configuredIntentInterpreter,
         mjPlannerConfig,
         npcPerformerConfig,
+        npcInformationRuntimeFactory,
         interpreterCharacterContextResolver,
         sceneTransitionRuntime,
         dynamicPlaceRuntime,
@@ -520,12 +570,50 @@ export function NarrativeAppSurface(props: {
       });
     }).then(controller => activateController(controller, true)).catch(error => {
       void import("./archiveLorePilot").then(module => module.buildArchiveLorePilotV1()).then(archivePilot => {
+        const configuredIntentInterpreter = intentInterpreterConfig === undefined
+          ? undefined
+          : {
+              ...intentInterpreterConfig,
+              informationCatalogForScene: (scene: PlayableSceneStateV1) => {
+                const anchorEntityId = archivePilot.authoredSceneSourceBySceneId.get(scene.sceneId)?.entity.entityId
+                  ?? loreEntityIdFromLocationRef(archivePilot.locationRefBySceneId.get(scene.sceneId));
+                return anchorEntityId === null
+                  ? null
+                  : buildLoreInformationSemanticCatalogV1({ catalog: archivePilot.catalog, anchorEntityId });
+              }
+            };
         setOpeningScene(archivePilot.scene);
         setCurrentScene(archivePilot.scene);
         return createPrototypeNarrativeTurnControllerV1({
-          intentInterpreterConfig,
+          intentInterpreterConfig: configuredIntentInterpreter,
           mjPlannerConfig,
           npcPerformerConfig,
+          npcInformationRuntimeFactory: input => createCampaignNpcInformationRuntimeV1({
+            catalog: archivePilot.catalog,
+            repository: input.repository,
+            campaignId: input.campaignId,
+            missingInformationFactCreationRuntime: enhancementMode === "openai"
+              ? createCampaignMissingInformationFactCreationRuntimeV1({
+                  catalog: archivePilot.catalog,
+                  repository: input.repository,
+                  campaignId: input.campaignId,
+                  generatorConfig: buildOpenAiMissingInformationFactGeneratorConfigV1()
+                })
+              : null,
+            anchorEntityIdForScene: scene =>
+              archivePilot.authoredSceneSourceBySceneId.get(scene.sceneId)?.entity.entityId
+              ?? loreEntityIdFromLocationRef(archivePilot.locationRefBySceneId.get(scene.sceneId))
+              ?? null,
+            localityRefsForScene: scene => {
+              const authored = archivePilot.authoredSceneSourceBySceneId.get(scene.sceneId);
+              if (authored !== undefined) {
+                return [...new Set([authored.entity.entityId, ...authored.packet.geographicChain]
+                  .map(entityId => `lore-entity:${entityId}`))];
+              }
+              const entityId = loreEntityIdFromLocationRef(archivePilot.locationRefBySceneId.get(scene.sceneId));
+              return entityId === null ? [] : [`lore-entity:${entityId}`];
+            }
+          }),
           interpreterCharacterContextResolver:
             createInterpreterCharacterContextResolverV1(
               buildInstalledInterpreterCharacterReferenceCatalogV1()

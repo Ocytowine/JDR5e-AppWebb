@@ -2471,9 +2471,15 @@
         "entityType": "royaume",
         "payloadSchemaVersion": 1,
         "sourcePath": "wiki/lore/territoire/astryade",
-        "sourceFingerprint": "sha256:d381eb4b82510f224c58ff036402778fc6ba54e3df323710ef63f98b8c78ac27",
-        "payloadFingerprint": "sha256:9005a2117d311c8fb4995588b74de332a908770c71f6f1dccad138525ae15e32",
-        "references": []
+        "sourceFingerprint": "sha256:6dcbd8d75bbdcbcce9a12990ffd4be9609e4e95b43bfe5d8ae5aec1fb20fad8a",
+        "payloadFingerprint": "sha256:73b23fb127f8ed1a90b86b4a2029ae16d4103c67a82c7bb70d5c6f7036be7fbc",
+        "references": [
+          {
+            "targetId": "tour_du_primarque",
+            "relation": "siege_pouvoir",
+            "strength": "REQUIRED"
+          }
+        ]
       },
       {
         "entryId": "bourg_des_forges",
@@ -2558,8 +2564,8 @@
         "entityType": "ville",
         "payloadSchemaVersion": 1,
         "sourcePath": "wiki/lore/territoire/region/Ylsséa/Lysenthe/index",
-        "sourceFingerprint": "sha256:6e63baf0537ee00f9436f127f132f6e1954d9f74e0abd98cba33ddd877b4e739",
-        "payloadFingerprint": "sha256:24024da3a731ffb0d2a95a78b0942681563732ace23179bdea917ec527f528a5",
+        "sourceFingerprint": "sha256:bc422cc4937987370a51868f6b210ba3f2cb08e8a6e0310cfb3bd20c4b53432b",
+        "payloadFingerprint": "sha256:72f459b19d6e940e42d23a32f8078705f3ff53ec9e2321b8e1cac74a7a520b23",
         "references": [
           {
             "targetId": "archives_de_lysenthe",
@@ -2684,7 +2690,7 @@
         ]
       }
     ],
-    "rootFingerprint": "sha256:e4c61a26afeb84683a991deb6cb57cd47e2582579eead172f99e132e173790b8"
+    "rootFingerprint": "sha256:21edbff48e3b4ba7055d3f7851cef5343682a38c27078d4b53ca846144412811"
   },
   "entries": [
     {
@@ -7149,7 +7155,7 @@
       "entryKind": "LORE_ENTITY",
       "entryId": "astryade",
       "sourceText": null,
-      "installedSourceFingerprint": "sha256:d381eb4b82510f224c58ff036402778fc6ba54e3df323710ef63f98b8c78ac27",
+      "installedSourceFingerprint": "sha256:6dcbd8d75bbdcbcce9a12990ffd4be9609e4e95b43bfe5d8ae5aec1fb20fad8a",
       "payload": {
         "schemaVersion": 1,
         "entityId": "astryade",
@@ -7162,9 +7168,40 @@
             "primaute",
             "royaume"
           ],
+          "proprietes_factuelles": [
+            {
+              "libelle": "titre public de la personne qui dirige cette entité",
+              "niveau": "COMMUN",
+              "propriete": "titre_dirigeant",
+              "valeur": "Primarque d'Astryade"
+            },
+            {
+              "creation": "IDENTITE",
+              "libelle": "identité personnelle de la personne qui dirige actuellement cette entité",
+              "niveau": "COMMUN",
+              "propriete": "identite_dirigeant",
+              "propriete_role_identite": "titre_dirigeant",
+              "valeur": null
+            }
+          ],
+          "relations_declarees": [
+            {
+              "cible": "tour_du_primarque",
+              "force": "REQUIRED",
+              "relation": "siege_pouvoir",
+              "type_cible": "batiment"
+            }
+          ],
           "resume": "Royaume d'Elysion organisé autour de la Primauté et de ses autorités régionales."
         },
-        "relations": [],
+        "relations": [
+          {
+            "relation": "siege_pouvoir",
+            "targetId": "tour_du_primarque",
+            "targetType": "batiment",
+            "strength": "REQUIRED"
+          }
+        ],
         "searchTerms": [
           "Primauté d'Astryade",
           "primaute",
@@ -7175,7 +7212,7 @@
           "packageId": "jdr5e.production-lore",
           "packageVersion": 1,
           "sourcePath": "wiki/lore/territoire/astryade",
-          "sourceFingerprint": "sha256:d381eb4b82510f224c58ff036402778fc6ba54e3df323710ef63f98b8c78ac27"
+          "sourceFingerprint": "sha256:6dcbd8d75bbdcbcce9a12990ffd4be9609e4e95b43bfe5d8ae5aec1fb20fad8a"
         }
       }
     },
@@ -7494,7 +7531,7 @@
       "entryKind": "LORE_ENTITY",
       "entryId": "lysenthe",
       "sourceText": null,
-      "installedSourceFingerprint": "sha256:6e63baf0537ee00f9436f127f132f6e1954d9f74e0abd98cba33ddd877b4e739",
+      "installedSourceFingerprint": "sha256:bc422cc4937987370a51868f6b210ba3f2cb08e8a6e0310cfb3bd20c4b53432b",
       "payload": {
         "schemaVersion": 1,
         "entityId": "lysenthe",
@@ -7643,6 +7680,14 @@
             "quartier_de_la_tour"
           ],
           "region": "ylssea",
+          "relations_declarees": [
+            {
+              "cible": "chateau_tharqual",
+              "force": "REQUIRED",
+              "relation": "siege_pouvoir",
+              "type_cible": "batiment"
+            }
+          ],
           "religions_principales": [
             "external:culte_des_douze"
           ],
@@ -7811,7 +7856,7 @@
           "packageId": "jdr5e.production-lore",
           "packageVersion": 1,
           "sourcePath": "wiki/lore/territoire/region/Ylsséa/Lysenthe/index",
-          "sourceFingerprint": "sha256:6e63baf0537ee00f9436f127f132f6e1954d9f74e0abd98cba33ddd877b4e739"
+          "sourceFingerprint": "sha256:bc422cc4937987370a51868f6b210ba3f2cb08e8a6e0310cfb3bd20c4b53432b"
         }
       }
     }
@@ -8196,9 +8241,40 @@
           "primaute",
           "royaume"
         ],
+        "proprietes_factuelles": [
+          {
+            "libelle": "titre public de la personne qui dirige cette entité",
+            "niveau": "COMMUN",
+            "propriete": "titre_dirigeant",
+            "valeur": "Primarque d'Astryade"
+          },
+          {
+            "creation": "IDENTITE",
+            "libelle": "identité personnelle de la personne qui dirige actuellement cette entité",
+            "niveau": "COMMUN",
+            "propriete": "identite_dirigeant",
+            "propriete_role_identite": "titre_dirigeant",
+            "valeur": null
+          }
+        ],
+        "relations_declarees": [
+          {
+            "cible": "tour_du_primarque",
+            "force": "REQUIRED",
+            "relation": "siege_pouvoir",
+            "type_cible": "batiment"
+          }
+        ],
         "resume": "Royaume d'Elysion organisé autour de la Primauté et de ses autorités régionales."
       },
-      "relations": [],
+      "relations": [
+        {
+          "relation": "siege_pouvoir",
+          "targetId": "tour_du_primarque",
+          "targetType": "batiment",
+          "strength": "REQUIRED"
+        }
+      ],
       "searchTerms": [
         "Primauté d'Astryade",
         "primaute",
@@ -8209,7 +8285,7 @@
         "packageId": "jdr5e.production-lore",
         "packageVersion": 1,
         "sourcePath": "wiki/lore/territoire/astryade",
-        "sourceFingerprint": "sha256:d381eb4b82510f224c58ff036402778fc6ba54e3df323710ef63f98b8c78ac27"
+        "sourceFingerprint": "sha256:6dcbd8d75bbdcbcce9a12990ffd4be9609e4e95b43bfe5d8ae5aec1fb20fad8a"
       }
     },
     {
@@ -9896,6 +9972,14 @@
           "quartier_de_la_tour"
         ],
         "region": "ylssea",
+        "relations_declarees": [
+          {
+            "cible": "chateau_tharqual",
+            "force": "REQUIRED",
+            "relation": "siege_pouvoir",
+            "type_cible": "batiment"
+          }
+        ],
         "religions_principales": [
           "external:culte_des_douze"
         ],
@@ -10064,7 +10148,7 @@
         "packageId": "jdr5e.production-lore",
         "packageVersion": 1,
         "sourcePath": "wiki/lore/territoire/region/Ylsséa/Lysenthe/index",
-        "sourceFingerprint": "sha256:6e63baf0537ee00f9436f127f132f6e1954d9f74e0abd98cba33ddd877b4e739"
+        "sourceFingerprint": "sha256:bc422cc4937987370a51868f6b210ba3f2cb08e8a6e0310cfb3bd20c4b53432b"
       }
     },
     {

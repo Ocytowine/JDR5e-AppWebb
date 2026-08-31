@@ -17,6 +17,7 @@ import {
 import type { NarrativeLoreBuildCatalogV1 } from "../../src/context";
 import {
   buildPlayableSceneFromLoreLocationV1,
+  buildNpcInformationFallbackPayloadV1,
   captureNpcTestimonyV1,
   createCampaignNpcInformationRuntimeV1,
   createDefaultNpcPerformerConfigV1,
@@ -39,9 +40,21 @@ async function main(): Promise<void> {
   const actorId = `npc:${guard.actorId}`;
   const need = {
     schemaVersion: 1 as const,
-    contractVersion: "information-need/1" as const,
+    contractVersion: "information-need/2" as const,
     subjectMention: "la ville",
-    proposedSubjectRef: "location:lysenthe",
+    proposedSubjectRef: "lore-entity:lysenthe",
+    proposedScopeRefs: ["lore-entity:lysenthe"],
+    proposedPropertyRefs: [
+      "lore-property:lysenthe:type_gouvernance",
+      "lore-property:lysenthe:siege_pouvoir",
+      "lore-property:chateau_tharqual:proprietaire_principal"
+    ],
+    proposedRelationRefs: ["lore-edge:lysenthe:siege_pouvoir:chateau_tharqual"],
+    completionPropertyRefs: [
+      "lore-property:lysenthe:type_gouvernance",
+      "lore-property:lysenthe:siege_pouvoir",
+      "lore-property:chateau_tharqual:proprietaire_principal"
+    ],
     requestedDimension: "personne ou autorité qui dirige actuellement la ville",
     temporalScope: "CURRENT" as const,
     requestedAnswerShape: "IDENTITY" as const,
@@ -95,7 +108,92 @@ async function main(): Promise<void> {
     projection: information.performerProjection,
     performance: fallback
   }), []);
+
+  const partialNeed = {
+    ...need,
+    subjectMention: "Q-17",
+    proposedSubjectRef: "lore-entity:astryade",
+    proposedScopeRefs: ["lore-entity:astryade"],
+    proposedPropertyRefs: [
+      "lore-property:astryade:titre_dirigeant",
+      "lore-property:astryade:identite_dirigeant"
+    ],
+    proposedRelationRefs: [],
+    completionPropertyRefs: [
+      "lore-property:astryade:titre_dirigeant",
+      "lore-property:astryade:identite_dirigeant"
+    ],
+    requestedDimension: "Q-18",
+    sourceComponentId: "component:j10j2"
+  };
+  const partialInformation = await runtime.resolve({
+    operationId: "operation:j10j2-partial",
+    actorId,
+    need: partialNeed,
+    activeScene: scene
+  });
+  assert.equal(partialInformation.performerProjection.answerCoverage.status, "PARTIAL");
+  assert.deepEqual(partialInformation.performerProjection.answerCoverage.missingProperties, [{
+    propertyRef: "lore-property:astryade:identite_dirigeant",
+    publicLabel: "identité personnelle de la personne qui dirige actuellement cette entité"
+  }]);
+  assert.ok(partialInformation.performerProjection.authorizedFacts.some(fact => fact.value === "Primarque d'Astryade"));
+  const partialPerformed = await performNpcTurnV1({
+    repository,
+    campaignId,
+    operationId: "operation:j10j2-partial",
+    rawInput: "formulation volontairement opaque",
+    interpretation: interpretation(actorId) as never,
+    mjPlan: null,
+    resolution: { resultKind: "COMMIT_APPLIED" } as never,
+    sceneState: createInitialReferenceSceneStateV1(),
+    activeScene: scene,
+    config: { ...baseConfig, provider: failingProvider },
+    assignedActorId: actorId,
+    informationDisclosure: partialInformation.performerProjection
+  });
+  const partialFallback = partialPerformed.fallbackPerformance;
+  assert.ok(partialFallback);
+  assert.match(partialFallback.utterances[0]?.text ?? "", /Primarque d'Astryade/u);
+  assert.match(partialFallback.utterances[0]?.text ?? "", /identité personnelle/u);
+  assert.doesNotMatch(partialFallback.utterances[0]?.text ?? "", /^« Je ne sais pas\. »$/u);
+  assert.deepEqual(validateNpcPerformanceAgainstInformationProjectionV1({
+    projection: partialInformation.performerProjection,
+    performance: partialFallback
+  }), []);
+  const unauthorizedAssertion = structuredClone(fallback);
+  unauthorizedAssertion.utterances[0]!.speechActs[0]!.sourceRefs.push("lore-fact:unauthorized-neighbor");
+  assert.ok(validateNpcPerformanceAgainstInformationProjectionV1({
+    projection: information.performerProjection,
+    performance: unauthorizedAssertion
+  }).some(issue => /assertion uses a source outside/iu.test(issue)));
+  const profileAdmonition = structuredClone(fallback);
+  profileAdmonition.utterances[0]!.speechActs.push({
+    type: "assertion",
+    content: "Le joueur adopte un comportement qui appelle un reproche.",
+    epistemicBasis: "believed",
+    sourceRefs: ["npc-conversation-profile:npc:test:conversation:revision:1"]
+  });
+  assert.ok(validateNpcPerformanceAgainstInformationProjectionV1({
+    projection: information.performerProjection,
+    performance: profileAdmonition
+  }).some(issue => /assertion uses a source outside/iu.test(issue)));
   assert.doesNotMatch(JSON.stringify(fallback), /(?:secret|private|hidden):/iu);
+  const protectedFallback = buildNpcInformationFallbackPayloadV1({
+    projection: {
+      ...information.performerProjection,
+      decision: "WITHHOLD_PROTECTED",
+      causeCode: "OWNER_PROTECTED_INFORMATION",
+      authorizedFacts: [],
+      answerCoverage: { status: "NONE", missingProperties: [] },
+      alternatives: [],
+      allowedSourceRefs: ["policy:disclosure:owner-protected-information"],
+      formulationInstruction: "Retenir l'information sans la révéler."
+    },
+    basePerformance: fallback
+  });
+  assert.match(protectedFallback.utterances[0]?.text ?? "", /ne peux pas vous la communiquer/iu);
+  assert.doesNotMatch(JSON.stringify(protectedFallback), /Tharque regent|lore-fact:/iu, "withholding fallback must erase the previously authorized public payload too");
 
   await seedCompletedRenderOperation(repository, campaignId, "operation:j10i6-rendered");
   const captured = expectOk(await captureNpcTestimonyV1({
@@ -114,7 +212,7 @@ async function main(): Promise<void> {
   const objectiveResolutions = expectOk(await loadClaimResolutionRegistryV1(repository, campaignId));
   assert.equal(objectiveResolutions.state.resolutions.length, 0, "attributed NPC speech must not create objective truth");
 
-  console.log("npc-information-performance/J10-I6: OK (campaign/lore pipeline, authorized performer packet, grounded outage fallback, attributed testimony, safe diagnostic)");
+  console.log("npc-information-performance/J10-I6+J10-J2: OK (campaign/lore pipeline, complete and partial authorized answers, grounded outage fallback, attributed testimony, safe diagnostic)");
 }
 
 function interpretation(actorId: string): object {

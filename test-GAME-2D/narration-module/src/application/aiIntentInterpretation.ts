@@ -48,6 +48,7 @@ import type { PlayerPublicContextV1 } from "./playerPublicContext";
 import { buildInterpreterEmbodiedPublicContextV1 } from "./interpreterEmbodiedContext";
 import { buildOpenSemanticExecutionPlanV1 } from "./openSemanticExecution";
 import type { LocalInteractionFocusV1 } from "./localInteractionFocus";
+import type { LoreInformationSemanticCatalogV1 } from "./loreInformationSemanticCatalog";
 
 export const AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V1 = "ai-intent-interpretation/1" as const;
 export const AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V2 = "ai-intent-semantic/2" as const;
@@ -73,6 +74,7 @@ export interface AiIntentInterpreterConfigV1 {
   route: AiModelRouteV1;
   retryPolicy: AiRetryPolicyV1;
   contractVersion?: AiIntentInterpretationContractVersion;
+  informationCatalogForScene?: (scene: PlayableSceneStateV1) => LoreInformationSemanticCatalogV1 | null;
 }
 
 export interface AiIntentInterpretationResultV1 {
@@ -213,6 +215,7 @@ export async function interpretNarrativeInputWithAiV1(input: {
   activeCompanionRefs?: string[];
 }): Promise<AiIntentInterpretationResultV1> {
   const playableScene = input.playableScene ?? REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1;
+  const informationCatalog = input.config.informationCatalogForScene?.(playableScene) ?? null;
   const referentRegistry = buildSceneReferentRegistryV1(playableScene);
   const request = await buildIntentInterpreterRequestV1(input);
   const run = await runAiPipelineCallV1({
@@ -238,8 +241,10 @@ export async function interpretNarrativeInputWithAiV1(input: {
                 ...input.characterContext.references.map(reference => reference.ref)
               ]),
           ...(input.playerPublicContext?.knownFacts.map(fact => fact.factRef) ?? []),
-          ...(input.playerPublicContext?.presentActors.map(actor => actor.actorRef) ?? [])
+          ...(input.playerPublicContext?.presentActors.map(actor => actor.actorRef) ?? []),
+          ...(informationCatalog?.subjects.map(subject => subject.ref) ?? [])
         ]),
+        informationCatalog,
         runtimeContext: input.runtimeContext ?? {
           schemaVersion: 1,
           contractVersion: "interpreter-runtime-context/1",
@@ -772,6 +777,7 @@ async function buildIntentInterpreterRequestV1(input: {
   const snapshotId = `${input.operationId}:snapshot:intent`;
   const packId = `${input.operationId}:pack:intent`;
   const playableScene = input.playableScene ?? REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1;
+  const informationCatalog = input.config.informationCatalogForScene?.(playableScene) ?? null;
   const referentView = toSceneReferentRoleViewV1(buildSceneReferentRegistryV1(playableScene), "player_intent_interpreter");
   const usesSemanticContract = input.config.contractVersion === AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V2 ||
     input.config.contractVersion === AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V3 ||
@@ -824,7 +830,8 @@ async function buildIntentInterpreterRequestV1(input: {
         activeInterlocutor: activeDialogueTarget,
         activeInteraction: input.localInteractionFocus ?? null,
         activeCompanionRefs: input.activeCompanionRefs ?? [],
-        runtimeContext
+        runtimeContext,
+        informationCatalog
       })
     : null;
   const contextFingerprintMaterial = usesOpenSemanticContract
@@ -1178,6 +1185,7 @@ function mapOpenSemanticFrameV8ToNarrativeInterpretation(input: {
   payload: AiSemanticIntentPayloadV8;
   referentRegistry: SceneReferentRegistryV1;
   publicReferenceRefs: ReadonlySet<string>;
+  informationCatalog: LoreInformationSemanticCatalogV1 | null;
   runtimeContext: InterpreterRuntimeContextV1;
 }): { ok: true; interpretation: NarrativeIntentInterpretationV1 } | { ok: false; issues: string[] } {
   const rawInputEchoMatches = input.payload.rawInputEcho === input.rawInput;
@@ -1185,7 +1193,10 @@ function mapOpenSemanticFrameV8ToNarrativeInterpretation(input: {
   const invalidRefs = [...new Set(frame.components.flatMap(component =>
     [
       ...component.mentionedTargets.map(target => target.proposedRef),
-      component.informationNeed?.proposedSubjectRef ?? null
+      component.informationNeed?.proposedSubjectRef ?? null,
+      ...(component.informationNeed?.contractVersion === "information-need/2"
+        ? component.informationNeed.proposedScopeRefs
+        : [])
     ]
       .filter((ref): ref is string => ref !== null)
       .filter(ref =>
@@ -1197,6 +1208,42 @@ function mapOpenSemanticFrameV8ToNarrativeInterpretation(input: {
     return {
       ok: false,
       issues: invalidRefs.map(ref => `V8 proposedRef is not present in the public scene context: ${ref}.`)
+    };
+  }
+  const allowedPropertyRefs = new Set(input.informationCatalog?.properties.map(property => property.ref) ?? []);
+  const allowedRelationRefs = new Set(input.informationCatalog?.relations.map(relation => relation.ref) ?? []);
+  const invalidSelectorRefs = [...new Set(frame.components.flatMap(component =>
+    component.informationNeed?.contractVersion === "information-need/2"
+      ? [
+          ...component.informationNeed.proposedPropertyRefs.filter(ref => !allowedPropertyRefs.has(ref)),
+          ...component.informationNeed.completionPropertyRefs.filter(ref => !allowedPropertyRefs.has(ref)),
+          ...component.informationNeed.proposedRelationRefs.filter(ref => !allowedRelationRefs.has(ref))
+        ]
+      : []
+  ))];
+  if (invalidSelectorRefs.length > 0) {
+    return {
+      ok: false,
+      issues: invalidSelectorRefs.map(ref => `V8 information selector is not present in the public lore catalogue: ${ref}.`)
+    };
+  }
+  const incompleteUnderstoodNeeds = frame.understandingStatus === "UNDERSTOOD"
+    ? frame.components.flatMap(component => {
+        const need = component.informationNeed;
+        if (need?.contractVersion !== "information-need/2") return [];
+        return (
+          (need.proposedSubjectRef === null && need.proposedScopeRefs.length === 0)
+          || need.proposedPropertyRefs.length === 0
+          || need.completionPropertyRefs.length === 0
+        ) ? [component.componentId] : [];
+      })
+    : [];
+  if (incompleteUnderstoodNeeds.length > 0) {
+    return {
+      ok: false,
+      issues: incompleteUnderstoodNeeds.map(componentId =>
+        `V8 understood factual component has incomplete public lore selectors: ${componentId}.`
+      )
     };
   }
 

@@ -614,9 +614,9 @@ opportunément `GameBoard`.
 
 ### J10 — Intégration narrative immersive
 
-Statut : `J10-A À J10-H FERMÉS — J10-I OUVERT`
+Statut : `J10-A À J10-I FERMÉS — J10-J OUVERT`
 
-J10 est le prochain lot produit. Il rend la verticale J1 à J9 entièrement
+J10 rend la verticale J1 à J9 entièrement
 pilotable depuis la saisie narrative sans carte de voyage, panneau de commande
 du groupe, jauge relationnelle ou popup de quête. Le moteur de voyage, les
 autorités du groupe, les missions, les intrigues et l'inventaire restent actifs
@@ -718,7 +718,9 @@ attention ou conversation locale après reload. Le focus est public, borné par
 scène et sans autorité métier. Le reçu de fidélité distingue désormais le cadre
 V8 original de la projection propriétaire, conserve expression brute, cible,
 acte, ordre et provenance, sans transmettre le texte brut aux propriétaires.
-L'orchestration V8 évite désormais le planner redondant, reste sous trois rôles,
+L'orchestration V8 évite désormais le planner redondant, reste sous trois rôles
+ordinaires et n'ouvre un quatrième rôle que pour une création factuelle
+explicitement autorisée par le propriétaire,
 mesure le paquet performer et conserve un fallback immersif séparé de toute
 performance acceptée. Le diagnostic développeur distingue interprétation,
 routage, résolution et présentation, attribue les échecs et expose les budgets
@@ -731,7 +733,7 @@ Elle a fermé les derniers écarts de performer, diagnostic, orientation et
 doublon de rendu ; les preuves sont dans
 [`Checkpoint-recette-OpenAI-live-J10H7.md`](Checkpoint-recette-OpenAI-live-J10H7.md).
 
-J10-I est ouvert le 2026-08-27 après une recette factuelle avec le garde des
+J10-I a été ouvert le 2026-08-27 après une recette factuelle avec le garde des
 Archives. Il sépare désormais le chantier à conduire en trois décisions : fait
 existant ou créable, connaissance normale de l'acteur, puis droit de
 divulgation. Le lot doit d'abord acheminer les faits publics déjà présents dans
@@ -767,8 +769,40 @@ obligatoire pour les prochains propriétaires. J10-I5 est fermé : la projection
 `npc-information-disclosure/1` distingue fait public, croyance, incertitude,
 secret propriétaire, ignorance et orientation exacte. Elle ne transporte
 aucune valeur ni preuve privée pour un secret retenu, et une limite de rôle ne
-peut plus produire un refus générique. J10-I6 doit maintenant alimenter le
-performer, le fallback, le témoignage et le diagnostic depuis cette projection.
+peut plus produire un refus générique. J10-I6 est fermé : le runtime produit
+compose lookup campagne/lore, connaissance et divulgation avant de transmettre
+au performer les seuls faits autorisés. Le même paquet alimente un fallback
+factuel, la parole visible reste un témoignage attribué sans vérité objective et
+le diagnostic développeur expose les trois étapes sans valeur privée. J10-I7
+ferme le lot le 2026-08-31 : la matrice lore/campagne/rôle/rumeur/secret,
+création et remplacement passe dans le contrôleur réel, IndexedDB et ses
+migrations, puis dans la vraie surface Chromium des Archives avec restauration
+du fil. Les propriétaires J3 à J10-H et le build global restent verts, sans
+appel OpenAI live. La preuve finale est dans
+[`Checkpoint-certification-resolution-factuelle-J10I7.md`](Checkpoint-certification-resolution-factuelle-J10I7.md).
+
+J10-J est ouvert le 2026-08-31 après le premier test naturel post-I7. Il traite
+les prémisses institutionnelles approximatives, les réponses partiellement
+connues, la création effective d'une identité publique manquante et l'acte
+directeur des dialogues composés. Toute reconnaissance locale par mots ou
+synonymes est interdite. J10-J0 est fermé : `information-need/2` transporte les
+portées, propriétés, relations et dimensions de complétude sous forme de
+références canoniques ouvertes ; les portées non publiques sont rejetées et la
+gate anti-dette lexicale reste stable. J10-J1 est également fermé : les
+relations et propriétés ouvertes sont déclarées dans le lore, publiées sans
+leurs valeurs dans un catalogue V8 borné, revalidées avant G5 puis parcourues
+exactement par le lookup. Sa dette lexicale historique tombe à zéro. J10-J2 est
+également fermé : `answerCoverage` transporte les faits autorisés et les
+propriétés publiques manquantes jusqu'au performer et au fallback, qui ne
+convertit plus une réponse partielle en ignorance globale. J10-J3 est fermé :
+une politique de lore explicite autorise une proposition créative sans commit,
+puis le propriétaire `CAMPAIGN_FACT` intègre atomiquement valeur et identité au
+commit du tour, sans opération imbriquée ni relâchement du verrou. Les besoins
+factuels compris exigent désormais des sélecteurs exploitables, la verticale
+réelle « Qui est le roi ? », le quatrième rôle seulement conditionnel, deux PNJ,
+concurrence, replay, IndexedDB et reload sont couverts. J10-J4
+ouvre l'acte directeur composé. Le plan et l'ordre des corrections sont fixés dans
+[`Plan-correction-resolution-institutionnelle-J10J.md`](Plan-correction-resolution-institutionnelle-J10J.md).
 
 Le compagnon tactique, la génération de carte et le placement multi-acteurs
 appartiennent au futur chantier tactique décrit par le guide J8. Leur absence ne

@@ -51,6 +51,50 @@ const informationArray = {
   maxItems: 1_024
 } as const;
 
+const declaredRelationsArray = {
+  type: "array",
+  maxItems: 256,
+  items: {
+    type: "object",
+    additionalProperties: false,
+    required: ["relation", "cible", "type_cible", "force"],
+    properties: {
+      relation: loreId,
+      cible: referenceId,
+      type_cible: { anyOf: [shortText, { type: "null" }] },
+      force: { type: "string", enum: ["REQUIRED", "OPTIONAL"] }
+    }
+  }
+} as const;
+
+const declaredPropertiesArray = {
+  type: "array",
+  maxItems: 256,
+  items: {
+    type: "object",
+    additionalProperties: false,
+    required: ["propriete", "libelle", "valeur", "niveau"],
+    properties: {
+      propriete: loreId,
+      libelle: shortText,
+      valeur: { anyOf: [nonEmptyText, { type: "null" }] },
+      niveau: { type: "string", enum: ["COMMUN", "LOCAL", "SPECIALISE", "RESTREINT", "MJ_SECRET"] },
+      creation: { type: "string", enum: ["INTERDITE", "TEXTE", "IDENTITE"] },
+      propriete_role_identite: { anyOf: [loreId, { type: "null" }] }
+    },
+    allOf: [
+      {
+        if: { required: ["creation"], properties: { creation: { enum: ["TEXTE", "IDENTITE"] } } },
+        then: { properties: { valeur: { type: "null" } } }
+      },
+      {
+        if: { required: ["creation"], properties: { creation: { const: "IDENTITE" } } },
+        then: { required: ["propriete_role_identite"], properties: { propriete_role_identite: loreId } }
+      }
+    ]
+  }
+} as const;
+
 const percentage = { type: "integer", minimum: 0, maximum: 100 } as const;
 
 const commonRequired = [
@@ -71,7 +115,9 @@ const commonProperties = {
   aliases: shortTextArray,
   resume: { type: "string", minLength: 1, maxLength: 4_096 },
   mots_cles: shortTextArray,
-  informations: informationArray
+  informations: informationArray,
+  relations_declarees: declaredRelationsArray,
+  proprietes_factuelles: declaredPropertiesArray
 } as const;
 
 export const weightedRoleSchema = {

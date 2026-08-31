@@ -117,8 +117,27 @@ conservées en archives pour expliquer un ancien point de reprise.
 
 ## Guides en français
 
+- [`Plan-correction-resolution-institutionnelle-J10J.md`](Plan-correction-resolution-institutionnelle-J10J.md)
+  ouvre J10-J sans routeur lexical : références sémantiques ouvertes, graphe
+  institutionnel, réponse partielle, création propriétaire et acte directeur.
+- [`Checkpoint-selecteurs-semantiques-information-J10J0.md`](Checkpoint-selecteurs-semantiques-information-J10J0.md)
+  ferme J10-J0 : `information-need/2`, portée publique, sélecteurs opaques,
+  transport V8/G5 et compatibilité historique sans nouvelle dette lexicale.
+- [`Checkpoint-graphe-semantique-information-J10J1.md`](Checkpoint-graphe-semantique-information-J10J1.md)
+  ferme J10-J1 : auteur de propriétés et relations ouvert, catalogue public
+  sans valeurs, parcours borné et suppression du lookup lexical historique.
+- [`Checkpoint-reponse-partielle-information-J10J2.md`](Checkpoint-reponse-partielle-information-J10J2.md)
+  ferme J10-J2 : couverture complète/partielle/absente, libellés publics des
+  propriétés manquantes et fallback factuel sans fausse ignorance.
+- [`Contrat-creation-information-manquante-J10J3.md`](Contrat-creation-information-manquante-J10J3.md)
+  définit la frontière proposition créative, politique de lore et propriétaire
+  persistant des informations publiques absentes.
+- [`Checkpoint-creation-controlee-information-J10J3.md`](Checkpoint-creation-controlee-information-J10J3.md)
+  ferme J10-J3 : commit atomique intégré au tour, identité légère, sélecteurs
+  exploitables, budget conditionnel, contrôleur réel, deux PNJ, concurrence,
+  reload, refus des sorties hors cible et relecture avant performance.
 - [`Plan-resolution-factuelle-et-connaissances-PNJ-J10I.md`](Plan-resolution-factuelle-et-connaissances-PNJ-J10I.md)
-  ouvre J10-I : recherche factuelle ciblée, connaissances communes, locales et
+  documente J10-I fermé : recherche factuelle ciblée, connaissances communes, locales et
   professionnelles des PNJ, création contrôlée des faits publics manquants,
   divulgation séparée et continuité persistante entre sessions.
 - [`Contrat-recherche-factuelle-ciblee-J10I2.md`](Contrat-recherche-factuelle-ciblee-J10I2.md)
@@ -136,6 +155,9 @@ conservées en archives pour expliquer un ancien point de reprise.
 - [`Contrat-divulgation-information-PNJ-J10I5.md`](Contrat-divulgation-information-PNJ-J10I5.md)
   sépare réponse publique, croyance qualifiée, incertitude, secret scellé,
   ignorance réelle et orientation crédible, sans commit ni formulation.
+- [`Contrat-performance-information-PNJ-J10I6.md`](Contrat-performance-information-PNJ-J10I6.md)
+  raccorde la projection autorisée au performer, au fallback, au témoignage et
+  au diagnostic sans donner d'autorité factuelle à la formulation.
 - [`Plan-correction-fiabilite-tour-narratif-J10H.md`](Plan-correction-fiabilite-tour-narratif-J10H.md)
   détaille le lot fermé J10-H : idempotence UI, focus conversationnel
   persistant, fidélité V8, résilience des rôles IA et certification transverse
@@ -226,6 +248,13 @@ conservées en archives pour expliquer un ancien point de reprise.
 - [`Checkpoint-divulgation-information-PNJ-J10I5.md`](Checkpoint-divulgation-information-PNJ-J10I5.md)
   ferme J10-I5 : fait public répondu, rumeur et incertitude qualifiées, secret
   retenu sans fuite, ignorance et orientation crédible certifiées.
+- [`Checkpoint-performance-information-PNJ-J10I6.md`](Checkpoint-performance-information-PNJ-J10I6.md)
+  ferme J10-I6 : paquet expurgé, fallback factuel après panne, témoignage
+  attribué, diagnostic sûr et branchement produit campagne/wiki validés.
+- [`Checkpoint-certification-resolution-factuelle-J10I7.md`](Checkpoint-certification-resolution-factuelle-J10I7.md)
+  ferme J10-I : matrice factuelle complète, contrôleur, rejeu, IndexedDB,
+  migrations, vraie UI Chromium, propriétaires J3 à J10-H et build global
+  certifiés sans appel OpenAI live.
 - [`Checkpoint-focus-local-J10H2.md`](Checkpoint-focus-local-J10H2.md)
   ferme H2 : contrat public persistant, reprise de l'interlocuteur et fermetures
   bornées sans autorité métier.

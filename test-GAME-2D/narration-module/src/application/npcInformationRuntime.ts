@@ -19,6 +19,10 @@ import {
   type NpcInformationPerformerProjectionV1
 } from "./npcInformationPerformance";
 import type { NpcInformationResolutionV1 } from "./npcInformationResolution";
+import type {
+  MissingInformationFactCreationResultV1,
+  MissingInformationFactCreationRuntimeV1
+} from "./missingInformationFactCreation";
 import { loadNpcAuthorizedKnowledgeContextV1 } from "./npcKnowledgeContext";
 import type { PlayableSceneAmbientPresenceV1, PlayableSceneStateV1 } from "./playableScene";
 
@@ -26,6 +30,7 @@ export interface NpcInformationTurnResultV1 {
   resolution: NpcInformationResolutionV1;
   performerProjection: NpcInformationPerformerProjectionV1;
   diagnostic: NpcInformationPerformanceDiagnosticV1;
+  creation: MissingInformationFactCreationResultV1 | null;
 }
 
 export interface NarrativeNpcInformationRuntimeV1 {
@@ -44,6 +49,7 @@ export function createCampaignNpcInformationRuntimeV1(input: {
   anchorEntityIdForScene(scene: PlayableSceneStateV1): string | null;
   localityRefsForScene(scene: PlayableSceneStateV1): string[];
   credibleAlternatives?: NpcCredibleInformationAlternativeV1[];
+  missingInformationFactCreationRuntime?: MissingInformationFactCreationRuntimeV1 | null;
 }): NarrativeNpcInformationRuntimeV1 {
   const reader = createCampaignBackedTargetedInformationReaderV1({
     catalog: input.catalog,
@@ -60,7 +66,7 @@ export function createCampaignNpcInformationRuntimeV1(input: {
       if (actor === null) throw new Error("npc-information.actor-not-visible");
       const rawActorId = request.actorId.replace(/^actor:/u, "").replace(/^npc:/u, "");
       const actorRef = `actor:${rawActorId}`;
-      const lookup = await reader.lookup({
+      const lookupRequest: Parameters<typeof reader.lookup>[0] = {
         schemaVersion: 1,
         lookupId: `${request.operationId}:information-lookup`,
         campaignId: input.campaignId,
@@ -69,7 +75,44 @@ export function createCampaignNpcInformationRuntimeV1(input: {
         need: structuredClone(request.need),
         knowledgeRefs: [...actor.knowledgeRefs],
         allowedKnowledgeLevels: ["COMMUN", "LOCAL"]
-      });
+      };
+      let lookup = await reader.lookup(lookupRequest);
+      let creation: MissingInformationFactCreationResultV1 | null = null;
+      if (lookup.missingProperties.some(property => property.creationMode !== "FORBIDDEN")) {
+        creation = input.missingInformationFactCreationRuntime === null || input.missingInformationFactCreationRuntime === undefined
+          ? null
+          : await input.missingInformationFactCreationRuntime.maybeCreate({
+              operationId: request.operationId,
+              missingProperties: lookup.missingProperties,
+              candidates: lookup.candidates
+            });
+        if (creation?.status === "CREATED" || creation?.status === "REUSED") {
+          const refreshedCampaign = await input.repository.getCampaign(input.campaignId);
+          if (!refreshedCampaign.ok) throw new Error(refreshedCampaign.error.messageKey);
+          lookup = await reader.lookup({ ...lookupRequest, campaignRevision: refreshedCampaign.value.campaignRevision });
+        } else if (creation?.status === "PREPARED" && creation.commitPreparation !== null && creation.commitPreparation.prepared.fact !== null) {
+          const fact = creation.commitPreparation.prepared.fact;
+          const createdPropertyRef = creation.propertyRef;
+          lookup = {
+            ...lookup,
+            candidates: [...lookup.candidates, {
+              schemaVersion: 1,
+              candidateId: `information-candidate:${lookup.lookupId}:prepared:${fact.factId}`,
+              subjectRef: fact.subjectRef,
+              property: fact.predicate,
+              value: fact.objectText,
+              authority: "CAMPAIGN_FACT",
+              visibility: "PLAYER_VISIBLE",
+              sourceKnowledgeLevel: fact.knowledgeLevel,
+              scopeRefs: [fact.subjectRef],
+              sourceRefs: unique([`campaign-fact:${fact.factId}`, ...fact.sourceRefs])
+            }],
+            missingDimensions: lookup.missingDimensions.filter(dimension => dimension !== createdPropertyRef),
+            missingProperties: lookup.missingProperties.filter(property => property.propertyRef !== createdPropertyRef),
+            diagnostics: [...lookup.diagnostics, `prepared-parent-commit:${fact.factId}`]
+          };
+        }
+      }
       const authorizedKnowledge = await loadNpcAuthorizedKnowledgeContextV1({
         repository: input.repository,
         campaignId: input.campaignId,
@@ -106,9 +149,19 @@ export function createCampaignNpcInformationRuntimeV1(input: {
         resolution: unresolvedDisclosure,
         ownerContext
       });
-      const resolution = applyNpcInformationDisclosureV1({ resolution: unresolvedDisclosure, disclosure });
+      const disclosedResolution = applyNpcInformationDisclosureV1({ resolution: unresolvedDisclosure, disclosure });
+      const resolution: NpcInformationResolutionV1 = creation?.status === "CREATED" || creation?.status === "PREPARED" || creation?.status === "REUSED"
+        ? {
+            ...disclosedResolution,
+            creation: {
+              status: "EXECUTED",
+              proposalRefs: unique([creation.propertyRef, creation.factId].filter((ref): ref is string => ref !== null))
+            }
+          }
+        : disclosedResolution;
       const performerProjection = buildNpcInformationPerformerProjectionV1({
         disclosure,
+        missingProperties: lookup.missingProperties,
         alternativePresentations: disclosure.cause.alternativeActorRefs.flatMap(alternativeRef => {
           const alternative = visibleActor(request.activeScene, alternativeRef);
           return alternative === null ? [] : [{ schemaVersion: 1 as const, actorRef: alternativeRef, displayName: alternative.displayName }];
@@ -117,6 +170,7 @@ export function createCampaignNpcInformationRuntimeV1(input: {
       return {
         resolution,
         performerProjection,
+        creation,
         diagnostic: {
           schemaVersion: 1,
           contractVersion: "npc-information-performance-diagnostic/1",

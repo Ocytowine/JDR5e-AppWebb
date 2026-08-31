@@ -22,6 +22,7 @@ const baseline = {
   "narration-module/src/application/catalogPlotCreationRuntime.ts": { functions: 3, operations: 8 },
   "narration-module/src/application/intentClarification.ts": { functions: 2, operations: 26 },
   "narration-module/src/application/narrativeResolution.ts": { functions: 2, operations: 6 },
+  "narration-module/src/application/npcInformationResolution.ts": { functions: 1, operations: 1 },
   "narration-module/src/application/playableScene.ts": { functions: 2, operations: 2 },
   "narration-module/src/application/playerPublicContext.ts": { functions: 1, operations: 6 },
   "narration-module/src/application/presentationVariation.ts": { functions: 1, operations: 1 },
@@ -116,13 +117,13 @@ function lexicalSignals(functionNode, source) {
     }
     if (
       ts.isIdentifier(node)
-      && ["rawInput", "answerRawInput", "actionHint", "interpretedMeaning"].includes(node.text)
+      && ["rawInput", "answerRawInput", "actionHint", "interpretedMeaning", "requestedDimension", "subjectMention"].includes(node.text)
     ) {
       referencesPlayerText = true;
     }
     if (
       ts.isPropertyAccessExpression(node)
-      && ["rawInput", "answerRawInput", "actionHint", "interpretedMeaning"].includes(node.name.text)
+      && ["rawInput", "answerRawInput", "actionHint", "interpretedMeaning", "requestedDimension", "subjectMention"].includes(node.name.text)
     ) {
       referencesPlayerText = true;
     }

@@ -191,7 +191,7 @@ export interface AiOpenSemanticComponentV8 {
   informationNeed?: AiInformationNeedV8 | null;
 }
 
-export interface AiInformationNeedV8 extends JsonObject {
+export interface AiInformationNeedV1 extends JsonObject {
   schemaVersion: 1;
   contractVersion: "information-need/1";
   subjectMention: string;
@@ -201,6 +201,29 @@ export interface AiInformationNeedV8 extends JsonObject {
   requestedAnswerShape: "IDENTITY" | "TITLE" | "LOCATION" | "PROCEDURE" | "DESCRIPTION" | "CAUSE" | "STATUS" | "OPEN";
   sourceComponentId: string;
 }
+
+/**
+ * Open semantic selectors proposed by the interpreter. They are references,
+ * never lookup authority: public scope refs are checked before owner routing,
+ * while property and relation refs must be accepted by the lore catalogue.
+ */
+export interface AiInformationNeedV2 extends JsonObject {
+  schemaVersion: 1;
+  contractVersion: "information-need/2";
+  subjectMention: string;
+  proposedSubjectRef: string | null;
+  proposedScopeRefs: string[];
+  proposedPropertyRefs: string[];
+  proposedRelationRefs: string[];
+  completionPropertyRefs: string[];
+  requestedDimension: string;
+  temporalScope: "CURRENT" | "PAST" | "FUTURE" | "UNSPECIFIED";
+  requestedAnswerShape: "IDENTITY" | "TITLE" | "LOCATION" | "PROCEDURE" | "DESCRIPTION" | "CAUSE" | "STATUS" | "OPEN";
+  sourceComponentId: string;
+}
+
+/** V1 remains readable for persisted turns and historical regression fixtures. */
+export type AiInformationNeedV8 = AiInformationNeedV1 | AiInformationNeedV2;
 
 export interface AiSemanticPlayerIntentV2 {
   kind: AiStructuredSemanticIntentV1["kind"];

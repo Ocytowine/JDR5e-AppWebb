@@ -3,6 +3,7 @@ import type { InterpreterCharacterContextV1 } from "./interpreterCharacterContex
 import type { PlayerPublicContextV1 } from "./playerPublicContext";
 import type { InterpreterRuntimeContextV1 } from "./runtimeCapabilityRouting";
 import type { LocalInteractionFocusV1 } from "./localInteractionFocus";
+import type { LoreInformationSemanticCatalogV1 } from "./loreInformationSemanticCatalog";
 
 export const INTERPRETER_EMBODIED_PUBLIC_CONTEXT_CONTRACT_V1 =
   "interpreter-embodied-public-context/1" as const;
@@ -28,6 +29,7 @@ export interface InterpreterEmbodiedPublicContextV1 extends JsonObject {
     aliases: string[];
     referenceOnly: true;
   }>;
+  informationCatalog: LoreInformationSemanticCatalogV1 | null;
   referenceAmbiguities: Array<JsonObject & {
     alias: string;
     candidateRefs: string[];
@@ -138,6 +140,7 @@ export function buildInterpreterEmbodiedPublicContextV1(input: {
   activeInteraction?: LocalInteractionFocusV1 | null;
   activeCompanionRefs: readonly string[];
   runtimeContext: InterpreterRuntimeContextV1;
+  informationCatalog?: LoreInformationSemanticCatalogV1 | null;
 }): InterpreterEmbodiedPublicContextV1 | null {
   const characterContext = input.characterContext;
   const publicContext = input.playerPublicContext;
@@ -168,6 +171,9 @@ export function buildInterpreterEmbodiedPublicContextV1(input: {
         aliases: reference.aliases.slice(0, 8).map(alias => bounded(alias, 80) ?? "").filter(Boolean),
         referenceOnly: true as const
       })),
+    informationCatalog: input.informationCatalog === undefined || input.informationCatalog === null
+      ? null
+      : structuredClone(input.informationCatalog),
     referenceAmbiguities: characterContext.ambiguities
       .slice(0, LIMITS.referenceAmbiguities)
       .map(ambiguity => ({

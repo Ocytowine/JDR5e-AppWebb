@@ -15,6 +15,8 @@ export * from "./knowledgeSubjects";
 export * from "./npcTestimonyCapture";
 export * from "./interpreterCharacterContext";
 export * from "./interpreterEmbodiedContext";
+export * from "./loreInformationSemanticCatalog";
+export * from "./missingInformationFactCreation";
 export * from "./openSemanticExecution";
 export * from "./openSemanticLegacyOwnerAdapter";
 export * from "./playerPublicContext";
