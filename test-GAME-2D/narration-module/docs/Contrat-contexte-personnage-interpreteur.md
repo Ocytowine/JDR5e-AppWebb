@@ -103,6 +103,7 @@ reprise après rechargement ne conserve ainsi pas une ancienne disponibilité.
 ```powershell
 npm run narration-module:test:interpreter-character-context
 npm run narration-module:test:interpreter-embodied-context-g4
+npm run narration-module:test:j10k2-interpreter-projection
 npm run narration-module:test:ai-intent-interpretation
 npm run narration-module:test:narrative-openai-route
 npm run narration-module:build
@@ -119,6 +120,15 @@ La première vérification prouve :
 
 ## Limites actuelles
 
+- Depuis J10-K2, `roleContextPack` ne transporte plus la scène ni ses acteurs :
+  il référence le manifeste local et l'unique
+  `interpreter-embodied-public-context/1`. Le catalogue de sélection y utilise
+  une projection tabulaire réversible, tandis que le catalogue canonique reste
+  local pour valider les références proposées.
+- `inputTokenBudget` est actuellement validé comme valeur déclarée mais ne
+  borne pas le volume total réellement facturé par le fournisseur. J10-K4 doit
+  mesurer instructions, contexte et schéma avant envoi, puis appliquer une
+  politique explicite sans troncature silencieuse.
 - Les aptitudes `featureIds` restent privées par défaut. Seules celles disposant
   d'une entrée dans le catalogue public `features` deviennent nommables.
 - Le contexte public J1 possède désormais son contrat séparé

@@ -174,17 +174,39 @@ Le plan officiel est dans
 - [x] J10-J3 — exécuter la création contrôlée d'une valeur publique manquante
   avec identité légère, commit unique intégré au tour, sélecteurs factuels
   exploitables, budget conditionnel, contrôleur réel, concurrence et reload.
+- [x] J10-K0 — baseline publique anonymisée du paquet V8 : coût par section,
+  corps fournisseur estimé à 8 426 tokens contre 2 000 déclarés, trois acteurs
+  et identité de scène dupliqués, corpus contextuel figé sans appel OpenAI.
+- [x] J10-K1 — manifeste éphémère passif versionné, descripteurs sans payload,
+  propriétaires, provenance, classifications, révisions, dépendances et sept
+  profils de rôle validés sans créer de nouvelle source de vérité.
+- [x] J10-K2 — manifeste réel local, `roleContextPack` réduit à 177 caractères,
+  scène incarnée unique et catalogue tabulaire réversible ; entrée applicative
+  réduite de 30,5 %, Astryade sélectionnable sans routeur lexical local.
+- [x] J10-K3 — manifestes locaux et projections uniques pour performer, writer,
+  creators et critics ; saisie brute retirée hors interprétation/adaptation,
+  connaissances PNJ bornées et reprise lexicale du writer supprimée.
+- [ ] J10-K4 — rendre les budgets d'entrée réellement mesurés et applicables,
+  avec coût par section et aucun dépassement ou tronquage silencieux.
+- [ ] J10-K5 — certifier les frontières intrigue, mission, relation, compagnon,
+  inventaire, voyage, repos, monde et tactique sans transfert d'autorité.
+- [ ] J10-K6 — fermer le corpus contextuel, Chromium, IndexedDB, budgets et
+  build ; live uniquement sur accord explicite.
 - [ ] J10-J4 — conserver l'acte directeur structuré d'un dialogue composé.
 - [ ] J10-J5 — certifier corpus ouvert, vraie UI, IndexedDB, rejeu,
   propriétaires, budgets et build ; live uniquement sur accord explicite.
 
 ### Prochaine action concrète
 
-Commencer J10-J4 par l'audit de la composition des actes sociaux afin qu'une
-question accompagnée d'une justification conserve `ASK_QUESTION` comme acte
-directeur structuré. La correction doit consommer l'ordre V8 sans relire la
-prose. Ne lancer aucune recette OpenAI live sans accord explicite. Le plan de reprise est dans
-[`Plan-correction-resolution-institutionnelle-J10J.md`](test-GAME-2D/narration-module/docs/Plan-correction-resolution-institutionnelle-J10J.md).
+Commencer J10-K4 par la mesure du corps fournisseur final — instructions,
+projection applicative, schéma Structured Outputs et surcharge — avant chaque
+envoi. Définir une marge et une politique de réduction déterministe par rôle,
+refuser explicitement un paquet irréductible et comparer estimation locale à
+l'usage fournisseur. Ne lancer aucune recette OpenAI live sans accord explicite. Le plan est
+dans [`Plan-contexte-narratif-par-role-J10K.md`](test-GAME-2D/narration-module/docs/Plan-contexte-narratif-par-role-J10K.md)
+et K3 est fermé par
+[`Checkpoint-projections-roles-J10K3.md`](test-GAME-2D/narration-module/docs/Checkpoint-projections-roles-J10K3.md).
+J10-J4 reprendra après stabilisation du contexte par J10-K6.
 
 ## Dernier point de contrôle
 
@@ -271,6 +293,16 @@ prose. Ne lancer aucune recette OpenAI live sans accord explicite. Le plan de re
 
 ## Blocages et reports explicites
 
+- La recette historique `narration-module:test:ai-intent-interpretation` attend
+  encore un rejet de performance PNJ dans un bloc `SYSTEM_NOTICE`, tandis que
+  `npcPerforming.ts` annote le bloc `NPC_SPEECH`. Cet écart, déjà présent dans
+  `HEAD` et indépendant de K2, doit être corrigé sans réinjecter de diagnostic
+  technique dans la fiction.
+- La recette large `narration-module:test:vertical-quality` attend encore
+  `enhanced=false` pour une réponse méta sans matière fictionnelle, alors que
+  l'adaptateur d'expression marque actuellement le paquet comme enrichi. Ce
+  désaccord de contrat, indépendant des projections K3, doit être tranché avant
+  d'utiliser cette recette comme gate globale.
 - Les tests de compétence attendent toujours une projection mécanique stable du
   créateur de personnage.
 - Les compagnons tactiques et la surprise restent refusés par la projection

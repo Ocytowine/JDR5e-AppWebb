@@ -21,6 +21,7 @@ import {
   type PlotGenerationContextV1
 } from "./plotCandidateGeneration";
 import type { PlayableSceneStateV1 } from "./playableScene";
+import { prepareNarrativeRoleContextV1 } from "./narrativeContextManifest";
 
 export interface NarrativePlotCreationRuntimeV1 {
   maybeCreateFromSearch(input: {
@@ -169,7 +170,7 @@ export function createCatalogPlotCreationRuntimeV1(input: {
       const discoveries = Array.isArray(plot.discoveries)
         ? plot.discoveries as Array<{ cluePathId: string; statement: string; sourceRefs: string[] }>
         : [];
-      const roleContextPack = {
+      const criticEvidence = {
         schemaVersion: 1,
         authority: "PLOT_RESOLUTION_COHERENCE_ONLY",
         hiddenTruth: plot.hiddenTruth,
@@ -178,7 +179,37 @@ export function createCatalogPlotCreationRuntimeV1(input: {
         requiredRevelations: plot.requiredRevelations,
         falseLeads: plot.falseLeads
       };
-      const task = { plotResolutionAudit: true, plotId: plot.plotId };
+      const task = { plotResolutionAudit: true, plotId: plot.plotId, context: criticEvidence };
+      const snapshotId = `${request.operation.operationId}:snapshot:plot-resolution-critic`;
+      const preparedContext = prepareNarrativeRoleContextV1({
+        manifestId: `${request.operation.operationId}:context-manifest:plot-resolution-critic`,
+        operationId: request.operation.operationId,
+        campaignId: request.campaignId,
+        snapshot: { snapshotId, campaignRevision: null, sceneId: null, sceneVersion: null },
+        role: "coherence_critic",
+        profileId: `${request.operation.operationId}:plot-resolution-coherence-review`,
+        purpose: "Comparer la conclusion candidate aux preuves et réfutations acquises.",
+        taskContextRef: "task.context",
+        authority: "PLOT_RESOLUTION_COHERENCE_ONLY",
+        projections: [{
+          projectionKey: "candidate-output",
+          kind: "CANDIDATE_OUTPUT",
+          payload: criticEvidence.conclusion,
+          ownerId: "application/player-plot-flow",
+          sourceRefs: [currentHypothesisId],
+          sourceVersion: "plot-player-hypothesis/1",
+          required: true
+        }, {
+          projectionKey: "resolution-evidence",
+          kind: "RESOLUTION_EVIDENCE",
+          payload: criticEvidence,
+          ownerId: "application/plot-authority",
+          sourceRefs: [...plot.sourceRefs, ...discoveries.flatMap(discovery => discovery.sourceRefs)],
+          sourceVersion: "plot-resolution-evidence/1",
+          required: true
+        }]
+      });
+      const roleContextPack = preparedContext.roleContextPack;
       const criticRun = await runAiPipelineCallV1({
         provider: input.generatorConfig.provider,
         route: input.generatorConfig.coherenceCriticRoute,
@@ -189,16 +220,16 @@ export function createCatalogPlotCreationRuntimeV1(input: {
           operationId: request.operation.operationId,
           attemptId: `${request.operation.operationId}:ai:plot-resolution-critic:attempt:1`,
           campaignId: request.campaignId,
-          snapshotId: `${request.operation.operationId}:snapshot:plot-resolution-critic`,
+          snapshotId,
           packId: `${request.operation.operationId}:pack:plot-resolution-critic`,
           role: "coherence_critic",
           contractVersion: "narrative-ai-resolution/1",
           modelRouteId: input.generatorConfig.coherenceCriticRoute.routeId,
-          contextFingerprint: await computeJsonFingerprint({ roleContextPack, task }) as `sha256:${string}`,
+          contextFingerprint: await computeJsonFingerprint({ contextManifest: preparedContext.manifest, task }) as `sha256:${string}`,
           idempotencyKey: `${request.operation.operationId}:plot-resolution-critic`,
           input: { instructionsRef: "coherence-critic/plot-resolution/v1", roleContextPack, task },
           limits: {
-            inputTokenBudget: Math.min(1_600, input.generatorConfig.coherenceCriticRoute.inputTokenLimit),
+            inputTokenBudget: input.generatorConfig.coherenceCriticRoute.inputTokenLimit,
             outputTokenBudget: Math.min(1_600, input.generatorConfig.coherenceCriticRoute.outputTokenLimit),
             timeoutMs: input.generatorConfig.coherenceCriticRoute.timeoutMs
           }

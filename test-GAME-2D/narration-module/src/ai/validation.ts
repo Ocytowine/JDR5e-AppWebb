@@ -1087,7 +1087,7 @@ function validateSceneCreatorPayload(payload: unknown, request: AiCallRequestV1)
     if (!isStringArray(payload[key])) issues.push(`payload.${key}: expected string array`);
   }
   if (!["REUSE", "ENRICH", "CREATE_DISTINCT", "POSSIBLE_SAME_AS", "REJECT_IF_SIMILAR"].includes(String(payload.duplicatePolicy))) issues.push("payload.duplicatePolicy: invalid policy");
-  const roleContextPack = isObject(request.input.roleContextPack) ? request.input.roleContextPack : null;
+  const roleContextPack = requestRoleContextPayloadV1(request);
   const allowedParentLocationRefs = roleContextPack && isStringArray(roleContextPack.allowedParentLocationRefs)
     ? roleContextPack.allowedParentLocationRefs
     : [];
@@ -1117,12 +1117,18 @@ function validateMissingInformationFactProposalV1(payload: unknown, request: AiC
   for (const key of ["proposalId", "propertyRef", "generatedValue"] as const) issues.push(...validateNonEmptyString(payload[key], `payload.${key}`));
   if (!['TEXT', 'IDENTITY'].includes(String(payload.valueKind))) issues.push("payload.valueKind: invalid value kind");
   if (payload.authority !== "PROPOSE_ONLY_NO_COMMIT") issues.push("payload.authority: invalid proposal authority");
-  const target = isObject(request.input.roleContextPack) && isObject(request.input.roleContextPack.target)
-    ? request.input.roleContextPack.target
+  const context = requestRoleContextPayloadV1(request);
+  const target = context && isObject(context.target)
+    ? context.target
     : null;
   if (target === null || payload.propertyRef !== target.propertyRef) issues.push("payload.propertyRef: escaped authorized target");
   if (target === null || payload.valueKind !== target.valueKind) issues.push("payload.valueKind: escaped authorized target");
   return issues;
+}
+
+function requestRoleContextPayloadV1(request: AiCallRequestV1): Record<string, unknown> | null {
+  if (isObject(request.input.task) && isObject(request.input.task.context)) return request.input.task.context;
+  return isObject(request.input.roleContextPack) ? request.input.roleContextPack : null;
 }
 
 function validatePlotCandidatePayloadV1(payload: unknown): string[] {

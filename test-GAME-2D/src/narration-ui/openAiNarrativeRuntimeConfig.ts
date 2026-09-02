@@ -33,7 +33,7 @@ export function buildOpenAiIntentInterpreterConfigV1(endpoint?: string): AiInten
       modelConfigVersion: "open-semantic-owner-routing-v8",
       certified: true,
       allowedContractVersions: [AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V1, AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V2, AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V3, AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V4, AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V5, AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V6, AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V7, AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V8],
-      inputTokenLimit: 2_000,
+      inputTokenLimit: 8_000,
       outputTokenLimit: 900,
       timeoutMs: 30_000,
       fallbackRouteIds: []
@@ -62,7 +62,7 @@ export function buildOpenAiMjPlannerConfigV1(endpoint?: string): MjPlannerConfig
       modelConfigVersion: "narrative-orchestration-v1",
       certified: true,
       allowedContractVersions: [MJ_PLANNER_CONTRACT_VERSION_V1],
-      inputTokenLimit: 2_000,
+      inputTokenLimit: 4_000,
       outputTokenLimit: 1_000,
       timeoutMs: 30_000,
       fallbackRouteIds: []
@@ -106,7 +106,7 @@ export function buildOpenAiNpcPerformerConfigV1(endpoint?: string): NpcPerformer
       modelConfigVersion: "nar-130-dialogue-act-fidelity",
       certified: true,
       allowedContractVersions: ["narrative-ai-resolution/1"],
-      inputTokenLimit: 1_000,
+      inputTokenLimit: 4_000,
       outputTokenLimit: 1_600,
       timeoutMs: 30_000,
       fallbackRouteIds: []
@@ -129,7 +129,7 @@ export function buildOpenAiSceneCreatorConfigV2(endpoint?: string): LoreGuidedPl
       schemaVersion: 1, routeId: "prototype-ui-openai-scene-creator", role: "scene_creator",
       providerKind: "FAKE_CONTRACT", providerId: "server-openai-route", modelId: "server-selected-openai-scene-creator-model",
       modelConfigVersion: "lore-guided-place-v2-luna-none", certified: true,
-      allowedContractVersions: ["lore-guided-place-candidate/2"], inputTokenLimit: 2_000, outputTokenLimit: 1_500,
+      allowedContractVersions: ["lore-guided-place-candidate/2"], inputTokenLimit: 8_000, outputTokenLimit: 1_500,
       timeoutMs: 55_000, fallbackRouteIds: []
     },
     retryPolicy: { schemaVersion: 1, role: "scene_creator", maxTechnicalRetries: 0, maxTargetedCorrections: 0, maxFullRegenerations: 0, allowFallback: false }
@@ -149,7 +149,7 @@ export function buildOpenAiMissingInformationFactGeneratorConfigV1(endpoint?: st
       modelConfigVersion: "missing-information-fact-v1",
       certified: true,
       allowedContractVersions: ["missing-information-fact-proposal/1"],
-      inputTokenLimit: 2_000,
+      inputTokenLimit: 4_000,
       outputTokenLimit: 600,
       timeoutMs: 55_000,
       fallbackRouteIds: []
@@ -171,7 +171,7 @@ export function buildOpenAiPlotCandidateConfigV1(endpoint?: string): PlotCandida
       modelConfigVersion: "plot-candidate-v1",
       certified: true,
       allowedContractVersions: ["plot-candidate/1"],
-      inputTokenLimit: 4_000,
+      inputTokenLimit: 8_000,
       outputTokenLimit: 4_000,
       timeoutMs: 55_000,
       fallbackRouteIds: []
@@ -186,7 +186,7 @@ export function buildOpenAiPlotCandidateConfigV1(endpoint?: string): PlotCandida
       modelConfigVersion: "plot-motivation-v1",
       certified: true,
       allowedContractVersions: ["narrative-ai-resolution/1"],
-      inputTokenLimit: 1_600,
+      inputTokenLimit: 4_000,
       outputTokenLimit: 1_600,
       timeoutMs: 30_000,
       fallbackRouteIds: []

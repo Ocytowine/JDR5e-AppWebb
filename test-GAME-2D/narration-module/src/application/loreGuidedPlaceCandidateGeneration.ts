@@ -10,6 +10,7 @@ import {
   type LoreGuidedSceneCreationBriefV1
 } from "./loreGuidedSceneCreation";
 import type { SceneCreatorEpistemicContextV1 } from "./sceneCreatorEpistemicContext";
+import { prepareNarrativeRoleContextV1 } from "./narrativeContextManifest";
 
 export const LORE_GUIDED_PLACE_CANDIDATE_CONTRACT_V1 = "lore-guided-place-candidate/1" as const;
 export const LORE_GUIDED_PLACE_CANDIDATE_CONTRACT_V2 = "lore-guided-place-candidate/2" as const;
@@ -124,7 +125,7 @@ async function buildRequest(input: {
   epistemicContext?: SceneCreatorEpistemicContextV1;
   config: LoreGuidedPlaceCandidateGeneratorConfigV1 | LoreGuidedPlaceCandidateGeneratorConfigV2;
 }, contractVersion: typeof LORE_GUIDED_PLACE_CANDIDATE_CONTRACT_V1 | typeof LORE_GUIDED_PLACE_CANDIDATE_CONTRACT_V2 = LORE_GUIDED_PLACE_CANDIDATE_CONTRACT_V1): Promise<AiCallRequestV1> {
-  const roleContextPack = {
+  const context = {
     schemaVersion: 1,
     authority: "PROPOSE_ONLY",
     brief: buildSceneCreatorBriefViewV1(input.brief),
@@ -146,22 +147,70 @@ async function buildRequest(input: {
       ? ["no commit", "no secret reveal", "populationRoles must be short singular role labels without actions or descriptions", "no durable NPC materialization", "no topology proposal", "requestedDepth must be one of allowedPersistenceDepths", "parentLocationRef must be one of allowedParentLocationRefs"]
       : ["no commit", "no secret reveal", "populationRoles must be short singular role labels without actions or descriptions", "no durable NPC materialization", "sourceRefs required on topology", "requestedDepth must be one of allowedPersistenceDepths", "parentLocationRef must be one of allowedParentLocationRefs", "the incoming connection must use sourceSceneId and sourceBoundaryRef exactly"]
   };
-  const task = { requiredOutput: contractVersion };
+  const task = { context, requiredOutput: contractVersion };
+  const snapshotId = `${input.operationId}:snapshot:scene-creator`;
+  const preparedContext = prepareNarrativeRoleContextV1({
+    manifestId: `${input.operationId}:context-manifest:scene-creator`,
+    operationId: input.operationId,
+    campaignId: input.campaignId,
+    snapshot: { snapshotId, campaignRevision: null, sceneId: null, sceneVersion: null },
+    role: "scene_creator",
+    profileId: `${input.operationId}:lore-guided-place-creation`,
+    purpose: "Proposer un lieu dans les seules frontières et influences autorisées.",
+    taskContextRef: "task.context",
+    authority: "PROPOSE_ONLY",
+    projections: [{
+      projectionKey: "creation-brief",
+      kind: "CREATION_BRIEF",
+      payload: {
+        brief: context.brief,
+        sourceSceneId: context.sourceSceneId,
+        sourceBoundaryRef: context.sourceBoundaryRef,
+        requestedDestinationDescription: context.requestedDestinationDescription,
+        requestedDestinationName: context.requestedDestinationName
+      },
+      ownerId: "application/lore-guided-scene-creation",
+      sourceRefs: input.brief.sourceRefs,
+      sourceVersion: input.brief.contractVersion,
+      required: true
+    }, {
+      projectionKey: "lore-influences",
+      kind: "LORE_INFLUENCES",
+      payload: { brief: context.brief, epistemicContext: context.epistemicContext },
+      ownerId: "application/campaign-lore-projection",
+      sourceRefs: input.brief.sourceRefs,
+      sourceVersion: "scene-creator-epistemic-context/1",
+      required: true
+    }, {
+      projectionKey: "creation-policy",
+      kind: "CREATION_POLICY",
+      payload: {
+        allowedParentLocationRefs: context.allowedParentLocationRefs,
+        allowedPersistenceDepths: context.allowedPersistenceDepths,
+        constraints: context.constraints
+      },
+      ownerId: "application/place-creation-runtime",
+      sourceRefs: [input.sourceBoundaryRef, ...input.allowedParentLocationRefs],
+      sourceVersion: "place-creation-policy/1",
+      required: true
+    }]
+  });
+  const roleContextPack = preparedContext.roleContextPack;
   return {
     schemaVersion: 1,
     callId: `${input.operationId}:ai:scene-creator:call`,
     operationId: input.operationId,
     attemptId: `${input.operationId}:ai:scene-creator:attempt:1`,
     campaignId: input.campaignId,
-    snapshotId: `${input.operationId}:snapshot:scene-creator`,
+    snapshotId,
     packId: `${input.operationId}:pack:scene-creator`,
     role: "scene_creator",
     contractVersion,
     modelRouteId: input.config.route.routeId,
-    contextFingerprint: await computeJsonFingerprint({ roleContextPack, task }) as `sha256:${string}`,
+    contextFingerprint: await computeJsonFingerprint({ contextManifest: preparedContext.manifest, task }) as `sha256:${string}`,
     idempotencyKey: `${input.operationId}:scene-creator`,
     input: { instructionsRef: contractVersion === LORE_GUIDED_PLACE_CANDIDATE_CONTRACT_V2 ? "scene-creator/lore-guided-place/v2" : "scene-creator/lore-guided-place/v1", roleContextPack, task },
-    limits: { inputTokenBudget: Math.min(2_000, input.config.route.inputTokenLimit), outputTokenBudget: Math.min(2_000, input.config.route.outputTokenLimit), timeoutMs: input.config.route.timeoutMs }
+    limits: { inputTokenBudget: input.config.route.inputTokenLimit, outputTokenBudget: Math.min(2_000, input.config.route.outputTokenLimit), timeoutMs: input.config.route.timeoutMs }
   };
 }
 

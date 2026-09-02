@@ -279,6 +279,58 @@ export function buildOpenAiResponsesBodyV1(request: AiCallRequestV1, route: Open
   };
 }
 
+export interface OpenAiInputBudgetReportV1 {
+  contractVersion: "narrative-provider-input-budget/1";
+  serializedBodyChars: number;
+  baseEstimatedTokens: number;
+  estimationMarginTokens: number;
+  estimatedInputTokens: number;
+  inputTokenBudget: number;
+  withinBudget: boolean;
+  appliedReductions: string[];
+}
+
+export function measureOpenAiInputBudgetV1(
+  request: AiCallRequestV1,
+  route: OpenAiModelRouteV1,
+  schema: OpenAiJsonSchemaV1,
+  appliedReductions: string[] = []
+): OpenAiInputBudgetReportV1 {
+  const serializedBodyChars = JSON.stringify(buildOpenAiResponsesBodyV1(request, route, schema)).length;
+  const baseEstimatedTokens = Math.ceil(serializedBodyChars / 4);
+  const estimationMarginTokens = Math.max(64, Math.ceil(baseEstimatedTokens * 0.15));
+  const estimatedInputTokens = baseEstimatedTokens + estimationMarginTokens;
+  return {
+    contractVersion: "narrative-provider-input-budget/1",
+    serializedBodyChars,
+    baseEstimatedTokens,
+    estimationMarginTokens,
+    estimatedInputTokens,
+    inputTokenBudget: request.limits.inputTokenBudget,
+    withinBudget: estimatedInputTokens <= request.limits.inputTokenBudget,
+    appliedReductions
+  };
+}
+
+function prepareOpenAiInputWithinBudgetV1(
+  request: AiCallRequestV1,
+  route: OpenAiModelRouteV1,
+  schema: OpenAiJsonSchemaV1
+): { ok: true; request: AiCallRequestV1; body: Record<string, unknown>; report: OpenAiInputBudgetReportV1 } | { ok: false; report: OpenAiInputBudgetReportV1 } {
+  let effectiveRequest = request;
+  let report = measureOpenAiInputBudgetV1(effectiveRequest, route, schema);
+  const task = request.input.task;
+  if (!report.withinBudget && task !== null && typeof task === "object" && !Array.isArray(task) && Object.hasOwn(task, "packetReceipt")) {
+    const reducedTask = { ...(task as Record<string, unknown>) };
+    delete reducedTask.packetReceipt;
+    effectiveRequest = { ...request, input: { ...request.input, task: reducedTask } };
+    report = measureOpenAiInputBudgetV1(effectiveRequest, route, schema, ["input.task.packetReceipt"]);
+  }
+  return report.withinBudget
+    ? { ok: true, request: effectiveRequest, body: buildOpenAiResponsesBodyV1(effectiveRequest, route, schema), report }
+    : { ok: false, report };
+}
+
 export class OpenAiResponsesProviderV1 {
   constructor(private readonly options: OpenAiProviderOptionsV1) {}
 
@@ -312,7 +364,30 @@ export class OpenAiResponsesProviderV1 {
       };
     }
 
-    const body = buildOpenAiResponsesBodyV1(request, route, schema);
+    const preparedInput = prepareOpenAiInputWithinBudgetV1(request, route, schema);
+    if (!preparedInput.ok) {
+      const endedAt = (this.options.now ?? (() => new Date()))();
+      const metrics = makeMetrics({ route, request, startedAt, endedAt });
+      return {
+        ok: false,
+        category: "BUDGET_EXCEEDED",
+        retryable: false,
+        validation: null,
+        metrics,
+        incident: incident({
+          request,
+          category: "BUDGET_EXCEEDED",
+          stage: "CONTEXT_BUILD",
+          outcome: "SUSPENDED",
+          unsafeDetails: {
+            inputBudget: preparedInput.report,
+            reductionPolicyId: `input-budget:${request.role}:preserve-authority/v1`,
+            terminalAction: "REFUSE_IRREDUCIBLE"
+          }
+        })
+      };
+    }
+    const body = preparedInput.body;
     let response: OpenAiTransportResponseV1;
     try {
       response = await this.options.fetchImpl("https://api.openai.com/v1/responses", {

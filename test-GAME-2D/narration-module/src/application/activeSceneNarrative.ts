@@ -14,7 +14,7 @@ import {
 
 export const ACTIVE_SCENE_NARRATIVE_CONTEXT_VERSION_V1 = "active-scene-narrative-context/1" as const;
 
-export interface ActiveSceneNarrativeBriefV1 extends ReferenceSceneWriterContextTaskV1 {
+export interface ActiveSceneNarrativeBriefV1 extends Omit<ReferenceSceneWriterContextTaskV1, "rawInput"> {
   activeSceneId: string;
   activeSceneVersion: number;
   visibleReferentRefs: string[];
@@ -26,7 +26,6 @@ export interface ActiveSceneNarrativeBriefV1 extends ReferenceSceneWriterContext
 }
 
 export function buildActiveSceneNarrativeBriefV1(input: {
-  rawInput: string;
   interpretation: NarrativeIntentInterpretationV1;
   resolution: NarrativeResolutionResultV1;
   activeScene: PlayableSceneStateV1;
@@ -64,7 +63,7 @@ export function buildActiveSceneNarrativeBriefV1(input: {
   const isNoCommitSceneContext = input.resolution.resultKind === "NO_COMMIT_RESPONSE" &&
     (input.interpretation.semanticIntent.kind === "meta_request" ||
       input.interpretation.semanticIntent.kind === "context_question");
-  const asksVisiblePopulation = asksAboutVisiblePopulation(input.rawInput);
+  const asksVisiblePopulation = input.interpretation.semanticIntent.perception?.informationKind === "PRESENCE";
   const transitionNarrativeRequired =
     input.interpretation.semanticIntent.kind === "traverse_visible_boundary"
     && input.resolution.commitId !== null;
@@ -92,7 +91,6 @@ export function buildActiveSceneNarrativeBriefV1(input: {
   return {
     schemaVersion: 1,
     contractVersion: "reference-scene-writer-context/1",
-    rawInput: input.rawInput,
     resultKind: input.resolution.resultKind,
     intentType: input.interpretation.intentType,
     coreMeaning: input.interpretation.coreMeaning,
@@ -110,15 +108,6 @@ export function buildActiveSceneNarrativeBriefV1(input: {
     transitionNarrativeRequired,
     version: 1
   };
-}
-
-function asksAboutVisiblePopulation(rawInput: string): boolean {
-  const normalized = rawInput
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/gu, "")
-    .toLowerCase();
-  return /\b(vois|voir|observe|regarde|remarque|distingue)\b.*\b(gens|personnes|monde|presences?|silhouettes?|pnj)\b/u.test(normalized)
-    || /\b(qui|quelqu'un|quelqu un)\b.*\b(autour|present|visible)\b/u.test(normalized);
 }
 
 export async function buildActiveSceneContextPackV1(input: {
@@ -222,7 +211,11 @@ export async function buildActiveSceneContextPackV1(input: {
       text: input.brief.transitionNarrativeRequired
         ? "Préserver le départ et le franchissement confirmés, puis employer seulement les entités visibles de la scène d'arrivée. Aucun autre contenu de l'ancienne scène n'est autorisé."
         : "Employer seulement les entités visibles de la scène active et les faits confirmés du résultat. Toute ancienne scène est hors contexte.",
-      payload: input.brief as unknown as JsonObject, tokenEstimate: 100
+      payload: {
+        activeSceneId: input.brief.activeSceneId,
+        activeSceneVersion: input.brief.activeSceneVersion,
+        transitionNarrativeRequired: input.brief.transitionNarrativeRequired
+      }, tokenEstimate: 100
     }],
     outputContractId: "narrative-ai-resolution/1",
     packFingerprint: "sha256:pending"

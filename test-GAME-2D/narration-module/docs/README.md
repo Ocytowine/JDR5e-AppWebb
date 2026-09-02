@@ -43,6 +43,9 @@ conservées en archives pour expliquer un ancien point de reprise.
 
 ### Intention, référents et résolution
 
+- [`Contrat-manifeste-contexte-narratif-J10K1.md`](Contrat-manifeste-contexte-narratif-J10K1.md)
+  décrit le manifeste éphémère passif, ses propriétaires, classifications,
+  révisions, dépendances et profils de rôle sans recopier les payloads.
 - [`Contrat-intention-semantique-V2.md`](Contrat-intention-semantique-V2.md)
 - [`Contrat-intention-composee-V3.md`](Contrat-intention-composee-V3.md)
 - [`Contrat-orientation-visible-et-recherche-V4.md`](Contrat-orientation-visible-et-recherche-V4.md)
@@ -117,6 +120,23 @@ conservées en archives pour expliquer un ancien point de reprise.
 
 ## Guides en français
 
+- [`Plan-contexte-narratif-par-role-J10K.md`](Plan-contexte-narratif-par-role-J10K.md)
+  ouvre J10-K avant la reprise de J10-J4 : manifeste éphémère sans nouvelle
+  source de vérité, projection unique et minimale par rôle, suppression des
+  doublons V8, budgets réellement mesurés et certification contextuelle.
+- [`Checkpoint-baseline-contexte-J10K0.md`](Checkpoint-baseline-contexte-J10K0.md)
+  ferme K0 : paquet public anonymisé mesuré section par section, dépassement du
+  budget déclaré, scène et trois acteurs dupliqués, corpus contextuel figé sans
+  appel OpenAI.
+- [`Checkpoint-manifeste-contexte-J10K1.md`](Checkpoint-manifeste-contexte-J10K1.md)
+  ferme K1 : contrat passif, matrice de sept profils, frontières de rôle,
+  cohérence de snapshot et dépendances validées avant tout raccord runtime.
+- [`Checkpoint-projection-interpreteur-J10K2.md`](Checkpoint-projection-interpreteur-J10K2.md)
+  ferme K2 : manifeste réel local, projection incarnée unique, catalogue
+  tabulaire réversible et mesures avant/après sans appel OpenAI live.
+- [`Checkpoint-projections-roles-J10K3.md`](Checkpoint-projections-roles-J10K3.md)
+  ferme K3 : projections uniques et manifestes validés pour performer, writer,
+  creators et critics, sans saisie brute ni données privées sans rapport.
 - [`Plan-correction-resolution-institutionnelle-J10J.md`](Plan-correction-resolution-institutionnelle-J10J.md)
   ouvre J10-J sans routeur lexical : références sémantiques ouvertes, graphe
   institutionnel, réponse partielle, création propriétaire et acte directeur.

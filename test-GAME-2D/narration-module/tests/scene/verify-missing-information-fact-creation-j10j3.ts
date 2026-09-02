@@ -138,7 +138,9 @@ class MissingValueProvider {
   constructor(private readonly value: string, private readonly options: { escapeProperty?: boolean } = {}) {}
   async generate(request: AiCallRequestV1): Promise<unknown> {
     this.calls += 1;
-    const target = request.input.roleContextPack as { target: { propertyRef: string; valueKind: "TEXT" | "IDENTITY" } };
+    const target = (request.input.task as {
+      context: { target: { propertyRef: string; valueKind: "TEXT" | "IDENTITY" } };
+    }).context.target;
     return {
       schemaVersion: 1,
       contractVersion: request.contractVersion,
@@ -151,8 +153,8 @@ class MissingValueProvider {
       status: "OK",
       payload: {
         proposalId: `proposal:${request.operationId}`,
-        propertyRef: this.options.escapeProperty ? "lore-property:escape:forbidden" : target.target.propertyRef,
-        valueKind: target.target.valueKind,
+        propertyRef: this.options.escapeProperty ? "lore-property:escape:forbidden" : target.propertyRef,
+        valueKind: target.valueKind,
         generatedValue: this.value,
         authority: "PROPOSE_ONLY_NO_COMMIT"
       },

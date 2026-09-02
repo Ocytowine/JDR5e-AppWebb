@@ -39,6 +39,7 @@ import {
   validateNpcPerformanceAgainstInformationProjectionV1,
   type NpcInformationPerformerProjectionV1
 } from "./npcInformationPerformance";
+import { prepareNarrativeRoleContextV1 } from "./narrativeContextManifest";
 
 export const NPC_PERFORMER_CONTRACT_VERSION_V1 = "npc-performer/1" as const;
 export const NPC_PERFORMER_PACKET_RECEIPT_V1 = "npc-performer-packet-receipt/1" as const;
@@ -460,13 +461,10 @@ async function validateNpcPerformanceSemanticsV1(input: {
     .filter((text): text is string => typeof text === "string" && text.trim().length > 0) ?? [];
   const dialogueHistory = performerTask.knowledgeEnvelope?.dialogueHistory ?? [];
   const plotActorView = performerTask.knowledgeEnvelope?.plotActorView ?? null;
-  const criticContext = {
-    schemaVersion: 1,
-    authority: "NPC_DIALOGUE_ACT_FIDELITY",
+  const criticTask = {
     actorId: input.performance.actorId,
     dialogueAct,
     candidateNarration,
-    rawInput: input.input.rawInput,
     priorNpcUtterances,
     dialogueHistory,
     priorConversationProfile: performerTask.conversationProfileContract?.priorProfile ?? null,
@@ -476,6 +474,63 @@ async function validateNpcPerformanceSemanticsV1(input: {
     informationDisclosure: performerTask.informationDisclosure ?? null,
     plotActorView
   };
+  const preparedCriticContext = prepareNarrativeRoleContextV1({
+    manifestId: `${input.input.operationId}:context-manifest:npc-dialogue-critic`,
+    operationId: input.input.operationId,
+    campaignId: input.input.campaignId,
+    snapshot: {
+      snapshotId: input.request.snapshotId,
+      campaignRevision: null,
+      sceneId: input.input.activeScene.sceneId,
+      sceneVersion: input.input.activeScene.version
+    },
+    role: "coherence_critic",
+    profileId: `${input.input.operationId}:npc-dialogue-coherence-review`,
+    purpose: "Comparer une réplique candidate à l'acte résolu et aux seules sources de cet acteur.",
+    taskContextRef: "task",
+    authority: "NPC_DIALOGUE_ACT_FIDELITY",
+    projections: [{
+      projectionKey: "candidate-output",
+      kind: "CANDIDATE_OUTPUT",
+      payload: candidateNarration,
+      ownerId: "application/npc-performer",
+      sourceRefs: [`ai-output:${input.performance.performanceId}`],
+      sourceVersion: "npc-performer/1",
+      required: true
+    }, {
+      projectionKey: "resolved-turn",
+      kind: "RESOLVED_TURN",
+      payload: { actorId: criticTask.actorId, dialogueAct: criticTask.dialogueAct },
+      ownerId: "application/narrative-resolution",
+      sourceRefs: [`intent:${input.input.interpretation.intentId}`],
+      sourceVersion: "narrative-resolution/1",
+      required: true
+    }, {
+      projectionKey: "npc-private-context",
+      kind: "NPC_ROLE_PRIVATE_CONTEXT",
+      payload: {
+        priorNpcUtterances,
+        dialogueHistory,
+        priorConversationProfile: criticTask.priorConversationProfile,
+        candidateConversationProfile: criticTask.candidateConversationProfile,
+        plotActorView
+      },
+      ownerId: "application/npc-knowledge-context",
+      sourceRefs: [`actor:${input.performance.actorId}`],
+      classification: "ROLE_PRIVATE",
+      consistency: "SCENE_REVISION",
+      sourceVersion: "npc-dialogue-critic-context/1",
+      required: false
+    }, {
+      projectionKey: "npc-disclosure",
+      kind: "NPC_DISCLOSURE",
+      payload: criticTask.informationDisclosure,
+      ownerId: "application/npc-information-performance",
+      sourceRefs: criticTask.informationDisclosure?.allowedSourceRefs ?? [`actor:${input.performance.actorId}:disclosure:none`],
+      sourceVersion: "npc-information-performer-projection/1",
+      required: false
+    }]
+  });
   const criticRun = await runAiPipelineCallV1({
     provider: input.input.config.provider,
     route: input.route,
@@ -491,28 +546,18 @@ async function validateNpcPerformanceSemanticsV1(input: {
       role: "coherence_critic",
       contractVersion: "narrative-ai-resolution/1",
       modelRouteId: input.route.routeId,
-      contextFingerprint: await computeJsonFingerprint(criticContext) as `sha256:${string}`,
+      contextFingerprint: await computeJsonFingerprint({
+        contextManifest: preparedCriticContext.manifest,
+        task: criticTask
+      }) as `sha256:${string}`,
       idempotencyKey: `${input.input.operationId}:npc-performer-critic`,
       input: {
         instructionsRef: "narrative-ai-resolution/coherence-critic/npc-dialogue-act/v1",
-        roleContextPack: criticContext,
-        task: {
-          candidateNarration,
-          dialogueAct,
-          actorId: input.performance.actorId,
-          rawInput: input.input.rawInput,
-          priorNpcUtterances,
-          dialogueHistory,
-          priorConversationProfile: performerTask.conversationProfileContract?.priorProfile ?? null,
-          candidateConversationProfile: input.performance.conversationProfile,
-          ownerMissionDecision: performerTask.ownerMissionDecision ?? null,
-          ownerCompanionDecision: performerTask.ownerCompanionDecision ?? null,
-          informationDisclosure: performerTask.informationDisclosure ?? null,
-          plotActorView
-        }
+        roleContextPack: preparedCriticContext.roleContextPack,
+        task: criticTask
       },
       limits: {
-        inputTokenBudget: 700,
+        inputTokenBudget: input.route.inputTokenLimit,
         outputTokenBudget: Math.min(1_600, input.route.outputTokenLimit),
         timeoutMs: input.route.timeoutMs
       }
@@ -869,20 +914,6 @@ async function buildNpcPerformerRequestV1(input: {
 }): Promise<AiCallRequestV1> {
   const snapshotId = `${input.operationId}:snapshot:npc-performance`;
   const packId = `${input.operationId}:pack:npc-performance`;
-  const roleContextPack = {
-    schemaVersion: 1,
-    role: "npc_performer",
-    authority: "PERFORM_VISIBLE_ACTOR_ONLY",
-    actorId: input.actorId,
-    visibleScene: input.activeScene.sceneId,
-    visibleActor: findVisibleActorV1(input.activeScene, input.actorId),
-    spatialContext: {
-      playerLocation: input.activeScene.locationName,
-      perceptibleSituation: [...input.activeScene.perceptibleSituation],
-      currentTension: input.activeScene.currentTension
-    },
-    forbiddenAuthority: ["commit", "time", "inventory", "tactical", "rest", "durable_lore", "secret_reveal", "social_success"]
-  };
   const priorNpcUtterances = await reconstructRenderedNpcUtterancesV1({
     repository: input.repository,
     campaignId: input.campaignId,
@@ -962,7 +993,6 @@ async function buildNpcPerformerRequestV1(input: {
     ])
   ];
   const task = {
-    rawInput: input.rawInput,
     actorId: input.actorId,
     intentId: input.interpretation.intentId,
     interpretation: {
@@ -1020,6 +1050,72 @@ async function buildNpcPerformerRequestV1(input: {
     },
     requiredOutput: "bounded_visible_npc_reaction_without_commit"
   };
+  const preparedContext = prepareNarrativeRoleContextV1({
+    manifestId: `${input.operationId}:context-manifest:npc-performer`,
+    operationId: input.operationId,
+    campaignId: input.campaignId,
+    snapshot: {
+      snapshotId,
+      campaignRevision: null,
+      sceneId: input.activeScene.sceneId,
+      sceneVersion: input.activeScene.version
+    },
+    role: "npc_performer",
+    profileId: `${input.operationId}:npc-dialogue-performance`,
+    purpose: "Incarner uniquement l'acteur assigné depuis l'acte résolu et ses sources autorisées.",
+    taskContextRef: "task",
+    authority: "PERFORM_VISIBLE_ACTOR_ONLY",
+    projections: [{
+      projectionKey: "resolved-turn",
+      kind: "RESOLVED_TURN",
+      payload: { interpretation: task.interpretation, dialogueAct: task.dialogueAct },
+      ownerId: "application/narrative-resolution",
+      sourceRefs: [`intent:${input.interpretation.intentId}`],
+      sourceVersion: "narrative-resolution/1",
+      required: true
+    }, {
+      projectionKey: "scene-visible",
+      kind: "SCENE_VISIBLE",
+      payload: task.knowledgeEnvelope.visibleSituation,
+      ownerId: "application/playable-scene",
+      sourceRefs: [`playable-scene:${input.activeScene.sceneId}:${input.activeScene.version}`],
+      consistency: "SCENE_REVISION",
+      sourceVersion: input.activeScene.contractVersion,
+      required: true
+    }, {
+      projectionKey: "npc-public-profile",
+      kind: "NPC_PUBLIC_PROFILE",
+      payload: { actorId: task.actorId, conversationProfileContract: task.conversationProfileContract },
+      ownerId: "application/npc-conversation-profile",
+      sourceRefs: [outputProfileRef],
+      classification: "ROLE_PRIVATE",
+      consistency: "SCENE_REVISION",
+      sourceVersion: "npc-conversation-profile/1",
+      dependencyProjectionKeys: ["scene-visible"],
+      required: true
+    }, {
+      projectionKey: "npc-private-context",
+      kind: "NPC_ROLE_PRIVATE_CONTEXT",
+      payload: task.knowledgeEnvelope,
+      ownerId: "application/npc-knowledge-context",
+      sourceRefs: task.knowledgeEnvelope.allowedSourceRefs,
+      classification: "ROLE_PRIVATE",
+      consistency: "SCENE_REVISION",
+      sourceVersion: "npc-knowledge-envelope/1",
+      dependencyProjectionKeys: ["scene-visible", "npc-public-profile"],
+      required: false
+    }, {
+      projectionKey: "npc-disclosure",
+      kind: "NPC_DISCLOSURE",
+      payload: task.informationDisclosure,
+      ownerId: "application/npc-information-performance",
+      sourceRefs: task.informationDisclosure?.allowedSourceRefs ?? [`actor:${input.actorId}:disclosure:none`],
+      sourceVersion: "npc-information-performer-projection/1",
+      dependencyProjectionKeys: ["npc-private-context"],
+      required: false
+    }]
+  });
+  const roleContextPack = preparedContext.roleContextPack;
   const declaredInputTokenBudget = input.config.route.inputTokenLimit;
   const packetReceipt = measureNpcPerformerPacketV1(
     { roleContextPack, task } as unknown as JsonObject,
@@ -1038,7 +1134,7 @@ async function buildNpcPerformerRequestV1(input: {
     role: input.config.route.role,
     contractVersion: NPC_PERFORMER_CONTRACT_VERSION_V1,
     modelRouteId: input.config.route.routeId,
-    contextFingerprint: await computeJsonFingerprint({ roleContextPack, task: measuredTask }) as `sha256:${string}`,
+    contextFingerprint: await computeJsonFingerprint({ contextManifest: preparedContext.manifest, task: measuredTask }) as `sha256:${string}`,
     idempotencyKey: `${input.operationId}:npc-performer`,
     input: {
       instructionsRef: "npc-performer/minimal/v1",

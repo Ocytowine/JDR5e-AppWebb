@@ -41,9 +41,11 @@ interface CapturedPerformerTask {
 }
 
 const capturedTasks: CapturedPerformerTask[] = [];
+const capturedRequests: AiCallRequestV1[] = [];
 const localPerformer = new LocalNpcPerformerProviderV1();
 const capturingProvider: ContractAiProviderV1 = {
   async generate(request: AiCallRequestV1): Promise<unknown> {
+    capturedRequests.push(structuredClone(request));
     capturedTasks.push(request.input.task as CapturedPerformerTask);
     return localPerformer.generate(request);
   }
@@ -121,6 +123,12 @@ async function main(): Promise<void> {
   assert.equal(capturedTasks[1]?.conversationProfileContract?.priorProfile?.actorId, "npc:npc-serveuse-nerveuse");
   assert.equal(capturedTasks[1]?.conversationProfileContract?.priorProfile?.continuityRevision, 1);
   assert.equal(capturedTasks.every(task => task.mjPlan === undefined && task.resolution === undefined && task.sceneState === undefined), true, "le paquet performer ne duplique plus les agrégats et plans complets");
+  assert.equal(capturedTasks.every(task => !("rawInput" in task)), true, "le performer ne reçoit jamais la saisie brute déjà interprétée");
+  assert.equal(capturedRequests.every(request => {
+    const pack = request.input.roleContextPack as Record<string, unknown>;
+    return Object.keys(pack).sort().join("|") === "authority|contextManifestRef|schemaVersion|taskContextRef";
+  }), true, "le roleContextPack du performer reste un pointeur sans seconde scène ni acteur");
+  assert.equal(capturedRequests.every(request => !JSON.stringify(request.input.roleContextPack).includes("visibleActor")), true);
   assert.equal(transition.resolution.resultKind, "HANDOFF_REQUIRED", "la transition de scène fermée produit un handoff");
   assert.equal(transition.noCommit, true, "la transition fermée ne committe rien");
   assert.equal(

@@ -18,6 +18,7 @@ import {
   type PlotStateV1
 } from "./plotAuthority";
 import type { PlayableSceneStateV1 } from "./playableScene";
+import { prepareNarrativeRoleContextV1 } from "./narrativeContextManifest";
 
 export const PLOT_CANDIDATE_CONTRACT_V1 = "plot-candidate/1" as const;
 
@@ -140,7 +141,7 @@ export async function generatePlotCandidateV1(input: {
   context: PlotGenerationContextV1;
   config: PlotCandidateGeneratorConfigV1;
 }): Promise<PlotCandidateGenerationResultV1> {
-  const roleContextPack = {
+  const context = {
     schemaVersion: 1,
     authority: "PROPOSE_ONLY",
     context: input.context,
@@ -154,23 +155,53 @@ export async function generatePlotCandidateV1(input: {
       "Ne révéler la vérité cachée dans aucun signe public."
     ]
   };
-  const task = { requiredOutput: PLOT_CANDIDATE_CONTRACT_V1 };
+  const task = { context, requiredOutput: PLOT_CANDIDATE_CONTRACT_V1 };
+  const snapshotId = `${input.operationId}:snapshot:plot-candidate`;
+  const preparedContext = prepareNarrativeRoleContextV1({
+    manifestId: `${input.operationId}:context-manifest:plot-candidate`,
+    operationId: input.operationId,
+    campaignId: input.campaignId,
+    snapshot: { snapshotId, campaignRevision: null, sceneId: null, sceneVersion: null },
+    role: "scene_creator",
+    profileId: `${input.operationId}:plot-candidate-creation`,
+    purpose: "Proposer une intrigue depuis les seuls acteurs, lieux, signaux et sources autorisés.",
+    taskContextRef: "task.context",
+    authority: "PROPOSE_ONLY",
+    projections: [{
+      projectionKey: "creation-brief",
+      kind: "CREATION_BRIEF",
+      payload: context.context,
+      ownerId: "application/plot-preparation",
+      sourceRefs: input.context.allowedSourceRefs,
+      sourceVersion: "plot-generation-context/1",
+      required: true
+    }, {
+      projectionKey: "creation-policy",
+      kind: "CREATION_POLICY",
+      payload: context.constraints,
+      ownerId: "application/plot-authority",
+      sourceRefs: input.context.allowedSourceRefs,
+      sourceVersion: "plot-creation-policy/1",
+      required: true
+    }]
+  });
+  const roleContextPack = preparedContext.roleContextPack;
   const request = {
     schemaVersion: 1 as const,
     callId: `${input.operationId}:ai:plot-candidate:call`,
     operationId: input.operationId,
     attemptId: `${input.operationId}:ai:plot-candidate:attempt:1`,
     campaignId: input.campaignId,
-    snapshotId: `${input.operationId}:snapshot:plot-candidate`,
+    snapshotId,
     packId: `${input.operationId}:pack:plot-candidate`,
     role: "scene_creator" as const,
     contractVersion: PLOT_CANDIDATE_CONTRACT_V1,
     modelRouteId: input.config.route.routeId,
-    contextFingerprint: await computeJsonFingerprint({ roleContextPack, task }) as `sha256:${string}`,
+    contextFingerprint: await computeJsonFingerprint({ contextManifest: preparedContext.manifest, task }) as `sha256:${string}`,
     idempotencyKey: `${input.operationId}:plot-candidate`,
     input: { instructionsRef: "scene-creator/plot-candidate/v1", roleContextPack, task },
     limits: {
-      inputTokenBudget: Math.min(4_000, input.config.route.inputTokenLimit),
+      inputTokenBudget: input.config.route.inputTokenLimit,
       outputTokenBudget: Math.min(4_000, input.config.route.outputTokenLimit),
       timeoutMs: input.config.route.timeoutMs
     }
@@ -394,7 +425,7 @@ async function auditPlotCandidateMotivationsV1(input: {
   candidate: PlotCandidateV1;
   config: PlotCandidateGeneratorConfigV1;
 }): Promise<{ accepted: boolean; issues: string[]; telemetry: AiCallTelemetryV1[] }> {
-  const roleContextPack = {
+  const criticEvidence = {
     schemaVersion: 1,
     authority: "PLOT_MOTIVATION_COHERENCE_ONLY",
     hiddenTruth: input.candidate.hiddenTruth,
@@ -403,7 +434,37 @@ async function auditPlotCandidateMotivationsV1(input: {
     actorPerspectives: input.candidate.actorPerspectives,
     commitments: input.candidate.commitments
   };
-  const task = { plotCandidateMotivationAudit: true, candidateId: input.candidate.candidateId };
+  const task = { plotCandidateMotivationAudit: true, candidateId: input.candidate.candidateId, context: criticEvidence };
+  const snapshotId = `${input.operationId}:snapshot:plot-motivation-critic`;
+  const preparedContext = prepareNarrativeRoleContextV1({
+    manifestId: `${input.operationId}:context-manifest:plot-motivation-critic`,
+    operationId: input.operationId,
+    campaignId: input.campaignId,
+    snapshot: { snapshotId, campaignRevision: null, sceneId: null, sceneVersion: null },
+    role: "coherence_critic",
+    profileId: `${input.operationId}:plot-motivation-coherence-review`,
+    purpose: "Comparer les motivations candidates aux étapes et perspectives attribuées.",
+    taskContextRef: "task.context",
+    authority: "PLOT_MOTIVATION_COHERENCE_ONLY",
+    projections: [{
+      projectionKey: "candidate-output",
+      kind: "CANDIDATE_OUTPUT",
+      payload: criticEvidence,
+      ownerId: "application/plot-candidate-generation",
+      sourceRefs: input.candidate.sourceRefs,
+      sourceVersion: "plot-candidate/1",
+      required: true
+    }, {
+      projectionKey: "coherence-invariants",
+      kind: "COHERENCE_INVARIANTS",
+      payload: { audit: "actor motivation causal coherence" },
+      ownerId: "application/plot-authority",
+      sourceRefs: [input.candidate.candidateId],
+      sourceVersion: "plot-motivation-coherence/1",
+      required: true
+    }]
+  });
+  const roleContextPack = preparedContext.roleContextPack;
   const run = await runAiPipelineCallV1({
     provider: input.config.provider,
     route: input.config.coherenceCriticRoute,
@@ -414,16 +475,16 @@ async function auditPlotCandidateMotivationsV1(input: {
       operationId: input.operationId,
       attemptId: `${input.operationId}:ai:plot-motivation-critic:attempt:1`,
       campaignId: input.campaignId,
-      snapshotId: `${input.operationId}:snapshot:plot-motivation-critic`,
+      snapshotId,
       packId: `${input.operationId}:pack:plot-motivation-critic`,
       role: "coherence_critic",
       contractVersion: "narrative-ai-resolution/1",
       modelRouteId: input.config.coherenceCriticRoute.routeId,
-      contextFingerprint: await computeJsonFingerprint({ roleContextPack, task }) as `sha256:${string}`,
+      contextFingerprint: await computeJsonFingerprint({ contextManifest: preparedContext.manifest, task }) as `sha256:${string}`,
       idempotencyKey: `${input.operationId}:plot-motivation-critic`,
       input: { instructionsRef: "coherence-critic/plot-motivation/v1", roleContextPack, task },
       limits: {
-        inputTokenBudget: Math.min(1_600, input.config.coherenceCriticRoute.inputTokenLimit),
+        inputTokenBudget: input.config.coherenceCriticRoute.inputTokenLimit,
         outputTokenBudget: Math.min(1_600, input.config.coherenceCriticRoute.outputTokenLimit),
         timeoutMs: input.config.coherenceCriticRoute.timeoutMs
       }

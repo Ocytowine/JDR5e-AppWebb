@@ -1799,7 +1799,7 @@ const prototypeExpressionRoute: AiModelRouteV1 = {
   modelConfigVersion: "i06h",
   certified: true,
   allowedContractVersions: ["narrative-ai-resolution/1"],
-  inputTokenLimit: 2_000,
+  inputTokenLimit: 3_000,
   outputTokenLimit: 1_000,
   timeoutMs: 1_000,
   fallbackRouteIds: []
@@ -1815,7 +1815,7 @@ const prototypeSceneWriterRoute: AiModelRouteV1 = {
   modelConfigVersion: "i06h",
   certified: true,
   allowedContractVersions: ["narrative-ai-resolution/1"],
-  inputTokenLimit: 2_000,
+  inputTokenLimit: 4_000,
   outputTokenLimit: 2_500,
   timeoutMs: 30_000,
   fallbackRouteIds: []
@@ -1839,7 +1839,7 @@ const prototypeCoherenceCriticRoute: AiModelRouteV1 = {
   modelConfigVersion: "render-authority-v1",
   certified: true,
   allowedContractVersions: ["narrative-ai-resolution/1"],
-  inputTokenLimit: 2_000,
+  inputTokenLimit: 4_000,
   outputTokenLimit: 1_600,
   timeoutMs: 30_000,
   fallbackRouteIds: []

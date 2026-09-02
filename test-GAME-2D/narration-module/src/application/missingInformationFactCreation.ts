@@ -24,6 +24,7 @@ import {
 import { loadCampaignFactRegistryV1, loadNarrativeActorRegistryV1, mutateCampaignFactV1 } from "./campaignFactRuntime";
 import type { ResolvedInformationCandidateV1 } from "./npcInformationResolution";
 import type { TargetedLoreMissingPropertyV1 } from "./targetedLoreInformationLookup";
+import { prepareNarrativeRoleContextV1 } from "./narrativeContextManifest";
 
 export const MISSING_INFORMATION_FACT_PROPOSAL_CONTRACT_V1 =
   "missing-information-fact-proposal/1" as const;
@@ -238,7 +239,7 @@ async function buildProposalRequest(input: {
   supportingCandidates: ResolvedInformationCandidateV1[];
   config: MissingInformationFactGeneratorConfigV1;
 }): Promise<AiCallRequestV1> {
-  const roleContextPack = {
+  const context = {
     schemaVersion: 1,
     authority: "PROPOSE_ONLY_NO_COMMIT",
     target: {
@@ -260,23 +261,61 @@ async function buildProposalRequest(input: {
       "do not commit or choose persistence"
     ]
   };
-  const task = { requiredOutput: MISSING_INFORMATION_FACT_PROPOSAL_CONTRACT_V1 };
+  const task = { context, requiredOutput: MISSING_INFORMATION_FACT_PROPOSAL_CONTRACT_V1 };
+  const snapshotId = `${input.operationId}:snapshot:missing-information-fact`;
+  const preparedContext = prepareNarrativeRoleContextV1({
+    manifestId: `${input.operationId}:context-manifest:missing-information-fact`,
+    operationId: input.operationId,
+    campaignId: input.campaignId,
+    snapshot: { snapshotId, campaignRevision: null, sceneId: null, sceneVersion: null },
+    role: "scene_creator",
+    profileId: `${input.operationId}:missing-public-fact-creation`,
+    purpose: "Proposer uniquement la valeur publique explicitement manquante.",
+    taskContextRef: "task.context",
+    authority: "PROPOSE_ONLY_NO_COMMIT",
+    projections: [{
+      projectionKey: "missing-fact-target",
+      kind: "MISSING_FACT_TARGET",
+      payload: context.target,
+      ownerId: "application/targeted-lore-information-lookup",
+      sourceRefs: [input.property.propertyRef, input.property.subjectRef],
+      sourceVersion: "targeted-lore-missing-property/1",
+      required: true
+    }, {
+      projectionKey: "creation-policy",
+      kind: "CREATION_POLICY",
+      payload: context.constraints,
+      ownerId: "application/missing-information-fact-creation",
+      sourceRefs: [input.property.propertyRef],
+      sourceVersion: "missing-information-fact-policy/1",
+      required: true
+    }, {
+      projectionKey: "public-sources",
+      kind: "PUBLIC_SOURCE_REFS",
+      payload: context.publicContextFacts,
+      ownerId: "application/campaign-information-lookup",
+      sourceRefs: context.publicContextFacts.flatMap(fact => fact.sourceRefs),
+      sourceVersion: "resolved-information-candidates/1",
+      required: false
+    }]
+  });
+  const roleContextPack = preparedContext.roleContextPack;
   return {
     schemaVersion: 1,
     callId: `${input.operationId}:ai:missing-information-fact:call`,
     operationId: input.operationId,
     attemptId: `${input.operationId}:ai:missing-information-fact:attempt:1`,
     campaignId: input.campaignId,
-    snapshotId: `${input.operationId}:snapshot:missing-information-fact`,
+    snapshotId,
     packId: `${input.operationId}:pack:missing-information-fact`,
     role: "scene_creator",
     contractVersion: MISSING_INFORMATION_FACT_PROPOSAL_CONTRACT_V1,
     modelRouteId: input.config.route.routeId,
-    contextFingerprint: await computeJsonFingerprint({ roleContextPack, task }) as `sha256:${string}`,
+    contextFingerprint: await computeJsonFingerprint({ contextManifest: preparedContext.manifest, task }) as `sha256:${string}`,
     idempotencyKey: `${input.operationId}:missing-information-fact:${input.property.propertyRef}`,
     input: { instructionsRef: "scene-creator/missing-information-fact/v1", roleContextPack, task },
     limits: {
-      inputTokenBudget: Math.min(2_000, input.config.route.inputTokenLimit),
+      inputTokenBudget: input.config.route.inputTokenLimit,
       outputTokenBudget: Math.min(600, input.config.route.outputTokenLimit),
       timeoutMs: input.config.route.timeoutMs
     }

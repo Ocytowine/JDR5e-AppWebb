@@ -4,6 +4,7 @@ import {
   liveOpenAiEnabledV1,
   loadOpenAiApiKeyV1,
   MINIMAL_AI_OUTPUT_JSON_SCHEMA_V1,
+  measureOpenAiInputBudgetV1,
   OpenAiContractAiProviderV1,
   OpenAiResponsesProviderV1,
   type AiCallRequestV1,
@@ -130,6 +131,25 @@ async function run(): Promise<void> {
   assert.equal(text.format?.strict, true);
   assert.equal(text.format?.schema?.additionalProperties, false);
   console.log("PASS [openai-provider] Responses request uses strict structured output schema");
+
+  const measuredInput = measureOpenAiInputBudgetV1(request(), route(), MINIMAL_AI_OUTPUT_JSON_SCHEMA_V1);
+  assert.equal(measuredInput.contractVersion, "narrative-provider-input-budget/1");
+  assert.equal(measuredInput.withinBudget, true);
+  let overBudgetCalled = false;
+  const overBudgetProvider = new OpenAiResponsesProviderV1({
+    apiKey: "sk-test-secret",
+    fetchImpl: (async () => {
+      overBudgetCalled = true;
+      return response(200, {});
+    }) as OpenAiFetchV1
+  });
+  const overBudget = await overBudgetProvider.call(request({
+    limits: { inputTokenBudget: 1, outputTokenBudget: 400, timeoutMs: 2_000 }
+  }), route());
+  assert.equal(overBudget.ok, false);
+  assert.equal(overBudgetCalled, false);
+  if (!overBudget.ok) assert.equal(overBudget.category, "BUDGET_EXCEEDED");
+  console.log("PASS [openai-provider] serialized input budget is enforced before direct network transport");
 
   let called = false;
   const noKeyProvider = new OpenAiResponsesProviderV1({

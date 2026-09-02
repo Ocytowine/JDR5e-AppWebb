@@ -158,7 +158,11 @@ Les simulations longues sont disponibles avec `npm run verify:world-simulation:l
   identité et fait intégrés au commit atomique du tour, sélecteurs factuels non
   vides, budget du rôle créatif conditionnel, puis relecture avant réponse. La
   formulation réelle « Qui est le roi ? » est couverte sans routeur lexical.
-  J10-J4 est ouvert.
+  J10-K0 à K3 rationalisent maintenant le contexte par rôle : manifeste local,
+  projection V8 unique, catalogue sémantique compact, puis paquets minimaux
+  pour performer, writer, creators et critics sans saisie brute hors rôle
+  autorisé. J10-K4 doit maintenant rendre les budgets réellement applicables.
+  J10-J4 reprendra après la stabilisation J10-K.
   Les causes et catalogues de bastion réellement jouables, l'économie de
   campagne et la mémoire sociale longue restent à construire.
 - `test-GAME-2D/scripts/` : generation de catalogues et scripts de verification.

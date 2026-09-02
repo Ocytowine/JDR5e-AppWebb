@@ -4,6 +4,8 @@ import type { JsonObject } from "../core";
 
 export const LORE_INFORMATION_SEMANTIC_CATALOG_CONTRACT_V1 =
   "lore-information-semantic-catalog/1" as const;
+export const LORE_INFORMATION_INTERPRETER_PROJECTION_CONTRACT_V1 =
+  "lore-information-interpreter-projection/1" as const;
 
 export interface LoreInformationSemanticCatalogV1 extends JsonObject {
   schemaVersion: 1;
@@ -33,6 +35,86 @@ export interface LoreInformationSemanticCatalogV1 extends JsonObject {
   authority: "REFERENCE_ONLY_NO_FACT_VALUES";
   noCommit: true;
   version: 1;
+}
+
+export interface LoreInformationInterpreterProjectionV1 extends JsonObject {
+  schemaVersion: 1;
+  contractVersion: typeof LORE_INFORMATION_INTERPRETER_PROJECTION_CONTRACT_V1;
+  anchorSubjectRef: string;
+  subjectColumns: ["ref", "label", "entityType"];
+  subjects: Array<[string, string, string]>;
+  propertyColumns: [
+    "ref",
+    "subjectRef",
+    "fieldPath",
+    "label",
+    "availability",
+    "knowledgeLevel",
+    "creationMode",
+    "identityRolePropertyRef"
+  ];
+  properties: Array<[
+    string,
+    string,
+    string,
+    string,
+    "PRESENT" | "DECLARED_MISSING",
+    "COMMUN" | "LOCAL",
+    "FORBIDDEN" | "TEXT" | "IDENTITY",
+    string | null
+  ]>;
+  relationColumns: ["ref", "sourceSubjectRef", "targetSubjectRef", "label"];
+  relations: Array<[string, string, string, string]>;
+  authority: "REFERENCE_ONLY_NO_FACT_VALUES";
+  noCommit: true;
+  version: 1;
+}
+
+/**
+ * Projection de transport sans perte du catalogue canonique. Les colonnes
+ * explicites rendent chaque ligne reconstructible tout en évitant de répéter
+ * les mêmes clés JSON pour chaque sujet, propriété et relation.
+ */
+export function projectLoreInformationCatalogForInterpreterV1(
+  catalog: LoreInformationSemanticCatalogV1
+): LoreInformationInterpreterProjectionV1 {
+  return {
+    schemaVersion: 1,
+    contractVersion: LORE_INFORMATION_INTERPRETER_PROJECTION_CONTRACT_V1,
+    anchorSubjectRef: catalog.anchorSubjectRef,
+    subjectColumns: ["ref", "label", "entityType"],
+    subjects: catalog.subjects.map(subject => [subject.ref, subject.label, subject.entityType]),
+    propertyColumns: [
+      "ref",
+      "subjectRef",
+      "fieldPath",
+      "label",
+      "availability",
+      "knowledgeLevel",
+      "creationMode",
+      "identityRolePropertyRef"
+    ],
+    properties: catalog.properties.map(property => [
+      property.ref,
+      property.subjectRef,
+      property.fieldPath,
+      property.label,
+      property.availability,
+      property.knowledgeLevel,
+      property.creationMode,
+      property.identityRolePropertyRef
+    ]),
+    relationColumns: ["ref", "sourceSubjectRef", "targetSubjectRef", "label"],
+    relations: catalog.relations.map(relation => [
+      relation.ref,
+      relation.sourceSubjectRef,
+      relation.targetSubjectRef,
+      relation.label
+    ]),
+    authority: catalog.authority,
+    noCommit: true,
+    version: 1
+  };
 }
 
 const PUBLIC_LEVELS = new Set<LoreKnowledgeLevelV1>(["COMMUN", "LOCAL"]);

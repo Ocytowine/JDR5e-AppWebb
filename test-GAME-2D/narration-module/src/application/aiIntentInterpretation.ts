@@ -49,6 +49,10 @@ import { buildInterpreterEmbodiedPublicContextV1 } from "./interpreterEmbodiedCo
 import { buildOpenSemanticExecutionPlanV1 } from "./openSemanticExecution";
 import type { LocalInteractionFocusV1 } from "./localInteractionFocus";
 import type { LoreInformationSemanticCatalogV1 } from "./loreInformationSemanticCatalog";
+import {
+  buildPlayerIntentContextManifestV1,
+  validateNarrativeContextManifestV1
+} from "./narrativeContextManifest";
 
 export const AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V1 = "ai-intent-interpretation/1" as const;
 export const AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V2 = "ai-intent-semantic/2" as const;
@@ -787,7 +791,7 @@ async function buildIntentInterpreterRequestV1(input: {
     input.config.contractVersion === AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V7 ||
     input.config.contractVersion === AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V8;
   const usesOpenSemanticContract = input.config.contractVersion === AI_INTENT_INTERPRETATION_CONTRACT_VERSION_V8;
-  const context = usesSemanticContract
+  const legacyContext = usesSemanticContract
     ? {
       schemaVersion: 1,
       sceneId: playableScene.sceneId,
@@ -834,8 +838,33 @@ async function buildIntentInterpreterRequestV1(input: {
         informationCatalog
       })
     : null;
+  const contextManifest = usesOpenSemanticContract && embodiedContext !== null
+    ? buildPlayerIntentContextManifestV1({
+        manifestId: `${input.operationId}:context-manifest:intent`,
+        operationId: input.operationId,
+        campaignId: input.campaignId,
+        snapshotId,
+        sceneVersion: playableScene.version,
+        rawInput: input.rawInput,
+        embodiedContext
+      })
+    : null;
+  if (contextManifest !== null) {
+    const validation = validateNarrativeContextManifestV1(contextManifest);
+    if (!validation.ok) {
+      throw new Error(`Invalid player intent context manifest: ${validation.issues.join("; ")}`);
+    }
+  }
+  const context = usesOpenSemanticContract
+    ? {
+        schemaVersion: 1,
+        contextManifestRef: contextManifest?.manifestId ?? null,
+        embodiedContextRef: embodiedContext === null ? null : "task.embodiedContext",
+        authority: "SEMANTIC_INTERPRETATION_ONLY"
+      } satisfies JsonObject
+    : legacyContext;
   const contextFingerprintMaterial = usesOpenSemanticContract
-    ? { roleContextPack: context, embodiedContext }
+    ? { contextManifest, embodiedContext }
     : {
         roleContextPack: context,
         localReferentHints,
@@ -898,10 +927,7 @@ async function buildIntentInterpreterRequestV1(input: {
       task
     },
     limits: {
-      inputTokenBudget: Math.min(
-        usesOpenSemanticContract ? 4_000 : 2_000,
-        input.config.route.inputTokenLimit
-      ),
+      inputTokenBudget: input.config.route.inputTokenLimit,
       outputTokenBudget: Math.min(1_600, input.config.route.outputTokenLimit),
       timeoutMs: input.config.route.timeoutMs
     }

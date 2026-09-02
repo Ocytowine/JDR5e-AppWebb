@@ -19,6 +19,10 @@ const MISSING_INFORMATION_FACT_PROPOSAL_CONTRACT_V1 = "missing-information-fact-
 const DESTINATION_ARBITER_CONTRACT_VERSION = "destination-plausibility-arbitration/1";
 const DEFAULT_MODEL = "gpt-4.1-mini";
 const DEFAULT_SCENE_CREATOR_MODEL = "gpt-5.6-luna";
+const PROVIDER_INPUT_BUDGET_CONTRACT_VERSION = "narrative-provider-input-budget/1";
+const INPUT_ESTIMATE_CHARACTERS_PER_TOKEN = 4;
+const INPUT_ESTIMATE_MARGIN_RATIO = 0.15;
+const INPUT_ESTIMATE_PROVIDER_RESERVE_TOKENS = 64;
 
 // Source active pour la route serveur: le schéma est construit par requête afin
 // de verrouiller le rôle, le contrat et le payload attendus, notamment pour
@@ -125,6 +129,10 @@ const STRICT_AI_OUTPUT_SCHEMA = {
   }
 };
 
+function projectedRoleContext(request) {
+  return request?.input?.task?.context ?? request?.input?.roleContextPack ?? {};
+}
+
 function buildRolePayloadSchema(requestOrRole) {
   const role = typeof requestOrRole === "string" ? requestOrRole : requestOrRole.role;
   if (role === "destination_arbiter") {
@@ -163,8 +171,9 @@ function buildRolePayloadSchema(requestOrRole) {
     };
   }
   if (role === "scene_creator") {
+    const projectedContext = projectedRoleContext(requestOrRole);
     if (requestOrRole?.contractVersion === MISSING_INFORMATION_FACT_PROPOSAL_CONTRACT_V1) {
-      const target = requestOrRole?.input?.roleContextPack?.target ?? {};
+      const target = projectedContext.target ?? {};
       return {
         type: "object",
         additionalProperties: false,
@@ -182,14 +191,14 @@ function buildRolePayloadSchema(requestOrRole) {
       return buildPlotCandidatePayloadSchemaV1(requestOrRole);
     }
     const stringArray = { type: "array", items: { type: "string" } };
-    const allowedParentLocationRefs = Array.isArray(requestOrRole?.input?.roleContextPack?.allowedParentLocationRefs)
-      ? requestOrRole.input.roleContextPack.allowedParentLocationRefs.filter(ref => typeof ref === "string" && ref.trim().length > 0)
+    const allowedParentLocationRefs = Array.isArray(projectedContext.allowedParentLocationRefs)
+      ? projectedContext.allowedParentLocationRefs.filter(ref => typeof ref === "string" && ref.trim().length > 0)
       : [];
     const parentLocationRefSchema = allowedParentLocationRefs.length > 0
       ? { type: "string", enum: allowedParentLocationRefs }
       : { type: "string" };
-    const allowedPersistenceDepths = Array.isArray(requestOrRole?.input?.roleContextPack?.allowedPersistenceDepths)
-      ? requestOrRole.input.roleContextPack.allowedPersistenceDepths.filter(depth => ["LIGHT_REFERENCE", "FULL_ENTITY"].includes(depth))
+    const allowedPersistenceDepths = Array.isArray(projectedContext.allowedPersistenceDepths)
+      ? projectedContext.allowedPersistenceDepths.filter(depth => ["LIGHT_REFERENCE", "FULL_ENTITY"].includes(depth))
       : [];
     const v2 = typeof requestOrRole === "object" && requestOrRole.contractVersion === SCENE_CREATOR_CONTRACT_VERSION_V2;
     const required = ["proposalId", "requestedDepth", "displayName", "summary", "initialTension", "perceptibleFeatures", "populationRoles", "localNorms", "proposedPlaceRef", "arrivalSceneId", "parentLocationRef", "reason", "expectedEffects", "narrativeCommitments", "duplicatePolicy"];
@@ -830,7 +839,7 @@ function buildRolePayloadSchema(requestOrRole) {
 }
 
 function buildPlotCandidatePayloadSchemaV1(request) {
-  const context = request?.input?.roleContextPack?.context ?? {};
+  const context = projectedRoleContext(request).context ?? {};
   const sourceRefs = Array.isArray(context.allowedSourceRefs) ? context.allowedSourceRefs.filter(value => typeof value === "string") : [];
   const actorRefs = Array.isArray(context.allowedActorRefs) ? context.allowedActorRefs.filter(value => typeof value === "string") : [];
   const locationRefs = [...new Set([context.sceneId, ...(Array.isArray(context.allowedLocationRefs) ? context.allowedLocationRefs : [])].filter(value => typeof value === "string"))];
@@ -1038,7 +1047,26 @@ function createNarrativeOpenAiEnhancementApi(options) {
       }
 
       const route = buildServerRoute(request.value, env);
-      const openAiBody = buildOpenAiResponsesBody(request.value, route);
+      const preparedInput = prepareOpenAiInputWithinBudget(request.value, route);
+      if (!preparedInput.ok) {
+        return sendJson(res, 200, {
+          ok: false,
+          error: "OPENAI_INPUT_BUDGET_EXCEEDED",
+          output: errorEnvelope(
+            request.value,
+            "OPENAI_INPUT_BUDGET_EXCEEDED",
+            `Le paquet fournisseur exige environ ${preparedInput.report.estimatedInputTokens} jetons pour un plafond de ${preparedInput.report.inputTokenBudget}; aucun contenu autoritaire n'a été tronqué.`
+          ),
+          metrics: buildServerTelemetry({
+            request: request.value,
+            route,
+            startedAtMs,
+            finishReason: "input_budget_exceeded",
+            budgetReport: preparedInput.report
+          })
+        });
+      }
+      const openAiBody = preparedInput.body;
       const response = await fetchImpl("https://api.openai.com/v1/responses", {
         method: "POST",
         headers: {
@@ -1117,21 +1145,16 @@ function createNarrativeOpenAiEnhancementApi(options) {
       return sendJson(res, 200, {
         ok: true,
         output: normalizedOutput,
-        metrics: {
-          providerId: "openai",
-          modelId: route.modelId,
-          reasoningEffort: route.reasoningEffort,
-          role: request.value.role,
-          latencyMs: Date.now() - startedAtMs,
+        metrics: buildServerTelemetry({
+          request: request.value,
+          route,
+          startedAtMs,
+          finishReason: typeof data?.status === "string" ? data.status : null,
           inputTokens: Number.isInteger(data?.usage?.input_tokens) ? data.usage.input_tokens : null,
           outputTokens: Number.isInteger(data?.usage?.output_tokens) ? data.usage.output_tokens : null,
           totalTokens: Number.isInteger(data?.usage?.total_tokens) ? data.usage.total_tokens : null,
-          finishReason: typeof data?.status === "string" ? data.status : null,
-          inputTokenBudget: request.value.limits.inputTokenBudget,
-          outputTokenBudget: request.value.limits.outputTokenBudget,
-          contextChars: JSON.stringify(request.value.input).length,
-          schemaChars: JSON.stringify(buildStrictAiOutputSchema(request.value)).length
-        }
+          budgetReport: preparedInput.report
+        })
       });
     } catch (error) {
       if (normalizedRequest !== null) {
@@ -1571,11 +1594,13 @@ function normalizeAiCallRequest(value) {
   if (!request.limits || typeof request.limits !== "object") {
     issues.push("limits must be an object.");
   } else {
-    const maxInputTokenBudget = request.role === "destination_arbiter" || request.role === "npc_performer"
-      ? 8_000
-      : request.contractVersion === PLOT_CANDIDATE_CONTRACT_VERSION_V1
+    const maxInputTokenBudget = request.role === "player_expression_adapter"
+      ? 3_000
+      : request.role === "coherence_critic"
         ? 4_000
-        : 2_000;
+        : request.role === "scene_writer" || request.role === "mj_planner"
+          ? 4_000
+          : 8_000;
     if (!Number.isInteger(request.limits.inputTokenBudget) || request.limits.inputTokenBudget <= 0 || request.limits.inputTokenBudget > maxInputTokenBudget) {
       issues.push(`limits.inputTokenBudget must be between 1 and ${maxInputTokenBudget}.`);
     }
@@ -1671,18 +1696,7 @@ function buildOpenAiResponsesBody(request, route) {
         role: "user",
         content: [{
           type: "input_text",
-          text: JSON.stringify({
-            schemaVersion: request.schemaVersion,
-            callId: request.callId,
-            outputIdHint: `${request.role}:${request.attemptId}`,
-            attemptId: request.attemptId,
-            packId: request.packId,
-            snapshotId: request.snapshotId,
-            role: request.role,
-            contractVersion: request.contractVersion,
-            task: request.input.task || {},
-            roleContextPack: request.input.roleContextPack || {}
-          })
+          text: JSON.stringify(providerUserPayload(request))
         }]
       }
     ],
@@ -1701,6 +1715,115 @@ function buildOpenAiResponsesBody(request, route) {
   return body;
 }
 
+function providerUserPayload(request) {
+  return {
+    schemaVersion: request.schemaVersion,
+    callId: request.callId,
+    outputIdHint: `${request.role}:${request.attemptId}`,
+    attemptId: request.attemptId,
+    packId: request.packId,
+    snapshotId: request.snapshotId,
+    role: request.role,
+    contractVersion: request.contractVersion,
+    task: request.input.task || {},
+    roleContextPack: request.input.roleContextPack || {}
+  };
+}
+
+function inputBudgetPolicyForRole(request) {
+  return {
+    policyId: `input-budget:${request.role}:preserve-authority/v1`,
+    removablePaths: ["input.task.packetReceipt"],
+    terminalAction: "REFUSE_IRREDUCIBLE"
+  };
+}
+
+function measureOpenAiInputBudget(request, route, appliedReductions = []) {
+  const body = buildOpenAiResponsesBody(request, route);
+  const instructionsChars = JSON.stringify(buildRoleInstructions(request)).length;
+  const taskContextChars = JSON.stringify(JSON.stringify(providerUserPayload(request))).length;
+  const schemaChars = JSON.stringify(body.text).length;
+  const serializedBodyChars = JSON.stringify(body).length;
+  const providerOverheadChars = Math.max(0, serializedBodyChars - instructionsChars - taskContextChars - schemaChars);
+  const baseEstimatedTokens = Math.ceil(serializedBodyChars / INPUT_ESTIMATE_CHARACTERS_PER_TOKEN);
+  const estimationMarginTokens = Math.max(
+    INPUT_ESTIMATE_PROVIDER_RESERVE_TOKENS,
+    Math.ceil(baseEstimatedTokens * INPUT_ESTIMATE_MARGIN_RATIO)
+  );
+  const estimatedInputTokens = baseEstimatedTokens + estimationMarginTokens;
+  const policy = inputBudgetPolicyForRole(request);
+  return {
+    contractVersion: PROVIDER_INPUT_BUDGET_CONTRACT_VERSION,
+    estimationMethod: "SERIALIZED_BODY_CHARS_DIV_4_PLUS_15_PERCENT_MIN_64",
+    inputTokenBudget: request.limits.inputTokenBudget,
+    sections: {
+      instructions: { chars: instructionsChars, estimatedTokens: Math.ceil(instructionsChars / INPUT_ESTIMATE_CHARACTERS_PER_TOKEN) },
+      taskAndContext: { chars: taskContextChars, estimatedTokens: Math.ceil(taskContextChars / INPUT_ESTIMATE_CHARACTERS_PER_TOKEN) },
+      structuredOutputSchema: { chars: schemaChars, estimatedTokens: Math.ceil(schemaChars / INPUT_ESTIMATE_CHARACTERS_PER_TOKEN) },
+      providerEnvelope: { chars: providerOverheadChars, estimatedTokens: Math.ceil(providerOverheadChars / INPUT_ESTIMATE_CHARACTERS_PER_TOKEN) }
+    },
+    serializedBodyChars,
+    baseEstimatedTokens,
+    estimationMarginTokens,
+    estimatedInputTokens,
+    withinBudget: estimatedInputTokens <= request.limits.inputTokenBudget,
+    reductionPolicyId: policy.policyId,
+    appliedReductions,
+    terminalAction: policy.terminalAction
+  };
+}
+
+function prepareOpenAiInputWithinBudget(request, route) {
+  let effectiveRequest = request;
+  let report = measureOpenAiInputBudget(effectiveRequest, route);
+  const appliedReductions = [];
+  if (!report.withinBudget && request.input?.task && Object.prototype.hasOwnProperty.call(request.input.task, "packetReceipt")) {
+    effectiveRequest = {
+      ...request,
+      input: {
+        ...request.input,
+        task: { ...request.input.task }
+      }
+    };
+    delete effectiveRequest.input.task.packetReceipt;
+    appliedReductions.push("input.task.packetReceipt");
+    report = measureOpenAiInputBudget(effectiveRequest, route, appliedReductions);
+  }
+  return report.withinBudget
+    ? { ok: true, request: effectiveRequest, body: buildOpenAiResponsesBody(effectiveRequest, route), report }
+    : { ok: false, report };
+}
+
+function buildServerTelemetry(input) {
+  const inputTokens = Number.isInteger(input.inputTokens) ? input.inputTokens : null;
+  const report = input.budgetReport || measureOpenAiInputBudget(input.request, input.route);
+  return {
+    providerId: "openai",
+    modelId: input.route.modelId,
+    reasoningEffort: input.route.reasoningEffort,
+    role: input.request.role,
+    latencyMs: Date.now() - input.startedAtMs,
+    inputTokens,
+    outputTokens: Number.isInteger(input.outputTokens) ? input.outputTokens : null,
+    totalTokens: Number.isInteger(input.totalTokens) ? input.totalTokens : null,
+    finishReason: input.finishReason ?? null,
+    inputTokenBudget: input.request.limits.inputTokenBudget,
+    outputTokenBudget: input.request.limits.outputTokenBudget,
+    contextChars: report.sections.taskAndContext.chars,
+    schemaChars: report.sections.structuredOutputSchema.chars,
+    inputBudgetContractVersion: report.contractVersion,
+    inputBudgetStatus: report.withinBudget ? "WITHIN_BUDGET" : "REJECTED_OVER_BUDGET",
+    instructionsChars: report.sections.instructions.chars,
+    providerOverheadChars: report.sections.providerEnvelope.chars,
+    serializedBodyChars: report.serializedBodyChars,
+    estimatedInputTokens: report.estimatedInputTokens,
+    estimationMarginTokens: report.estimationMarginTokens,
+    actualInputTokenDelta: inputTokens === null ? null : inputTokens - report.estimatedInputTokens,
+    inputReductionPolicyId: report.reductionPolicyId,
+    appliedInputReductions: report.appliedReductions
+  };
+}
+
 function buildRoleInstructions(request) {
   const shared = [
     "Tu es une couche de rendu narratif post-resolution pour un jeu de role solo.",
@@ -1716,7 +1839,7 @@ function buildRoleInstructions(request) {
       return [
         "Tu proposes une unique valeur publique manquante depuis les faits publics fournis.",
         "Tu n'as aucune autorité de commit, de persistance, de divulgation ou de création supplémentaire.",
-        "Recopie exactement propertyRef et valueKind depuis roleContextPack.target.",
+        "Recopie exactement propertyRef et valueKind depuis task.context.target.",
         "generatedValue doit être concis, naturel et compatible avec publicContextFacts. Pour IDENTITY, propose uniquement un nom personnel; le rôle et l'identifiant sont construits par le propriétaire local.",
         "N'ajoute aucun secret, règle mécanique, engagement, titre ou entité au-delà de la valeur demandée.",
         ...shared
@@ -1726,7 +1849,7 @@ function buildRoleInstructions(request) {
       return [
         "Tu proposes un noyau d'intrigue dynamique pour un jeu de rôle fondé sur la volonté du joueur.",
         "Tu n'imposes aucune action, aucun ordre de scènes et aucune solution au joueur.",
-        "Tu n'as aucune autorité de commit. Utilise uniquement les acteurs, lieux et sourceRefs fournis dans roleContextPack.context.",
+        "Tu n'as aucune autorité de commit. Utilise uniquement les acteurs, lieux et sourceRefs fournis dans task.context.context.",
         "Crée une vérité cachée cohérente, une causalité déjà survenue, des perspectives distinctes, une révélation indispensable avec deux voies indépendantes et une fausse piste réfutable.",
         "actorMotivations donne à chaque acteur de causalTimeline une raison d'agir. Chaque supportsStepRefs doit viser une étape jouée par ce même acteur et la motivation doit rester compatible avec ce qu'il sait ou croit.",
         "Une croyance ou un mensonge d'acteur ne devient jamais une vérité objective. Une hypothèse du joueur ne modifie jamais hiddenTruth.",
@@ -1740,7 +1863,7 @@ function buildRoleInstructions(request) {
       "Tu proposes un lieu de jeu nouveau à partir du brief de lore fourni.",
       "Tu n'as aucune autorité de commit, de vérité durable, de création de PNJ présent ni de révélation de secret.",
       "Respecte strictConstraints comme canon, localGuidance comme guide local et regionalGuidance comme inspiration souple.",
-      "roleContextPack.epistemicContext sépare trois autorités. authoritativeTruths peut être traité comme vrai. campaignCommitments doit être préservé comme état déjà engagé. attributedTestimonies décrit seulement ce que des PNJ ont dit au personnage et ne prouve jamais la proposition.",
+      "task.context.epistemicContext sépare trois autorités. authoritativeTruths peut être traité comme vrai. campaignCommitments doit être préservé comme état déjà engagé. attributedTestimonies décrit seulement ce que des PNJ ont dit au personnage et ne prouve jamais la proposition.",
       "Une rumeur ou une incertitude peut guider une création cohérente, mais ne devient pas rétroactivement vraie. Si ta proposition matérialise un élément évoqué, il s'agit d'un nouveau choix de création encore soumis au runtime, jamais d'une confirmation automatique du témoignage.",
       "Ne révèle ni perspective privée, ni mensonge, ni degré de vérité caché. Si deux témoignages se contredisent, préserve leur attribution et construis seulement ce que les vérités et engagements autorisent.",
       "requestedDestinationName est un nom propre imposé seulement lorsqu'il n'est pas null: displayName doit alors conserver cette identité sans la remplacer par son passage, son entrée, son seuil ou sa route. Lorsqu'il est null, requestedDestinationDescription est une contrainte descriptive et tu choisis un nom propre naturel qui la satisfait; ne nomme pas littéralement le lieu 'une rue calme non loin'.",
@@ -1786,6 +1909,7 @@ function buildRoleInstructions(request) {
         "Tu interprètes le sens de la saisie du joueur sans produire de conséquence, de narration ni de décision de réussite.",
         "Le schéma Structured Output porte le contrat : ne répète pas sa structure et remplis chaque champ selon le sens complet et le contexte public fourni.",
         "task.embodiedContext est l'unique contexte incarné V8 : utilise son identité, récit personnel public, références nommables, connaissances acquises, scène, interlocuteur, focus, intentions récentes, compagnons et processus actif pour comprendre les ellipses et formulations contextuelles.",
+        "task.embodiedContext.informationCatalog est une projection tabulaire sans valeur factuelle : subjectColumns, propertyColumns et relationColumns nomment dans l'ordre les champs de chaque ligne de subjects, properties et relations. Interprète chaque ligne avec ses colonnes et recopie seulement les références publiées.",
         "Quand un pronom ou une ellipse désigne naturellement l'unique cible compatible du recentFocus ou de la recentIntention la plus récente, conserve cette continuité et recopie son targetRef dans proposedRef. Une approche, une observation ou une autre attention explicite peut établir ce focus sans constituer encore un dialogue. Demande une clarification seulement si plusieurs cibles compatibles restent réellement plausibles.",
         "Quand activeInterlocutor et recentIntentions établissent clairement un échange en cours, une relance elliptique reste adressée à cet interlocuteur sauf si le joueur change explicitement de destinataire ou formule réellement une demande hors fiction au MJ. Ne transforme pas une parole contextuelle en question générale au décor.",
         "Les références namedReferences sont REFERENCE_ONLY. Elles aident à reconnaître le sens mais ne prouvent jamais possession accessible, ressource, disponibilité, réussite ou droit d'exécution.",
@@ -1796,6 +1920,7 @@ function buildRoleInstructions(request) {
         "suggestedAction reste une description naturelle et ouverte de l'action comprise; n'y place jamais un identifiant technique de capacité.",
         "Pour chaque composante de parole, renseigne dialogueAct selon le sens et le contexte : INITIATE_CONVERSATION pour ouvrir ou saluer, ASK_QUESTION pour demander une information, MAKE_STATEMENT pour affirmer ou répondre, REQUEST_ACTION pour demander qu'un interlocuteur agisse, OTHER seulement si aucune de ces natures ne convient. Utilise null hors parole. contentGoal conserve le contenu adressé sans inventer de propos.",
         "Chaque composante fournit informationNeed. Utilise un objet uniquement pour une ASK_QUESTION qui demande un fait sur le monde, un acteur, un lieu, une procédure, un état, une cause ou une identité; sinon utilise null, notamment pour salutation, état personnel immédiat de l'interlocuteur, question rhétorique, déclaration, demande d'action et parole future conditionnelle. requestedDimension reste une description ouverte du fait recherché. Sélectionne proposedSubjectRef ou proposedScopeRefs, proposedPropertyRefs et completionPropertyRefs par leur sens public dans le catalogue fourni, même lorsque les mots du joueur sont approximatifs, synonymiques ou expriment un titre plutôt qu'un nom propre. Recopie uniquement les références publiques exactes fournies et n'invente jamais une référence ni une taxonomie depuis les mots du joueur. Pour une question factuelle UNDERSTOOD, le sujet ou la portée, au moins une propriété et au moins une propriété de complétude sont obligatoires. Si aucune combinaison publiée ne correspond suffisamment au sens demandé, utilise NEEDS_CLARIFICATION avec une question minimale au lieu de produire un besoin compris avec des sélecteurs vides. proposedRelationRefs peut rester vide lorsqu'aucune relation n'est nécessaire. sourceComponentId recopie exactement componentId. Tu identifies le besoin mais ne réponds pas, ne recherches pas le lore et ne décides ni vérité, connaissance du PNJ, divulgation ou création.",
+        "Pour une mention contextuelle définie, si un seul sujet public du catalogue est sémantiquement compatible et relié à l'ancre de la scène, sélectionne ce sujet. Demande une clarification uniquement si plusieurs sujets compatibles restent réellement plausibles; ne crée jamais de règle lexicale locale pour choisir.",
         "Pour chaque composante, compare son sens complet au playerFacingScope des entrées AVAILABLE ou HANDOFF_ONLY de runtimeCapabilities. Si une entrée couvre entièrement la composante, tu dois recopier son capabilityId exact dans suggestedCapabilityId et son domain dans suggestedDomain. La correspondance porte sur le sens et le périmètre, pas sur des mots identiques ni sur la forme de l'identifiant.",
         "Laisse suggestedCapabilityId à null uniquement lorsqu'aucune capacité publiée ne couvre entièrement la composante; conserve alors librement le sens, l'action et le domaine proposés. Le logiciel la gardera comprise mais non exécutable au lieu de la forcer dans une capacité proche.",
         "Ne fusionne pas deux composantes distinctes et n'en supprime aucune pour correspondre aux capacités actuelles du runtime.",
@@ -1951,7 +2076,7 @@ function buildRoleInstructions(request) {
     if (request.input?.task?.dialogueAct) {
       return [
         "Tu es un contrôleur sémantique non autoritaire de réplique PNJ.",
-        "Compare candidateNarration à dialogueAct, actorId, rawInput, priorNpcUtterances et dialogueHistory. Tu ne réécris pas la réplique et tu ne produis aucun fait de fiction.",
+        "Compare candidateNarration à dialogueAct, actorId, priorNpcUtterances et dialogueHistory. L'acte structuré est l'autorité sémantique; la saisie brute du joueur ne t'est pas transmise. Tu ne réécris pas la réplique et tu ne produis aucun fait de fiction.",
         "INITIATE_CONVERSATION autorise une salutation, une prise de contact ou une invitation prudente à parler; rejette toute prétendue question préalable ou réponse informative non demandée.",
         "ASK_QUESTION doit répondre au contentGoal, avouer une ignorance ou esquiver explicitement ce sujet; rejette une réponse provenant d'un autre sujet.",
         "MAKE_STATEMENT doit accuser réception du contentGoal sans le transformer en question posée par le joueur.",
@@ -2023,7 +2148,7 @@ function buildRoleInstructions(request) {
       "Avant d'écrire la prose, remplis reactionFrame: sourceDialogueAct recopie exactement task.dialogueAct.act, addressedContentGoal recopie exactement task.dialogueAct.contentGoal, et responseMode vaut respectivement ACKNOWLEDGE_CONTACT, ANSWER_QUESTION, ACKNOWLEDGE_STATEMENT, RESPOND_TO_REQUEST ou CAUTIOUS_RESPONSE.",
       "La réaction doit répondre au but sémantique du tour courant, ou exprimer clairement un refus, une ignorance ou une esquive portant sur ce but.",
       "Si task.informationDisclosure est fourni, applique exactement formulationInstruction, authorizedFacts, answerCoverage et allowedSourceRefs. Le profil conversationnel peut colorer la forme, mais ne peut sourcer aucune assertion ajoutée à cette réponse factuelle.",
-      "Respecte task.knowledgeEnvelope.visibleSituation et roleContextPack.spatialContext comme contraintes spatiales strictes. N'utilise jamais une autre scène, un autre lieu ou une autre entrée que ceux fournis.",
+      "Respecte task.knowledgeEnvelope.visibleSituation comme contrainte spatiale unique et stricte. N'utilise jamais une autre scène, un autre lieu ou une autre entrée que ceux fournis.",
       "Si visibleActor fournit demeanor, immediateGoal, currentPressure, speechStyle, conversationalHooks ou boundaries, incarne-les sans les réciter ni les présenter comme une fiche. Ils guident le ton, le rythme, les priorités et les limites du PNJ.",
       "Évite de répéter mot pour mot une formulation de priorNpcUtterances. Ne répète pas mécaniquement le nom ou la position d'un acteur déjà établi, par exemple 'près du garde', sauf si cette précision change réellement le sens.",
       "N'affirme jamais que le PNJ a déjà dit, promis, interdit, couvert ou expliqué quelque chose sauf si la réplique exacte apparaît dans task.knowledgeEnvelope.priorNpcUtterances.",
@@ -2547,7 +2672,7 @@ function validateSceneCreatorPayload(payload, request) {
     if (!payload || typeof payload !== "object" || Array.isArray(payload)) return ["payload must be an object."];
     if (Object.keys(payload).sort().join("|") !== expected.sort().join("|")) issues.push("payload keys do not match missing information proposal contract.");
     for (const key of ["proposalId", "propertyRef", "generatedValue"]) if (typeof payload[key] !== "string" || payload[key].trim().length === 0) issues.push(`payload.${key} must be non-empty.`);
-    const target = request?.input?.roleContextPack?.target;
+    const target = projectedRoleContext(request).target;
     if (payload.propertyRef !== target?.propertyRef) issues.push("payload.propertyRef escaped the authorized target.");
     if (payload.valueKind !== target?.valueKind || !["TEXT", "IDENTITY"].includes(payload.valueKind)) issues.push("payload.valueKind escaped the authorized target.");
     if (payload.authority !== "PROPOSE_ONLY_NO_COMMIT") issues.push("payload.authority is invalid.");
@@ -2584,8 +2709,9 @@ function validateSceneCreatorPayload(payload, request) {
   if (!["REUSE", "ENRICH", "CREATE_DISTINCT", "POSSIBLE_SAME_AS", "REJECT_IF_SIMILAR"].includes(payload.duplicatePolicy)) {
     issues.push("payload.duplicatePolicy is invalid.");
   }
-  const allowedParentLocationRefs = Array.isArray(request?.input?.roleContextPack?.allowedParentLocationRefs)
-    ? request.input.roleContextPack.allowedParentLocationRefs
+  const context = projectedRoleContext(request);
+  const allowedParentLocationRefs = Array.isArray(context.allowedParentLocationRefs)
+    ? context.allowedParentLocationRefs
     : [];
   if (allowedParentLocationRefs.length > 0 && !allowedParentLocationRefs.includes(payload.parentLocationRef)) {
     issues.push("payload.parentLocationRef is not allowed by the scene creator context.");
@@ -3120,10 +3246,13 @@ module.exports = {
   buildServerRoute,
   buildStrictAiOutputSchema,
   buildOpenAiResponsesBody,
+  buildServerTelemetry,
   createNarrativeOpenAiEnhancementApi,
   errorEnvelope,
+  measureOpenAiInputBudget,
   normalizeAiCallRequest,
   normalizeProviderEnvelope,
+  prepareOpenAiInputWithinBudget,
   sanitizeProviderErrorText,
   validateEnvelope,
   validateRolePayload

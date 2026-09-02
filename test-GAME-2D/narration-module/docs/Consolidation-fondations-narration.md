@@ -614,7 +614,7 @@ opportunément `GameBoard`.
 
 ### J10 — Intégration narrative immersive
 
-Statut : `J10-A À J10-I FERMÉS — J10-J OUVERT`
+Statut : `J10-A À J10-I FERMÉS — J10-J PAUSÉ APRÈS J3 — J10-K OUVERT`
 
 J10 rend la verticale J1 à J9 entièrement
 pilotable depuis la saisie narrative sans carte de voyage, panneau de commande
@@ -676,9 +676,11 @@ G4 réunit désormais dans `interpreter-embodied-public-context/1` le profil
 joueur explicitement public, les références nommables, les connaissances
 acquises, la scène, l'interlocuteur, les focus et intentions récents, les
 compagnons présents, les capacités et le processus actif. Pour V8, cet objet
-unique remplace les blocs historiques dupliqués et entre dans l'empreinte de
-contexte. Les champs sont bornés et les canaris privés sont absents de la
-requête. G5 livre désormais `open-semantic-execution-plan/1` : seules les
+était destiné à remplacer les blocs historiques dupliqués et entre dans
+l'empreinte de contexte. Le diagnostic J10-K a toutefois établi qu'une copie
+résiduelle de la scène subsiste dans `roleContextPack`; sa suppression appartient
+à K2. Les champs sont bornés et les canaris privés sont absents de la requête.
+G5 livre désormais `open-semantic-execution-plan/1` : seules les
 correspondances exactes entre capacité et domaine publics deviennent routables,
 chaque propriétaire prévalide son étape sans recevoir la saisie brute, et tout
 arrêt interdit les étapes suivantes tout en conservant les reçus antérieurs.
@@ -803,6 +805,58 @@ réelle « Qui est le roi ? », le quatrième rôle seulement conditionnel, deux
 concurrence, replay, IndexedDB et reload sont couverts. J10-J4
 ouvre l'acte directeur composé. Le plan et l'ordre des corrections sont fixés dans
 [`Plan-correction-resolution-institutionnelle-J10J.md`](Plan-correction-resolution-institutionnelle-J10J.md).
+
+J10-K est ouvert le 2026-09-01 après qu'une question courte adressée au garde,
+« qui gouverne le pays ? », a produit une fausse clarification malgré la
+présence d'Astryade et de la relation territoriale dans le catalogue public.
+Le diagnostic montre aussi 8 900 tokens d'entrée pour un budget déclaré de
+2 000 et une duplication de la scène entre `roleContextPack` et
+`task.embodiedContext`. J10-K ne crée ni nouveau registre persistant, ni
+hiérarchie géographique concurrente : il compose un manifeste éphémère depuis
+les projecteurs propriétaires existants, puis fournit à chaque rôle une
+projection unique, minimale, confidentielle et réellement bornée. L'ordre K0 à
+K6 couvre baseline mesurée, contrat, interpréteur, autres rôles, budgets,
+frontières transverses et certification. J10-J4 reprend après K6 et J10-J5
+dépend des deux lots. Le plan approuvé est dans
+[`Plan-contexte-narratif-par-role-J10K.md`](Plan-contexte-narratif-par-role-J10K.md).
+J10-K0 est fermé : une fixture publique anonymisée de la scène réelle mesure
+18 050 caractères applicatifs et un corps fournisseur complet de 33 704
+caractères, estimé à 8 426 tokens contre 2 000 déclarés. Le catalogue utile
+occupe 7 726 caractères ; l'identité de scène et les trois acteurs ambiants sont
+dupliqués entre `roleContextPack` et `embodiedContext`. La sortie fautive est
+rejouée sans appel live et les oracles pays, ville, région, interlocuteur actif
+et ambiguïté réelle sont figés. K1 ouvre maintenant le contrat passif du
+manifeste et la matrice d'autorité. Les mesures et limites sont dans
+[`Checkpoint-baseline-contexte-J10K0.md`](Checkpoint-baseline-contexte-J10K0.md).
+J10-K1 est fermé : le contrat passif `narrative-context-manifest/1` référence
+les projections sans leur contenu et fixe propriétaire, contrat, provenance,
+classification, rôles autorisés, cohérence de snapshot, coût déclaré et graphe
+de dépendances. Sept profils couvrent interprétation, performance PNJ, rendu de
+scène, création de lieu, création factuelle, critique et destination. Le carnet
+privé et les secrets MJ restent interdits à toute IA ; la saisie brute est
+réservée à l'interpréteur. K2 raccorde maintenant ce manifeste à
+l'interpréteur. Voir
+[`Contrat-manifeste-contexte-narratif-J10K1.md`](Contrat-manifeste-contexte-narratif-J10K1.md)
+et [`Checkpoint-manifeste-contexte-J10K1.md`](Checkpoint-manifeste-contexte-J10K1.md).
+J10-K2 est fermé : le manifeste réel est construit et validé localement sans
+être envoyé en doublon. `roleContextPack` passe de 2 904 à 177 caractères et ne
+contient plus ni scène ni acteur. Le catalogue public devient une projection
+tabulaire réversible de 5 153 caractères contre 7 726, sans perdre ses 7
+sujets, 18 propriétés ou 12 relations. Le corps fournisseur passe de 33 704 à
+28 164 caractères ; le dépassement de budget restant appartient à K4. Une gate
+simulée transporte « le pays » vers Astryade sans routeur lexical et conserve
+les autorités G5. K3 ouvre les projections minimales des autres rôles. Voir
+[`Checkpoint-projection-interpreteur-J10K2.md`](Checkpoint-projection-interpreteur-J10K2.md).
+J10-K3 est fermé : performer PNJ, writer de scène, créateurs de lieu, intrigue
+et fait public, ainsi que leurs critiques, utilisent un manifeste local validé
+et une seule projection réseau. Le performer et les critiques de dialogue ne
+reçoivent plus la saisie brute ; le writer reçoit le résultat arbitré et la
+scène active, sans plan MJ complet. La détection lexicale de population visible
+est supprimée au profit de `semanticIntent.perception.informationKind`. Les
+connaissances PNJ restent limitées à leur acteur et les commits restent chez les
+propriétaires. K4 ouvre maintenant la mesure et l'application réelle des
+budgets. Voir
+[`Checkpoint-projections-roles-J10K3.md`](Checkpoint-projections-roles-J10K3.md).
 
 Le compagnon tactique, la génération de carte et le placement multi-acteurs
 appartiennent au futur chantier tactique décrit par le guide J8. Leur absence ne

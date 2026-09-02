@@ -32,7 +32,7 @@ function request(overrides = {}) {
       task: { rawPlayerText: "Je dis au garde que je cherche les archives" }
     },
     limits: {
-      inputTokenBudget: 800,
+      inputTokenBudget: 3_000,
       outputTokenBudget: 400,
       timeoutMs: 1_000
     },
@@ -114,6 +114,7 @@ function intentRequest(overrides = {}) {
     packId: "pack-route-intent-001",
     role: "player_intent_interpreter",
     contractVersion: "ai-intent-interpretation/1",
+    limits: { inputTokenBudget: 8_000, outputTokenBudget: 900, timeoutMs: 30_000 },
     input: {
       instructionsRef: "ai-intent-interpretation/player-intent-interpreter/v1",
       roleContextPack: {
@@ -191,6 +192,7 @@ function mjPlannerRequest(overrides = {}) {
     packId: "pack-route-mj-planner-001",
     role: "mj_planner",
     contractVersion: "mj-planner/1",
+    limits: { inputTokenBudget: 4_000, outputTokenBudget: 1_000, timeoutMs: 30_000 },
     input: {
       instructionsRef: "mj-planner/minimal/v1",
       roleContextPack: {
@@ -290,6 +292,7 @@ function npcPerformerRequest(overrides = {}) {
     packId: "pack-route-npc-performer-001",
     role: "npc_performer",
     contractVersion: "npc-performer/1",
+    limits: { inputTokenBudget: 8_000, outputTokenBudget: 2_000, timeoutMs: 30_000 },
     input: {
       instructionsRef: "npc-performer/minimal/v1",
       roleContextPack: {
@@ -544,7 +547,7 @@ function sceneCreatorRequest(overrides = {}) {
     role: "scene_creator",
     contractVersion: "lore-guided-place-candidate/1",
     input: { instructionsRef: "scene-creator/lore-guided-place/v1", roleContextPack: { brief: {}, allowedParentLocationRefs: ["location:quartier_des_archives"], allowedPersistenceDepths: ["LIGHT_REFERENCE", "FULL_ENTITY"] }, task: { requiredOutput: "lore-guided-place-candidate/1" } },
-    limits: { inputTokenBudget: 2_000, outputTokenBudget: 1_500, timeoutMs: 30_000 },
+    limits: { inputTokenBudget: 8_000, outputTokenBudget: 1_500, timeoutMs: 30_000 },
     ...overrides
   });
 }
@@ -570,7 +573,7 @@ function destinationArbiterRequest(overrides = {}) {
       },
       task: { requiredOutput: "destination-plausibility-arbitration/1" }
     },
-    limits: { inputTokenBudget: 2_000, outputTokenBudget: 800, timeoutMs: 30_000 },
+    limits: { inputTokenBudget: 8_000, outputTokenBudget: 800, timeoutMs: 30_000 },
     ...overrides
   });
 }
@@ -621,7 +624,7 @@ function semanticIntentRequestV3(overrides = {}) {
       roleContextPack: {},
       task: { rawInput: "Je m'avance vers l'archiviste, puis je le salue.", outputContract: "ai-intent-semantic/3" }
     },
-    limits: { inputTokenBudget: 1_000, outputTokenBudget: 900, timeoutMs: 30_000 },
+    limits: { inputTokenBudget: 8_000, outputTokenBudget: 900, timeoutMs: 30_000 },
     ...overrides
   });
 }
@@ -634,7 +637,7 @@ function semanticIntentRequestV4(overrides = {}) {
       roleContextPack: {},
       task: { rawInput: "Je cherche un archiviste pour poursuivre mes recherches.", outputContract: "ai-intent-semantic/4" }
     },
-    limits: { inputTokenBudget: 1_000, outputTokenBudget: 900, timeoutMs: 30_000 },
+    limits: { inputTokenBudget: 8_000, outputTokenBudget: 900, timeoutMs: 30_000 },
     ...overrides
   });
 }
@@ -647,7 +650,7 @@ function semanticIntentRequestV5(overrides = {}) {
       roleContextPack: {},
       task: { rawInput: "Je remercie l'archiviste puis je m'écarte.", outputContract: "ai-intent-semantic/5" }
     },
-    limits: { inputTokenBudget: 1_000, outputTokenBudget: 900, timeoutMs: 30_000 },
+    limits: { inputTokenBudget: 8_000, outputTokenBudget: 900, timeoutMs: 30_000 },
     ...overrides
   });
 }
@@ -664,7 +667,7 @@ function semanticIntentRequestV6(overrides = {}) {
         outputContract: "ai-intent-semantic/6"
       }
     },
-    limits: { inputTokenBudget: 1_000, outputTokenBudget: 900, timeoutMs: 30_000 },
+    limits: { inputTokenBudget: 8_000, outputTokenBudget: 900, timeoutMs: 30_000 },
     ...overrides
   });
 }
@@ -681,7 +684,7 @@ function semanticIntentRequestV7(overrides = {}) {
         outputContract: "ai-intent-semantic/7"
       }
     },
-    limits: { inputTokenBudget: 1_000, outputTokenBudget: 900, timeoutMs: 30_000 },
+    limits: { inputTokenBudget: 8_000, outputTokenBudget: 900, timeoutMs: 30_000 },
     ...overrides
   });
 }
@@ -953,7 +956,7 @@ async function main() {
     attemptId: "attempt-route-scene-001",
     role: "scene_writer",
     limits: {
-      inputTokenBudget: 900,
+      inputTokenBudget: 4_000,
       outputTokenBudget: 1_200,
       timeoutMs: 1_000
     },

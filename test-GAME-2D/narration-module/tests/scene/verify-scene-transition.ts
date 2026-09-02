@@ -529,7 +529,6 @@ async function verifyPrototypeVerticalTransition(): Promise<void> {
   assert.equal(result.value.output.sceneArrival?.enteredAtGameSecond, 8);
   assert.equal(result.value.output.displayPacket.displayBlocks.some(block => block.kind === "GM_NARRATION" && block.text.includes("Arrière-salle")), true);
   const arrivalBrief = buildActiveSceneNarrativeBriefV1({
-    rawInput: "Je franchis la porte du fond et entre dans l'arrière-salle.",
     interpretation: result.value.output.interpretation,
     resolution: result.value.output.resolution,
     activeScene: PROTOTYPE_INN_BACK_ROOM_SCENE_V1,
@@ -569,7 +568,7 @@ async function verifyPrototypeVerticalTransition(): Promise<void> {
   assert.equal(returned.value.output.sceneArrival?.scene.sceneId, "reference-inn-rain-001");
   assert.equal(returned.value.output.sceneArrival?.enteredAtGameSecond, 16);
   assert.deepEqual(observedSceneIds, ["reference-inn-rain-001", "reference-inn-back-room-001", "reference-inn-back-room-001", "reference-inn-back-room-001", "reference-inn-back-room-001"]);
-  const brief = buildActiveSceneNarrativeBriefV1({ rawInput: "Que vois-je ici ?", interpretation: next.value.output.interpretation, resolution: next.value.output.resolution, activeScene: PROTOTYPE_INN_BACK_ROOM_SCENE_V1, priorDisplayPackets: [result.value.output.displayPacket, next.value.output.displayPacket] });
+  const brief = buildActiveSceneNarrativeBriefV1({ interpretation: next.value.output.interpretation, resolution: next.value.output.resolution, activeScene: PROTOTYPE_INN_BACK_ROOM_SCENE_V1, priorDisplayPackets: [result.value.output.displayPacket, next.value.output.displayPacket] });
   const pack = await buildActiveSceneContextPackV1({ campaignId: "cmp-narrative-prototype", operationId: next.value.output.operationId, packId: "pack-active-scene-test", snapshotId: "snapshot-active-scene-test", activeScene: PROTOTYPE_INN_BACK_ROOM_SCENE_V1, brief, priorDisplayPackets: [result.value.output.displayPacket, next.value.output.displayPacket] });
   assert.equal(pack.blocks.some(block => block.text.includes("Garde blessé")), false, "l'ancienne scène ne doit pas entrer dans le contexte du writer");
   assert.equal(validateActiveSceneNarrativeCandidateV1({ brief, groundedIn: brief.allowedGrounding, factDiscipline: { addedUnsupportedFacts: [], usesOnlyProvidedVisibleEntities: true, noNewEvents: true, noHiddenPresence: true } }).ok, true);

@@ -19,6 +19,7 @@ import {
 import type { ReferenceSceneStateV1 } from "./referenceSceneState";
 import { REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1, type PlayableSceneStateV1 } from "./playableScene";
 import { buildActiveSceneContextPackV1, buildActiveSceneNarrativeBriefV1, validateActiveSceneNarrativeCandidateV1 } from "./activeSceneNarrative";
+import { prepareNarrativeRoleContextV1 } from "./narrativeContextManifest";
 
 export const NARRATIVE_AI_RESOLUTION_CONTRACT_VERSION_V1 = "narrative-ai-resolution/1" as const;
 
@@ -97,7 +98,7 @@ export async function enhanceNarrativeDisplayWithAiV1(input: {
           }
         },
         limits: {
-          inputTokenBudget: 800,
+          inputTokenBudget: input.config.expressionRoute.inputTokenLimit,
           outputTokenBudget: 800,
           timeoutMs: input.config.expressionRoute.timeoutMs
         }
@@ -109,8 +110,44 @@ export async function enhanceNarrativeDisplayWithAiV1(input: {
     if (payload && payload.safeToUse === true && payload.addedMeaning.length === 0 && payload.renderedExpression.trim().length > 0) {
       let expressionAuthorized = true;
       if (input.config.coherenceCriticRoute) {
-        const renderAuthority = buildPlayerExpressionRenderAuthorityV1(input.resolution, input.displayPacket);
-        const criticContext = { renderAuthority } satisfies JsonObject;
+        const renderAuthority = buildPlayerExpressionRenderAuthorityV1(input.resolution);
+        const criticTask = {
+          candidateNarration: [payload.renderedExpression],
+          renderAuthority
+        };
+        const preparedCriticContext = prepareNarrativeRoleContextV1({
+          manifestId: `${input.operationId}:context-manifest:expression-critic`,
+          operationId: input.operationId,
+          campaignId: input.campaignId,
+          snapshot: {
+            snapshotId: `${input.operationId}:snapshot:display`,
+            campaignRevision: null,
+            sceneId: null,
+            sceneVersion: null
+          },
+          role: "coherence_critic",
+          profileId: `${input.operationId}:player-expression-coherence-review`,
+          purpose: "Comparer l'expression candidate à son autorité de rendu sans la réécrire.",
+          taskContextRef: "task",
+          authority: "PLAYER_EXPRESSION_FIDELITY",
+          projections: [{
+            projectionKey: "candidate-output",
+            kind: "CANDIDATE_OUTPUT",
+            payload: criticTask.candidateNarration,
+            ownerId: "application/player-expression-adapter",
+            sourceRefs: [`ai-output:${expressionRun.acceptedOutput?.outputId ?? "unknown"}`],
+            sourceVersion: "narrative-ai-resolution/1",
+            required: true
+          }, {
+            projectionKey: "resolution-evidence",
+            kind: "RESOLUTION_EVIDENCE",
+            payload: renderAuthority,
+            ownerId: "application/narrative-render-authority",
+            sourceRefs: [`resolution:${input.resolution.resolutionId}`],
+            sourceVersion: "player-expression-render-authority/1",
+            required: true
+          }]
+        });
         const criticRun = await runAiPipelineCallV1({
           provider: input.config.provider,
           route: input.config.coherenceCriticRoute,
@@ -126,18 +163,18 @@ export async function enhanceNarrativeDisplayWithAiV1(input: {
             role: "coherence_critic",
             contractVersion: NARRATIVE_AI_RESOLUTION_CONTRACT_VERSION_V1,
             modelRouteId: input.config.coherenceCriticRoute.routeId,
-            contextFingerprint: await computeJsonFingerprint(criticContext) as `sha256:${string}`,
+            contextFingerprint: await computeJsonFingerprint({
+              contextManifest: preparedCriticContext.manifest,
+              task: criticTask
+            }) as `sha256:${string}`,
             idempotencyKey: `${input.operationId}:ai:expression-critic`,
             input: {
               instructionsRef: "narrative-ai-resolution/coherence-critic/player-expression-authority/v1",
-              roleContextPack: criticContext,
-              task: {
-                candidateNarration: [payload.renderedExpression],
-                renderAuthority
-              }
+              roleContextPack: preparedCriticContext.roleContextPack,
+              task: criticTask
             },
             limits: {
-              inputTokenBudget: 700,
+              inputTokenBudget: input.config.coherenceCriticRoute.inputTokenLimit,
               outputTokenBudget: Math.min(1_600, input.config.coherenceCriticRoute.outputTokenLimit),
               timeoutMs: input.config.coherenceCriticRoute.timeoutMs
             }
@@ -172,7 +209,6 @@ export async function enhanceNarrativeDisplayWithAiV1(input: {
     const packId = `${input.operationId}:pack:scene-writer`;
     const activeScene = input.activeScene ?? REFERENCE_INN_RAIN_PLAYABLE_SCENE_V1;
     const sceneTask = buildActiveSceneNarrativeBriefV1({
-      rawInput: findRawInput(input.displayPacket),
       interpretation: input.resolution.interpretation,
       resolution: input.resolution,
       activeScene,
@@ -188,13 +224,55 @@ export async function enhanceNarrativeDisplayWithAiV1(input: {
       brief: sceneTask,
       priorDisplayPackets: input.priorDisplayPackets
     });
-    const sceneContextPack = {
-      ...baseSceneContextPack,
-      mjPlan: input.mjPlan ?? null
-    } as unknown as JsonObject;
-    const sceneContextFingerprint =
-      await computeJsonFingerprint(sceneContextPack) as `sha256:${string}`;
     const renderAuthority = buildNarrativeRenderAuthorityV1(input.resolution, input.displayPacket);
+    const sceneProjection = {
+      schemaVersion: 1,
+      contractVersion: "scene-writer-public-projection/1",
+      perspective: baseSceneContextPack.perspective,
+      dependencyVersions: baseSceneContextPack.dependencyVersions,
+      creativeScope: baseSceneContextPack.creativeScope,
+      blocks: baseSceneContextPack.blocks,
+      authority: "PRESENTATION_ONLY"
+    };
+    const sceneWriterTask = {
+      ...sceneTask,
+      sceneContext: sceneProjection,
+      renderAuthority
+    };
+    const preparedSceneContext = prepareNarrativeRoleContextV1({
+      manifestId: `${input.operationId}:context-manifest:scene-writer`,
+      operationId: input.operationId,
+      campaignId: input.campaignId,
+      snapshot: { snapshotId, campaignRevision: null, sceneId: activeScene.sceneId, sceneVersion: activeScene.version },
+      role: "scene_writer",
+      profileId: `${input.operationId}:resolved-scene-render`,
+      purpose: "Rendre uniquement les conséquences visibles déjà arbitrées dans la scène active.",
+      taskContextRef: "task",
+      authority: "PRESENTATION_ONLY",
+      projections: [{
+        projectionKey: "resolved-turn",
+        kind: "RESOLVED_TURN",
+        payload: { brief: sceneTask, renderAuthority },
+        ownerId: "application/narrative-resolution",
+        sourceRefs: [`resolution:${input.resolution.resolutionId}`],
+        sourceVersion: "narrative-resolution/1",
+        required: true
+      }, {
+        projectionKey: "scene-visible",
+        kind: "SCENE_VISIBLE",
+        payload: sceneProjection,
+        ownerId: "application/active-scene-narrative",
+        sourceRefs: [`playable-scene:${activeScene.sceneId}:${activeScene.version}`],
+        consistency: "SCENE_REVISION",
+        sourceVersion: "active-scene-narrative-context/1",
+        required: true
+      }]
+    });
+    const sceneContextPack = preparedSceneContext.roleContextPack;
+    const sceneContextFingerprint = await computeJsonFingerprint({
+      contextManifest: preparedSceneContext.manifest,
+      task: sceneWriterTask
+    }) as `sha256:${string}`;
     const sceneRun = await runAiPipelineCallV1({
       provider: input.config.provider,
       route: input.config.sceneWriterRoute,
@@ -215,14 +293,10 @@ export async function enhanceNarrativeDisplayWithAiV1(input: {
         input: {
           instructionsRef: "narrative-ai-resolution/scene-writer/active-scene/v1",
           roleContextPack: sceneContextPack,
-          task: {
-            ...sceneTask,
-            mjPlan: input.mjPlan ?? null,
-            renderAuthority
-          }
+          task: sceneWriterTask
         },
         limits: {
-          inputTokenBudget: 900,
+          inputTokenBudget: input.config.sceneWriterRoute.inputTokenLimit,
           outputTokenBudget: Math.min(2_500, input.config.sceneWriterRoute.outputTokenLimit),
           timeoutMs: input.config.sceneWriterRoute.timeoutMs
         }
@@ -268,6 +342,39 @@ export async function enhanceNarrativeDisplayWithAiV1(input: {
       input.config.coherenceCriticRoute &&
       requiresNarrativeCoherenceCriticV1(renderAuthority)
     ) {
+      const criticTask = {
+        candidateNarration: narrativeBlocks.map(block => block.content),
+        renderAuthority
+      };
+      const preparedCriticContext = prepareNarrativeRoleContextV1({
+        manifestId: `${input.operationId}:context-manifest:scene-critic`,
+        operationId: input.operationId,
+        campaignId: input.campaignId,
+        snapshot: { snapshotId, campaignRevision: null, sceneId: activeScene.sceneId, sceneVersion: activeScene.version },
+        role: "coherence_critic",
+        profileId: `${input.operationId}:scene-coherence-review`,
+        purpose: "Comparer le rendu candidat aux seules affirmations et contraintes déjà arbitrées.",
+        taskContextRef: "task",
+        authority: "RENDER_AUTHORITY_REVIEW_ONLY",
+        projections: [{
+          projectionKey: "candidate-output",
+          kind: "CANDIDATE_OUTPUT",
+          payload: criticTask.candidateNarration,
+          ownerId: "application/scene-writer",
+          sourceRefs: [input.operationId + ":scene-writer-candidate"],
+          sourceVersion: "scene-writer-output/1",
+          required: true
+        }, {
+          projectionKey: "resolution-evidence",
+          kind: "RESOLUTION_EVIDENCE",
+          payload: renderAuthority,
+          ownerId: "application/narrative-render-authority",
+          sourceRefs: [`resolution:${input.resolution.resolutionId}`],
+          consistency: "SCENE_REVISION",
+          sourceVersion: "narrative-render-authority/1",
+          required: true
+        }]
+      });
       const criticRun = await runAiPipelineCallV1({
         provider: input.config.provider,
         route: input.config.coherenceCriticRoute,
@@ -283,18 +390,18 @@ export async function enhanceNarrativeDisplayWithAiV1(input: {
           role: "coherence_critic",
           contractVersion: NARRATIVE_AI_RESOLUTION_CONTRACT_VERSION_V1,
           modelRouteId: input.config.coherenceCriticRoute.routeId,
-          contextFingerprint: sceneContextFingerprint,
+          contextFingerprint: await computeJsonFingerprint({
+            contextManifest: preparedCriticContext.manifest,
+            task: criticTask
+          }) as `sha256:${string}`,
           idempotencyKey: `${input.operationId}:ai:coherence-critic`,
           input: {
             instructionsRef: "narrative-ai-resolution/coherence-critic/render-authority/v1",
-            roleContextPack: { renderAuthority },
-            task: {
-              candidateNarration: narrativeBlocks.map(block => block.content),
-              renderAuthority
-            }
+            roleContextPack: preparedCriticContext.roleContextPack,
+            task: criticTask
           },
           limits: {
-            inputTokenBudget: 900,
+            inputTokenBudget: input.config.coherenceCriticRoute.inputTokenLimit,
             outputTokenBudget: Math.min(1_600, input.config.coherenceCriticRoute.outputTokenLimit),
             timeoutMs: input.config.coherenceCriticRoute.timeoutMs
           }
@@ -322,7 +429,7 @@ export async function enhanceNarrativeDisplayWithAiV1(input: {
       enhanced.reconstructionRefs = [
         ...enhanced.reconstructionRefs,
         `ai-output:${sceneRun.acceptedOutput?.outputId ?? "unknown"}`,
-        `ai-context:${sceneContextPack.packId}`,
+        `ai-context:${packId}`,
         `playable-scene:${activeScene.sceneId}:${activeScene.version}`
       ];
       changed = true;
@@ -511,8 +618,7 @@ export interface NarrativeEphemeralTexturePolicyV1 extends JsonObject {
 }
 
 export function buildPlayerExpressionRenderAuthorityV1(
-  resolution: NarrativeResolutionResultV1,
-  displayPacket: DisplayPacketV1
+  resolution: NarrativeResolutionResultV1
 ): NarrativeRenderAuthorityV1 {
   const semantic = resolution.interpretation.semanticIntent;
   const target = resolution.interpretation.referentResolution?.resolvedTarget ?? semantic.target;
@@ -527,13 +633,12 @@ export function buildPlayerExpressionRenderAuthorityV1(
       schemaVersion: 1,
       claimId: "player-expression-source",
       category: "SOURCE_FACT",
-      text: findRawInput(displayPacket),
+      text: semantic.playerGoal,
       sourceRefs: [`intent:${resolution.interpretation.intentId}`]
     }],
     allowedActorReactionRefs: [],
     texturePolicy: texturePolicy(false),
     confirmedClaims: [
-      `Texte original du joueur: ${findRawInput(displayPacket)}`,
       `Intention canonique: ${semantic.kind}.`,
       `Engagement exprimé: ${semantic.commitment}.`,
       ...(semantic.perception === null ? [] : [`Profondeur perceptive: ${semantic.perception.depth}.`])
@@ -743,10 +848,6 @@ function isNoCommitSceneContext(resolution: NarrativeResolutionResultV1, display
       block.kind === "GM_NARRATION" &&
       block.sourceRefs.some(ref => ref.includes(":meta-answer"))
     );
-}
-
-function findRawInput(displayPacket: DisplayPacketV1): string {
-  return displayPacket.displayBlocks.find(block => block.kind === "RAW_INPUT")?.text ?? "";
 }
 
 function assessSceneWriterBlock(

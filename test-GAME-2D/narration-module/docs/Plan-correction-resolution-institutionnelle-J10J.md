@@ -1,6 +1,6 @@
 # Plan de correction sémantique et institutionnelle J10-J
 
-Statut : `EN EXÉCUTION — J10-J0 À J10-J3 FERMÉS, J10-J4 OUVERT`
+Statut : `J10-J0 À J10-J3 FERMÉS — J10-J4 PLANIFIÉ APRÈS J10-K6`
 
 Date d'ouverture : 2026-08-31
 
@@ -79,8 +79,8 @@ performer.
 | J10-J1 — graphe institutionnel générique | `FERMÉ` | [`Checkpoint-graphe-semantique-information-J10J1.md`](Checkpoint-graphe-semantique-information-J10J1.md) |
 | J10-J2 — réponse partielle | `FERMÉ` | [`Checkpoint-reponse-partielle-information-J10J2.md`](Checkpoint-reponse-partielle-information-J10J2.md) |
 | J10-J3 — création contrôlée | `FERMÉ` | [`Checkpoint-creation-controlee-information-J10J3.md`](Checkpoint-creation-controlee-information-J10J3.md) |
-| J10-J4 — acte directeur composé | `EN COURS` | question + justification conserve `ASK_QUESTION` |
-| J10-J5 — certification produit | `PRÉVU` | corpus sans phrases imposées, Chromium, propriétaires, budgets et build |
+| J10-J4 — acte directeur composé | `PLANIFIÉ APRÈS J10-K6` | question + justification conserve `ASK_QUESTION` |
+| J10-J5 — certification produit | `PRÉVU APRÈS J10-J4 ET J10-K6` | corpus sans phrases imposées, Chromium, propriétaires, budgets et build |
 
 ## J10-J0 — Contrat sémantique ouvert
 
@@ -135,6 +135,11 @@ seul profil conversationnel sont couverts par la gate J3.
 Un groupe social atomique peut contenir une question et une justification. Son
 acte directeur est fourni par la structure ordonnée, pas redéduit du texte. Les
 autres déclarations restent disponibles comme contexte.
+
+Son implémentation reprend après la stabilisation du contexte par J10-K6 afin
+de ne pas certifier la composition sociale sur un paquet V8 encore dupliqué et
+dont le budget déclaré n'est pas appliqué. Ce report ne modifie ni le contrat
+`ASK_QUESTION`, ni l'interdiction de relire la prose.
 
 ## J10-J5 — Fermeture
 

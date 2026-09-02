@@ -55,6 +55,7 @@ export * from "./narrativeResolution";
 export * from "./localInteractionFocus";
 export * from "./openSemanticFidelity";
 export * from "./narrativeAiRoleStrategy";
+export * from "./narrativeContextManifest";
 export * from "./narrativeDesignation";
 export * from "./narrativeRenderProjection";
 export * from "./npcPerforming";
